@@ -2,7 +2,8 @@
 
 A battery on a phase adds its charging power to the import on that phase, and
 its discharging power to the export. The current on a phase may not exceed the
-connection's maximum current (e.g. 3x25A), minus a safety margin:
+connection's maximum current (e.g. 3x25A), minus a safety margin (option
+``phase_margin``, % of the fuse rating, the same for all phases):
 
     load_p + charge_p    <= limit
     discharge_p - load_p <= limit
@@ -21,15 +22,13 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
-from ..const import NOMINAL_VOLTAGE, phase_index
+from ..const import DEFAULT_PHASE_MARGIN, NOMINAL_VOLTAGE, phase_index
 from ..inputs.batteries import BatteryConfig
 
-PHASE_MARGIN = 0.9  # use at most 90 % of the fuse rating
 
-
-def phase_limit_w(max_current: float) -> float:
-    """Maximum power per phase, including the safety margin."""
-    return max_current * NOMINAL_VOLTAGE * PHASE_MARGIN
+def phase_limit_w(max_current: float, margin: float = DEFAULT_PHASE_MARGIN) -> float:
+    """Maximum power per phase, keeping ``margin`` % of the fuse rating free."""
+    return max_current * NOMINAL_VOLTAGE * (1 - margin / 100)
 
 
 @dataclass(frozen=True, slots=True)

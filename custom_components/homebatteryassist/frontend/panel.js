@@ -30,7 +30,7 @@ const TEXT = {
     phase: "Phase",
     allPhases: "all phases",
     withVirtual: "with virtual batteries",
-    phaseLimit: "limit {a} A (fuse with 10% margin)",
+    phaseLimit: "limit {a} A (fuse with {m}% margin)",
     idle: "idle",
     planning: "Planning",
     planningUntil: "Can plan {hours} h ahead, until {end}",
@@ -140,7 +140,7 @@ const TEXT = {
     phase: "Fase",
     allPhases: "alle fasen",
     withVirtual: "met virtuele batterijen",
-    phaseLimit: "grens {a} A (zekering met 10% marge)",
+    phaseLimit: "grens {a} A (zekering met {m}% marge)",
     idle: "rust",
     planning: "Planning",
     planningUntil: "Kan {hours} uur vooruit plannen, tot {end}",
@@ -542,7 +542,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         <span class="muted"><b>${this._power(power)}</b> · ${current == null ? "–" : `${current} A`} / ${s.max_current} A</span>
         ${who.length || withVirtual ? `<div class="who">${who.join("")}${withVirtual}</div>` : ""}</div>`);
     }
-    const limit = s.phase_limit_a ? ` <small class="muted">· ${esc(t.phaseLimit.replace("{a}", s.phase_limit_a))}</small>` : "";
+    const limit = s.phase_limit_a ? ` <small class="muted">· ${esc(t.phaseLimit.replace("{a}", s.phase_limit_a).replace("{m}", s.phase_margin ?? 10))}</small>` : "";
     return `<div class="card"><h2>${esc(t.phases)} · ${s.phases}x${s.max_current}A${limit}</h2><div class="phases">${rows.join("")}</div></div>`;
   }
 

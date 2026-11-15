@@ -154,7 +154,7 @@ def test_simulator_holds_virtual_batteries_within_limit(hass: HomeAssistant) -> 
         hass,
         SimpleNamespace(configs=[config]),
         SimpleNamespace(flow=flow, max_current=25),
-        SimpleNamespace(balance_interval=timedelta(hours=1)),
+        SimpleNamespace(balance_interval=timedelta(hours=1), phase_margin=10),
         SimpleNamespace(async_log=lambda *a, **kw: logged.append((a, kw))),
     )
     assert sim._phase_limited({"v1": 2500.0}, T0) == {"v1": 675.0}
@@ -169,3 +169,8 @@ def test_simulator_holds_virtual_batteries_within_limit(hass: HomeAssistant) -> 
     }
     sim._phase_limited({"v1": 2500.0}, T0 + timedelta(minutes=7))
     assert [a[1] for a, _ in logged] == ["phase_limit", "phase_limit_cleared"]
+
+
+def test_margin_is_configurable() -> None:
+    assert phase_limit_w(25, 0) == 5750.0
+    assert phase_limit_w(25, 20) == 4600.0

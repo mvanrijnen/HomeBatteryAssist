@@ -101,8 +101,11 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
         "phases": len(data.measurements.grid_phases),
         "max_current": data.measurements.max_current,
         "phase_limit_a": round(
-            phase_limit_w(data.measurements.max_current) / NOMINAL_VOLTAGE, 1
+            phase_limit_w(data.measurements.max_current, data.forecast.phase_margin)
+            / NOMINAL_VOLTAGE,
+            1,
         ),
+        "phase_margin": data.forecast.phase_margin,
         "has_pv": bool(data.measurements.pv_sensors),
         "has_pv_forecast": bool(data.forecast.pv_entries),
         "pv_forecast_now_w": data.forecast.data.pv_now_w,

@@ -39,6 +39,7 @@ from ..const import (
     CONF_FULL_CHARGE_WINDOW,
     CONF_MAX_CURRENT,
     CONF_MIN_BATTERY_POWER,
+    CONF_PHASE_MARGIN,
     CONF_PHASES,
     CONF_PLAN_MODE,
     CONF_PLANNING_HORIZON,
@@ -50,6 +51,7 @@ from ..const import (
     DEFAULT_FORECAST_INTERVAL,
     DEFAULT_FULL_CHARGE_WINDOW,
     DEFAULT_MIN_BATTERY_POWER,
+    DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
     DOMAIN,
 )
@@ -162,6 +164,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR
         )
         self.cycle_cost: float = entry.options.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
+        self.phase_margin: float = entry.options.get(
+            CONF_PHASE_MARGIN, DEFAULT_PHASE_MARGIN
+        )
         self.min_battery_power: float = entry.options.get(
             CONF_MIN_BATTERY_POWER, DEFAULT_MIN_BATTERY_POWER
         )
@@ -346,7 +351,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
     ) -> dict[datetime, tuple[float, float]]:
         """Most charge/discharge power per slot without overloading a phase."""
         phases = self.config_entry.data[CONF_PHASES]
-        limit = phase_limit_w(self.config_entry.data[CONF_MAX_CURRENT])
+        limit = phase_limit_w(
+            self.config_entry.data[CONF_MAX_CURRENT], self.phase_margin
+        )
         devices = [
             PhaseDevice.from_config(s.config, phases)
             for s in states

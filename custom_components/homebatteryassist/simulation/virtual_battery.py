@@ -181,7 +181,10 @@ class VirtualBatterySimulator:
         max_current = self._measurements.max_current
         devices = [PhaseDevice.from_config(c, phases) for c in self.virtual]
         capped, limited = cap_powers(
-            wanted, devices, flow.phase_w, phase_limit_w(max_current)
+            wanted,
+            devices,
+            flow.phase_w,
+            phase_limit_w(max_current, self._forecast.phase_margin),
         )
         self.limited_phases = limited
         if limited:
@@ -198,6 +201,7 @@ class VirtualBatterySimulator:
                     phase=", ".join(f"L{i + 1}" for i in limited),
                     current=", ".join(f"{flow.phase_current(i):.1f}" for i in limited),
                     max=max_current,
+                    margin=round(self._forecast.phase_margin),
                 )
         elif (
             self._limit_logged

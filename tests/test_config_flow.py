@@ -75,6 +75,7 @@ async def test_three_phase_flow(hass: HomeAssistant) -> None:
         "export_price_factor": 1.0,
         "cycle_cost": 0.02,
         "min_battery_power": 300,
+        "phase_margin": 10,
         "balance_interval": 60,
         "full_charge_window_days": 3,
     }
@@ -106,6 +107,7 @@ async def test_single_phase_flow(hass: HomeAssistant) -> None:
         "export_price_factor": 1.0,
         "cycle_cost": 0.02,
         "min_battery_power": 300,
+        "phase_margin": 10,
         "balance_interval": 60,
         "full_charge_window_days": 3,
     }
@@ -200,6 +202,7 @@ async def test_options_flow_changes_settings(hass: HomeAssistant) -> None:
         "export_price_factor": 1.0,
         "cycle_cost": 0.02,
         "min_battery_power": 300,
+        "phase_margin": 10,
         "balance_interval": 60,
         "full_charge_window_days": 3,
     }

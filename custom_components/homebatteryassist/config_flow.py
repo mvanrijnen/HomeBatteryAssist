@@ -78,6 +78,7 @@ from .const import (
     CONF_MIN_BATTERY_POWER,
     CONF_MIN_SOC,
     CONF_PHASE,
+    CONF_PHASE_MARGIN,
     CONF_PHASES,
     CONF_PLAN_MODE,
     CONF_PLANNING_HORIZON,
@@ -103,6 +104,7 @@ from .const import (
     DEFAULT_MAX_SOC,
     DEFAULT_MIN_BATTERY_POWER,
     DEFAULT_MIN_SOC,
+    DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
     DOMAIN,
     FORECAST_INTERVAL_OPTIONS,
@@ -282,6 +284,10 @@ async def settings_schema(
             )
         ),
         vol.Required(
+            CONF_PHASE_MARGIN,
+            default=current.get(CONF_PHASE_MARGIN, DEFAULT_PHASE_MARGIN),
+        ): _number(0, 50, 1, "%"),
+        vol.Required(
             CONF_FULL_CHARGE_WINDOW,
             default=current.get(CONF_FULL_CHARGE_WINDOW, DEFAULT_FULL_CHARGE_WINDOW),
         ): NumberSelector(
@@ -358,6 +364,7 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
         CONF_FULL_CHARGE_WINDOW: int(
             user_input.get(CONF_FULL_CHARGE_WINDOW, DEFAULT_FULL_CHARGE_WINDOW)
         ),
+        CONF_PHASE_MARGIN: int(user_input.get(CONF_PHASE_MARGIN, DEFAULT_PHASE_MARGIN)),
     }
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]

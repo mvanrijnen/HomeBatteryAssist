@@ -41,7 +41,8 @@
           "cycle_cost": "Slijtagekosten batterij",
           "min_battery_power": "Minimaal vermogen per batterij",
           "balance_interval": "Balanscontrole elke",
-          "full_charge_window_days": "Volledig opladen forceren binnen"
+          "full_charge_window_days": "Volledig opladen forceren binnen",
+          "phase_margin": "Veiligheidsmarge per fase"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -54,7 +55,8 @@
           "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
           "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is.",
           "balance_interval": "Hoe vaak gekeken wordt of een andere batterij het moet overnemen, zodat de batterijen gelijk gevuld blijven. Daartussen blijven de gebruikte batterijen actief.",
-          "full_charge_window_days": "Als een batterij niet binnen zijn interval volledig is opgeladen, wordt een volledige oplading geforceerd op het goedkoopste moment binnen zoveel dagen vóór de deadline."
+          "full_charge_window_days": "Als een batterij niet binnen zijn interval volledig is opgeladen, wordt een volledige oplading geforceerd op het goedkoopste moment binnen zoveel dagen vóór de deadline.",
+          "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie."
         }
       }
     },
@@ -165,7 +167,8 @@
           "cycle_cost": "Slijtagekosten batterij",
           "min_battery_power": "Minimaal vermogen per batterij",
           "balance_interval": "Balanscontrole elke",
-          "full_charge_window_days": "Volledig opladen forceren binnen"
+          "full_charge_window_days": "Volledig opladen forceren binnen",
+          "phase_margin": "Veiligheidsmarge per fase"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -178,7 +181,8 @@
           "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
           "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is.",
           "balance_interval": "Hoe vaak gekeken wordt of een andere batterij het moet overnemen, zodat de batterijen gelijk gevuld blijven. Daartussen blijven de gebruikte batterijen actief.",
-          "full_charge_window_days": "Als een batterij niet binnen zijn interval volledig is opgeladen, wordt een volledige oplading geforceerd op het goedkoopste moment binnen zoveel dagen vóór de deadline."
+          "full_charge_window_days": "Als een batterij niet binnen zijn interval volledig is opgeladen, wordt een volledige oplading geforceerd op het goedkoopste moment binnen zoveel dagen vóór de deadline.",
+          "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie."
         }
       }
     }

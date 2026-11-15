@@ -51,6 +51,8 @@ DEFAULT_CYCLE_COST: Final = 0.02  # per kWh through the battery
 # Below this power per battery conversion losses are high: use fewer batteries.
 CONF_MIN_BATTERY_POWER: Final = "min_battery_power"
 DEFAULT_MIN_BATTERY_POWER: Final = 300  # W
+CONF_PHASE_MARGIN: Final = "phase_margin"
+DEFAULT_PHASE_MARGIN: Final = 10  # % of the fuse rating kept free per phase
 # A due full charge is forced at the cheapest moment within this many days.
 CONF_FULL_CHARGE_WINDOW: Final = "full_charge_window_days"
 DEFAULT_FULL_CHARGE_WINDOW: Final = 3
