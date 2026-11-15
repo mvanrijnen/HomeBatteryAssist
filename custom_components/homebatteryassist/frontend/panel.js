@@ -82,6 +82,9 @@ const TEXT = {
     socPlan: "Total (plan)",
     realized: "Realised return",
     expectedReturn: "Expected return",
+    vsNoBattery: "vs no battery",
+    vsMode: "{mode} vs {other}",
+    modeNames: { nom: "Zero on the meter", arbitrage: "Arbitrage" },
     since: "since {date}",
     until: "until {date}",
     advantageUntil: "Advantage of arbitrage over NOM until here",
@@ -195,6 +198,9 @@ const TEXT = {
     socPlan: "Totaal (plan)",
     realized: "Gerealiseerd rendement",
     expectedReturn: "Verwacht rendement",
+    vsNoBattery: "t.o.v. geen batterij",
+    vsMode: "{mode} t.o.v. {other}",
+    modeNames: { nom: "Nul op de meter", arbitrage: "Arbitrage" },
     since: "sinds {date}",
     until: "tot {date}",
     advantageUntil: "Voordeel arbitrage t.o.v. NOM tot hier",
@@ -493,7 +499,15 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const money = (v) =>
         v == null ? "–" : new Intl.NumberFormat(this._hass.locale?.language || this._hass.language, { style: "currency", currency: value.currency || "EUR" }).format(v);
       parts.push(this._flow("value", "mdi:cash-check", t.realized, money(value.realized), t.since.replace("{date}", date(value.since))));
-      parts.push(this._flow("value", "mdi:cash-clock", t.expectedReturn, money(value.expected), t.until.replace("{date}", date(value.until))));
+      const until = t.until.replace("{date}", date(value.until));
+      parts.push(this._flow("value", "mdi:cash-clock", t.expectedReturn, money(value.expected), `${t.vsNoBattery} · ${until}`));
+      for (const [other, diff] of Object.entries(value.expected_vs || {})) {
+        const label = t.vsMode
+          .replace("{mode}", t.modeNames[value.mode] || value.mode)
+          .replace("{other}", (t.modeNames[other] || other).toLowerCase());
+        const signed = `${diff > 0 ? "+" : ""}${money(diff)}`;
+        parts.push(this._flow("value", "mdi:scale-balance", label, signed, until));
+      }
     }
     return `<div class="card"><h2>${esc(t.flows)}</h2><div class="flows">${parts.join("")}</div></div>`;
   }

@@ -30,6 +30,8 @@ TEXT = {
         "now_idle_no_gain": "De batterijen doen nu niets: stroom kost nu {price}, en het duurste moment daarna ({later}) is na verlies niet genoeg duurder om nu te laden.",
         "now_idle": "De batterijen doen nu niets.",
         "now_idle_wait": "De batterijen doen nu niets: ze wachten op goedkopere stroom ({price}, {when}).",
+        "now_idle_save": "De batterijen leveren nu niet, omdat stroom nu niet duur genoeg is ({price}): ze bewaren hun energie voor {use}, als stroom {use_price} kost.",
+        "now_idle_save_wait": "De batterijen leveren nu niet, omdat stroom nu niet duur genoeg is ({price}): ze bewaren hun energie voor {use}, als stroom {use_price} kost, en laden {when} bij tegen {charge_price}.",
         "now_charge_pv": "De batterijen laden nu {power} met zonnestroom die anders naar het net zou gaan.",
         "now_charge_grid": "De batterijen laden nu {power} uit het net, omdat stroom nu goedkoop is ({price}).",
         "now_discharge": "De batterijen leveren nu {power} aan het huis, omdat stroom nu duur is ({price}).",
@@ -54,6 +56,8 @@ TEXT = {
         "now_idle_no_gain": "The batteries are idle: power costs {price} now, and the most expensive moment after that ({later}) is not enough more expensive after losses to charge now.",
         "now_idle": "The batteries are idle.",
         "now_idle_wait": "The batteries are idle: they wait for cheaper power ({price}, {when}).",
+        "now_idle_save": "The batteries do not discharge now, because power is not expensive enough now ({price}): they keep their energy for {use}, when power costs {use_price}.",
+        "now_idle_save_wait": "The batteries do not discharge now, because power is not expensive enough now ({price}): they keep their energy for {use}, when power costs {use_price}, and charge {when} at {charge_price}.",
         "now_charge_pv": "The batteries are charging {power} with solar power that would otherwise go to the grid.",
         "now_charge_grid": "The batteries are charging {power} from the grid, because power is cheap now ({price}).",
         "now_discharge": "The batteries supply {power} to the house, because power is expensive now ({price}).",
@@ -229,8 +233,42 @@ def plan_story(
                     power=_power(current.power_w), price=per_kwh(price_now)
                 )
             )
-    elif min_soc_reached:
-        sentences.append(t["now_idle_empty"])
+    elif (
+        not min_soc_reached
+        and price_now is not None
+        and (saving := next((d for d in discharges if d.start > now), None))
+        and saving.price is not None
+        and saving.price > price_now
+    ):
+        # Not discharging now: the energy is worth more later.
+        use = f"{_time(saving.start, lang)}-{dt_util.as_local(saving.end):%H:%M}"
+        charge = next(
+            (
+                c
+                for c in charges
+                if c.start < saving.start
+                and c.from_grid
+                and c.price is not None
+                and c.price < price_now
+            ),
+            None,
+        )
+        if charge is not None:
+            sentences.append(
+                t["now_idle_save_wait"].format(
+                    price=per_kwh(price_now),
+                    use=use,
+                    use_price=per_kwh(saving.price),
+                    when=_when(charge, now, lang).split(" (")[0].lower(),
+                    charge_price=per_kwh(charge.price),
+                )
+            )
+        else:
+            sentences.append(
+                t["now_idle_save"].format(
+                    price=per_kwh(price_now), use=use, use_price=per_kwh(saving.price)
+                )
+            )
     elif (
         price_now is not None
         and charges
@@ -244,6 +282,8 @@ def plan_story(
                 when=_when(charges[0], now, lang).split(" (")[0].lower(),
             )
         )
+    elif min_soc_reached:
+        sentences.append(t["now_idle_empty"])
     elif price_now is not None:
         later = max(
             (s.price for s in slots if s.start > now and s.price is not None),

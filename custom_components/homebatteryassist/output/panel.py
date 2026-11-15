@@ -304,6 +304,17 @@ def websocket_history(
                     and plan.saving is not None
                     else None
                 ),
+                # The selected mode compared with the other mode(s): expected
+                # saving difference until the end of the window (+ = better).
+                "expected_vs": {
+                    mode: round(plan.saving - other.saving, 2)
+                    for mode, other in forecast.data.plans.items()
+                    if (plan := forecast.data.plans.get(forecast.data.plan_mode))
+                    and mode != forecast.data.plan_mode
+                    and plan.saving is not None
+                    and other.saving is not None
+                },
+                "mode": forecast.data.plan_mode,
                 "until": forecast.data.window.end.isoformat(),
                 "currency": hass.config.currency,
             },

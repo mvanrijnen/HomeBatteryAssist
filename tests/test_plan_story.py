@@ -66,7 +66,28 @@ async def test_story_waits_for_cheaper_power(hass: HomeAssistant) -> None:
     """Idle now because a cheaper charge moment comes later."""
     await hass.config.async_set_time_zone("Europe/Amsterdam")
     plan = _plan([0.0, 2000.0, -500.0], [0.32, 0.27, 0.46])
-    text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
+    # Empty: waiting for cheaper power is the reason.
+    text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, True)
     assert text.startswith(
         "De batterijen doen nu niets: ze wachten op goedkopere stroom (€ 0,27 per kWh"
+    )
+    # With energy stored it keeps it for later and charges cheaper first.
+    text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
+    assert text.startswith("De batterijen leveren nu niet")
+
+
+async def test_story_explains_why_not_discharging(hass: HomeAssistant) -> None:
+    """Idle with energy stored: it is kept for a more expensive moment."""
+    await hass.config.async_set_time_zone("Europe/Amsterdam")
+    plan = _plan([0.0, 0.0, -500.0], [0.30, 0.31, 0.46])
+    text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
+    assert text.startswith(
+        "De batterijen leveren nu niet, omdat stroom nu niet duur genoeg is (€ 0,30 per kWh)"
+    )
+    assert "€ 0,46 per kWh kost." in text
+    # ... and a cheap charge before that moment is mentioned too.
+    plan = _plan([0.0, 2000.0, -500.0], [0.32, 0.27, 0.46])
+    text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
+    assert "en laden vannacht bij tegen € 0,27 per kWh" in text or (
+        "bij tegen € 0,27 per kWh" in text
     )
