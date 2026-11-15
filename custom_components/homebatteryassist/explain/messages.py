@@ -43,6 +43,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "accuracy_reset": "What was learned about the {kind} forecast has been reset.",
         "battery_plan": "Battery plan ({mode}): expected saving {saving} in the planning window (other modes: {others}). Charge: {charge}. Discharge: {discharge}. Advice only, nothing is controlled.",
         "plan_mode_set": "Battery plan mode set to {mode}.",
+        "full_charge_planned": "Full charge of {name} planned {start} - {end}: the cheapest moment before the deadline {deadline} (last full charge: {last}).",
         "battery_switch": "{new} takes over {action} from {old} to keep the batteries balanced (state of charge {new_soc}% vs {old_soc}%).",
     },
     "nl": {
@@ -74,6 +75,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "accuracy_reset": "Wat geleerd was over de {kind}-voorspelling is gewist.",
         "battery_plan": "Batterijplan ({mode}): verwachte besparing {saving} in het planningsvenster (andere modi: {others}). Laden: {charge}. Ontladen: {discharge}. Alleen advies, er wordt niets aangestuurd.",
         "plan_mode_set": "Modus batterijplan ingesteld op {mode}.",
+        "full_charge_planned": "Volledig opladen van {name} gepland {start} - {end}: het goedkoopste moment vóór de deadline {deadline} (laatste volledige oplading: {last}).",
         "battery_switch": "{new} neemt het {action} over van {old} om de batterijen in balans te houden (vulling {new_soc}% tegen {old_soc}%).",
     },
 }

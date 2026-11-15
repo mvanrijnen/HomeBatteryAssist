@@ -66,6 +66,7 @@ from .const import (
     CONF_EXPORT_FACTOR,
     CONF_FORECAST_INTERVAL,
     CONF_FULL_CHARGE_INTERVAL,
+    CONF_FULL_CHARGE_WINDOW,
     CONF_HISTORY_INTERVAL,
     CONF_INITIAL_SOC,
     CONF_LOSS_MAX,
@@ -93,6 +94,7 @@ from .const import (
     DEFAULT_EXPORT_FACTOR,
     DEFAULT_FORECAST_INTERVAL,
     DEFAULT_FULL_CHARGE_INTERVAL,
+    DEFAULT_FULL_CHARGE_WINDOW,
     DEFAULT_HISTORY_INTERVAL,
     DEFAULT_INITIAL_SOC,
     DEFAULT_LOSS_MAX,
@@ -280,6 +282,18 @@ async def settings_schema(
             )
         ),
         vol.Required(
+            CONF_FULL_CHARGE_WINDOW,
+            default=current.get(CONF_FULL_CHARGE_WINDOW, DEFAULT_FULL_CHARGE_WINDOW),
+        ): NumberSelector(
+            NumberSelectorConfig(
+                min=1,
+                max=14,
+                step=1,
+                unit_of_measurement="d",
+                mode=NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
             CONF_BALANCE_INTERVAL,
             default=str(current.get(CONF_BALANCE_INTERVAL, DEFAULT_BALANCE_INTERVAL)),
         ): SelectSelector(
@@ -340,6 +354,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
         ),
         CONF_BALANCE_INTERVAL: int(
             user_input.get(CONF_BALANCE_INTERVAL, DEFAULT_BALANCE_INTERVAL)
+        ),
+        CONF_FULL_CHARGE_WINDOW: int(
+            user_input.get(CONF_FULL_CHARGE_WINDOW, DEFAULT_FULL_CHARGE_WINDOW)
         ),
     }
     if user_input.get(CONF_PRICE_FORECAST):
@@ -766,6 +783,9 @@ def virtual_battery_schema(three_phase: bool) -> vol.Schema:
         vol.Required(CONF_INITIAL_SOC, default=DEFAULT_INITIAL_SOC): _number(
             0, 100, 1, "%", slider=True
         ),
+        vol.Required(
+            CONF_FULL_CHARGE_INTERVAL, default=DEFAULT_FULL_CHARGE_INTERVAL
+        ): _number(0, 90, 1, "d"),
     }
     if three_phase:
         schema[vol.Required(CONF_PHASE, default=PHASE_NONE)] = phase_selector()
@@ -818,6 +838,7 @@ class VirtualBatterySubentryFlow(ConfigSubentryFlow):
                             CONF_LOSS_MIN,
                             CONF_LOSS_MAX,
                             CONF_INITIAL_SOC,
+                            CONF_FULL_CHARGE_INTERVAL,
                         )
                     },
                 }

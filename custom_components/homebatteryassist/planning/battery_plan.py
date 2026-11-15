@@ -68,6 +68,8 @@ class BatteryPlan:
     slots: list[PlanSlot]
     cost: float | None  # expected cost with the plan (price unit x kWh)
     cost_without: float | None  # expected cost without battery
+    capacity_kwh: float = 0.0  # behind the state of charge in the slots
+    value_per_kwh: float = 0.0  # value of stored energy (avg price x efficiency)
 
     @property
     def saving(self) -> float | None:
@@ -194,7 +196,13 @@ def _nom(
     avg_price = sum(p for *_, p in slots) / len(slots)
     cost_with += (pack.stored - stored) / 1000 * avg_price * pack.eff
     return BatteryPlan(
-        mode, MODE_NOM, result, round(cost_with, 4), round(cost_without, 4)
+        mode,
+        MODE_NOM,
+        result,
+        round(cost_with, 4),
+        round(cost_without, 4),
+        pack.capacity / 1000,
+        avg_price * pack.eff,
     )
 
 
@@ -277,5 +285,55 @@ def _optimise(
     # are comparable over the same window.
     cost_with += (pack.stored - energy[i]) / 1000 * avg_price * pack.eff
     return BatteryPlan(
-        mode, MODE_ARBITRAGE, result, round(cost_with, 4), round(cost_without, 4)
+        mode,
+        MODE_ARBITRAGE,
+        result,
+        round(cost_with, 4),
+        round(cost_without, 4),
+        pack.capacity / 1000,
+        avg_price * pack.eff,
     )
+
+
+def slot_costs(
+    plan: BatteryPlan, export_factor: float, cycle_cost: float
+) -> list[float]:
+    """Expected cost per slot of a plan (grid cost + battery wear)."""
+    costs = []
+    for slot in plan.slots:
+        hours = (slot.end - slot.start).total_seconds() / 3600
+        cost = abs(slot.power_w) * hours / 1000 * cycle_cost
+        if slot.price is not None:
+            cost += _grid_cost(slot.grid_w, hours, slot.price, export_factor)
+        costs.append(cost)
+    return costs
+
+
+def compare_modes(
+    plans: dict[str, BatteryPlan],
+    first: str,
+    second: str,
+    export_factor: float,
+    cycle_cost: float,
+) -> list[tuple[datetime, float]]:
+    """Cumulative advantage of ``first`` over ``second`` per slot (+ = cheaper).
+
+    Includes the value of the difference in stored energy at that moment, so
+    the last value equals the difference in expected saving.
+    """
+    a, b = plans.get(first), plans.get(second)
+    if a is None or b is None or a.cost is None or b.cost is None:
+        return []
+    total = 0.0
+    series = []
+    for slot, slot_b, cost_a, cost_b in zip(
+        a.slots,
+        b.slots,
+        slot_costs(a, export_factor, cycle_cost),
+        slot_costs(b, export_factor, cycle_cost),
+        strict=False,
+    ):
+        total += cost_b - cost_a
+        stored = (slot.soc - slot_b.soc) / 100 * a.capacity_kwh * a.value_per_kwh
+        series.append((slot.start, round(total + stored, 4)))
+    return series

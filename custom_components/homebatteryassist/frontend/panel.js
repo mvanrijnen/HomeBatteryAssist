@@ -70,6 +70,8 @@ const TEXT = {
     planInfo: "Battery plan ({mode}, advice): expected saving {saving}",
     planOther: "{mode}: {saving}",
     socExpected: "Expected state of charge",
+    advantageUntil: "Advantage of arbitrage over NOM until here",
+    arbVsNom: "arbitrage vs. NOM: {diff} in the planning window",
     batteryNote: "The battery plan is how HomeBatteryAssist would control the batteries; for now it is advice only.",
     flowTitle: "Energy flows and expected consumption",
     navStart: "To the first measurement",
@@ -167,6 +169,8 @@ const TEXT = {
     planInfo: "Batterijplan ({mode}, advies): verwachte besparing {saving}",
     planOther: "{mode}: {saving}",
     socExpected: "Verwachte vulling",
+    advantageUntil: "Voordeel arbitrage t.o.v. NOM tot hier",
+    arbVsNom: "arbitrage t.o.v. NOM: {diff} in het planningsvenster",
     batteryNote: "Het batterijplan is hoe HomeBatteryAssist de batterijen zou aansturen; voorlopig alleen advies.",
     flowTitle: "Energiestromen en verwacht verbruik",
     navStart: "Naar de eerste meting",
@@ -386,6 +390,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return abs >= 1000 ? `${(watts / 1000).toFixed(2)} kW` : `${Math.round(watts)} W`;
   }
 
+  _axisPower(watts) {
+    // Short labels for the y-axis: "-1 kW", "2.5 kW", "500 W".
+    const abs = Math.abs(watts);
+    if (abs < 1000) return `${Math.round(watts)} W`;
+    const kw = watts / 1000;
+    return `${Number.isInteger(kw) ? kw : kw.toFixed(abs < 10000 ? 1 : 0)} kW`;
+  }
+
   _kwh(value) {
     return value === null ? "–" : `${value.toFixed(2)} kWh`;
   }
@@ -520,7 +532,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
   _chart(id, series, xMin, xMax, ticks, gapLimit, markers = [], xFmt = (v) => this._time(new Date(v).toISOString())) {
     // Full-width charts get a wider canvas so they are as high as the others.
     // The full-width flow chart gets a wider and higher canvas.
-    const W = id === "forecast" ? 1232 : 600, H = id === "forecast" ? 300 : 190, L = 46, R = 8, T = 8, B = 24;
+    const W = id === "forecast" ? 1232 : 600, H = id === "forecast" ? 300 : 190, L = 58, R = 8, T = 8, B = 24;
     const all = series.flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
     const yMax = this._niceMax(Math.max(...all, 0));
     const low = Math.min(...all, 0);
@@ -532,7 +544,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     for (let i = 0; i <= steps; i++) {
       const v = yMin + ((yMax - yMin) / steps) * i;
       svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>`;
-      svg += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${esc(this._power(v))}</text>`;
+      svg += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${esc(this._axisPower(v))}</text>`;
     }
     if (yMin < 0) svg += `<line class="zero" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
     for (const [v, label] of ticks) {
@@ -560,6 +572,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
       <div class="tip" data-tip="${id}" hidden></div>`;
   }
 
+  _money(value, h) {
+    const unit = h.price_unit?.split("/")[0] || "";
+    return value == null ? "–" : `${value.toFixed(2)} ${unit}`.trim();
+  }
+
   _planText(h, t) {
     const money = (v) => (v == null ? "–" : `${v.toFixed(2)} ${h.price_unit?.split("/")[0] || ""}`.trim());
     const plan = h.plans?.[h.plan_mode];
@@ -568,7 +585,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
       .filter(([mode]) => mode !== h.plan_mode)
       .map(([mode, p]) => t.planOther.replace("{mode}", name(mode)).replace("{saving}", money(p.saving)));
     const main = t.planInfo.replace("{mode}", name(h.plan_mode)).replace("{saving}", money(plan?.saving));
-    return others.length ? `${main} (${others.join(", ")})` : main;
+    let text = others.length ? `${main} (${others.join(", ")})` : main;
+    const arb = h.plans?.arbitrage?.saving;
+    const nom = h.plans?.nom?.saving;
+    if (arb != null && nom != null) {
+      const diff = arb - nom;
+      text += ` · ${t.arbVsNom.replace("{diff}", `${diff >= 0 ? "+" : ""}${this._money(diff, h)}`)}`;
+    }
+    return text;
   }
 
   _flowNav(t) {
@@ -890,7 +914,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
         }
         const socHit = batFc.find(([bts]) => Math.abs(bts - ts) < 15 * 60e3);
         if (ts > Date.now() && socHit) {
-          html += `<div class="r"><span><i style="background:${batteryColor}"></i>${esc(t.socExpected)}</span><b>${Math.round(socHit[2])}%</b></div>`;
+          const cap = h.battery_capacity_kwh || 0;
+          const kwh = cap ? ` · ${((socHit[2] / 100) * cap).toFixed(1)} / ${cap.toFixed(1)} kWh` : "";
+          html += `<div class="r"><span><i style="background:${batteryColor}"></i>${esc(t.socExpected)}</span><b>${Math.round(socHit[2])}%${esc(kwh)}</b></div>`;
+        }
+        const cmp = (h.arbitrage_vs_nom || []).find(([cts]) => Math.abs(cts - ts) < 15 * 60e3);
+        if (ts > Date.now() && cmp) {
+          const v = cmp[1];
+          html += `<div class="r muted"><span>${esc(t.advantageUntil)}</span><b>${v >= 0 ? "+" : ""}${esc(this._money(v, h))}</b></div>`;
         }
         if (ts > Date.now()) {
           if (expected) html += usual("consumption", ts, t.usualHouse, "W");

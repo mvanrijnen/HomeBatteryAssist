@@ -37,6 +37,7 @@ VIRTUAL = {
     CONF_MAX_SOC: 100,
     "loss_min": 0,  # no loss: predictable numbers
     "loss_max": 0,
+    "full_charge_interval_days": 0,  # no forced full charge in these tests
     CONF_INITIAL_SOC: 50,
 }
 

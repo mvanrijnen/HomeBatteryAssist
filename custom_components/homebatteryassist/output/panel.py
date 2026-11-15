@@ -22,6 +22,7 @@ from ..const import DOMAIN, NAME
 from ..forecasts.accuracy import BUCKET_KEYS, KINDS
 from ..history.profile import day_profile, days_covered, hourly_series
 from ..models import HomeBatteryAssistConfigEntry
+from ..planning.battery_plan import MODE_ARBITRAGE, MODE_NOM, compare_modes
 from .batteries import BATTERY_SENSORS, TOTAL_SENSORS
 
 _LOGGER = logging.getLogger(__name__)
@@ -224,6 +225,26 @@ def websocket_history(
             "battery_forecast": [
                 [int(s.start.timestamp() * 1000), s.power_w, s.soc, s.grid_w]
                 for s in forecast.data.battery
+            ],
+            # Capacity behind the plan's state of charge (real + virtual).
+            "battery_capacity_kwh": round(
+                sum(
+                    s.config.capacity_kwh
+                    for s in entry.runtime_data.batteries.states.values()
+                    if s.soc is not None
+                ),
+                2,
+            ),
+            # Cumulative advantage of arbitrage over NOM: [time ms, amount]
+            "arbitrage_vs_nom": [
+                [int(t.timestamp() * 1000), value]
+                for t, value in compare_modes(
+                    forecast.data.plans,
+                    MODE_ARBITRAGE,
+                    MODE_NOM,
+                    forecast.export_factor,
+                    forecast.cycle_cost,
+                )
             ],
             "has_pv": bool(entry.runtime_data.measurements.pv_sensors),
             "has_battery": bool(entry.runtime_data.batteries.configs),

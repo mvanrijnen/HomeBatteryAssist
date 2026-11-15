@@ -108,3 +108,21 @@ def test_arbitrage_for_own_use_never_exports_battery_energy() -> None:
     assert all(s.power_w >= -200.0 - 1e-6 for s in plan.slots)
     assert all(s.grid_w >= -1e-6 for s in plan.slots)  # no export by the battery
     assert plan.slots[2].power_w < 0  # but it does cover the expensive hours
+
+
+def test_compare_modes_cumulative_advantage() -> None:
+    """Cumulative advantage of arbitrage over NOM per slot; ends at the difference."""
+    from custom_components.homebatteryassist.planning.battery_plan import compare_modes
+
+    slots = _slots([500.0] * 4)
+    prices = _prices([0.10, 0.10, 0.50, 0.50])
+    plans = {
+        mode: plan_batteries([_battery(soc=10.0)], slots, {}, prices, mode=mode)
+        for mode in (MODE_NOM, MODE_ARBITRAGE)
+    }
+    series = compare_modes(plans, MODE_ARBITRAGE, MODE_NOM, 1.0, 0.02)
+    assert len(series) == 4
+    assert series[-1][1] > 0  # arbitrage pays off in the expensive hours
+    # The last value equals the difference in expected saving.
+    diff = plans[MODE_ARBITRAGE].saving - plans[MODE_NOM].saving
+    assert abs(series[-1][1] - diff) < 0.01

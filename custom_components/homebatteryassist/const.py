@@ -51,6 +51,9 @@ DEFAULT_CYCLE_COST: Final = 0.02  # per kWh through the battery
 # Below this power per battery conversion losses are high: use fewer batteries.
 CONF_MIN_BATTERY_POWER: Final = "min_battery_power"
 DEFAULT_MIN_BATTERY_POWER: Final = 300  # W
+# A due full charge is forced at the cheapest moment within this many days.
+CONF_FULL_CHARGE_WINDOW: Final = "full_charge_window_days"
+DEFAULT_FULL_CHARGE_WINDOW: Final = 3
 # How often to check whether another battery should take over (balance).
 CONF_BALANCE_INTERVAL: Final = "balance_interval"
 BALANCE_INTERVAL_OPTIONS: Final = (15, 30, 60, 120)
@@ -109,7 +112,7 @@ CONF_FULL_CHARGE_INTERVAL: Final = "full_charge_interval_days"  # 0 = off
 DEFAULT_MIN_SOC: Final = 10
 DEFAULT_MAX_SOC: Final = 100
 DEFAULT_EFFICIENCY: Final = 90
-DEFAULT_FULL_CHARGE_INTERVAL: Final = 0
+DEFAULT_FULL_CHARGE_INTERVAL: Final = 28
 # Monitoring
 IDLE_THRESHOLD_W: Final = 20.0  # |power| below this counts as idle
 FULL_CHARGE_SOC: Final = 99.5  # % at or above which a full charge is registered

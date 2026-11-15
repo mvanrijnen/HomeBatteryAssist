@@ -40,7 +40,8 @@
           "export_price_factor": "Export compensation",
           "cycle_cost": "Battery wear cost",
           "min_battery_power": "Minimum power per battery",
-          "balance_interval": "Balance check every"
+          "balance_interval": "Balance check every",
+          "full_charge_window_days": "Force full charge within"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -52,7 +53,8 @@
           "export_price_factor": "Share of the price you get back for exported energy (1 = net metering).",
           "cycle_cost": "Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains.",
           "min_battery_power": "Below this power the conversion losses of a battery are high: a request is spread over as few batteries as possible, each running at least at this power, and over more batteries when more power is needed.",
-          "balance_interval": "How often to check whether another battery should take over, so the batteries stay equally full. In between, the batteries in use are kept."
+          "balance_interval": "How often to check whether another battery should take over, so the batteries stay equally full. In between, the batteries in use are kept.",
+          "full_charge_window_days": "When a battery has not been fully charged within its interval, a full charge is forced at the cheapest moment within this many days before the deadline."
         }
       }
     },
@@ -162,7 +164,8 @@
           "export_price_factor": "Export compensation",
           "cycle_cost": "Battery wear cost",
           "min_battery_power": "Minimum power per battery",
-          "balance_interval": "Balance check every"
+          "balance_interval": "Balance check every",
+          "full_charge_window_days": "Force full charge within"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -174,7 +177,8 @@
           "export_price_factor": "Share of the price you get back for exported energy (1 = net metering).",
           "cycle_cost": "Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains.",
           "min_battery_power": "Below this power the conversion losses of a battery are high: a request is spread over as few batteries as possible, each running at least at this power, and over more batteries when more power is needed.",
-          "balance_interval": "How often to check whether another battery should take over, so the batteries stay equally full. In between, the batteries in use are kept."
+          "balance_interval": "How often to check whether another battery should take over, so the batteries stay equally full. In between, the batteries in use are kept.",
+          "full_charge_window_days": "When a battery has not been fully charged within its interval, a full charge is forced at the cheapest moment within this many days before the deadline."
         }
       }
     }
@@ -362,11 +366,13 @@
             "initial_soc": "Starting state of charge",
             "phase": "Phase",
             "loss_min": "Minimum loss",
-            "loss_max": "Maximum loss"
+            "loss_max": "Maximum loss",
+            "full_charge_interval_days": "Full charge every"
           },
           "data_description": {
             "loss_min": "Round-trip loss (charge + discharge); per simulation step a random value between minimum and maximum is used.",
-            "loss_max": "The planner uses the average of minimum and maximum."
+            "loss_max": "The planner uses the average of minimum and maximum.",
+            "full_charge_interval_days": "Charge to 100% at least every this many days (cell balancing). 0 = never."
           }
         },
         "reconfigure": {
@@ -382,11 +388,13 @@
             "initial_soc": "Starting state of charge",
             "phase": "Phase",
             "loss_min": "Minimum loss",
-            "loss_max": "Maximum loss"
+            "loss_max": "Maximum loss",
+            "full_charge_interval_days": "Full charge every"
           },
           "data_description": {
             "loss_min": "Round-trip loss (charge + discharge); per simulation step a random value between minimum and maximum is used.",
-            "loss_max": "The planner uses the average of minimum and maximum."
+            "loss_max": "The planner uses the average of minimum and maximum.",
+            "full_charge_interval_days": "Charge to 100% at least every this many days (cell balancing). 0 = never."
           }
         }
       },

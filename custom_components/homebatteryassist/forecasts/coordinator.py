@@ -36,6 +36,7 @@ from ..const import (
     CONF_CYCLE_COST,
     CONF_EXPORT_FACTOR,
     CONF_FORECAST_INTERVAL,
+    CONF_FULL_CHARGE_WINDOW,
     CONF_MIN_BATTERY_POWER,
     CONF_PLAN_MODE,
     CONF_PLANNING_HORIZON,
@@ -45,6 +46,7 @@ from ..const import (
     DEFAULT_CYCLE_COST,
     DEFAULT_EXPORT_FACTOR,
     DEFAULT_FORECAST_INTERVAL,
+    DEFAULT_FULL_CHARGE_WINDOW,
     DEFAULT_MIN_BATTERY_POWER,
     DEFAULT_PLANNING_HORIZON,
     DOMAIN,
@@ -61,6 +63,7 @@ from ..planning.battery_plan import (
     PlanSlot,
     plan_batteries,
 )
+from ..planning.full_charge import FullCharge, schedule_full_charges
 from .accuracy import KINDS, ForecastAccuracy
 from .adjustments import AdjustmentStore
 from .consumption import ForecastSlot, forecast_consumption
@@ -91,6 +94,19 @@ class ForecastData:
     battery: list[PlanSlot] = field(default_factory=list)
     plans: dict[str, BatteryPlan] = field(default_factory=dict)
     plan_mode: str = DEFAULT_PLAN_MODE
+    # Planned (forced) full charges, earliest first.
+    full_charges: list[FullCharge] = field(default_factory=list)
+
+    def full_charge_now(self, battery_id: str, when: datetime) -> FullCharge | None:
+        """The full charge of ``battery_id`` running at ``when``, if any."""
+        return next(
+            (
+                f
+                for f in self.full_charges
+                if f.battery_id == battery_id and f.active(when)
+            ),
+            None,
+        )
 
     @property
     def consumption_method(self) -> str | None:
@@ -144,6 +160,12 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.min_battery_power: float = entry.options.get(
             CONF_MIN_BATTERY_POWER, DEFAULT_MIN_BATTERY_POWER
         )
+        self.full_charge_window: int = entry.options.get(
+            CONF_FULL_CHARGE_WINDOW, DEFAULT_FULL_CHARGE_WINDOW
+        )
+        # battery id -> ISO time of its last full charge (set by __init__)
+        self.last_full: Callable[[str], str | None] = lambda battery_id: None
+        self._last_full_charges: str | None = None
         self.balance_interval = timedelta(
             minutes=entry.options.get(CONF_BALANCE_INTERVAL, DEFAULT_BALANCE_INTERVAL)
         )
@@ -267,6 +289,22 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 plans[mode] = plan
         selected = plans.get(self.plan_mode)
         battery = selected.slots if selected else []
+
+        # 7. Periodic full charges at the cheapest moment, added to the plan.
+        full_charges = schedule_full_charges(
+            states,
+            {
+                c.id: dt_util.parse_datetime(last)
+                if (last := self.last_full(c.id))
+                else None
+                for c in (s.config for s in states)
+            },
+            prices,
+            self.full_charge_window,
+            now,
+        )
+        battery = _with_full_charges(battery, full_charges)
+        self._explain_full_charges(full_charges)
         data = ForecastData(
             window,
             prices,
@@ -279,6 +317,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             battery,
             plans,
             self.plan_mode,
+            full_charges,
         )
         self._explain_plan(data)
         self._explain_method(data)
@@ -340,6 +379,23 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 mode=mode,
                 correction=text,
                 samples=stats.samples if stats else 0,
+            )
+
+    def _explain_full_charges(self, full_charges: list[FullCharge]) -> None:
+        """Explain newly planned or moved full charges."""
+        key = "|".join(f"{f.battery_id}@{f.start.isoformat()}" for f in full_charges)
+        if key == self._last_full_charges:
+            return
+        self._last_full_charges = key
+        for charge in full_charges:
+            self._decisions.async_log(
+                "planning",
+                "full_charge_planned",
+                name=charge.name,
+                start=charge.start,
+                end=charge.end,
+                deadline=charge.deadline,
+                last=charge.last_full or "-",
             )
 
     def _explain_plan(self, data: ForecastData) -> None:
@@ -441,3 +497,31 @@ def _periods(slots: list[PlanSlot], *, charging: bool, threshold: float = 100.0)
         for a, b in periods[:3]
     )
     return text + (" ..." if len(periods) > 3 else "") if text else "-"
+
+
+def _with_full_charges(
+    slots: list[PlanSlot], full_charges: list[FullCharge]
+) -> list[PlanSlot]:
+    """Add the forced full charges to the plan (extra charge power and grid)."""
+    if not full_charges:
+        return slots
+    result = []
+    for slot in slots:
+        extra = sum(
+            f.power_w
+            * (min(slot.end, f.end) - max(slot.start, f.start)).total_seconds()
+            / (slot.end - slot.start).total_seconds()
+            for f in full_charges
+            if slot.start < f.end and slot.end > f.start
+        )
+        if extra:
+            slot = PlanSlot(
+                slot.start,
+                slot.end,
+                round(slot.power_w + extra, 1),
+                slot.soc,
+                round(slot.grid_w + extra, 1),
+                slot.price,
+            )
+        result.append(slot)
+    return result

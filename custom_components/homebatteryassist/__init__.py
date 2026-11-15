@@ -76,6 +76,9 @@ async def async_setup_entry(
         accuracy,
         lambda: batteries.states.values(),
     )
+    forecast.last_full = lambda battery_id: batteries.stats.get(battery_id, {}).get(
+        "last_full_charge"
+    )
     await forecast.async_config_entry_first_refresh()
     if not hass.is_running:
         # Other integrations (price and PV forecasts) may still be starting:

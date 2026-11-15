@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 import math
 import random
+from dataclasses import replace
 from datetime import datetime, timedelta
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
@@ -131,22 +132,33 @@ class VirtualBatterySimulator:
         hours = elapsed.total_seconds() / 3600
         if hours <= 0:
             return
-        targets = self._targets(now, hours)
+        data = self._forecast.data
+        full = {
+            c.id: data.full_charge_now(c.id, now) if data else None
+            for c in self.virtual
+        }
+        targets = self._targets(now, hours, [c for c in self.virtual if not full[c.id]])
         for config in self.virtual:
             state = self._batteries.states[config.id]
             soc = state.soc if state.soc is not None else config.initial_soc
-            power, soc = limit_power(
-                config, soc, targets(config, soc), hours, random_efficiency(config)
-            )
+            if full[config.id]:
+                # Forced full charge: max power up to 100 %, above the normal max.
+                limits = replace(config, max_soc=100.0)
+                power, soc = limit_power(
+                    limits, soc, config.max_charge_w, hours, random_efficiency(config)
+                )
+            else:
+                power, soc = limit_power(
+                    config, soc, targets(config, soc), hours, random_efficiency(config)
+                )
             self._batteries.set_virtual(config.id, now, power, soc)
 
-    def _targets(self, now: datetime, hours: float):
+    def _targets(self, now: datetime, hours: float, virtual: list[BatteryConfig]):
         """A function (config, soc) -> target power (W, + charging) per battery.
 
         The total for the virtual batteries is spread with ``distribute``:
         few batteries at low power, more when more power is needed.
         """
-        virtual = self.virtual
         data = self._forecast.data
         if data is not None and data.plan_mode == MODE_ARBITRAGE and data.battery:
             # Arbitrage: the virtual batteries' share of the planned power.
