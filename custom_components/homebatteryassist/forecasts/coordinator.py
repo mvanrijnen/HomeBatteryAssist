@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT
@@ -37,6 +38,8 @@ from ..inputs.solar import PV_PERIOD, async_get_pv_forecast
 from .horizon import HorizonLimit, PlanningWindow, planning_horizon
 
 _LOGGER = logging.getLogger(__name__)
+
+EVENT_FORECAST_UPDATED = f"{DOMAIN}_forecast_updated"
 
 
 @dataclass(slots=True)
@@ -117,7 +120,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             len(prices),
             len(pv_wh),
         )
-        return ForecastData(window, prices, price_unit, pv_wh, price_end, pv_end)
+        data = ForecastData(window, prices, price_unit, pv_wh, price_end, pv_end)
+        self.hass.bus.async_fire(EVENT_FORECAST_UPDATED, summarise(data))
+        return data
+
+    def summary(self) -> dict[str, Any]:
+        """Short description of the latest result (action response, event)."""
+        return summarise(self.data)
 
     def _read_prices(self, now: datetime) -> tuple[list[PricePoint], str | None]:
         if not self.price_entity:
@@ -146,3 +155,16 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             days=self.max_days,
             entity=self.price_entity or "",
         )
+
+
+def summarise(data: ForecastData) -> dict[str, Any]:
+    """JSON-friendly summary of a forecast cycle."""
+    window = data.window
+    return {
+        "window_start": window.start.isoformat(),
+        "window_end": window.end.isoformat(),
+        "hours_ahead": round(window.hours, 1),
+        "limited_by": window.limited_by.value,
+        "price_points": len(data.prices),
+        "pv_hours": len(data.pv_wh),
+    }
