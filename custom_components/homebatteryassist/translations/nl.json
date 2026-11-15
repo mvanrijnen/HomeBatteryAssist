@@ -35,14 +35,20 @@
           "planning_horizon_days": "Maximale planningshorizon",
           "price_forecast_entity": "Sensor prijsvoorspelling",
           "pv_forecast_entries": "PV-voorspelling",
-          "forecast_interval": "Herberekenen elke"
+          "forecast_interval": "Herberekenen elke",
+          "plan_mode": "Modus batterijplan",
+          "export_price_factor": "Vergoeding teruglevering",
+          "cycle_cost": "Slijtagekosten batterij"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
           "planning_horizon_days": "Hoeveel dagen het systeem maximaal vooruit mag plannen.",
           "price_forecast_entity": "Sensor van een energieprijs-integration (bijv. Nordpool, ENTSO-e, Frank Energie) met de komende prijzen in de attributen.",
           "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
-          "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend."
+          "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
+          "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
+          "export_price_factor": "Deel van de prijs dat je terugkrijgt voor teruggeleverde energie (1 = salderen).",
+          "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst."
         }
       }
     },
@@ -121,6 +127,12 @@
         "3-5d": "3-5 dagen",
         "5d+": "Meer dan 5 dagen"
       }
+    },
+    "plan_mode": {
+      "options": {
+        "nom": "Nul op de meter (NOM)",
+        "arbitrage": "Arbitrage (kostenoptimaal)"
+      }
     }
   },
   "options": {
@@ -133,14 +145,20 @@
           "planning_horizon_days": "Maximale planningshorizon",
           "price_forecast_entity": "Sensor prijsvoorspelling",
           "pv_forecast_entries": "PV-voorspelling",
-          "forecast_interval": "Herberekenen elke"
+          "forecast_interval": "Herberekenen elke",
+          "plan_mode": "Modus batterijplan",
+          "export_price_factor": "Vergoeding teruglevering",
+          "cycle_cost": "Slijtagekosten batterij"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
           "planning_horizon_days": "Hoeveel dagen het systeem maximaal vooruit mag plannen.",
           "price_forecast_entity": "Sensor van een energieprijs-integration (bijv. Nordpool, ENTSO-e, Frank Energie) met de komende prijzen in de attributen.",
           "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
-          "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend."
+          "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
+          "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
+          "export_price_factor": "Deel van de prijs dat je terugkrijgt voor teruggeleverde energie (1 = salderen).",
+          "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst."
         }
       }
     }
@@ -409,6 +427,9 @@
       },
       "price_forecast_accuracy": {
         "name": "Nauwkeurigheid prijsvoorspelling"
+      },
+      "battery_forecast": {
+        "name": "Batterijplan"
       }
     },
     "button": {
@@ -525,6 +546,16 @@
         "kind": {
           "name": "Voorspelling",
           "description": "Welke voorspelling: verbruik, PV, prijs of alle."
+        }
+      }
+    },
+    "set_plan_mode": {
+      "name": "Modus batterijplan instellen",
+      "description": "Kiest de modus van het batterijplan (advies): nul op de meter of arbitrage.",
+      "fields": {
+        "mode": {
+          "name": "Modus",
+          "description": "nom of arbitrage."
         }
       }
     }

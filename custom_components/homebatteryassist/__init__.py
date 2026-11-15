@@ -63,8 +63,17 @@ async def async_setup_entry(
     )
     await history.async_load()
 
+    batteries = BatteryInput(hass, entry, decisions)
+    await batteries.async_start()
+
     forecast = ForecastCoordinator(
-        hass, entry, decisions, history, adjustments, accuracy
+        hass,
+        entry,
+        decisions,
+        history,
+        adjustments,
+        accuracy,
+        lambda: batteries.states.values(),
     )
     await forecast.async_config_entry_first_refresh()
     if forecast.price_entity:
@@ -78,9 +87,6 @@ async def async_setup_entry(
         )
 
     await history.async_start()
-
-    batteries = BatteryInput(hass, entry, decisions)
-    await batteries.async_start()
 
     measurements = MeasurementInput(hass, entry, decisions)
 

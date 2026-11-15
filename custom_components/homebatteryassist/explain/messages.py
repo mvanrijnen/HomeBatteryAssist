@@ -41,6 +41,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "correction_mode_off": "Correction of the {kind} forecast switched off (until {until}); accuracy is still measured.",
         "correction_mode_manual": "Manual correction of the {kind} forecast: {value} (until {until}).",
         "accuracy_reset": "What was learned about the {kind} forecast has been reset.",
+        "battery_plan": "Battery plan ({mode}): expected saving {saving} in the planning window (other modes: {others}). Charge: {charge}. Discharge: {discharge}. Advice only, nothing is controlled.",
+        "plan_mode_set": "Battery plan mode set to {mode}.",
     },
     "nl": {
         "horizon_setting": "Planning {hours} uur vooruit (tot {end}): het ingestelde maximum van {days} dagen.",
@@ -69,6 +71,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "correction_mode_off": "Correctie van de {kind}-voorspelling uitgeschakeld (tot {until}); de nauwkeurigheid wordt wel gemeten.",
         "correction_mode_manual": "Handmatige correctie van de {kind}-voorspelling: {value} (tot {until}).",
         "accuracy_reset": "Wat geleerd was over de {kind}-voorspelling is gewist.",
+        "battery_plan": "Batterijplan ({mode}): verwachte besparing {saving} in het planningsvenster (andere modi: {others}). Laden: {charge}. Ontladen: {discharge}. Alleen advies, er wordt niets aangestuurd.",
+        "plan_mode_set": "Modus batterijplan ingesteld op {mode}.",
     },
 }
 

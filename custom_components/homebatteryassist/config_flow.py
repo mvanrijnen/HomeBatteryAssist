@@ -59,7 +59,9 @@ from homeassistant.helpers.selector import (
 from .const import (
     BATTERY_SENSOR_KEYS,
     CONF_CAPACITY,
+    CONF_CYCLE_COST,
     CONF_EFFICIENCY,
+    CONF_EXPORT_FACTOR,
     CONF_FORECAST_INTERVAL,
     CONF_FULL_CHARGE_INTERVAL,
     CONF_HISTORY_INTERVAL,
@@ -70,6 +72,7 @@ from .const import (
     CONF_MIN_SOC,
     CONF_PHASE,
     CONF_PHASES,
+    CONF_PLAN_MODE,
     CONF_PLANNING_HORIZON,
     CONF_POWER_SENSOR,
     CONF_POWER_SIGN,
@@ -78,7 +81,9 @@ from .const import (
     CONF_SENSOR,
     CONF_SOC_SENSOR,
     CONF_SOURCE,
+    DEFAULT_CYCLE_COST,
     DEFAULT_EFFICIENCY,
+    DEFAULT_EXPORT_FACTOR,
     DEFAULT_FORECAST_INTERVAL,
     DEFAULT_FULL_CHARGE_INTERVAL,
     DEFAULT_HISTORY_INTERVAL,
@@ -107,6 +112,7 @@ from .const import (
 )
 from .inputs.profiles import BatteryCandidate, find_battery_candidates
 from .inputs.solar import async_solar_forecast_entries
+from .planning.battery_plan import DEFAULT_PLAN_MODE, PLAN_MODES
 
 PHASES_SCHEMA = vol.Schema(
     {
@@ -234,6 +240,28 @@ async def settings_schema(
         vol.Optional(CONF_PRICE_FORECAST): EntitySelector(
             EntitySelectorConfig(domain="sensor")
         ),
+        vol.Required(
+            CONF_PLAN_MODE, default=current.get(CONF_PLAN_MODE, DEFAULT_PLAN_MODE)
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=list(PLAN_MODES),
+                mode=SelectSelectorMode.LIST,
+                translation_key=CONF_PLAN_MODE,
+            )
+        ),
+        vol.Required(
+            CONF_EXPORT_FACTOR,
+            default=current.get(CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR),
+        ): NumberSelector(
+            NumberSelectorConfig(min=0, max=1.5, step=0.05, mode=NumberSelectorMode.BOX)
+        ),
+        vol.Required(
+            CONF_CYCLE_COST, default=current.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
+        ): NumberSelector(
+            NumberSelectorConfig(
+                min=0, max=0.5, step=0.005, mode=NumberSelectorMode.BOX
+            )
+        ),
     }
     pv_options = [
         SelectOptionDict(value=e.entry_id, label=e.title)
@@ -268,6 +296,11 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
         CONF_FORECAST_INTERVAL: int(
             user_input.get(CONF_FORECAST_INTERVAL, DEFAULT_FORECAST_INTERVAL)
         ),
+        CONF_PLAN_MODE: user_input.get(CONF_PLAN_MODE, DEFAULT_PLAN_MODE),
+        CONF_EXPORT_FACTOR: float(
+            user_input.get(CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR)
+        ),
+        CONF_CYCLE_COST: float(user_input.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)),
     }
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]

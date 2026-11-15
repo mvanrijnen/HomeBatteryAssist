@@ -30,9 +30,10 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, HISTORY_RETENTION
+from .const import CONF_PLAN_MODE, DOMAIN, HISTORY_RETENTION
 from .forecasts.accuracy import ALL_BUCKETS, BUCKET_KEYS, KINDS, MODES
 from .history.importer import async_import_history
+from .planning.battery_plan import PLAN_MODES
 
 SERVICE_RECALCULATE = "recalculate"
 SERVICE_IMPORT_HISTORY = "import_history"
@@ -50,6 +51,7 @@ ATTR_FACTOR = "factor"
 ATTR_OFFSET = "offset_w"
 ATTR_POWER = "power_w"
 ATTR_ID = "id"
+SERVICE_SET_PLAN_MODE = "set_plan_mode"
 SERVICE_SET_CORRECTION = "set_forecast_correction"
 SERVICE_RESET_ACCURACY = "reset_forecast_accuracy"
 ATTR_KIND = "kind"
@@ -227,6 +229,24 @@ def async_setup_services(hass: HomeAssistant) -> None:
         )
         await forecast.async_refresh()
         return {"removed": count} if call.return_response else None
+
+    async def _set_plan_mode(call: ServiceCall) -> None:
+        entry = _loaded_entries(hass)[0]
+        mode = call.data[ATTR_MODE]
+        if entry.options.get(CONF_PLAN_MODE) == mode:
+            return
+        entry.runtime_data.decisions.async_log("planning", "plan_mode_set", mode=mode)
+        # Stored like the other settings; the entry reloads with the new mode.
+        hass.config_entries.async_update_entry(
+            entry, options={**entry.options, CONF_PLAN_MODE: mode}
+        )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SET_PLAN_MODE,
+        _set_plan_mode,
+        schema=vol.Schema({vol.Required(ATTR_MODE): vol.In(PLAN_MODES)}),
+    )
 
     async def _set_correction(call: ServiceCall) -> ServiceResponse:
         entry = _loaded_entries(hass)[0]

@@ -98,6 +98,9 @@
       },
       "batteries_capacity": {
         "default": "mdi:home-battery"
+      },
+      "battery_forecast": {
+        "default": "mdi:battery-clock-outline"
       }
     },
     "button": {
@@ -124,6 +127,9 @@
     },
     "reset_forecast_accuracy": {
       "service": "mdi:restore"
+    },
+    "set_plan_mode": {
+      "service": "mdi:battery-sync-outline"
     }
   }
 }

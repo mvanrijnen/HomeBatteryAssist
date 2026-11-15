@@ -42,6 +42,13 @@ DEFAULT_PLANNING_HORIZON: Final = 2
 #   dashboard (Forecast.Solar, Solcast, Open-Meteo Solar Forecast, ...)
 CONF_PRICE_FORECAST: Final = "price_forecast_entity"
 CONF_PV_FORECAST: Final = "pv_forecast_entries"
+# Battery plan (advice): mode and cost assumptions.
+CONF_PLAN_MODE: Final = "plan_mode"
+CONF_EXPORT_FACTOR: Final = "export_price_factor"
+CONF_CYCLE_COST: Final = "cycle_cost"
+DEFAULT_EXPORT_FACTOR: Final = 1.0  # export earns the import price (net metering)
+DEFAULT_CYCLE_COST: Final = 0.02  # per kWh through the battery
+
 # How often the forecasts are recalculated (minutes).
 CONF_FORECAST_INTERVAL: Final = "forecast_interval"
 FORECAST_INTERVAL_OPTIONS: Final = (5, 15, 30, 60)

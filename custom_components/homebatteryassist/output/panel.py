@@ -209,6 +209,21 @@ def websocket_history(
                 [int(t.timestamp() * 1000), wh]
                 for t, wh in sorted(forecast.data.pv_wh.items())
             ],
+            "plan_mode": forecast.data.plan_mode,
+            "plans": {
+                mode: {
+                    "strategy": plan.strategy,
+                    "saving": round(plan.saving, 2)
+                    if plan.saving is not None
+                    else None,
+                }
+                for mode, plan in forecast.data.plans.items()
+            },
+            # Battery plan of the selected mode: [time ms, power W, SoC %, grid W]
+            "battery_forecast": [
+                [int(s.start.timestamp() * 1000), s.power_w, s.soc, s.grid_w]
+                for s in forecast.data.battery
+            ],
             "has_pv": bool(entry.runtime_data.measurements.pv_sensors),
             "has_battery": bool(entry.runtime_data.batteries.configs),
             "has_excluded": bool(entry.runtime_data.measurements.excluded_sensors),

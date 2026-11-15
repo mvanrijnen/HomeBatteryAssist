@@ -58,6 +58,7 @@ async def async_setup_entry(
     ]
     batteries = entry.runtime_data.batteries
     if batteries.configs:
+        main.append(BatteryForecastSensor(entry))
         main += [
             BatteriesTotalSensor(entry, description, main_device_info(entry))
             for description in TOTAL_SENSORS
@@ -305,6 +306,64 @@ class ConsumptionForecastSensor(
                         if s.adjustments
                         else {}
                     ),
+                }
+                for s in slots
+            ],
+        }
+
+
+class BatteryForecastSensor(
+    HomeBatteryAssistEntity, CoordinatorEntity[ForecastCoordinator], SensorEntity
+):
+    """Planned battery power now (advice); the whole plan and alternatives in attributes."""
+
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfPower.WATT
+    _unrecorded_attributes = frozenset({"forecast"})
+
+    def __init__(self, entry: HomeBatteryAssistConfigEntry) -> None:
+        """Initialize."""
+        CoordinatorEntity.__init__(self, entry.runtime_data.forecast)
+        HomeBatteryAssistEntity.__init__(self, entry, "battery_forecast")
+
+    @property
+    def native_value(self) -> float | None:
+        """Expected battery power in the current slot (+ charging / - discharging)."""
+        now = dt_util.utcnow()
+        slot = next(
+            (s for s in self.coordinator.data.battery if s.start <= now < s.end), None
+        )
+        return slot.power_w if slot else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The plan per slot, its expected saving and the other modes."""
+        data = self.coordinator.data
+        slots = data.battery
+        plan = data.plans.get(data.plan_mode)
+        return {
+            "mode": data.plan_mode,
+            "strategy": plan.strategy if plan else None,
+            "expected_cost": plan.cost if plan else None,
+            "expected_cost_without_battery": plan.cost_without if plan else None,
+            "expected_saving": round(plan.saving, 2)
+            if plan and plan.saving is not None
+            else None,
+            "alternatives": {
+                mode: round(p.saving, 2) if p.saving is not None else None
+                for mode, p in data.plans.items()
+                if mode != data.plan_mode
+            },
+            "soc_end": slots[-1].soc if slots else None,
+            "soc_min": min((s.soc for s in slots), default=None),
+            "soc_max": max((s.soc for s in slots), default=None),
+            "forecast": [
+                {
+                    "start": s.start.isoformat(),
+                    "power_w": s.power_w,
+                    "soc": s.soc,
+                    "grid_w": s.grid_w,
                 }
                 for s in slots
             ],

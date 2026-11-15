@@ -63,7 +63,13 @@ const TEXT = {
     pvExpected: "PV expected",
     batteryLine: "Battery (+ charging / − discharging)",
     gridMeasured: "Grid (+ import / − export)",
-    gridExpected: "Grid expected (without battery)",
+    gridExpected: "Grid expected",
+    batteryExpected: "Battery plan",
+    planModes: { nom: "NOM", arbitrage: "arbitrage" },
+    planInfo: "Battery plan ({mode}, advice): expected saving {saving}",
+    planOther: "{mode}: {saving}",
+    socExpected: "Expected state of charge",
+    batteryNote: "The battery plan is how HomeBatteryAssist would control the batteries; for now it is advice only.",
     flowTitle: "Energy flows and expected consumption",
     navStart: "To the first measurement",
     navBack: "Back",
@@ -153,7 +159,13 @@ const TEXT = {
     pvExpected: "PV verwacht",
     batteryLine: "Batterij (+ laden / − ontladen)",
     gridMeasured: "Net (+ afname / − teruglevering)",
-    gridExpected: "Net verwacht (zonder batterij)",
+    gridExpected: "Net verwacht",
+    batteryExpected: "Batterijplan",
+    planModes: { nom: "NOM", arbitrage: "arbitrage" },
+    planInfo: "Batterijplan ({mode}, advies): verwachte besparing {saving}",
+    planOther: "{mode}: {saving}",
+    socExpected: "Verwachte vulling",
+    batteryNote: "Het batterijplan is hoe HomeBatteryAssist de batterijen zou aansturen; voorlopig alleen advies.",
     flowTitle: "Energiestromen en verwacht verbruik",
     navStart: "Naar de eerste meting",
     navBack: "Terug",
@@ -546,6 +558,17 @@ class HomeBatteryAssistPanel extends HTMLElement {
       <div class="tip" data-tip="${id}" hidden></div>`;
   }
 
+  _planText(h, t) {
+    const money = (v) => (v == null ? "–" : `${v.toFixed(2)} ${h.price_unit?.split("/")[0] || ""}`.trim());
+    const plan = h.plans?.[h.plan_mode];
+    const name = (mode) => t.planModes[mode] || mode;
+    const others = Object.entries(h.plans || {})
+      .filter(([mode]) => mode !== h.plan_mode)
+      .map(([mode, p]) => t.planOther.replace("{mode}", name(mode)).replace("{saving}", money(p.saving)));
+    const main = t.planInfo.replace("{mode}", name(h.plan_mode)).replace("{saving}", money(plan?.saving));
+    return others.length ? `${main} (${others.join(", ")})` : main;
+  }
+
   _flowNav(t) {
     const spans = Object.entries(t.spans)
       .map(([h, label]) => `<button data-span="${h}" class="${Number(h) === this._flowSpan ? "active" : ""}">${esc(label)}</button>`)
@@ -754,12 +777,16 @@ class HomeBatteryAssistPanel extends HTMLElement {
       ts,
       house == null ? null : Math.round(house - (pv || 0) + (excluded || 0) + (battery || 0)),
     ]);
-    // Expected grid without battery: expected house minus expected PV (per hour).
+    // Expected grid: from the battery simulation if there is one, otherwise
+    // expected house minus expected PV (per hour).
+    const batFc = h.battery_forecast || [];
     const pvByHour = new Map(pvFc.map(([ts, wh]) => [ts, wh]));
-    const gridFc = fc.map(([ts, power]) => {
-      const hour = Math.floor(ts / 3600e3) * 3600e3;
-      return [ts, Math.round(power - (pvByHour.get(hour) || 0))];
-    });
+    const gridFc = batFc.length
+      ? batFc.map(([ts, , , grid]) => [ts, grid])
+      : fc.map(([ts, power]) => {
+          const hour = Math.floor(ts / 3600e3) * 3600e3;
+          return [ts, Math.round(power - (pvByHour.get(hour) || 0))];
+        });
     if (!fc.length && !verified.length && !past.length) {
       forecastChart = `<div class="muted">${esc(t.noForecast)}</div>`;
     } else {
@@ -802,6 +829,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
             : []),
           ...(h.has_battery
             ? [{ points: past.map(([ts, , , , battery]) => [ts, battery]), color: batteryColor, label: t.batteryLine }]
+            : []),
+          ...(batFc.length
+            ? [{ points: batFc.map(([ts, power]) => [ts, power]), color: batteryColor, dashed: true, label: t.batteryExpected }]
             : []),
           { points: gridPast, color: gridColor, label: t.gridMeasured },
           { points: gridFc, color: gridColor, dashed: true, label: t.gridExpected },
@@ -856,6 +886,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
           const pct = house[1] ? ` (${diff >= 0 ? "+" : ""}${Math.round((diff / house[1]) * 100)}%)` : "";
           html += `<div class="r"><span>${esc(t.deviation)}</span><b>${diff >= 0 ? "+" : ""}${esc(this._power(diff))}${pct}</b></div>`;
         }
+        const socHit = batFc.find(([bts]) => Math.abs(bts - ts) < 15 * 60e3);
+        if (ts > Date.now() && socHit) {
+          html += `<div class="r"><span><i style="background:${batteryColor}"></i>${esc(t.socExpected)}</span><b>${Math.round(socHit[2])}%</b></div>`;
+        }
         if (ts > Date.now()) {
           if (expected) html += usual("consumption", ts, t.usualHouse, "W");
           if (pvExpected) html += usual("pv", ts, t.usualPv, "Wh");
@@ -885,7 +919,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const info = t.daysOfData.replace("{days}", Math.round(h.days_covered)) + (h.imported ? ` · ${t.imported}` : "");
     return `<div class="card"><h2>${esc(t.consumption)} · ${esc(info)}</h2><div class="charts">
       <div class="chart wide"><div class="head"><h3>${esc(t.flowTitle)}</h3>${this._flowNav(t)}</div>${forecastChart}${forecastLegend}
-        <div class="muted">${esc(accText)}</div></div>
+        <div class="muted">${esc(accText)}</div>
+        ${h.battery_forecast?.length ? `<div class="muted">${esc(this._planText(h, t))} · ${esc(t.batteryNote)}</div>` : ""}</div>
       <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}</div>
       <div class="chart"><h3>${esc(t.avgDay)}</h3>${avg}
         <div class="legend"><span><i style="background:${primary}"></i>${esc(t.weekday)}</span>

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
@@ -31,18 +32,31 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from ..const import (
+    CONF_CYCLE_COST,
+    CONF_EXPORT_FACTOR,
     CONF_FORECAST_INTERVAL,
+    CONF_PLAN_MODE,
     CONF_PLANNING_HORIZON,
     CONF_PRICE_FORECAST,
     CONF_PV_FORECAST,
+    DEFAULT_CYCLE_COST,
+    DEFAULT_EXPORT_FACTOR,
     DEFAULT_FORECAST_INTERVAL,
     DEFAULT_PLANNING_HORIZON,
     DOMAIN,
 )
 from ..explain import DecisionLog
 from ..history.consumption import ConsumptionHistory
+from ..inputs.batteries import BatteryState
 from ..inputs.prices import PricePoint, parse_price_forecast
 from ..inputs.solar import PV_PERIOD, async_get_pv_forecast
+from ..planning.battery_plan import (
+    DEFAULT_PLAN_MODE,
+    PLAN_MODES,
+    BatteryPlan,
+    PlanSlot,
+    plan_batteries,
+)
 from .accuracy import KINDS, ForecastAccuracy
 from .adjustments import AdjustmentStore
 from .consumption import ForecastSlot, forecast_consumption
@@ -68,6 +82,10 @@ class ForecastData:
     pv_now_w: float | None = None
     # Expected house consumption per slot (history interval) within the window.
     consumption: list[ForecastSlot] = field(default_factory=list)
+    # Battery plan (advice) of the selected mode per slot, and all plans.
+    battery: list[PlanSlot] = field(default_factory=list)
+    plans: dict[str, BatteryPlan] = field(default_factory=dict)
+    plan_mode: str = DEFAULT_PLAN_MODE
 
     @property
     def consumption_method(self) -> str | None:
@@ -93,6 +111,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         history: ConsumptionHistory,
         adjustments: AdjustmentStore,
         accuracy: ForecastAccuracy,
+        battery_states: Callable[[], Iterable[BatteryState]] = lambda: (),
     ) -> None:
         """Initialize."""
         super().__init__(
@@ -110,6 +129,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.history = history
         self.adjustments = adjustments
         self.accuracy = accuracy
+        self.battery_states = battery_states
+        self.plan_mode: str = entry.options.get(CONF_PLAN_MODE, DEFAULT_PLAN_MODE)
+        self.export_factor: float = entry.options.get(
+            CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR
+        )
+        self.cycle_cost: float = entry.options.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
+        self._last_plan: str | None = None
         self._last_method: str | None = None
         self._last_corrections: dict[str, str] = {}
         options = entry.options
@@ -203,9 +229,39 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             now,
             lambda value, start: accuracy.correct("consumption", value, start, now),
         )
+        # 6. Battery plans (advice) for every mode, off the event loop.
+        states = list(self.battery_states())
+        plans: dict[str, BatteryPlan] = {}
+        for mode in PLAN_MODES:
+            plan = await self.hass.async_add_executor_job(
+                lambda m=mode: plan_batteries(
+                    states,
+                    consumption,
+                    pv_wh,
+                    prices,
+                    mode=m,
+                    export_factor=self.export_factor,
+                    cycle_cost=self.cycle_cost,
+                )
+            )
+            if plan is not None:
+                plans[mode] = plan
+        selected = plans.get(self.plan_mode)
+        battery = selected.slots if selected else []
         data = ForecastData(
-            window, prices, price_unit, pv_wh, price_end, pv_end, pv_now_w, consumption
+            window,
+            prices,
+            price_unit,
+            pv_wh,
+            price_end,
+            pv_end,
+            pv_now_w,
+            consumption,
+            battery,
+            plans,
+            self.plan_mode,
         )
+        self._explain_plan(data)
         self._explain_method(data)
 
         # 5. Remember the raw consumption predictions.
@@ -267,6 +323,31 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 samples=stats.samples if stats else 0,
             )
 
+    def _explain_plan(self, data: ForecastData) -> None:
+        """Explain the selected plan and compare it with the other modes."""
+        plan = data.plans.get(data.plan_mode)
+        if plan is None:
+            return
+        others = ", ".join(
+            f"{mode}: {_money(p.saving)}"
+            for mode, p in data.plans.items()
+            if mode != data.plan_mode
+        )
+        key = f"{plan.mode}|{plan.strategy}|{_money(plan.saving)}|{others}"
+        if key == self._last_plan:
+            return
+        self._last_plan = key
+        self._decisions.async_log(
+            "planning",
+            "battery_plan",
+            mode=plan.mode,
+            strategy=plan.strategy,
+            saving=_money(plan.saving),
+            others=others or "-",
+            charge=_periods(plan.slots, charging=True),
+            discharge=_periods(plan.slots, charging=False),
+        )
+
     def _explain_method(self, data: ForecastData) -> None:
         """Explain on which history the consumption forecast is based."""
         method = data.consumption_method or "none"
@@ -317,3 +398,27 @@ def summarise(data: ForecastData) -> dict[str, Any]:
         ),
         "consumption_method": data.consumption_method,
     }
+
+
+def _money(value: float | None) -> str:
+    """Rounded to 0.10 so small changes do not flood the decision log."""
+    return "-" if value is None else f"{round(value, 1):.2f}"
+
+
+def _periods(slots: list[PlanSlot], *, charging: bool, threshold: float = 100.0) -> str:
+    """Up to three periods (local time) in which the plan charges / discharges."""
+    periods: list[tuple[datetime, datetime]] = []
+    for slot in slots:
+        active = slot.power_w > threshold if charging else slot.power_w < -threshold
+        if not active:
+            continue
+        if periods and periods[-1][1] == slot.start:
+            periods[-1] = (periods[-1][0], slot.end)
+        else:
+            periods.append((slot.start, slot.end))
+    fmt = "%a %H:%M"
+    text = ", ".join(
+        f"{dt_util.as_local(a).strftime(fmt)}-{dt_util.as_local(b).strftime('%H:%M')}"
+        for a, b in periods[:3]
+    )
+    return text + (" ..." if len(periods) > 3 else "") if text else "-"

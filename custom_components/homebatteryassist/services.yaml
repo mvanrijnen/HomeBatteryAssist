@@ -117,3 +117,12 @@ reset_forecast_accuracy:
         select:
           options: [consumption, pv, price, all]
           translation_key: forecast_kind
+
+set_plan_mode:
+  fields:
+    mode:
+      required: true
+      selector:
+        select:
+          options: [nom, arbitrage]
+          translation_key: plan_mode
