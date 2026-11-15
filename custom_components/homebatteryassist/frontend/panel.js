@@ -608,7 +608,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     // Last 7 days: hourly points, ticks at local midnight.
     const pts = h.hourly.map(([time, house]) => [time, house]);
     const excludedPts = h.hourly.map(([time, , excluded]) => [time, excluded]);
-    const excludedColor = "var(--warning-color, #ff9800)";
+    const excludedColor = "#ab47bc"; // purple: clearly different from PV (yellow)
     const xMin = pts.length ? pts[0][0] : Date.now() - 7 * 864e5;
     const xMax = Date.now();
     const ticks = [];
@@ -647,7 +647,6 @@ class HomeBatteryAssistPanel extends HTMLElement {
     // Expected consumption: past 24 h measured vs. predicted, next 48 h forecast.
     const now = Date.now();
     const secondary = "var(--secondary-text-color)";
-    const forecastColor = "var(--info-color, #039be5)";
     const verified = h.verification || [];
     const fc = h.forecast || [];
     let forecastChart;
@@ -673,7 +672,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         [
           { points: past.map(([ts, house]) => [ts, house]), color: primary, label: t.houseMeasured },
           { points: verified.map(([ts, , predicted]) => [ts, predicted]), color: secondary, dashed: true, label: t.predicted },
-          { points: fc.map(([ts, power]) => [ts, power]), color: forecastColor, label: t.houseExpected },
+          { points: fc.map(([ts, power]) => [ts, power]), color: primary, dashed: true, label: t.houseExpected },
           ...(h.has_pv || pvFc.length
             ? [
                 { points: past.map(([ts, , , pv]) => [ts, pv]), color: pvColor, label: t.pvMeasured },
@@ -701,12 +700,15 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const accText = acc
       ? t.accuracy.replace("{mae}", this._power(acc.mae)).replace("{mape}", acc.mape ?? "–")
       : t.notVerified;
-    const item = (color, label) => `<span><i style="background:${color}"></i>${esc(label)}</span>`;
+    // Solid = measured, dashed = expected (also in the legend).
+    const item = (color, label, dashed = false) =>
+      `<span><i style="${dashed ? `background:none;border-top:2px dashed ${color};height:0` : `background:${color}`}"></i>${esc(label)}</span>`;
     const forecastLegend = `<div class="legend" style="flex-wrap:wrap">${[
       item(primary, t.houseMeasured),
-      item(secondary, t.predicted),
-      item(forecastColor, t.houseExpected),
-      h.has_pv || pvFc.length ? item(pvColor, `${t.pvMeasured} / ${t.pvExpected}`) : "",
+      item(primary, t.houseExpected, true),
+      item(secondary, t.predicted, true),
+      h.has_pv ? item(pvColor, t.pvMeasured) : "",
+      pvFc.length ? item(pvColor, t.pvExpected, true) : "",
       h.has_battery ? item(batteryColor, t.batteryLine) : "",
       h.has_excluded ? item(excludedColor, t.excludedLine) : "",
     ].join("")}</div>`;
