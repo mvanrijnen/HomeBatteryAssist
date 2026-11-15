@@ -196,3 +196,34 @@ def test_cycle_limit_per_day() -> None:
     assert max(cycles_per_day(free).values()) > 1.2
     assert max(cycles_per_day(limited).values()) <= 1.01
     assert limited.saving < free.saving  # the limit costs something
+
+
+def test_charges_at_negative_import_price() -> None:
+    """A negative import price: charging from the grid pays, even without need."""
+    slots = _slots([300.0] * 4)
+    prices = _prices([0.30, -0.05, 0.30, 0.30])
+    plan = plan_batteries([_battery(soc=30.0)], slots, {}, prices, mode=MODE_ARBITRAGE)
+    assert plan.slots[1].power_w > 2000  # fills up at the negative price
+    assert plan.slots[1].grid_w > 2000
+
+
+def test_makes_room_before_negative_export_price() -> None:
+    """Full battery and PV surplus at a negative export price: it discharges
+    beforehand, so the surplus can be stored instead of exported at a loss."""
+    from custom_components.homebatteryassist.inputs.prices import PricePoint
+
+    slots = _slots([500.0, 500.0, 500.0, 500.0])
+    pv = {T0 + 3 * H: 3000.0}  # 2.5 kW surplus in the last hour
+    prices = _prices([0.30, 0.30, 0.30, 0.02])
+    export = [PricePoint(T0 + 3 * H, T0 + 4 * H, -0.10)]
+    plan = plan_batteries(
+        [_battery(soc=100.0)],
+        slots,
+        pv,
+        prices,
+        mode=MODE_ARBITRAGE,
+        export_prices=export,
+    )
+    assert sum(s.power_w for s in plan.slots[:3]) < -1000  # makes room first
+    assert plan.slots[3].power_w > 1500  # stores the surplus
+    assert plan.slots[3].grid_w > -1000  # little export at the negative price

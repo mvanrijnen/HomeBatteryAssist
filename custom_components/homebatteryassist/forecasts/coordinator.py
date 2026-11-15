@@ -48,6 +48,7 @@ from ..const import (
     CONF_PLANNING_HORIZON,
     CONF_PRICE_FORECAST,
     CONF_PV_FORECAST,
+    CONF_PV_MARGIN,
     DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
     DEFAULT_EXPORT_FACTOR,
@@ -58,6 +59,7 @@ from ..const import (
     DEFAULT_MIN_BATTERY_POWER,
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
+    DEFAULT_PV_MARGIN,
     DOMAIN,
     EXPORT_FACTOR,
     EXPORT_MARKET,
@@ -182,6 +184,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.cycle_cost: float = entry.options.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
         self.max_cycles: float = entry.options.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES)
+        self.pv_margin: float = entry.options.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN)
         self.phase_margin: float = entry.options.get(
             CONF_PHASE_MARGIN, DEFAULT_PHASE_MARGIN
         )
@@ -310,14 +313,19 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         # 6. Battery plans (advice) for every mode, off the event loop, within
         # the phase limits of the grid connection.
         states = list(self.battery_states())
-        limits = self._phase_limits(states, consumption, pv_wh)
+        # Plans count on less PV than forecast (safety margin against optimistic
+        # forecasts): more is charged from the grid where needed.
+        pv_plan = {
+            start: wh * (1 - self.pv_margin / 100) for start, wh in pv_wh.items()
+        }
+        limits = self._phase_limits(states, consumption, pv_plan)
         plans: dict[str, BatteryPlan] = {}
         for mode in PLAN_MODES:
             plan = await self.hass.async_add_executor_job(
                 lambda m=mode: plan_batteries(
                     states,
                     consumption,
-                    pv_wh,
+                    pv_plan,
                     prices,
                     mode=m,
                     export_factor=self.export_factor,
@@ -344,7 +352,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             prices,
             self.full_charge_window,
             now,
-            fits=self._fits_connection(states, consumption, pv_wh),
+            fits=self._fits_connection(states, consumption, pv_plan),
         )
         battery = _with_full_charges(battery, full_charges)
         self._explain_full_charges(full_charges)

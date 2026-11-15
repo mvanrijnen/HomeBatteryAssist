@@ -60,7 +60,8 @@
           "phase_margin": "Safety margin per phase",
           "export_price_mode": "Export price",
           "export_price_entities": "Export price sensors",
-          "max_cycles_per_day": "Max. cycles per day (arbitrage)"
+          "max_cycles_per_day": "Max. cycles per day (arbitrage)",
+          "pv_forecast_margin": "Margin on the PV forecast"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -77,7 +78,8 @@
           "phase_margin": "Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation.",
           "export_price_mode": "What energy returned to the grid earns. Import price x factor (below), the bare market price (EPEX, from the selected sensors, or from market attributes of the price sensor), or an export price forecast from the selected sensors. Where these do not reach, import price x factor is used.",
           "export_price_entities": "One or more sensors with prices (state and/or price list attributes), e.g. a market price sensor for today/tomorrow plus a forecast sensor for the days after. For overlapping periods the first sensor wins.",
-          "max_cycles_per_day": "Arbitrage charges and discharges at most this many full cycles per day (energy discharged / capacity), to spare the batteries. 0 = no limit."
+          "max_cycles_per_day": "Arbitrage charges and discharges at most this many full cycles per day (energy discharged / capacity), to spare the batteries. 0 = no limit.",
+          "pv_forecast_margin": "The plans count on this much less solar power than forecast, to hedge optimistic forecasts: more is charged from the grid where needed. Comes on top of the correction learned from past forecasts."
         }
       }
     },
@@ -222,7 +224,8 @@
           "phase_margin": "Safety margin per phase",
           "export_price_mode": "Export price",
           "export_price_entities": "Export price sensors",
-          "max_cycles_per_day": "Max. cycles per day (arbitrage)"
+          "max_cycles_per_day": "Max. cycles per day (arbitrage)",
+          "pv_forecast_margin": "Margin on the PV forecast"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -239,7 +242,8 @@
           "phase_margin": "Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation.",
           "export_price_mode": "What energy returned to the grid earns. Import price x factor (below), the bare market price (EPEX, from the selected sensors, or from market attributes of the price sensor), or an export price forecast from the selected sensors. Where these do not reach, import price x factor is used.",
           "export_price_entities": "One or more sensors with prices (state and/or price list attributes), e.g. a market price sensor for today/tomorrow plus a forecast sensor for the days after. For overlapping periods the first sensor wins.",
-          "max_cycles_per_day": "Arbitrage charges and discharges at most this many full cycles per day (energy discharged / capacity), to spare the batteries. 0 = no limit."
+          "max_cycles_per_day": "Arbitrage charges and discharges at most this many full cycles per day (energy discharged / capacity), to spare the batteries. 0 = no limit.",
+          "pv_forecast_margin": "The plans count on this much less solar power than forecast, to hedge optimistic forecasts: more is charged from the grid where needed. Comes on top of the correction learned from past forecasts."
         }
       },
       "meter": {

@@ -97,6 +97,7 @@ from .const import (
     CONF_POWER_SIGN,
     CONF_PRICE_FORECAST,
     CONF_PV_FORECAST,
+    CONF_PV_MARGIN,
     CONF_SENSOR,
     CONF_SOC_SENSOR,
     CONF_SOURCE,
@@ -119,6 +120,7 @@ from .const import (
     DEFAULT_MIN_SOC,
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
+    DEFAULT_PV_MARGIN,
     DOMAIN,
     EXPORT_MODES,
     FORECAST_INTERVAL_OPTIONS,
@@ -290,6 +292,10 @@ async def settings_schema(
             )
         ),
         vol.Required(
+            CONF_PV_MARGIN,
+            default=current.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN),
+        ): _number(0, 50, 1, "%"),
+        vol.Required(
             CONF_MAX_CYCLES,
             default=current.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES),
         ): NumberSelector(
@@ -416,6 +422,7 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]
     options[CONF_EXPORT_MODE] = user_input.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE)
+    options[CONF_PV_MARGIN] = int(user_input.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN))
     options[CONF_MAX_CYCLES] = float(
         user_input.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES)
     )
