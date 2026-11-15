@@ -129,6 +129,8 @@ def _omnibattery_device(hass: HomeAssistant, phases: int = 3) -> None:
         config_entry_id=owner.entry_id,
         identifiers={("omnibattery", "venus1")},
         name="Marstek Venus 1",
+        manufacturer="Marstek",
+        model="Venus E v3",
     )
     registry = er.async_get(hass)
     for domain, key, state, unit in (
@@ -175,7 +177,7 @@ async def test_add_detected_omnibattery(hass: HomeAssistant) -> None:
     )
     assert result["step_id"] == "user"
     options = result["data_schema"].schema[CONF_SOURCE].config["options"]
-    assert options[0]["label"] == "Marstek Venus 1 (Omnibattery)"
+    assert options[0]["label"] == "Marstek Venus 1 - Venus E v3 (Omnibattery)"
     assert options[-1]["value"] == "manual"
 
     result = await hass.config_entries.subentries.async_configure(
@@ -205,6 +207,16 @@ async def test_add_detected_omnibattery(hass: HomeAssistant) -> None:
         result["flow_id"], {**suggested, CONF_FULL_CHARGE_INTERVAL: 7}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+
+    # Our battery device shows the real battery's make and model.
+    (battery_id,) = entry.subentries
+    device = next(
+        d
+        for d in dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+        if (DOMAIN, battery_id) in d.identifiers
+    )
+    assert (device.manufacturer, device.model) == ("Marstek", "Venus E v3 (read-only)")
 
     # Once linked, the battery is no longer offered.
     result = await hass.config_entries.subentries.async_init(

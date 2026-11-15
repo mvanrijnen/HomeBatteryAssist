@@ -29,6 +29,7 @@ from .batteries import (
     TOTAL_SENSORS,
     BatteriesTotalSensor,
     BatterySensor,
+    source_device,
 )
 
 MAX_STATE_LENGTH = 255
@@ -59,7 +60,12 @@ async def async_setup_entry(
 
     for config in batteries.configs:
         async_add_entities(
-            [BatterySensor(entry, config.id, d) for d in BATTERY_SENSORS],
+            [
+                BatterySensor(
+                    entry, config.id, d, source_device(hass, config.soc_sensor)
+                )
+                for d in BATTERY_SENSORS
+            ],
             config_subentry_id=config.id,
         )
 

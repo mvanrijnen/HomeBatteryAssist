@@ -19,6 +19,9 @@ from homeassistant.const import (
     UnitOfEnergy,
     UnitOfPower,
 )
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.util import dt as dt_util
 
@@ -228,18 +231,21 @@ class BatterySensor(_BatteryEntityBase):
         entry: HomeBatteryAssistConfigEntry,
         battery_id: str,
         description: BatterySensorDescription,
+        source: tuple[str | None, str | None] = (None, None),
     ) -> None:
-        """Initialize."""
+        """Initialize; ``source`` is (manufacturer, model) of the real battery."""
         super().__init__(entry.runtime_data.batteries)
         self.entity_description = description
         self._battery_id = battery_id
         self._attr_translation_key = description.key
         self._attr_unique_id = f"{battery_id}_{description.key}"
         name = self._state.config.name
+        manufacturer, model = source
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, battery_id)},
             name=name,
-            model="Home battery",
+            manufacturer=manufacturer,
+            model=f"{model} (read-only)" if model else "Home battery (read-only)",
             entry_type=DeviceEntryType.SERVICE,
         )
 
@@ -287,3 +293,14 @@ class BatteriesTotalSensor(_BatteryEntityBase):
     def native_value(self) -> Any:
         """Return the total."""
         return self.entity_description.value_fn(list(self._batteries.states.values()))
+
+
+def source_device(hass: HomeAssistant, entity_id: str) -> tuple[str | None, str | None]:
+    """(manufacturer, model) of the device that owns ``entity_id``, if known."""
+    entity = er.async_get(hass).async_get(entity_id)
+    if entity is None or entity.device_id is None:
+        return None, None
+    device = dr.async_get(hass).async_get(entity.device_id)
+    if device is None:
+        return None, None
+    return device.manufacturer, device.model

@@ -92,13 +92,15 @@ class BatteryCandidate:
 
     device_id: str
     name: str
+    model: str | None
     profile: BatteryProfile
     data: dict[str, Any]
 
     @property
     def label(self) -> str:
-        """Shown in the selection list."""
-        return f"{self.name} ({self.profile.label})"
+        """Shown in the selection list, e.g. "Marstek Venus 1 - Venus E v3 (Omnibattery)"."""
+        model = f" - {self.model}" if self.model else ""
+        return f"{self.name}{model} ({self.profile.label})"
 
 
 def _value(hass: HomeAssistant, entity_id: str | None) -> Any:
@@ -136,6 +138,7 @@ def find_battery_candidates(
                 BatteryCandidate(
                     device_id,
                     name or soc,
+                    device.model if device else None,
                     profile,
                     _suggest(hass, profile, keyed, name, soc, power),
                 )
