@@ -11,6 +11,10 @@ selected plan mode, using the real measurements:
 The total is spread over the virtual batteries with
 ``planning.distribution.distribute`` (minimum power per battery).
 
+The powers are then held within the phase limits of the grid connection,
+on the phase power measured right now (``planning.phase_limit``): a virtual
+battery on a phase may not push that phase over its maximum current.
+
 Within the battery's power and state-of-charge limits. The round-trip loss is
 drawn at random per step between the battery's ``loss_min`` and ``loss_max``
 (split evenly over charging and discharging), like a real battery whose losses
@@ -38,11 +42,13 @@ from ..inputs.batteries import BatteryConfig, BatteryInput
 from ..inputs.measurements import MeasurementInput
 from ..planning.battery_plan import MODE_ARBITRAGE
 from ..planning.distribution import Candidate, Distributor
+from ..planning.phase_limit import PhaseDevice, cap_powers, phase_limit_w
 
 _LOGGER = logging.getLogger(__name__)
 
 STEP = timedelta(seconds=30)
 MAX_STEP = timedelta(minutes=5)  # longer gaps (restart) are not simulated
+LIMIT_CLEAR_AFTER = timedelta(minutes=5)  # no phase limit this long: log it
 
 
 def limit_power(
@@ -98,6 +104,9 @@ class VirtualBatterySimulator:
         self._forecast = forecast
         self._last: datetime | None = None
         self._unsub: CALLBACK_TYPE | None = None
+        self.limited_phases: list[int] = []  # phases that limit right now
+        self._limit_logged = False
+        self._limit_seen: datetime | None = None
 
     @property
     def virtual(self) -> list[BatteryConfig]:
@@ -138,20 +147,66 @@ class VirtualBatterySimulator:
             for c in self.virtual
         }
         targets = self._targets(now, hours, [c for c in self.virtual if not full[c.id]])
+        socs: dict[str, float] = {}
+        wanted: dict[str, float] = {}
         for config in self.virtual:
             state = self._batteries.states[config.id]
-            soc = state.soc if state.soc is not None else config.initial_soc
-            if full[config.id]:
-                # Forced full charge: max power up to 100 %, above the normal max.
-                limits = replace(config, max_soc=100.0)
-                power, soc = limit_power(
-                    limits, soc, config.max_charge_w, hours, random_efficiency(config)
-                )
-            else:
-                power, soc = limit_power(
-                    config, soc, targets(config, soc), hours, random_efficiency(config)
-                )
+            socs[config.id] = soc = (
+                state.soc if state.soc is not None else config.initial_soc
+            )
+            # Forced full charge: max power up to 100 %, above the normal max.
+            wanted[config.id] = (
+                config.max_charge_w if full[config.id] else targets(config, soc)
+            )
+        wanted = self._phase_limited(wanted, now)
+        for config in self.virtual:
+            limits = replace(config, max_soc=100.0) if full[config.id] else config
+            power, soc = limit_power(
+                limits,
+                socs[config.id],
+                wanted[config.id],
+                hours,
+                random_efficiency(config),
+            )
             self._batteries.set_virtual(config.id, now, power, soc)
+
+    def _phase_limited(
+        self, wanted: dict[str, float], now: datetime
+    ) -> dict[str, float]:
+        """Hold the powers within the phase limits; explain when that starts/ends."""
+        flow = self._measurements.flow
+        if flow is None or not flow.phase_w:
+            return wanted
+        phases = len(flow.phase_w)
+        max_current = self._measurements.max_current
+        devices = [PhaseDevice.from_config(c, phases) for c in self.virtual]
+        capped, limited = cap_powers(
+            wanted, devices, flow.phase_w, phase_limit_w(max_current)
+        )
+        self.limited_phases = limited
+        if limited:
+            self._limit_seen = now
+            if not self._limit_logged:
+                self._limit_logged = True
+                names = {c.id: c.name for c in self.virtual}
+                held = [i for i in wanted if abs(capped[i]) < abs(wanted[i]) - 1]
+                self._decisions.async_log(
+                    "battery",
+                    "phase_limit",
+                    names=", ".join(names[i] for i in held) or "-",
+                    power=f"{sum(abs(capped[i]) for i in held):.0f} W",
+                    phase=", ".join(f"L{i + 1}" for i in limited),
+                    current=", ".join(f"{flow.phase_current(i):.1f}" for i in limited),
+                    max=max_current,
+                )
+        elif (
+            self._limit_logged
+            and self._limit_seen is not None
+            and now - self._limit_seen >= LIMIT_CLEAR_AFTER
+        ):
+            self._limit_logged = False
+            self._decisions.async_log("battery", "phase_limit_cleared")
+        return capped
 
     def _targets(self, now: datetime, hours: float, virtual: list[BatteryConfig]):
         """A function (config, soc) -> target power (W, + charging) per battery.

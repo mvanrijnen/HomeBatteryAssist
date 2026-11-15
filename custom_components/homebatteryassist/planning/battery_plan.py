@@ -23,6 +23,10 @@ the batteries' power limits, min/max state of charge and round-trip efficiency
 (split evenly over charging and discharging). All batteries are planned
 together as one.
 
+Optional ``limits`` per slot (charge, discharge in W) keep the grid
+connection's phases within their maximum current (``phase_limit``); a slot
+where they made the batteries charge or discharge less is marked ``limited``.
+
 Without prices arbitrage is not possible and falls back to nom.
 The plan is designed so it can later be turned into battery commands 1:1.
 """
@@ -57,6 +61,7 @@ class PlanSlot:
     soc: float  # % at the end of the slot (over all batteries)
     grid_w: float  # expected grid exchange with the plan, + import / - export
     price: float | None  # price used for this slot
+    limited: bool = False  # less power because of the phase limits
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,6 +137,7 @@ def plan_batteries(
     mode: str = DEFAULT_PLAN_MODE,
     export_factor: float = DEFAULT_EXPORT_FACTOR,
     cycle_cost: float = DEFAULT_CYCLE_COST,
+    limits: Mapping[datetime, tuple[float, float]] | None = None,
 ) -> BatteryPlan | None:
     """Plan the batteries in ``mode`` over the consumption slots; None without batteries."""
     pack = _pack(states)
@@ -145,11 +151,23 @@ def plan_batteries(
             continue
         hour = slot.start.replace(minute=0, second=0, microsecond=0)
         net = slot.power_w - pv_wh.get(hour, 0.0)  # + shortage / - surplus
-        slots.append((slot, hours, net, _price_at(prices, slot.start)))
+        max_c, max_d = (limits or {}).get(
+            slot.start, (pack.max_charge, pack.max_discharge)
+        )
+        slots.append(
+            (
+                slot,
+                hours,
+                net,
+                _price_at(prices, slot.start),
+                max(min(max_c, pack.max_charge), 0.0),
+                max(min(max_d, pack.max_discharge), 0.0),
+            )
+        )
 
     if not slots:
         return None
-    priced = all(price is not None for *_, price in slots)
+    priced = all(s[3] is not None for s in slots)
     if mode == MODE_ARBITRAGE and priced:
         return _optimise(pack, slots, export_factor, cycle_cost, mode)
     return _nom(pack, slots, export_factor, cycle_cost, mode, priced)
@@ -167,15 +185,15 @@ def _nom(
     stored = pack.stored
     result: list[PlanSlot] = []
     cost_with = cost_without = 0.0
-    for slot, hours, net, price in slots:
+    for slot, hours, net, price, max_c, max_d in slots:
         power = 0.0
         if net < 0:
             room = max(pack.ceiling - stored, 0.0)
-            power = min(-net, pack.max_charge, room / (hours * pack.eff))
+            power = min(-net, max_c, room / (hours * pack.eff))
             stored += power * hours * pack.eff
         elif net > 0:
             available = max(stored - pack.floor, 0.0)
-            power = -min(net, pack.max_discharge, available * pack.eff / hours)
+            power = -min(net, max_d, available * pack.eff / hours)
             stored += power * hours / pack.eff
         if priced:
             cost_with += _grid_cost(net + power, hours, price, export_factor)
@@ -189,11 +207,12 @@ def _nom(
                 round(stored / pack.capacity * 100, 1),
                 round(net + power, 1),
                 price,
+                _limited(pack, power, max_c, max_d),
             )
         )
     if not priced:
         return BatteryPlan(mode, MODE_NOM, result, None, None)
-    avg_price = sum(p for *_, p in slots) / len(slots)
+    avg_price = sum(s[3] for s in slots) / len(slots)
     cost_with += (pack.stored - stored) / 1000 * avg_price * pack.eff
     return BatteryPlan(
         mode,
@@ -224,15 +243,15 @@ def _optimise(
     count = len(slots)
 
     # Value of energy left at the end: what it saves later, at the average price.
-    avg_price = sum(p for *_, p in slots) / count
+    avg_price = sum(s[3] for s in slots) / count
     terminal = [-(e - pack.floor) / 1000 * avg_price * pack.eff for e in energy]
 
     best_next: list[list[int]] = [[0] * levels for _ in range(count)]
     future = terminal
     for t in range(count - 1, -1, -1):
-        _slot, hours, net, price = slots[t]
-        up = int(pack.max_charge * hours * pack.eff / step)
-        down = int(pack.max_discharge * hours / pack.eff / step)
+        _slot, hours, net, price, max_c, max_d = slots[t]
+        up = int(max_c * hours * pack.eff / step)
+        down = int(max_d * hours / pack.eff / step)
         current = [0.0] * levels
         choice = best_next[t]
         for i in range(levels):
@@ -263,7 +282,7 @@ def _optimise(
     i = min(max(round((pack.stored - pack.floor) / step), 0), levels - 1)
     result: list[PlanSlot] = []
     cost_with = cost_without = 0.0
-    for t, (slot, hours, net, price) in enumerate(slots):
+    for t, (slot, hours, net, price, max_c, max_d) in enumerate(slots):
         j = best_next[t][i]
         delta = (j - i) * step
         power = delta / (hours * pack.eff) if delta >= 0 else delta * pack.eff / hours
@@ -278,6 +297,7 @@ def _optimise(
                 round(energy[j] / pack.capacity * 100, 1),
                 round(net + power, 1),
                 price,
+                _limited(pack, power, max_c, max_d),
             )
         )
         i = j
@@ -293,6 +313,15 @@ def _optimise(
         pack.capacity / 1000,
         avg_price * pack.eff,
     )
+
+
+def _limited(pack: _Pack, power: float, max_c: float, max_d: float) -> bool:
+    """Whether the phase limits held the power back in this slot."""
+    if power > 0:
+        return max_c < pack.max_charge - 1 and power >= max_c - 50
+    if power < 0:
+        return max_d < pack.max_discharge - 1 and -power >= max_d - 50
+    return False
 
 
 def slot_costs(

@@ -30,6 +30,8 @@ class ConsumptionRecord(TypedDict):
     excluded_w: NotRequired[float]  # average power of excluded devices (e.g. EV)
     pv_w: NotRequired[float]  # average measured PV production
     battery_w: NotRequired[float]  # average battery power, + charging / - discharging
+    phase_house_w: NotRequired[list[float]]  # average house consumption per phase
+    phase_pv_w: NotRequired[list[float]]  # average PV production per phase
 
 
 class ConsumptionHistory:
@@ -63,6 +65,10 @@ class ConsumptionHistory:
         self._battery_ws = 0.0
         self._battery_s = 0.0
         self._measured_s = 0.0
+        self._last_phases: tuple[tuple[float, ...], tuple[float, ...]] | None = None
+        self._phase_house_ws: list[float] = []
+        self._phase_pv_ws: list[float] = []
+        self._phase_s = 0.0
         self._unsub_timer: CALLBACK_TYPE | None = None
 
     async def async_start(self) -> None:
@@ -108,6 +114,7 @@ class ConsumptionHistory:
         excluded: float | None = None,
         pv: float | None = None,
         battery: float | None = None,
+        phases: tuple[tuple[float, ...], tuple[float, ...]] | None = None,
     ) -> None:
         """Register new values (W): house consumption and excluded devices.
 
@@ -125,6 +132,7 @@ class ConsumptionHistory:
         self._last_excluded = excluded
         self._last_pv = pv
         self._last_battery = battery
+        self._last_phases = phases if phases and phases[0] else None
 
     @callback
     def close_interval(self, when: datetime) -> ConsumptionRecord | None:
@@ -174,6 +182,13 @@ class ConsumptionHistory:
                 record["pv_w"] = round(self._pv_ws / self._pv_s, 1)
             if self._battery_s > 0:
                 record["battery_w"] = round(self._battery_ws / self._battery_s, 1)
+            if self._phase_s > 0:
+                record["phase_house_w"] = [
+                    round(v / self._phase_s, 1) for v in self._phase_house_ws
+                ]
+                record["phase_pv_w"] = [
+                    round(v / self._phase_s, 1) for v in self._phase_pv_ws
+                ]
             self.records.append(record)
             self.prune(self._interval_start)
             self._store.async_delay_save(self._data, SAVE_DELAY)
@@ -186,6 +201,9 @@ class ConsumptionHistory:
         self._battery_ws = 0.0
         self._battery_s = 0.0
         self._measured_s = 0.0
+        self._phase_house_ws = []
+        self._phase_pv_ws = []
+        self._phase_s = 0.0
         return record
 
     def _integrate(self, when: datetime) -> None:
@@ -200,6 +218,17 @@ class ConsumptionHistory:
             if self._last_battery is not None:
                 self._battery_ws += self._last_battery * seconds
                 self._battery_s += seconds
+            if self._last_phases is not None:
+                house, pv = self._last_phases
+                if len(self._phase_house_ws) != len(house):
+                    self._phase_house_ws = [0.0] * len(house)
+                    self._phase_pv_ws = [0.0] * len(house)
+                    self._phase_s = 0.0
+                for i, value in enumerate(house):
+                    self._phase_house_ws[i] += value * seconds
+                for i, value in enumerate(pv[: len(house)]):
+                    self._phase_pv_ws[i] += value * seconds
+                self._phase_s += seconds
         self._last_time = when
 
     def prune(self, now: datetime) -> None:

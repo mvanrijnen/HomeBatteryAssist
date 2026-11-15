@@ -37,7 +37,9 @@ from ..const import (
     CONF_EXPORT_FACTOR,
     CONF_FORECAST_INTERVAL,
     CONF_FULL_CHARGE_WINDOW,
+    CONF_MAX_CURRENT,
     CONF_MIN_BATTERY_POWER,
+    CONF_PHASES,
     CONF_PLAN_MODE,
     CONF_PLANNING_HORIZON,
     CONF_PRICE_FORECAST,
@@ -65,10 +67,12 @@ from ..planning.battery_plan import (
     plan_batteries,
 )
 from ..planning.full_charge import FullCharge, schedule_full_charges
+from ..planning.phase_limit import PhaseDevice, max_power, phase_limit_w
 from .accuracy import KINDS, ForecastAccuracy
 from .adjustments import AdjustmentStore
 from .consumption import ForecastSlot, forecast_consumption
 from .horizon import HorizonLimit, PlanningWindow, planning_horizon
+from .phases import PhaseProfile
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -180,6 +184,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.price_entity: str | None = options.get(CONF_PRICE_FORECAST) or None
         self.pv_entries: list[str] = list(options.get(CONF_PV_FORECAST) or [])
         self._last_limit: HorizonLimit | None = None
+        self.phase_profile: PhaseProfile | None = None
 
     async def _async_update_data(self) -> ForecastData:
         now = dt_util.utcnow()
@@ -271,8 +276,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             now,
             lambda value, start: accuracy.correct("consumption", value, start, now),
         )
-        # 6. Battery plans (advice) for every mode, off the event loop.
+        # 6. Battery plans (advice) for every mode, off the event loop, within
+        # the phase limits of the grid connection.
         states = list(self.battery_states())
+        limits = self._phase_limits(states, consumption, pv_wh)
         plans: dict[str, BatteryPlan] = {}
         for mode in PLAN_MODES:
             plan = await self.hass.async_add_executor_job(
@@ -284,6 +291,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                     mode=m,
                     export_factor=self.export_factor,
                     cycle_cost=self.cycle_cost,
+                    limits=limits,
                 )
             )
             if plan is not None:
@@ -329,6 +337,31 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.hass.bus.async_fire(EVENT_FORECAST_UPDATED, summarise(data))
         return data
+
+    def _phase_limits(
+        self,
+        states: list[BatteryState],
+        consumption: list[ForecastSlot],
+        pv_wh: dict[datetime, float],
+    ) -> dict[datetime, tuple[float, float]]:
+        """Most charge/discharge power per slot without overloading a phase."""
+        phases = self.config_entry.data[CONF_PHASES]
+        limit = phase_limit_w(self.config_entry.data[CONF_MAX_CURRENT])
+        devices = [
+            PhaseDevice.from_config(s.config, phases)
+            for s in states
+            if s.soc is not None and s.config.capacity_kwh > 0
+        ]
+        if not devices:
+            return {}
+        self.phase_profile = PhaseProfile(self.history.records, phases)
+        return {
+            start: (
+                max_power(devices, loads, limit, charging=True),
+                max_power(devices, loads, limit, charging=False),
+            )
+            for start, loads in self.phase_profile.loads(consumption, pv_wh).items()
+        }
 
     def summary(self) -> dict[str, Any]:
         """Short description of the latest result (action response, event)."""
@@ -428,6 +461,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             _plan_efficiency(states),
             self.cycle_cost,
             min_soc_reached,
+            self.config_entry.data[CONF_MAX_CURRENT],
         )
         # Log when the gist changes (not for every small change in numbers).
         current = next((s for s in plan.slots if s.start <= now < s.end), None)

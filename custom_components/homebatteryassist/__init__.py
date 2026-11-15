@@ -122,6 +122,7 @@ async def async_setup_entry(
             flow.excluded_w if flow else None,
             flow.pv_w if flow and measurements.pv_sensors else None,
             flow.battery_w if flow and measurements.batteries else None,
+            (flow.phase_house_w, flow.phase_pv_w) if flow else None,
         )
 
     measurements.async_add_listener(_record)

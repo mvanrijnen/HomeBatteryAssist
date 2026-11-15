@@ -18,11 +18,12 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
-from ..const import DOMAIN, NAME
+from ..const import DOMAIN, NAME, NOMINAL_VOLTAGE
 from ..forecasts.accuracy import BUCKET_KEYS, KINDS
 from ..history.profile import day_profile, days_covered, hourly_series
 from ..models import HomeBatteryAssistConfigEntry
 from ..planning.battery_plan import MODE_ARBITRAGE, MODE_NOM, compare_modes
+from ..planning.phase_limit import phase_limit_w
 from .batteries import BATTERY_SENSORS, TOTAL_SENSORS
 
 _LOGGER = logging.getLogger(__name__)
@@ -99,6 +100,9 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
     return {
         "phases": len(data.measurements.grid_phases),
         "max_current": data.measurements.max_current,
+        "phase_limit_a": round(
+            phase_limit_w(data.measurements.max_current) / NOMINAL_VOLTAGE, 1
+        ),
         "has_pv": bool(data.measurements.pv_sensors),
         "has_pv_forecast": bool(data.forecast.pv_entries),
         "pv_forecast_now_w": data.forecast.data.pv_now_w,
@@ -114,6 +118,7 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
                 "max_soc": config.max_soc,
                 "max_charge_w": config.max_charge_w,
                 "max_discharge_w": config.max_discharge_w,
+                "phase": config.phase,
                 "entities": _entity_ids(
                     registry, config.id, (d.key for d in BATTERY_SENSORS)
                 ),

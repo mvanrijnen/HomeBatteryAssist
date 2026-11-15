@@ -28,6 +28,10 @@ const TEXT = {
     emptyAt: "Empty at",
     phases: "Grid connection",
     phase: "Phase",
+    allPhases: "all phases",
+    withVirtual: "with virtual batteries",
+    phaseLimit: "limit {a} A (fuse with 10% margin)",
+    idle: "idle",
     planning: "Planning",
     planningUntil: "Can plan {hours} h ahead, until {end}",
     noPlanning: "No planning possible",
@@ -134,6 +138,10 @@ const TEXT = {
     emptyAt: "Leeg om",
     phases: "Netaansluiting",
     phase: "Fase",
+    allPhases: "alle fasen",
+    withVirtual: "met virtuele batterijen",
+    phaseLimit: "grens {a} A (zekering met 10% marge)",
+    idle: "rust",
     planning: "Planning",
     planningUntil: "Kan {hours} uur vooruit plannen, tot {end}",
     noPlanning: "Geen planning mogelijk",
@@ -260,6 +268,9 @@ const STYLE = `
   .phases { display: grid; gap: 10px; }
   .phase { display: grid; grid-template-columns: 40px 1fr 190px; gap: 8px; align-items: center; font-size: 14px; }
   .phase b { color: var(--primary-text-color); font-weight: 500; }
+  .phase .who { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+  .phase .who span { padding: 1px 8px; border-radius: 10px; background: var(--secondary-background-color); }
+  .phase .who span.virtual { border: 1px dashed var(--secondary-text-color); background: none; }
   ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
   li { display: grid; grid-template-columns: 90px 1fr; gap: 8px; font-size: 14px; }
   li time { color: var(--secondary-text-color); }
@@ -487,6 +498,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         <div class="text">${soc === null ? "–" : `${Math.round(soc)}%`}</div></div>
       <div class="row"><span>${esc(t.stored)}</span><b>${this._kwh(this._num(e.battery_stored_energy))} / ${b.capacity_kwh} kWh</b></div>
       <div class="row"><span>${esc(t.usable)}</span><b>${this._kwh(this._num(e.battery_usable_energy))}</b></div>
+      ${this._status?.phases === 3 ? `<div class="row"><span>${esc(t.phase)}</span><b>${esc(b.phase && b.phase !== "none" ? b.phase.toUpperCase() : t.allPhases)}</b></div>` : ""}
       <div class="row"><span>${esc(status === "discharging" ? t.discharging : t.charging)}</span><b>${this._power(power === null ? null : Math.abs(power))}</b></div>
       ${target ? `<div class="row"><span>${esc(status === "charging" ? t.fullAt : t.emptyAt)}</span><b>${this._time(target)}</b></div>` : ""}
     </div>`;
@@ -508,12 +520,30 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const current = attrs.current ?? null;
       const power = attrs.power ?? null;
       const cls = load !== null && load >= 90 ? "alert" : load !== null && load >= 75 ? "warn" : "";
+      // Batteries on this phase (a battery without a phase is spread over all).
+      const share = (b) => (s.phases === 1 || b.phase === `l${i}` ? 1 : !b.phase || b.phase === "none" ? 1 / s.phases : 0);
+      const here = s.batteries.filter((b) => share(b) > 0);
+      let virtualW = 0;
+      const who = here.map((b) => {
+        const p = this._num(b.entities.battery_power);
+        if (b.virtual && p !== null) virtualW += p * share(b);
+        const what = p === null ? "–" : Math.abs(p) < 1 ? t.idle : `${p > 0 ? t.charging : t.discharging} ${this._power(Math.abs(p * share(b)))}`;
+        return `<span class="${b.virtual ? "virtual" : ""}">${esc(b.name)}${share(b) < 1 ? " (⅓)" : ""}: ${esc(what.toLowerCase())}</span>`;
+      });
+      let withVirtual = "";
+      if (virtualW && power !== null) {
+        const amps = Math.abs(power + virtualW) / 230;
+        const wcls = amps >= s.phase_limit_a ? "alert" : amps >= 0.75 * s.max_current ? "warn" : "";
+        withVirtual = `<span class="${wcls}">${esc(t.withVirtual)}: <b>${amps.toFixed(1)} A</b></span>`;
+      }
       rows.push(`<div class="phase"><span>L${i}</span>
         <div class="bar"><div class="fill ${cls}" style="width:${Math.min(load ?? 0, 100)}%"></div>
           <div class="text">${load === null ? "–" : `${Math.round(load)}%`}</div></div>
-        <span class="muted"><b>${this._power(power)}</b> · ${current == null ? "–" : `${current} A`} / ${s.max_current} A</span></div>`);
+        <span class="muted"><b>${this._power(power)}</b> · ${current == null ? "–" : `${current} A`} / ${s.max_current} A</span>
+        ${who.length || withVirtual ? `<div class="who">${who.join("")}${withVirtual}</div>` : ""}</div>`);
     }
-    return `<div class="card"><h2>${esc(t.phases)} · ${s.phases}x${s.max_current}A</h2><div class="phases">${rows.join("")}</div></div>`;
+    const limit = s.phase_limit_a ? ` <small class="muted">· ${esc(t.phaseLimit.replace("{a}", s.phase_limit_a))}</small>` : "";
+    return `<div class="card"><h2>${esc(t.phases)} · ${s.phases}x${s.max_current}A${limit}</h2><div class="phases">${rows.join("")}</div></div>`;
   }
 
   _planning(s, t) {

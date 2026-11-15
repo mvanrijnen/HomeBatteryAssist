@@ -39,9 +39,9 @@ async def test_story_charge_now_and_use_later(hass: HomeAssistant) -> None:
 
 async def test_story_idle_without_gain(hass: HomeAssistant) -> None:
     """Idle: explained by the small price difference."""
-    plan = _plan([0.0, 0.0], [0.30, 0.32])
+    plan = _plan([0.0, 0.0], [0.30, 0.32])  # 0.32 x 0.85 - 0.02 < 0.30
     text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
-    assert "doen nu niets" in text and "€ 0,30 per kWh" in text
+    assert "doen nu niets" in text and "niet genoeg duurder" in text
     assert "laden niet nodig of levert het niets op" in text
 
     empty = plan_story(plan, {}, T0, "nl", 0.85, 0.02, True)
@@ -60,3 +60,13 @@ async def test_story_joins_charge_blocks(hass: HomeAssistant) -> None:
     text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
     assert "laden we 4,0 kWh uit het net" in text
     assert "als stroom € 0,45 per kWh kost" in text
+
+
+async def test_story_waits_for_cheaper_power(hass: HomeAssistant) -> None:
+    """Idle now because a cheaper charge moment comes later."""
+    await hass.config.async_set_time_zone("Europe/Amsterdam")
+    plan = _plan([0.0, 2000.0, -500.0], [0.32, 0.27, 0.46])
+    text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
+    assert text.startswith(
+        "De batterijen doen nu niets: ze wachten op goedkopere stroom (€ 0,27 per kWh"
+    )

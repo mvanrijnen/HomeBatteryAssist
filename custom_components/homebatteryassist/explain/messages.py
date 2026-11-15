@@ -48,6 +48,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "full_charge_planned": "Full charge of {name} planned {start} - {end} at avg. {price} (average in the period {avg_price}): the cheapest moment before the deadline {deadline} (last full charge: {last}).",
         "full_charge_overdue": "Full charge of {name} is overdue (last full charge: {last}); caught up {start} - {end} at avg. {price} (average in the period {avg_price}), the cheapest moment within {days} days.",
         "battery_switch": "{new} takes over {action} from {old} to keep the batteries balanced (state of charge {new_soc}% vs {old_soc}%).",
+        "phase_limit": "{names} held back to {power} together: phase {phase} carries {current} A of at most {max} A (main fuse, with a 10% margin).",
+        "phase_limit_cleared": "The phases have room again: the virtual batteries are no longer held back by the main fuse.",
     },
     "nl": {
         "horizon_setting": "Planning {hours} uur vooruit (tot {end}): het ingestelde maximum van {days} dagen.",
@@ -83,6 +85,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "full_charge_planned": "{name} moet vóór {deadline} weer eens helemaal vol (laatste keer: {last}). Dat gebeurt {start} tot {end}, het goedkoopste moment ({price} per kWh, gemiddeld {avg_price}).",
         "full_charge_overdue": "{name} moet nodig weer eens helemaal vol (laatste keer: {last}). Dat gebeurt {start} tot {end}, het goedkoopste moment van de komende {days} dagen ({price} per kWh, gemiddeld {avg_price}).",
         "battery_switch": "{new} neemt het {action} over van {old} om de batterijen in balans te houden (vulling {new_soc}% tegen {old_soc}%).",
+        "phase_limit": "{names} samen teruggeschroefd naar {power}: fase {phase} voert {current} A van maximaal {max} A (hoofdzekering, met 10% marge).",
+        "phase_limit_cleared": "De fasen hebben weer ruimte: de virtuele batterijen worden niet meer beperkt door de hoofdzekering.",
     },
 }
 

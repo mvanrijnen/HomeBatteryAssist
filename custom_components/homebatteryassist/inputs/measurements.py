@@ -29,11 +29,14 @@ from homeassistant.util import dt as dt_util
 
 from ..const import (
     CONF_MAX_CURRENT,
+    CONF_PHASE,
     CONF_PHASES,
     CONF_SENSOR,
     NOMINAL_VOLTAGE,
+    PHASE_NONE,
     SUBENTRY_EXCLUDED_LOAD,
     SUBENTRY_PV_SOURCE,
+    phase_index,
     phase_return_sensor_keys,
     phase_sensor_keys,
 )
@@ -60,6 +63,10 @@ class PowerFlow:
     battery_w: float
     house_w: float
     phase_w: tuple[float, ...]  # net grid power per phase, + import / - export
+    # House consumption and PV production per phase (devices without a phase
+    # spread evenly), to learn how the consumption is spread over the phases.
+    phase_house_w: tuple[float, ...] = ()
+    phase_pv_w: tuple[float, ...] = ()
 
     @property
     def import_w(self) -> float:
@@ -94,8 +101,10 @@ class MeasurementInput:
                 phase_sensor_keys(phases), phase_return_sensor_keys(phases), strict=True
             )
         ]
-        self.pv_sensors = _subentry_sensors(entry, SUBENTRY_PV_SOURCE)
-        self.excluded_sensors = _subentry_sensors(entry, SUBENTRY_EXCLUDED_LOAD)
+        self.pv_sources = _subentry_devices(entry, SUBENTRY_PV_SOURCE)
+        self.excluded_loads = _subentry_devices(entry, SUBENTRY_EXCLUDED_LOAD)
+        self.pv_sensors = [sensor for sensor, _ in self.pv_sources]
+        self.excluded_sensors = [sensor for sensor, _ in self.excluded_loads]
         self.batteries = battery_configs(entry)
 
         self.power: float | None = None
@@ -160,7 +169,33 @@ class MeasurementInput:
             sum(battery_power(self.hass, b) or 0.0 for b in self.batteries), 1
         )
         house = max(round(grid + pv - excluded - battery, 1), 0.0)
-        return PowerFlow(grid, pv, excluded, battery, house, tuple(phase_w)), []
+        count = len(phase_w)
+        phase_pv = [0.0] * count
+        phase_house = list(phase_w)
+
+        def add(target: list[float], phase: str, value: float) -> None:
+            index = phase_index(phase, count)
+            for i in range(count) if index is None else (index,):
+                target[i] += value / (count if index is None else 1)
+
+        for sensor, phase in self.pv_sources:
+            value = abs(self._watts(sensor) or 0.0)
+            add(phase_pv, phase, value)
+            add(phase_house, phase, value)
+        for sensor, phase in self.excluded_loads:
+            add(phase_house, phase, -abs(self._watts(sensor) or 0.0))
+        for b in self.batteries:
+            add(phase_house, b.phase, -(battery_power(self.hass, b) or 0.0))
+        return PowerFlow(
+            grid,
+            pv,
+            excluded,
+            battery,
+            house,
+            tuple(phase_w),
+            tuple(round(v, 1) for v in phase_house),
+            tuple(round(v, 1) for v in phase_pv),
+        ), []
 
     def _watts(self, entity_id: str) -> float | None:
         return state_to_watts(self.hass.states.get(entity_id))
@@ -201,9 +236,10 @@ class MeasurementInput:
             self._was_available = available
 
 
-def _subentry_sensors(entry: ConfigEntry, subentry_type: str) -> list[str]:
+def _subentry_devices(entry: ConfigEntry, subentry_type: str) -> list[tuple[str, str]]:
+    """(sensor, phase) of every subentry of the type."""
     return [
-        subentry.data[CONF_SENSOR]
+        (subentry.data[CONF_SENSOR], subentry.data.get(CONF_PHASE, PHASE_NONE))
         for subentry in entry.subentries.values()
         if subentry.subentry_type == subentry_type
     ]

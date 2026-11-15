@@ -29,6 +29,7 @@ TEXT = {
         "now_idle_empty": "De batterijen doen nu niets: ze zijn zo leeg als ingesteld, en laden loont nu niet.",
         "now_idle_no_gain": "De batterijen doen nu niets: stroom kost nu {price}, en het duurste moment daarna ({later}) is na verlies niet genoeg duurder om nu te laden.",
         "now_idle": "De batterijen doen nu niets.",
+        "now_idle_wait": "De batterijen doen nu niets: ze wachten op goedkopere stroom ({price}, {when}).",
         "now_charge_pv": "De batterijen laden nu {power} met zonnestroom die anders naar het net zou gaan.",
         "now_charge_grid": "De batterijen laden nu {power} uit het net, omdat stroom nu goedkoop is ({price}).",
         "now_discharge": "De batterijen leveren nu {power} aan het huis, omdat stroom nu duur is ({price}).",
@@ -36,6 +37,7 @@ TEXT = {
         "next_grid": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use} als stroom {use_price} kost. Na verlies levert dat ongeveer {gain} op.",
         "next_pv": "{when} laden we {energy} met zonnestroom, om die te gebruiken {use}.",
         "no_charge": "In de komende {hours} uur is laden niet nodig of levert het niets op.",
+        "phase_limited": "Daarbij laden we soms langzamer dan kan, zodat de hoofdzekering ({amps} A per fase) niet overbelast raakt.",
         "compare_better": "Met {other} zou het {diff} minder opleveren.",
         "compare_worse": "Let op: met {other} zou het {diff} meer opleveren.",
         "compare_same": "Met {other} zou het ongeveer hetzelfde opleveren.",
@@ -51,6 +53,7 @@ TEXT = {
         "now_idle_empty": "The batteries are idle: they are as empty as allowed, and charging does not pay off now.",
         "now_idle_no_gain": "The batteries are idle: power costs {price} now, and the most expensive moment after that ({later}) is not enough more expensive after losses to charge now.",
         "now_idle": "The batteries are idle.",
+        "now_idle_wait": "The batteries are idle: they wait for cheaper power ({price}, {when}).",
         "now_charge_pv": "The batteries are charging {power} with solar power that would otherwise go to the grid.",
         "now_charge_grid": "The batteries are charging {power} from the grid, because power is cheap now ({price}).",
         "now_discharge": "The batteries supply {power} to the house, because power is expensive now ({price}).",
@@ -58,6 +61,7 @@ TEXT = {
         "next_grid": "{when} we charge {energy} from the grid at {price}, to use it {use} when power costs {use_price}. After losses that brings about {gain}.",
         "next_pv": "{when} we charge {energy} with solar power, to use it {use}.",
         "no_charge": "In the next {hours} hours charging is not needed or brings nothing.",
+        "phase_limited": "At times we charge slower than possible, so the main fuse ({amps} A per phase) is not overloaded.",
         "compare_better": "With {other} it would bring {diff} less.",
         "compare_worse": "Note: with {other} it would bring {diff} more.",
         "compare_same": "With {other} it would bring about the same.",
@@ -79,6 +83,7 @@ class _Block:
     energy_wh: float
     price: float | None  # energy weighted
     from_grid: bool
+    limited: bool = False  # held back by the phase limits
 
 
 def _lang(language: str | None) -> str:
@@ -120,8 +125,9 @@ def _blocks(slots: list[PlanSlot], charging: bool) -> list[_Block]:
             sum(s.price * abs(s.power_w) for s in priced) / weight if weight else None
         )
         from_grid = any(s.grid_w > ACTIVE_W for s in current)
+        limited = any(s.limited for s in current)
         blocks.append(
-            _Block(current[0].start, current[-1].end, energy, price, from_grid)
+            _Block(current[0].start, current[-1].end, energy, price, from_grid, limited)
         )
         current.clear()
 
@@ -152,7 +158,12 @@ def _merge(charges: list[_Block], discharges: list[_Block]) -> list[_Block]:
             weight = sum(e for _, e in prices)
             price = sum(p * e for p, e in prices) / weight if weight else None
             block = _Block(
-                last.start, block.end, energy, price, last.from_grid or block.from_grid
+                last.start,
+                block.end,
+                energy,
+                price,
+                last.from_grid or block.from_grid,
+                last.limited or block.limited,
             )
         merged.append(block)
     return merged
@@ -182,6 +193,7 @@ def plan_story(
     efficiency: float,
     cycle_cost: float,
     min_soc_reached: bool,
+    max_current: int | None = None,
 ) -> str:
     """A few plain sentences about what the plan does and why."""
     lang = _lang(language)
@@ -190,6 +202,9 @@ def plan_story(
     if not slots:
         return ""
     sentences: list[str] = []
+
+    discharges = _blocks(slots, False)
+    charges = _merge([b for b in _blocks(slots, True) if b.end > now], discharges)
 
     # 1. Now.
     current = next((s for s in slots if s.start <= now < s.end), slots[0])
@@ -216,12 +231,25 @@ def plan_story(
             )
     elif min_soc_reached:
         sentences.append(t["now_idle_empty"])
+    elif (
+        price_now is not None
+        and charges
+        and charges[0].price is not None
+        and charges[0].from_grid
+        and charges[0].price < price_now
+    ):
+        sentences.append(
+            t["now_idle_wait"].format(
+                price=per_kwh(charges[0].price),
+                when=_when(charges[0], now, lang).split(" (")[0].lower(),
+            )
+        )
     elif price_now is not None:
         later = max(
             (s.price for s in slots if s.start > now and s.price is not None),
             default=None,
         )
-        if later is not None:
+        if later is not None and later * efficiency - cycle_cost <= price_now:
             sentences.append(
                 t["now_idle_no_gain"].format(
                     price=per_kwh(price_now), later=per_kwh(later)
@@ -233,8 +261,6 @@ def plan_story(
         sentences.append(t["now_idle"])
 
     # 2. The next charge and what it is for.
-    discharges = _blocks(slots, False)
-    charges = _merge([b for b in _blocks(slots, True) if b.end > now], discharges)
     if charges:
         block = charges[0]
         until = charges[1].start if len(charges) > 1 else slots[-1].end
@@ -276,6 +302,8 @@ def plan_story(
                 )
                 .replace(" ,", ",")
             )
+        if block.limited and max_current:
+            sentences.append(t["phase_limited"].format(amps=max_current))
     else:
         hours = round((slots[-1].end - now).total_seconds() / 3600)
         sentences.append(t["no_charge"].format(hours=hours))

@@ -121,6 +121,16 @@ CONF_SOURCE: Final = "source"  # battery flow: detected device or manual
 SOURCE_MANUAL: Final = "manual"
 
 
+def phase_index(phase: str, phases: int) -> int | None:
+    """Index of the phase a device is on; None = spread over all phases.
+
+    On a 1-phase connection everything is on that phase.
+    """
+    if phases == 1:
+        return 0
+    return PHASE_IDS.index(phase) if phase in PHASE_IDS[:phases] else None
+
+
 def phase_sensor_keys(phases: int) -> tuple[str, ...]:
     """Return the config keys for the measurement sensors of each phase."""
     return CONF_PHASE_SENSORS[:phases]
