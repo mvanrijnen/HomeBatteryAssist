@@ -9,6 +9,7 @@ from homeassistant.config_entries import ConfigEntry
 from .explain import DecisionLog
 from .forecasts.coordinator import ForecastCoordinator
 from .history import ConsumptionHistory
+from .inputs.batteries import BatteryInput
 from .inputs.measurements import MeasurementInput
 
 
@@ -18,6 +19,7 @@ class HomeBatteryAssistData:
 
     decisions: DecisionLog
     measurements: MeasurementInput
+    batteries: BatteryInput
     history: ConsumptionHistory
     forecast: ForecastCoordinator
 

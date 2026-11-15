@@ -22,6 +22,9 @@ MESSAGES: dict[str, dict[str, str]] = {
         "horizon_no_pv": "No planning possible: the selected PV forecasts provide no data.",
         "consumption_unavailable": "House consumption unknown: no valid measurement from {sensors}.",
         "consumption_restored": "House consumption is measured again.",
+        "battery_unavailable": "Battery {name} unavailable: its state of charge or power sensor has no valid value.",
+        "battery_restored": "Battery {name} is available again.",
+        "battery_full_charge": "Battery {name} is fully charged.",
     },
     "nl": {
         "horizon_setting": "Planning {hours} uur vooruit (tot {end}): het ingestelde maximum van {days} dagen.",
@@ -31,6 +34,9 @@ MESSAGES: dict[str, dict[str, str]] = {
         "horizon_no_pv": "Geen planning mogelijk: de gekozen PV-voorspellingen leveren geen gegevens.",
         "consumption_unavailable": "Huisverbruik onbekend: geen geldige meting van {sensors}.",
         "consumption_restored": "Huisverbruik wordt weer gemeten.",
+        "battery_unavailable": "Batterij {name} niet beschikbaar: de sensor voor vulling of vermogen heeft geen geldige waarde.",
+        "battery_restored": "Batterij {name} is weer beschikbaar.",
+        "battery_full_charge": "Batterij {name} is volledig opgeladen.",
     },
 }
 

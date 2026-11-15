@@ -1,11 +1,12 @@
 """Live measurements and the resulting house consumption.
 
 house consumption = grid (sum of phases) + PV production - excluded loads
+                    - battery power (+ charging / - discharging)
 
 Grid power per phase is either one signed sensor (positive = import, negative =
 export) or an import sensor minus an optional separate export (return) sensor.
-PV sources and excluded loads are taken as absolute values. The result is never
-below 0 W.
+PV sources and excluded loads are taken as absolute values; battery power is
+normalised by ``batteries.battery_power``. The result is never below 0 W.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ from ..const import (
     phase_sensor_keys,
 )
 from ..explain import DecisionLog
+from .batteries import battery_configs, battery_power
 from .units import state_to_watts
 
 _LOGGER = logging.getLogger(__name__)
@@ -60,6 +62,7 @@ class MeasurementInput:
         ]
         self.pv_sensors = _subentry_sensors(entry, SUBENTRY_PV_SOURCE)
         self.excluded_sensors = _subentry_sensors(entry, SUBENTRY_EXCLUDED_LOAD)
+        self.batteries = battery_configs(entry)
 
         self.power: float | None = None
         self.missing: list[str] = []  # grid sensors without a valid value
@@ -71,7 +74,8 @@ class MeasurementInput:
     def source_entity_ids(self) -> list[str]:
         """All sensors the calculation depends on."""
         grid = [e for pair in self.grid_phases for e in pair if e is not None]
-        return [*grid, *self.pv_sensors, *self.excluded_sensors]
+        batteries = [b.power_sensor for b in self.batteries]
+        return [*grid, *self.pv_sensors, *self.excluded_sensors, *batteries]
 
     @callback
     def async_start(self) -> None:
@@ -98,8 +102,8 @@ class MeasurementInput:
     def calculate(self) -> tuple[float | None, list[str]]:
         """Compute house consumption in W and the grid sensors without a value.
 
-        Unknown if any grid measurement is unknown; unknown PV sources and
-        excluded loads count as 0 W.
+        Unknown if any grid measurement is unknown; unknown PV sources,
+        excluded loads and batteries count as 0 W.
         """
         grid = 0.0
         missing: list[str] = []
@@ -116,7 +120,8 @@ class MeasurementInput:
             return None, missing
         pv = self._sum_abs(self.pv_sensors)
         excluded = self._sum_abs(self.excluded_sensors)
-        return max(round(grid + pv - excluded, 1), 0.0), []
+        charging = sum(battery_power(self.hass, b) or 0.0 for b in self.batteries)
+        return max(round(grid + pv - excluded - charging, 1), 0.0), []
 
     def _watts(self, entity_id: str) -> float | None:
         return state_to_watts(self.hass.states.get(entity_id))

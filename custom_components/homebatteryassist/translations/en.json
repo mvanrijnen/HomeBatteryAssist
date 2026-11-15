@@ -72,6 +72,19 @@
         "l2": "L2",
         "l3": "L3"
       }
+    },
+    "power_sign": {
+      "options": {
+        "charging_positive": "Positive = charging",
+        "discharging_positive": "Positive = discharging"
+      }
+    },
+    "control_type": {
+      "options": {
+        "none": "None (monitoring only)",
+        "setpoint": "One power setpoint (+ charge / - discharge)",
+        "separate": "Separate charge and discharge power"
+      }
     }
   },
   "options": {
@@ -176,6 +189,109 @@
       "abort": {
         "reconfigure_successful": "Settings saved."
       }
+    },
+    "battery": {
+      "entry_type": "Battery",
+      "initiate_flow": {
+        "user": "Add battery"
+      },
+      "step": {
+        "user": {
+          "title": "Battery",
+          "description": "Link a home battery through the entities of its own integration. The battery's charging and discharging is kept out of the house consumption.",
+          "data": {
+            "name": "Name",
+            "soc_sensor": "State of charge sensor",
+            "power_sensor": "Power sensor",
+            "power_sign": "Power sensor direction",
+            "capacity_kwh": "Usable capacity",
+            "max_charge_power": "Maximum charge power",
+            "max_discharge_power": "Maximum discharge power",
+            "min_soc": "Minimum state of charge",
+            "max_soc": "Maximum state of charge",
+            "round_trip_efficiency": "Round-trip efficiency",
+            "full_charge_interval_days": "Full charge every",
+            "phase": "Phase"
+          },
+          "data_description": {
+            "soc_sensor": "Sensor with the state of charge in %.",
+            "power_sensor": "Sensor with the charge/discharge power (W) or current (A) of the battery.",
+            "power_sign": "Is the power sensor positive while charging or while discharging?",
+            "capacity_kwh": "Capacity of the battery in kWh (from the specifications).",
+            "min_soc": "The battery is not discharged below this level.",
+            "max_soc": "The battery is not charged above this level (except for a full charge).",
+            "round_trip_efficiency": "Share of charged energy that comes back out when discharging.",
+            "full_charge_interval_days": "Charge to 100% at least every this many days (cell balancing). 0 = never.",
+            "phase": "The phase the battery is connected to, if it uses a single phase."
+          }
+        },
+        "reconfigure": {
+          "title": "Battery",
+          "description": "Link a home battery through the entities of its own integration. The battery's charging and discharging is kept out of the house consumption.",
+          "data": {
+            "name": "Name",
+            "soc_sensor": "State of charge sensor",
+            "power_sensor": "Power sensor",
+            "power_sign": "Power sensor direction",
+            "capacity_kwh": "Usable capacity",
+            "max_charge_power": "Maximum charge power",
+            "max_discharge_power": "Maximum discharge power",
+            "min_soc": "Minimum state of charge",
+            "max_soc": "Maximum state of charge",
+            "round_trip_efficiency": "Round-trip efficiency",
+            "full_charge_interval_days": "Full charge every",
+            "phase": "Phase"
+          },
+          "data_description": {
+            "soc_sensor": "Sensor with the state of charge in %.",
+            "power_sensor": "Sensor with the charge/discharge power (W) or current (A) of the battery.",
+            "power_sign": "Is the power sensor positive while charging or while discharging?",
+            "capacity_kwh": "Capacity of the battery in kWh (from the specifications).",
+            "min_soc": "The battery is not discharged below this level.",
+            "max_soc": "The battery is not charged above this level (except for a full charge).",
+            "round_trip_efficiency": "Share of charged energy that comes back out when discharging.",
+            "full_charge_interval_days": "Charge to 100% at least every this many days (cell balancing). 0 = never.",
+            "phase": "The phase the battery is connected to, if it uses a single phase."
+          }
+        },
+        "control": {
+          "title": "Control of {name}",
+          "description": "How HomeBatteryAssist can control this battery. This is used by the planning; until then the battery is only monitored.",
+          "data": {
+            "control_type": "Control",
+            "setpoint_entity": "Power setpoint",
+            "setpoint_sign": "Setpoint direction",
+            "charge_power_entity": "Charge power",
+            "discharge_power_entity": "Discharge power",
+            "mode_entity": "Mode (optional)"
+          },
+          "data_description": {
+            "setpoint_entity": "Number entity for one power setpoint (W) that both charges and discharges.",
+            "setpoint_sign": "Is a positive setpoint charging or discharging?",
+            "charge_power_entity": "Number entity for the charge power (W).",
+            "discharge_power_entity": "Number entity for the discharge power (W).",
+            "mode_entity": "Select entity that switches the battery between e.g. charging, discharging and standby."
+          }
+        },
+        "modes": {
+          "title": "Modes of {entity}",
+          "description": "Select which option of the mode entity means charging, discharging and idle.",
+          "data": {
+            "mode_charge": "Charge",
+            "mode_discharge": "Discharge",
+            "mode_idle": "Idle"
+          }
+        }
+      },
+      "error": {
+        "sensor_is_phase_sensor": "This sensor is already used as a grid phase measurement.",
+        "sensor_in_use": "This sensor is already used by another device.",
+        "soc_range": "The maximum state of charge must be higher than the minimum.",
+        "control_entity_required": "Select the entity for this type of control."
+      },
+      "abort": {
+        "reconfigure_successful": "Settings saved."
+      }
     }
   },
   "entity": {
@@ -188,6 +304,59 @@
       },
       "last_decision": {
         "name": "Last decision"
+      },
+      "battery_soc": {
+        "name": "State of charge"
+      },
+      "battery_power": {
+        "name": "Power"
+      },
+      "battery_status": {
+        "name": "Status",
+        "state": {
+          "charging": "Charging",
+          "discharging": "Discharging",
+          "idle": "Idle"
+        }
+      },
+      "battery_stored_energy": {
+        "name": "Stored energy"
+      },
+      "battery_usable_energy": {
+        "name": "Usable energy"
+      },
+      "battery_room": {
+        "name": "Room to charge"
+      },
+      "battery_time_to_target": {
+        "name": "Full or empty at"
+      },
+      "battery_charged_energy": {
+        "name": "Charged energy"
+      },
+      "battery_discharged_energy": {
+        "name": "Discharged energy"
+      },
+      "battery_last_full_charge": {
+        "name": "Last full charge"
+      },
+      "battery_capacity": {
+        "name": "Capacity"
+      },
+      "batteries_soc": {
+        "name": "Batteries state of charge"
+      },
+      "batteries_power": {
+        "name": "Batteries power"
+      },
+      "batteries_stored_energy": {
+        "name": "Batteries stored energy"
+      },
+      "batteries_usable_energy": {
+        "name": "Batteries usable energy"
+      },
+      "batteries_capacity": {
+        "name": "Batteries capacity"
       }
     }
   }

@@ -18,6 +18,7 @@ from .const import CONF_HISTORY_INTERVAL, DEFAULT_HISTORY_INTERVAL
 from .explain import DecisionLog
 from .forecasts.coordinator import ForecastCoordinator
 from .history import ConsumptionHistory
+from .inputs.batteries import BatteryInput
 from .inputs.measurements import MeasurementInput
 from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
 
@@ -50,6 +51,9 @@ async def async_setup_entry(
     )
     await history.async_start()
 
+    batteries = BatteryInput(hass, entry, decisions)
+    await batteries.async_start()
+
     measurements = MeasurementInput(hass, entry, decisions)
     measurements.async_add_listener(history.add_sample)
     measurements.async_start()
@@ -57,6 +61,7 @@ async def async_setup_entry(
     entry.runtime_data = HomeBatteryAssistData(
         decisions=decisions,
         measurements=measurements,
+        batteries=batteries,
         history=history,
         forecast=forecast,
     )
@@ -81,6 +86,7 @@ async def async_unload_entry(
     if unloaded:
         data = entry.runtime_data
         data.measurements.async_stop()
+        await data.batteries.async_stop()
         # Persist before a reload reads the stores again.
         await data.history.async_stop()
         await data.decisions.async_save()

@@ -20,6 +20,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from ..const import DOMAIN, NAME
 from ..forecasts.coordinator import ForecastCoordinator
 from ..models import HomeBatteryAssistConfigEntry
+from .batteries import (
+    BATTERY_SENSORS,
+    TOTAL_SENSORS,
+    BatteriesTotalSensor,
+    BatterySensor,
+)
 
 MAX_STATE_LENGTH = 255
 RECENT_DECISIONS = 10
@@ -30,13 +36,33 @@ async def async_setup_entry(
     entry: HomeBatteryAssistConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Set up the sensors."""
-    async_add_entities(
-        [
-            HouseConsumptionSensor(entry),
-            PlanningHorizonSensor(entry),
-            LastDecisionSensor(entry),
+    """Set up the sensors: main device, battery totals and one device per battery."""
+    main = [
+        HouseConsumptionSensor(entry),
+        PlanningHorizonSensor(entry),
+        LastDecisionSensor(entry),
+    ]
+    batteries = entry.runtime_data.batteries
+    if batteries.configs:
+        main += [
+            BatteriesTotalSensor(entry, description, main_device_info(entry))
+            for description in TOTAL_SENSORS
         ]
+    async_add_entities(main)
+
+    for config in batteries.configs:
+        async_add_entities(
+            [BatterySensor(entry, config.id, d) for d in BATTERY_SENSORS],
+            config_subentry_id=config.id,
+        )
+
+
+def main_device_info(entry: HomeBatteryAssistConfigEntry) -> DeviceInfo:
+    """The HomeBatteryAssist service device of the config entry."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, entry.entry_id)},
+        name=NAME,
+        entry_type=DeviceEntryType.SERVICE,
     )
 
 
@@ -49,15 +75,11 @@ class HomeBatteryAssistEntity(Entity):
         """Initialize."""
         self._attr_translation_key = key
         self._attr_unique_id = f"{entry.entry_id}_{key}"
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
-            name=NAME,
-            entry_type=DeviceEntryType.SERVICE,
-        )
+        self._attr_device_info = main_device_info(entry)
 
 
 class HouseConsumptionSensor(HomeBatteryAssistEntity, SensorEntity):
-    """House consumption: grid + PV - excluded loads."""
+    """House consumption: grid + PV - excluded loads - battery charging."""
 
     _attr_device_class = SensorDeviceClass.POWER
     _attr_state_class = SensorStateClass.MEASUREMENT

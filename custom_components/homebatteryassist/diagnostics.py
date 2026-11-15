@@ -38,6 +38,25 @@ async def async_get_config_entry_diagnostics(
                 for entity_id in data.measurements.source_entity_ids
             },
         },
+        "batteries": [
+            {
+                "name": state.config.name,
+                "soc": state.soc,
+                "power_w": state.power_w,
+                "status": state.status,
+                "stored_kwh": state.stored_kwh,
+                "config": {
+                    "capacity_kwh": state.config.capacity_kwh,
+                    "max_charge_w": state.config.max_charge_w,
+                    "max_discharge_w": state.config.max_discharge_w,
+                    "min_soc": state.config.min_soc,
+                    "max_soc": state.config.max_soc,
+                    "control": state.config.control.type,
+                },
+                "stats": data.batteries.stats.get(state.config.id),
+            }
+            for state in data.batteries.states.values()
+        ],
         "history": {
             "interval_minutes": data.history.minutes,
             "records": len(data.history.records),

@@ -27,7 +27,14 @@ async def test_diagnostics(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
 
     diag = await async_get_config_entry_diagnostics(hass, entry)
-    assert set(diag) == {"config", "inputs", "history", "forecasts", "decisions"}
+    assert set(diag) == {
+        "config",
+        "inputs",
+        "batteries",
+        "history",
+        "forecasts",
+        "decisions",
+    }
     assert diag["config"]["data"]["sensor_l1"] == "sensor.l1"
     assert diag["inputs"]["house_consumption_w"] == 750.0
     assert diag["inputs"]["sources"]["sensor.l1"]["state"] == "750"
