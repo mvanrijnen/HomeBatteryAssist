@@ -98,7 +98,9 @@ from .const import (
     CONF_PLANNING_HORIZON,
     CONF_POWER_SENSOR,
     CONF_POWER_SIGN,
+    CONF_PRICE_EXTENSION,
     CONF_PRICE_FORECAST,
+    CONF_PRICE_SOURCE,
     CONF_PV_CORRECTION,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
@@ -138,6 +140,8 @@ from .const import (
     PHASE_IDS,
     PHASE_NONE,
     PHASE_OPTIONS,
+    PRICE_EXTENSION_NONE,
+    PRICE_SOURCE_SENSOR,
     PV_CORRECTION_BOTH,
     PV_CORRECTION_MODES,
     SIGN_CHARGING_POSITIVE,
@@ -161,6 +165,7 @@ from .inputs.direct import (
     find_direct_meters,
 )
 from .inputs.meters import MeterCandidate, find_meter_candidates
+from .inputs.price_drivers import find_sources, get_driver
 from .inputs.profiles import BatteryCandidate, find_battery_candidates
 from .inputs.solar import async_solar_forecast_entries
 from .planning.battery_plan import DEFAULT_PLAN_MODE, PLAN_MODES
@@ -251,6 +256,22 @@ def phase_selector() -> SelectSelector:
     )
 
 
+def _price_source_selector(hass: HomeAssistant, first: str, key: str) -> SelectSelector:
+    """The price sources found by the price drivers, after ``first``."""
+    options = [SelectOptionDict(value=first, label=first)]
+    for source in find_sources(hass):
+        driver = get_driver(source.driver)
+        untested = "" if driver is None or driver.verified else " *"
+        options.append(
+            SelectOptionDict(value=source.key, label=f"{source.title}{untested}")
+        )
+    return SelectSelector(
+        SelectSelectorConfig(
+            options=options, mode=SelectSelectorMode.DROPDOWN, translation_key=key
+        )
+    )
+
+
 async def settings_schema(
     hass: HomeAssistant, current: Mapping[str, Any] | None = None
 ) -> vol.Schema:
@@ -289,6 +310,14 @@ async def settings_schema(
                 translation_key=CONF_FORECAST_INTERVAL,
             )
         ),
+        vol.Required(
+            CONF_PRICE_SOURCE,
+            default=current.get(CONF_PRICE_SOURCE, PRICE_SOURCE_SENSOR),
+        ): _price_source_selector(hass, PRICE_SOURCE_SENSOR, CONF_PRICE_SOURCE),
+        vol.Required(
+            CONF_PRICE_EXTENSION,
+            default=current.get(CONF_PRICE_EXTENSION, PRICE_EXTENSION_NONE),
+        ): _price_source_selector(hass, PRICE_EXTENSION_NONE, CONF_PRICE_EXTENSION),
         vol.Optional(CONF_PRICE_FORECAST): EntitySelector(
             EntitySelectorConfig(domain="sensor")
         ),
@@ -449,6 +478,10 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     }
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]
+    options[CONF_PRICE_SOURCE] = user_input.get(CONF_PRICE_SOURCE, PRICE_SOURCE_SENSOR)
+    options[CONF_PRICE_EXTENSION] = user_input.get(
+        CONF_PRICE_EXTENSION, PRICE_EXTENSION_NONE
+    )
     options[CONF_EXPORT_MODE] = user_input.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE)
     options[CONF_MANUAL_POWER] = int(
         user_input.get(CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER)

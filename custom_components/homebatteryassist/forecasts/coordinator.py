@@ -48,7 +48,9 @@ from ..const import (
     CONF_PHASES,
     CONF_PLAN_MODE,
     CONF_PLANNING_HORIZON,
+    CONF_PRICE_EXTENSION,
     CONF_PRICE_FORECAST,
+    CONF_PRICE_SOURCE,
     CONF_PV_CORRECTION,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
@@ -68,6 +70,9 @@ from ..const import (
     DOMAIN,
     EXPORT_FACTOR,
     EXPORT_MARKET,
+    EXPORT_SENSOR,
+    PRICE_EXTENSION_NONE,
+    PRICE_SOURCE_SENSOR,
     PV_CORRECTION_AUTO,
     PV_CORRECTION_BOTH,
     PV_CORRECTION_FIXED,
@@ -77,6 +82,13 @@ from ..explain import DecisionLog
 from ..explain.plan_story import plan_story
 from ..history.consumption import ConsumptionHistory
 from ..inputs.batteries import BatteryState
+from ..inputs.price_drivers import (
+    ROLE_EXPORT,
+    ROLE_IMPORT,
+    ROLE_MARKET,
+    PriceData,
+    split_key,
+)
 from ..inputs.prices import (
     PricePoint,
     merge_price_forecasts,
@@ -236,10 +248,18 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             CONF_PLANNING_HORIZON, DEFAULT_PLANNING_HORIZON
         )
         self.price_entity: str | None = options.get(CONF_PRICE_FORECAST) or None
+        # Price driver ("<driver>:<source>") or the price sensor field.
+        self.price_source: str = options.get(CONF_PRICE_SOURCE, PRICE_SOURCE_SENSOR)
+        if self.price_source != PRICE_SOURCE_SENSOR:
+            self.price_entity = None
+        self.price_extension: str = options.get(
+            CONF_PRICE_EXTENSION, PRICE_EXTENSION_NONE
+        )
         self.export_mode: str = options.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE)
         self.export_entities: list[str] = list(options.get(CONF_EXPORT_ENTITIES) or [])
         if self.export_mode == EXPORT_MARKET and not self.export_entities:
-            # The bare price from the price sensor itself (market attributes).
+            # The bare price from the price sensor itself (market attributes);
+            # with a price driver: its market prices (see _read_export_prices).
             self.export_entities = [self.price_entity] if self.price_entity else []
         if self.export_mode == EXPORT_FACTOR:
             self.export_entities = []
@@ -251,8 +271,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         now = dt_util.utcnow()
 
         # 1. Inputs
-        prices, price_unit = self._read_prices(now)
-        export_prices = self._read_export_prices(now)
+        prices, price_unit = await self._async_read_prices(now)
+        export_prices = await self._async_read_export_prices(now)
         pv_wh = await self._async_read_pv(now)
         price_end = prices[-1].end if prices else None
         pv_end = max(pv_wh) + PV_PERIOD if pv_wh else None
@@ -265,7 +285,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             self.max_days,
             price_end,
             pv_end,
-            price_configured=self.price_entity is not None,
+            price_configured=self.price_configured,
             pv_configured=bool(self.pv_entries),
         )
         self._explain_window(window)
@@ -480,17 +500,62 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         """Short description of the latest result (action response, event)."""
         return summarise(self.data)
 
-    def _read_prices(self, now: datetime) -> tuple[list[PricePoint], str | None]:
-        if not self.price_entity:
-            return [], None
-        state = self.hass.states.get(self.price_entity)
-        prices = [p for p in parse_price_forecast(state) if p.end > now]
-        unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None
-        return prices, unit
+    @property
+    def price_configured(self) -> bool:
+        """A price source (driver or sensor) is set."""
+        return self.price_source != PRICE_SOURCE_SENSOR or bool(self.price_entity)
 
-    def _read_export_prices(self, now: datetime) -> list[PricePoint]:
-        """What exported energy earns, from the export price sensor(s); empty
-        means the import price x the export factor."""
+    @property
+    def price_watch(self) -> list[str]:
+        """Entities whose updates mean new prices (recalculate right away)."""
+        entities = [e for e in (self.price_entity, *self.export_entities) if e]
+        for key in (self.price_source, self.price_extension):
+            driver, source = split_key(key)
+            if driver is not None:
+                entities += driver.watch(self.hass, source)
+        return list(dict.fromkeys(entities))
+
+    async def _async_read_driver(self, key: str, role: str) -> PriceData:
+        driver, source = split_key(key)
+        if driver is None:
+            return PriceData([])
+        return await driver.async_read(self.hass, source, role)
+
+    async def _async_read_prices(
+        self, now: datetime
+    ) -> tuple[list[PricePoint], str | None]:
+        """Import prices: price driver or sensor, plus an optional extension."""
+        if self.price_source != PRICE_SOURCE_SENSOR:
+            data = await self._async_read_driver(self.price_source, ROLE_IMPORT)
+            prices, unit = data.points, data.unit
+        elif self.price_entity:
+            state = self.hass.states.get(self.price_entity)
+            prices = parse_price_forecast(state)
+            unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None
+        else:
+            return [], None
+        if self.price_extension != PRICE_EXTENSION_NONE:
+            # A longer forecast after the source's own prices; always estimated.
+            extra = await self._async_read_driver(self.price_extension, ROLE_IMPORT)
+            prices = merge_price_forecasts(
+                [prices, [replace(p, estimated=True) for p in extra.points]]
+            )
+        return [p for p in prices if p.end > now], unit
+
+    async def _async_read_export_prices(self, now: datetime) -> list[PricePoint]:
+        """What exported energy earns, from the export price sensor(s) or the
+        price driver; empty means the import price x the export factor."""
+        driver, _source = split_key(self.price_source)
+        if driver is not None and not self.export_entities:
+            role = {EXPORT_MARKET: ROLE_MARKET, EXPORT_SENSOR: ROLE_EXPORT}.get(
+                self.export_mode
+            )
+            sources = {
+                s.id: s for s in driver.find(self.hass) if s.key == self.price_source
+            }
+            if role and any(role in s.roles for s in sources.values()):
+                data = await self._async_read_driver(self.price_source, role)
+                return [p for p in data.points if p.end > now]
         if not self.export_entities:
             return []
         parse = (

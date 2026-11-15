@@ -103,9 +103,7 @@ async def async_setup_entry(
         entry.async_on_unload(
             hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _started)
         )
-    if price_entities := [
-        e for e in (forecast.price_entity, *forecast.export_entities) if e
-    ]:
+    if price_entities := forecast.price_watch:
         # New day-ahead prices arrive as a state/attribute update of the sensor.
         @callback
         def _price_updated(event: Event[EventStateChangedData]) -> None:

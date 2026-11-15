@@ -64,12 +64,14 @@
           "pv_forecast_margin": "Marge op de zonvoorspelling",
           "peak_limit_w": "Piekgrens netafname",
           "manual_power_w": "Handmatig vermogen",
-          "pv_correction": "Correctie zonvoorspelling"
+          "pv_correction": "Correctie zonvoorspelling",
+          "price_source": "Prijsbron",
+          "price_extension": "Extra prijsvoorspelling"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
           "planning_horizon_days": "Hoeveel dagen het systeem maximaal vooruit mag plannen.",
-          "price_forecast_entity": "Sensor van een energieprijs-integration (bijv. Nordpool, ENTSO-e, Frank Energie) met de komende prijzen in de attributen.",
+          "price_forecast_entity": "Bij de prijsbron 'Prijssensor': een sensor van een andere integratie met de prijsvoorspelling in zijn attributen.",
           "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
           "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
@@ -85,7 +87,9 @@
           "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen.",
           "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
           "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
-          "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet."
+          "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet.",
+          "price_source": "Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest.",
+          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld."
         }
       }
     },
@@ -229,6 +233,16 @@
         "fixed": "Alleen vaste marge",
         "off": "Geen correctie"
       }
+    },
+    "price_source": {
+      "options": {
+        "sensor": "Prijssensor (hieronder kiezen)"
+      }
+    },
+    "price_extension": {
+      "options": {
+        "none": "Geen"
+      }
     }
   },
   "options": {
@@ -262,12 +276,14 @@
           "pv_forecast_margin": "Marge op de zonvoorspelling",
           "peak_limit_w": "Piekgrens netafname",
           "manual_power_w": "Handmatig vermogen",
-          "pv_correction": "Correctie zonvoorspelling"
+          "pv_correction": "Correctie zonvoorspelling",
+          "price_source": "Prijsbron",
+          "price_extension": "Extra prijsvoorspelling"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
           "planning_horizon_days": "Hoeveel dagen het systeem maximaal vooruit mag plannen.",
-          "price_forecast_entity": "Sensor van een energieprijs-integration (bijv. Nordpool, ENTSO-e, Frank Energie) met de komende prijzen in de attributen.",
+          "price_forecast_entity": "Bij de prijsbron 'Prijssensor': een sensor van een andere integratie met de prijsvoorspelling in zijn attributen.",
           "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
           "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
@@ -283,7 +299,9 @@
           "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen.",
           "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
           "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
-          "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet."
+          "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet.",
+          "price_source": "Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest.",
+          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld."
         }
       },
       "meter": {

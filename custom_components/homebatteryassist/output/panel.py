@@ -219,7 +219,7 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             ),
             "price_end": _iso(forecast_data.price_end),
             "pv_end": _iso(forecast_data.pv_end),
-            "has_price": data.forecast.price_entity is not None,
+            "has_price": data.forecast.price_configured,
             "has_pv_forecast": bool(data.forecast.pv_entries),
         },
         "decisions": [
