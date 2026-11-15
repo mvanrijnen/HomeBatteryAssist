@@ -387,15 +387,23 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         if key == self._last_full_charges:
             return
         self._last_full_charges = key
+        now = dt_util.utcnow()
         for charge in full_charges:
+            overdue = charge.deadline <= now
             self._decisions.async_log(
                 "planning",
-                "full_charge_planned",
+                "full_charge_overdue" if overdue else "full_charge_planned",
+                days=self.full_charge_window,
                 name=charge.name,
                 start=charge.start,
                 end=charge.end,
                 deadline=charge.deadline,
-                last=charge.last_full or "-",
+                last=charge.last_full
+                or (
+                    "nooit"
+                    if (self.hass.config.language or "").startswith("nl")
+                    else "never"
+                ),
             )
 
     def _explain_plan(self, data: ForecastData) -> None:
