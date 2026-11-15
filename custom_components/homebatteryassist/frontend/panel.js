@@ -442,7 +442,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
   }
 
   _chart(id, series, xMin, xMax, ticks, gapLimit, markers = [], xFmt = (v) => this._time(new Date(v).toISOString())) {
-    const W = 600, H = 190, L = 46, R = 8, T = 8, B = 24;
+    // Full-width charts get a wider canvas so they are as high as the others.
+    const W = id === "forecast" ? 1232 : 600, H = 190, L = 46, R = 8, T = 8, B = 24;
     const all = series.flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
     const yMax = this._niceMax(Math.max(...all, 0));
     const x = (v) => L + ((v - xMin) / (xMax - xMin || 1)) * (W - L - R);
