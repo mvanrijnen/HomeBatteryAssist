@@ -49,6 +49,8 @@ const TEXT = {
     daysOfData: "{days} days of history",
     imported: "incl. imported",
     noHistory: "No consumption history yet.",
+    houseLine: "House",
+    excludedLine: "Excluded devices",
     recalculating: "Recalculating…",
     notLoaded: "HomeBatteryAssist is not set up yet. Add it under Settings → Devices & services → Add integration → HomeBatteryAssist.",
   },
@@ -98,6 +100,8 @@ const TEXT = {
     daysOfData: "{days} dagen historie",
     imported: "incl. geïmporteerd",
     noHistory: "Nog geen verbruikshistorie.",
+    houseLine: "Huis",
+    excludedLine: "Uitgesloten apparaten",
     recalculating: "Bezig met herberekenen…",
     notLoaded: "HomeBatteryAssist is nog niet ingesteld. Voeg hem toe via Instellingen → Apparaten & diensten → Integratie toevoegen → HomeBatteryAssist.",
   },
@@ -407,7 +411,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const accent = "var(--accent-color, #ff9800)";
 
     // Last 7 days: hourly points, ticks at local midnight.
-    const pts = h.hourly;
+    const pts = h.hourly.map(([time, house]) => [time, house]);
+    const excludedPts = h.hourly.map(([time, , excluded]) => [time, excluded]);
+    const excludedColor = "var(--warning-color, #ff9800)";
     const xMin = pts.length ? pts[0][0] : Date.now() - 7 * 864e5;
     const xMax = Date.now();
     const ticks = [];
@@ -416,7 +422,13 @@ class HomeBatteryAssistPanel extends HTMLElement {
     for (; day.getTime() < xMax; day.setDate(day.getDate() + 1)) {
       ticks.push([day.getTime(), day.toLocaleDateString(lang, { weekday: "short" })]);
     }
-    const week = this._chart([{ points: pts, color: primary }], xMin, xMax, ticks, 2 * 3600e3);
+    const weekSeries = [{ points: pts, color: primary }];
+    if (h.has_excluded) weekSeries.push({ points: excludedPts, color: excludedColor });
+    const week = this._chart(weekSeries, xMin, xMax, ticks, 2 * 3600e3);
+    const weekLegend = h.has_excluded
+      ? `<div class="legend"><span><i style="background:${primary}"></i>${esc(t.houseLine)}</span>
+         <span><i style="background:${excludedColor}"></i>${esc(t.excludedLine)}</span></div>`
+      : "";
 
     // Average day: 24 local hours, weekdays vs weekend.
     const profilePts = (values) => values.map((v, hour) => [hour, v]);
@@ -433,7 +445,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     );
     const info = t.daysOfData.replace("{days}", Math.round(h.days_covered)) + (h.imported ? ` · ${t.imported}` : "");
     return `<div class="card"><h2>${esc(t.consumption)} · ${esc(info)}</h2><div class="charts">
-      <div class="chart"><h3>${esc(t.last7)}</h3>${week}</div>
+      <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}</div>
       <div class="chart"><h3>${esc(t.avgDay)}</h3>${avg}
         <div class="legend"><span><i style="background:${primary}"></i>${esc(t.weekday)}</span>
         <span><i style="background:${accent}"></i>${esc(t.weekend)}</span></div></div>

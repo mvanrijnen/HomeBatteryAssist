@@ -84,6 +84,8 @@ def test_to_records_groups_and_coverage() -> None:
             "source": "import",
         },
     ]
+    with_ev = to_records({t0: 100.0, t0 + M5: 100.0}, M5, 15, {t0 + M5: 4000.0})
+    assert with_ev[0]["excluded_w"] == 2000.0
     hourly = to_records({t0: 300.0}, H, 15)
     assert hourly[0]["minutes"] == 60
     assert hourly[0]["coverage"] == 1.0

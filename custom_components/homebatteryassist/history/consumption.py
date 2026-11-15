@@ -27,6 +27,7 @@ class ConsumptionRecord(TypedDict):
     avg_w: float  # time-weighted average power while measured
     coverage: float  # fraction of the interval with a valid measurement (0..1)
     source: NotRequired[str]  # "import" for records imported from statistics
+    excluded_w: NotRequired[float]  # average power of excluded devices (e.g. EV)
 
 
 class ConsumptionHistory:
@@ -50,7 +51,9 @@ class ConsumptionHistory:
         self._interval_start: datetime | None = None
         self._last_time: datetime | None = None
         self._last_power: float | None = None
+        self._last_excluded: float | None = None
         self._energy_ws = 0.0
+        self._excluded_ws = 0.0
         self._measured_s = 0.0
         self._unsub_timer: CALLBACK_TYPE | None = None
 
@@ -90,8 +93,14 @@ class ConsumptionHistory:
         return dt_util.utc_from_timestamp(ts - ts % seconds)
 
     @callback
-    def add_sample(self, when: datetime, power: float | None) -> None:
-        """Register a new power value (W), or ``None`` if unknown."""
+    def add_sample(
+        self, when: datetime, power: float | None, excluded: float | None = None
+    ) -> None:
+        """Register new values (W): house consumption and excluded devices.
+
+        ``None`` for power means unknown; excluded devices are only recorded
+        while the house consumption is known.
+        """
         start = self.interval_start(when)
         if self._interval_start is None:
             self._interval_start = start
@@ -100,6 +109,7 @@ class ConsumptionHistory:
             self._roll_over(start)
         self._integrate(when)
         self._last_power = power
+        self._last_excluded = excluded
 
     @callback
     def close_interval(self, when: datetime) -> ConsumptionRecord | None:
@@ -143,12 +153,15 @@ class ConsumptionHistory:
                     min(self._measured_s / self._interval.total_seconds(), 1.0), 3
                 ),
             )
+            if self._excluded_ws > 0:
+                record["excluded_w"] = round(self._excluded_ws / self._measured_s, 1)
             self.records.append(record)
             self.prune(self._interval_start)
             self._store.async_delay_save(self._data, SAVE_DELAY)
             _LOGGER.debug("Recorded %s", record)
 
         self._energy_ws = 0.0
+        self._excluded_ws = 0.0
         self._measured_s = 0.0
         return record
 
@@ -156,6 +169,7 @@ class ConsumptionHistory:
         if self._last_time is not None and self._last_power is not None:
             seconds = max((when - self._last_time).total_seconds(), 0.0)
             self._energy_ws += self._last_power * seconds
+            self._excluded_ws += (self._last_excluded or 0.0) * seconds
             self._measured_s += seconds
         self._last_time = when
 

@@ -191,8 +191,9 @@ async def test_history_websocket(
     assert result["interval_minutes"] == 15
     assert result["imported"] == 1
     assert result["hourly"] == [
-        [int((now - timedelta(hours=2)).timestamp() * 1000), 300.0]
+        [int((now - timedelta(hours=2)).timestamp() * 1000), 300.0, 0.0]
     ]
+    assert result["has_excluded"] is False
     assert result["profile"]["weekday"][12] == 1000.0
     assert result["profile"]["weekend"][12] == 500.0
     assert result["profile"]["weekend"][3] is None

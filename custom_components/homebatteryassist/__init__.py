@@ -71,7 +71,11 @@ async def async_setup_entry(
     await batteries.async_start()
 
     measurements = MeasurementInput(hass, entry, decisions)
-    measurements.async_add_listener(history.add_sample)
+    measurements.async_add_listener(
+        lambda when, power: history.add_sample(
+            when, power, measurements.flow.excluded_w if measurements.flow else None
+        )
+    )
     measurements.async_start()
 
     entry.runtime_data = HomeBatteryAssistData(

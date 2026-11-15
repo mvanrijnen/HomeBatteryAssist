@@ -69,3 +69,18 @@ async def test_old_records_pruned_and_persisted(hass: HomeAssistant) -> None:
     reloaded = ConsumptionHistory(hass, "test", 60)
     await reloaded.async_load()
     assert reloaded.records == history.records
+
+
+async def test_excluded_power_recorded(hass: HomeAssistant) -> None:
+    """Excluded devices (e.g. an EV charger) are averaged alongside."""
+    history = ConsumptionHistory(hass, "test", 15)
+    history.add_sample(T0, 500.0, 0.0)
+    history.add_sample(T0 + timedelta(minutes=5), 500.0, 3000.0)
+    record = history.close_interval(T0 + timedelta(minutes=15))
+    assert record is not None
+    assert record["avg_w"] == 500.0
+    assert record["excluded_w"] == 2000.0  # 3000 W during 10 of 15 minutes
+
+    history.add_sample(T0 + timedelta(minutes=15), 400.0, None)
+    record = history.close_interval(T0 + timedelta(minutes=30))
+    assert "excluded_w" not in record

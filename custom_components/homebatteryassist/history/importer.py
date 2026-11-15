@@ -92,28 +92,37 @@ def combine(
 
 
 def to_records(
-    values: dict[datetime, float], period: timedelta, minutes: int
+    values: dict[datetime, float],
+    period: timedelta,
+    minutes: int,
+    excluded: dict[datetime, float] | None = None,
 ) -> list[ConsumptionRecord]:
-    """Group period values into intervals of ``minutes`` (never finer than ``period``)."""
+    """Group period values into intervals of ``minutes`` (never finer than ``period``).
+
+    ``excluded``: power of excluded devices per period, averaged alongside.
+    """
     step = max(timedelta(minutes=minutes), period)
     seconds = step.total_seconds()
-    buckets: dict[datetime, list[float]] = {}
+    buckets: dict[datetime, list[tuple[float, float]]] = {}
     for start, value in values.items():
         ts = start.timestamp()
-        buckets.setdefault(dt_util.utc_from_timestamp(ts - ts % seconds), []).append(
-            value
-        )
+        bucket = dt_util.utc_from_timestamp(ts - ts % seconds)
+        other = (excluded or {}).get(start, 0.0)
+        buckets.setdefault(bucket, []).append((value, other))
     per_bucket = step / period
-    return [
-        ConsumptionRecord(
+    records: list[ConsumptionRecord] = []
+    for start, vals in sorted(buckets.items()):
+        record = ConsumptionRecord(
             start=start.isoformat(),
             minutes=int(seconds // 60),
-            avg_w=round(sum(vals) / len(vals), 1),
+            avg_w=round(sum(v for v, _ in vals) / len(vals), 1),
             coverage=round(min(len(vals) / per_bucket, 1.0), 3),
             source=SOURCE_IMPORT,
         )
-        for start, vals in sorted(buckets.items())
-    ]
+        if (other := sum(o for _, o in vals)) > 0:
+            record["excluded_w"] = round(other / len(vals), 1)
+        records.append(record)
+    return records
 
 
 def merge(
@@ -218,7 +227,11 @@ async def async_import_history(
         if source_entity
         else formula_terms(entry, battery_power_history)
     )
-    entity_ids = {t.entity_id for t in terms}
+    excluded_terms = [
+        Term(e, 1.0, absolute=True)
+        for e in entry.runtime_data.measurements.excluded_sensors
+    ]
+    entity_ids = {t.entity_id for t in [*terms, *excluded_terms]}
     now = dt_util.utcnow()
     start = history.interval_start(now - timedelta(days=days))
     short_start = max(start, history.interval_start(now - SHORT_TERM_KEPT))
@@ -230,11 +243,19 @@ async def async_import_history(
         series = await _async_fetch(hass, entity_ids, start, short_start, "hour")
         starts = sorted({s for values in series.values() for s in values})
         records += to_records(
-            combine(terms, series, starts), LONG_TERM, history.minutes
+            combine(terms, series, starts),
+            LONG_TERM,
+            history.minutes,
+            combine(excluded_terms, series, starts),
         )
     series = await _async_fetch(hass, entity_ids, short_start, end_short, "5minute")
     starts = sorted({s for values in series.values() for s in values})
-    records += to_records(combine(terms, series, starts), SHORT_TERM, history.minutes)
+    records += to_records(
+        combine(terms, series, starts),
+        SHORT_TERM,
+        history.minutes,
+        combine(excluded_terms, series, starts),
+    )
 
     added, skipped = merge(history, records, replace=replace)
     history.prune(now)

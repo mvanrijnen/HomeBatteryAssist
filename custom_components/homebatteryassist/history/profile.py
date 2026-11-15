@@ -20,18 +20,23 @@ def _weighted(record: ConsumptionRecord) -> tuple[datetime, float, float]:
 
 def hourly_series(
     records: Iterable[ConsumptionRecord], since: datetime
-) -> list[tuple[datetime, float]]:
-    """Average consumption (W) per clock hour from ``since``, weighted by coverage."""
+) -> list[tuple[datetime, float, float]]:
+    """Per clock hour from ``since``: average house consumption and excluded devices (W)."""
     hours: dict[datetime, list[float]] = {}
     for record in records:
         start, avg, weight = _weighted(record)
         if start < since or weight <= 0:
             continue
         hour = start.replace(minute=0, second=0, microsecond=0)
-        acc = hours.setdefault(hour, [0.0, 0.0])
+        acc = hours.setdefault(hour, [0.0, 0.0, 0.0])
         acc[0] += avg * weight
-        acc[1] += weight
-    return [(hour, round(s / w, 1)) for hour, (s, w) in sorted(hours.items()) if w]
+        acc[1] += record.get("excluded_w", 0.0) * weight
+        acc[2] += weight
+    return [
+        (hour, round(s / w, 1), round(e / w, 1))
+        for hour, (s, e, w) in sorted(hours.items())
+        if w
+    ]
 
 
 def day_profile(

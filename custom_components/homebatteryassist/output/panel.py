@@ -170,9 +170,12 @@ def websocket_history(
             "interval_minutes": entry.runtime_data.history.minutes,
             "days_covered": days_covered(records),
             "imported": sum(1 for r in records if r.get("source") == "import"),
+            # [time ms, house consumption W, excluded devices W]
             "hourly": [
-                [int(t.timestamp() * 1000), v] for t, v in hourly_series(records, since)
+                [int(t.timestamp() * 1000), house, excluded]
+                for t, house, excluded in hourly_series(records, since)
             ],
+            "has_excluded": bool(entry.runtime_data.measurements.excluded_sensors),
             "profile": day_profile(records),
         },
     )
