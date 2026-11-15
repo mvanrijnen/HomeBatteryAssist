@@ -389,3 +389,74 @@ async def test_options_flow_changes_grid_meter(hass: HomeAssistant) -> None:
     assert entry.data[CONF_MAX_CURRENT] == 25
     assert entry.data["sensor_l3"] == "sensor.hwe_p1_abc_power_l3"
     assert entry.options[CONF_PLANNING_HORIZON] == 2
+
+
+async def test_direct_meter_keeps_own_sensors(
+    hass: HomeAssistant, no_speedwire_discovery
+) -> None:
+    """Switching to a direct meter keeps the sensors; back to manual: prefilled."""
+    from unittest.mock import AsyncMock, patch
+
+    no_speedwire_discovery.return_value = {"192.0.2.199": 1900000001}
+    # No network in tests: the meter does not really listen.
+    with patch(
+        "custom_components.homebatteryassist.inputs.direct.SpeedwireMeter.async_start",
+        AsyncMock(),
+    ):
+        await _direct_meter_keeps_own_sensors(hass)
+
+
+async def _direct_meter_keeps_own_sensors(hass: HomeAssistant) -> None:
+    data = {
+        CONF_PHASES: 3,
+        CONF_MAX_CURRENT: 25,
+        "sensor_l1": "sensor.p1_l1",
+        "sensor_l2": "sensor.p1_l2",
+        "sensor_l3": "sensor.p1_l3",
+    }
+    entry = MockConfigEntry(
+        domain=DOMAIN, data=data, options={CONF_HISTORY_INTERVAL: 15}
+    )
+    entry.add_to_hass(hass)
+    result = await entry.start_reconfigure_flow(hass)
+    assert result["step_id"] == "meter"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"source": "direct:speedwire:192.0.2.199"}
+    )
+    assert result["step_id"] == "user"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PHASES: "3"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MAX_CURRENT: "25"}
+    )
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data == {
+        **data,
+        "meter_source": "speedwire",
+        "meter_address": "192.0.2.199",
+    }
+
+    result = await entry.start_reconfigure_flow(hass)
+    assert result["step_id"] == "meter"
+    key = next(k for k in result["data_schema"].schema if str(k) == "source")
+    assert key.default() == "direct:speedwire:192.0.2.199"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"source": "manual"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PHASES: "3"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MAX_CURRENT: "25"}
+    )
+    assert result["step_id"] == "sensors"
+    suggested = {
+        str(key): key.description.get("suggested_value")
+        for key in result["data_schema"].schema
+        if key.description
+    }
+    assert suggested["sensor_l1"] == "sensor.p1_l1"
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()

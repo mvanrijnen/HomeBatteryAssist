@@ -86,6 +86,8 @@ from .const import (
     CONF_MIN_SOC,
     CONF_PHASE,
     CONF_PHASE_MARGIN,
+    CONF_PHASE_RETURN_SENSORS,
+    CONF_PHASE_SENSORS,
     CONF_PHASES,
     CONF_PLAN_MODE,
     CONF_PLANNING_HORIZON,
@@ -506,8 +508,16 @@ class _GridSteps:
             if direct := self._direct.get(choice):
                 source, address, phases = direct
                 self._from_meter = True
+                # Keep the grid sensors (unused meanwhile): choosing your own
+                # sensors again later starts from them.
                 self._data = {
-                    **{k: v for k, v in self._data.items() if k == CONF_MAX_CURRENT},
+                    **{
+                        k: v
+                        for k, v in self._data.items()
+                        if k in (CONF_MAX_CURRENT, CONF_PHASES)
+                        or k in CONF_PHASE_SENSORS
+                        or k in CONF_PHASE_RETURN_SENSORS
+                    },
                     CONF_METER_SOURCE: source,
                     CONF_METER_ADDRESS: address,
                 }

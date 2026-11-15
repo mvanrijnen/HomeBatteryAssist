@@ -10,6 +10,9 @@ const TEXT = {
     expected: "expected",
     notMeasured: "not measured",
     grid: "Grid",
+    ownSensors: "own sensors",
+    directly: "read directly",
+    viaIntegration: "via its integration",
     importing: "Importing",
     exporting: "Exporting",
     house: "House",
@@ -120,6 +123,9 @@ const TEXT = {
     expected: "verwacht",
     notMeasured: "niet gemeten",
     grid: "Net",
+    ownSensors: "eigen sensoren",
+    directly: "rechtstreeks",
+    viaIntegration: "via integratie",
     importing: "Afname",
     exporting: "Teruglevering",
     house: "Huis",
@@ -454,6 +460,16 @@ class HomeBatteryAssistPanel extends HTMLElement {
         grid === null ? "" : grid < 0 ? t.exporting : t.importing,
       ),
     );
+    // Which meter measures the grid (brand/type, and how it is read).
+    const m = s.meter;
+    if (m && typeof m === "object") {
+      const how = m.name ? (m.direct ? t.directly : t.viaIntegration) : "";
+      const text = [m.name || t.ownSensors, how].filter(Boolean).join(", ");
+      parts[parts.length - 1] = parts[parts.length - 1].replace(
+        "</div></div>",
+        `</div><div class="label meter" title="${esc(m.address || "")}">${esc(text)}</div></div>`,
+      );
+    }
     if (s.has_pv || s.has_pv_forecast) {
       const expected = s.pv_forecast_now_w == null ? "" : `${t.expected} ${this._power(s.pv_forecast_now_w)}`;
       const value = s.has_pv ? this._power(this._num(e.pv_power)) : "–";

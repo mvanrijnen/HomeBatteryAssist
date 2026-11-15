@@ -21,6 +21,9 @@ from homeassistant.util import dt as dt_util
 from ..const import DOMAIN, NAME, NOMINAL_VOLTAGE
 from ..forecasts.accuracy import BUCKET_KEYS, KINDS
 from ..history.profile import day_profile, days_covered, hourly_series
+from ..inputs.direct import SOURCE_HOMEWIZARD, SOURCE_SHELLY, SOURCE_SPEEDWIRE
+from ..inputs.measurements import MeasurementInput
+from ..inputs.meters import find_meter_candidates
 from ..models import HomeBatteryAssistConfigEntry
 from ..planning.battery_plan import MODE_ARBITRAGE, MODE_NOM, compare_modes
 from ..planning.phase_limit import phase_limit_w
@@ -91,6 +94,31 @@ def _iso(value: Any) -> str | None:
     return value.isoformat() if value else None
 
 
+def _meter_info(hass: HomeAssistant, measurements: MeasurementInput) -> dict[str, Any]:
+    """Which grid meter is used: brand/type, how it is read, its address."""
+    if measurements.direct is not None:
+        names = {
+            SOURCE_HOMEWIZARD: "HomeWizard P1",
+            SOURCE_SPEEDWIRE: "SMA Home Manager / Energy Meter",
+            SOURCE_SHELLY: "Shelly 3EM",
+        }
+        return {
+            "name": names.get(measurements.source, measurements.source),
+            "direct": True,
+            "address": measurements.direct.address,
+        }
+    sensors = {main for main, _ in measurements.grid_phases}
+    meter = next(
+        (c for c in find_meter_candidates(hass) if set(c.sensors.values()) == sensors),
+        None,
+    )
+    return {
+        "name": f"{meter.profile.label}" if meter else None,
+        "direct": False,
+        "address": meter.address if meter else None,
+    }
+
+
 def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str, Any]:
     """Everything the panel needs besides live entity states."""
     data = entry.runtime_data
@@ -99,7 +127,7 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
     window = forecast_data.window
     return {
         "phases": data.measurements.phases,
-        "meter": data.measurements.source,
+        "meter": _meter_info(hass, data.measurements),
         "max_current": data.measurements.max_current,
         "phase_limit_a": round(
             phase_limit_w(data.measurements.max_current, data.forecast.phase_margin)
