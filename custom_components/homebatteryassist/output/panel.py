@@ -318,6 +318,12 @@ def websocket_history(
                     and plan.saving is not None
                     and other.saving is not None
                 },
+                # Expected saving of every mode compared with no battery.
+                "by_mode": {
+                    mode: round(other.saving, 2)
+                    for mode, other in forecast.data.plans.items()
+                    if other.saving is not None
+                },
                 "mode": forecast.data.plan_mode,
                 "until": forecast.data.window.end.isoformat(),
                 "currency": hass.config.currency,

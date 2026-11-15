@@ -85,6 +85,11 @@ const TEXT = {
     vsNoBattery: "vs no battery",
     vsMode: "{mode} vs {other}",
     modeNames: { nom: "Zero on the meter", arbitrage: "Arbitrage" },
+    compareTitle: "Return compared",
+    vsNone: "vs no battery",
+    selected: "selected",
+    realizedRow: "Realised ({mode})",
+    compareNote: "Expected until {date}. Energy still in the batteries at the end counts at the average price (after losses); using it at a cheaper moment therefore costs money.",
     since: "since {date}",
     until: "until {date}",
     advantageUntil: "Advantage of arbitrage over NOM until here",
@@ -201,6 +206,11 @@ const TEXT = {
     vsNoBattery: "t.o.v. geen batterij",
     vsMode: "{mode} t.o.v. {other}",
     modeNames: { nom: "Nul op de meter", arbitrage: "Arbitrage" },
+    compareTitle: "Rendement vergeleken",
+    vsNone: "t.o.v. geen batterij",
+    selected: "gekozen",
+    realizedRow: "Gerealiseerd ({mode})",
+    compareNote: "Verwacht tot {date}. Energie die aan het eind nog in de batterijen zit telt mee tegen de gemiddelde prijs (na verlies); die gebruiken op een goedkoper moment kost dus geld.",
     since: "sinds {date}",
     until: "tot {date}",
     advantageUntil: "Voordeel arbitrage t.o.v. NOM tot hier",
@@ -278,6 +288,11 @@ const STYLE = `
   .row { display: flex; justify-content: space-between; font-size: 14px; color: var(--secondary-text-color); }
   .row b { color: var(--primary-text-color); font-weight: 500; }
   .phases { display: grid; gap: 10px; }
+  table.compare { border-collapse: collapse; width: 100%; max-width: 640px; margin-bottom: 8px; }
+  table.compare td { padding: 6px 8px; border-bottom: 1px solid var(--divider-color); }
+  table.compare td.num { text-align: right; white-space: nowrap; }
+  table.compare tr.sel td { font-weight: 500; }
+  table.compare small { color: var(--secondary-text-color); margin-left: 4px; }
   .phase { display: grid; grid-template-columns: 40px 1fr 190px; gap: 8px; align-items: center; font-size: 14px; }
   .phase b { color: var(--primary-text-color); font-weight: 500; }
   .phase .who { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
@@ -501,15 +516,38 @@ class HomeBatteryAssistPanel extends HTMLElement {
       parts.push(this._flow("value", "mdi:cash-check", t.realized, money(value.realized), t.since.replace("{date}", date(value.since))));
       const until = t.until.replace("{date}", date(value.until));
       parts.push(this._flow("value", "mdi:cash-clock", t.expectedReturn, money(value.expected), `${t.vsNoBattery} · ${until}`));
-      for (const [other, diff] of Object.entries(value.expected_vs || {})) {
-        const label = t.vsMode
-          .replace("{mode}", t.modeNames[value.mode] || value.mode)
-          .replace("{other}", (t.modeNames[other] || other).toLowerCase());
-        const signed = `${diff > 0 ? "+" : ""}${money(diff)}`;
-        parts.push(this._flow("value", "mdi:scale-balance", label, signed, until));
-      }
     }
     return `<div class="card"><h2>${esc(t.flows)}</h2><div class="flows">${parts.join("")}</div></div>`;
+  }
+
+  _compare(s, t) {
+    // Every mode compared with no battery, and arbitrage compared with NOM.
+    const value = this._history?.value;
+    if (!value || !s.batteries.length || !value.by_mode) return "";
+    const lang = this._hass.locale?.language || this._hass.language;
+    const money = (v) =>
+      v == null ? "–" : new Intl.NumberFormat(lang, { style: "currency", currency: value.currency || "EUR" }).format(v);
+    const signed = (v) => (v == null ? "–" : `${v > 0 ? "+" : ""}${money(v)}`);
+    const name = (m) => t.modeNames[m] || m;
+    const rows = Object.entries(value.by_mode).map(
+      ([mode, saving]) =>
+        `<tr${mode === value.mode ? ' class="sel"' : ""}><td>${esc(name(mode))}${mode === value.mode ? ` <small>${esc(t.selected)}</small>` : ""}</td><td>${esc(t.vsNone)}</td><td class="num">${esc(signed(saving))}</td></tr>`,
+    );
+    const arb = value.by_mode.arbitrage, nom = value.by_mode.nom;
+    if (arb != null && nom != null) {
+      rows.push(
+        `<tr><td>${esc(name("arbitrage"))}</td><td>${esc(t.vsMode.replace("{mode}", "").replace("{other}", name("nom").toLowerCase()).trim())}</td><td class="num"><b>${esc(signed(arb - nom))}</b></td></tr>`,
+      );
+    }
+    rows.push(
+      `<tr><td>${esc(t.realizedRow.replace("{mode}", name(value.mode).toLowerCase()))}</td><td>${esc(t.vsNone)}</td><td class="num">${esc(signed(value.realized))}</td></tr>`,
+    );
+    const date = value.until
+      ? new Date(value.until).toLocaleString(lang, { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })
+      : "–";
+    return `<div class="card"><h2>${esc(t.compareTitle)}</h2>
+      <table class="compare">${rows.join("")}</table>
+      <div class="muted">${esc(t.compareNote.replace("{date}", date))}</div></div>`;
   }
 
   _battery(b, t) {
@@ -1151,6 +1189,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const s = this._status;
       body = [
         this._flows(s, t),
+        this._compare(s, t),
         this._consumption(t),
         this._batteries(s, t),
         this._phases(s, t),
