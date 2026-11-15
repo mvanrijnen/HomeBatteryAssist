@@ -33,8 +33,8 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the actions and the status panel (independent of config entries).
 
-    The panel is always in the sidebar; until the integration is set up it
-    explains how to add it.
+    Home Assistant calls this once a config entry exists. If that entry is not
+    loaded, the panel explains how to set it up.
     """
     async_setup_services(hass)
     await async_setup_panel(hass, await _async_version(hass))

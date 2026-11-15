@@ -21,7 +21,7 @@ inputs  ->  history  ->  forecasts  ->  (planning, later)  ->  output
 explain (decision log, "why") and Python logging are used by all modules
 ```
 
-`__init__.py` only wires the modules of a config entry into `HomeBatteryAssistData` (`models.py`, on `entry.runtime_data`): `decisions`, `measurements`, `history`, `forecast`. Root platform files (`sensor.py`, `button.py`) only delegate to `output/`, because HA looks for platforms in the package root. `async_setup` registers the action `homebatteryassist.recalculate` (`services.py`) and the sidebar panel (`output/panel.py` + `frontend/panel.js`, websocket `homebatteryassist/status`) independent of config entries, so the panel is visible right after installation.
+`__init__.py` only wires the modules of a config entry into `HomeBatteryAssistData` (`models.py`, on `entry.runtime_data`): `decisions`, `measurements`, `history`, `forecast`. Root platform files (`sensor.py`, `button.py`) only delegate to `output/`, because HA looks for platforms in the package root. `async_setup` registers the action `homebatteryassist.recalculate` (`services.py`) and the sidebar panel (`output/panel.py` + `frontend/panel.js`, websocket `homebatteryassist/status`) once per HA start; note HA only runs `async_setup` when a config entry exists (or YAML), so the panel appears after the integration is added. The panel shows a "not set up" hint if the entry is not loaded.
 
 - **`inputs/`** — reads and normalises external data; never forecasts or decides.
   - `units.py`: `state_to_watts` (W/kW/MW, A/mA × `NOMINAL_VOLTAGE` 230 V), `parse_time`, `parse_float`.
