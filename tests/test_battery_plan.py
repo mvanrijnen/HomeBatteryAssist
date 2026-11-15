@@ -98,3 +98,13 @@ def test_several_batteries_are_planned_as_one() -> None:
         [_battery(soc=10.0), _battery(soc=10.0)], slots, pv, [], mode=MODE_NOM
     )
     assert plan.slots[0].power_w == pytest.approx(4000.0)
+
+
+def test_arbitrage_for_own_use_never_exports_battery_energy() -> None:
+    """Arbitrage (own use) discharges at most what the house needs."""
+    slots = _slots([200.0, 200.0, 200.0, 200.0])
+    prices = _prices([0.05, 0.05, 0.90, 0.90])  # tempting to sell to the grid
+    plan = plan_batteries([_battery(soc=10.0)], slots, {}, prices, mode=MODE_ARBITRAGE)
+    assert all(s.power_w >= -200.0 - 1e-6 for s in plan.slots)
+    assert all(s.grid_w >= -1e-6 for s in plan.slots)  # no export by the battery
+    assert plan.slots[2].power_w < 0  # but it does cover the expensive hours

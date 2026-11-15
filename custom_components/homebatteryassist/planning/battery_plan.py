@@ -4,8 +4,10 @@ Modes (more will follow):
 
 - ``nom`` (nul op de meter / zero on the meter): charge with PV surplus,
   discharge on shortage, never from or to the grid on purpose.
-- ``arbitrage``: cost-optimal; may also charge from the grid when cheap and
-  discharge (even to the grid) when expensive.
+- ``arbitrage`` (for own use): cost-optimal; may also charge from the grid when
+  cheap, and discharges to cover the own consumption when expensive, but never
+  exports battery energy to the grid. (Arbitrage for maximum profit, which may
+  discharge to the grid, is a later mode: ``allow_export``.)
 
 Both are always calculated, with the expected cost compared with no battery,
 so their returns can be compared. For arbitrage the planner chooses per slot
@@ -197,7 +199,12 @@ def _nom(
 
 
 def _optimise(
-    pack: _Pack, slots: list, export_factor: float, cycle_cost: float, mode: str
+    pack: _Pack,
+    slots: list,
+    export_factor: float,
+    cycle_cost: float,
+    mode: str,
+    allow_export: bool = False,
 ) -> BatteryPlan:
     """Dynamic programming over the stored energy (backward), then forward."""
     span = max(pack.ceiling - pack.floor, 0.0)
@@ -230,6 +237,9 @@ def _optimise(
                     if delta >= 0
                     else delta * pack.eff / hours
                 )
+                # Own use: never discharge more than the house needs (no export).
+                if not allow_export and power < 0 and power < -max(net, 0.0) - 1e-6:
+                    continue
                 cost = (
                     _grid_cost(net + power, hours, price, export_factor)
                     + abs(power) * hours / 1000 * cycle_cost
