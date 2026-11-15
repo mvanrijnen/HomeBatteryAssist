@@ -509,6 +509,9 @@
       },
       "battery_forecast": {
         "name": "Battery plan"
+      },
+      "battery_realized_value": {
+        "name": "Realised value"
       }
     },
     "button": {

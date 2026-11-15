@@ -101,6 +101,9 @@
       },
       "battery_forecast": {
         "default": "mdi:battery-clock-outline"
+      },
+      "battery_realized_value": {
+        "default": "mdi:cash-plus"
       }
     },
     "button": {

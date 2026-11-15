@@ -25,7 +25,10 @@ from homeassistant.core import (
     State,
     callback,
 )
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_track_state_change_event,
+    async_track_utc_time_change,
+)
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
@@ -66,6 +69,7 @@ from .units import parse_float, state_to_watts
 _LOGGER = logging.getLogger(__name__)
 
 STORAGE_VERSION = 1
+SOC_LOG_RETENTION = timedelta(days=7)
 SAVE_DELAY = 60  # seconds
 
 
@@ -247,6 +251,8 @@ class BatteryStats(TypedDict):
     discharged_kwh: float
     last_full_charge: str | None  # ISO 8601, UTC
     virtual_soc: NotRequired[float]  # simulated state of charge (virtual batteries)
+    value: NotRequired[float]  # realised value: + saved / - cost, in the price unit
+    value_since: NotRequired[str]  # ISO 8601: when the value counter started
 
 
 class BatteryInput:
@@ -270,10 +276,22 @@ class BatteryInput:
         self._was_available: dict[str, bool] = {}
         self._listeners: list[Callable[[], None]] = []
         self._unsub: CALLBACK_TYPE | None = None
+        self._unsub_log: CALLBACK_TYPE | None = None
+        # Price (per kWh) right now, set by the setup (from the price forecast).
+        self.price_now: Callable[[], float | None] = lambda: None
+        # battery id -> [[ISO time, state of charge %], ...] every quarter, 7 days
+        self.soc_log: dict[str, list[list[Any]]] = {}
 
     async def async_start(self) -> None:
         """Load counters and start following the battery sensors."""
-        stored = (await self._store.async_load() or {}).get("stats", {})
+        data = await self._store.async_load() or {}
+        stored = data.get("stats", {})
+        self.soc_log = {
+            c.id: data.get("soc_log", {}).get(c.id, []) for c in self.configs
+        }
+        self._unsub_log = async_track_utc_time_change(
+            self.hass, self._async_log_soc, minute="/15", second=0
+        )
         for config in self.configs:
             self.stats[config.id] = BatteryStats(
                 charged_kwh=0.0, discharged_kwh=0.0, last_full_charge=None
@@ -301,6 +319,9 @@ class BatteryInput:
         if self._unsub is not None:
             self._unsub()
             self._unsub = None
+        if self._unsub_log is not None:
+            self._unsub_log()
+            self._unsub_log = None
         await self._store.async_save(self._data())
 
     @callback
@@ -372,6 +393,11 @@ class BatteryInput:
                 stats["charged_kwh"] = round(stats["charged_kwh"] + kwh, 4)
             elif kwh < 0:
                 stats["discharged_kwh"] = round(stats["discharged_kwh"] - kwh, 4)
+            # Realised value: discharging saves buying power, charging costs it
+            # (from the grid, or as export value of solar power).
+            if kwh and (price := self.price_now()) is not None:
+                stats.setdefault("value_since", when.isoformat())
+                stats["value"] = round(stats.get("value", 0.0) - kwh * price, 5)
         if power is not None:
             self._last_power[battery_id] = (when, power)
 
@@ -387,5 +413,16 @@ class BatteryInput:
         if available or was is not None:
             self._was_available[config.id] = available
 
+    @callback
+    def _async_log_soc(self, now: datetime) -> None:
+        """Remember every battery's state of charge (for the dashboard)."""
+        cutoff = (now - SOC_LOG_RETENTION).isoformat()
+        for battery_id, state in self.states.items():
+            log = self.soc_log.setdefault(battery_id, [])
+            if state.soc is not None:
+                log.append([now.isoformat(), round(state.soc, 2)])
+            self.soc_log[battery_id] = [e for e in log if e[0] >= cutoff]
+        self._store.async_delay_save(self._data, SAVE_DELAY)
+
     def _data(self) -> dict[str, Any]:
-        return {"stats": self.stats}
+        return {"stats": self.stats, "soc_log": self.soc_log}

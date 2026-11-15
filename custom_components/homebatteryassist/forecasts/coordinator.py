@@ -52,6 +52,7 @@ from ..const import (
     DOMAIN,
 )
 from ..explain import DecisionLog
+from ..explain.plan_story import plan_story
 from ..history.consumption import ConsumptionHistory
 from ..inputs.batteries import BatteryState
 from ..inputs.prices import PricePoint, parse_price_forecast
@@ -405,56 +406,44 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                     if (self.hass.config.language or "").startswith("nl")
                     else "never"
                 ),
-                price=_price(charge.price, unit),
-                avg_price=_price(charge.avg_price, unit),
+                price=_price(charge.price, unit, self.hass.config.language),
+                avg_price=_price(charge.avg_price, unit, self.hass.config.language),
             )
 
     def _explain_plan(self, data: ForecastData) -> None:
-        """Explain the selected plan and compare it with the other modes."""
+        """Explain the plan in plain language when it changes noticeably."""
         plan = data.plans.get(data.plan_mode)
-        if plan is None:
+        if plan is None or not plan.slots:
             return
-        others = ", ".join(
-            f"{mode}: {_money(p.saving)}"
-            for mode, p in data.plans.items()
-            if mode != data.plan_mode
+        now = dt_util.utcnow()
+        states = list(self.battery_states())
+        min_soc_reached = bool(states) and all(
+            s.soc is not None and s.soc <= s.config.min_soc + 0.5 for s in states
         )
-        key = f"{plan.mode}|{plan.strategy}|{_money(plan.saving)}|{others}"
+        text = plan_story(
+            plan,
+            {m: p for m, p in data.plans.items() if m != data.plan_mode},
+            now,
+            self.hass.config.language,
+            _plan_efficiency(states),
+            self.cycle_cost,
+            min_soc_reached,
+        )
+        # Log when the gist changes (not for every small change in numbers).
+        current = next((s for s in plan.slots if s.start <= now < s.end), None)
+        action = (
+            "charge"
+            if current and current.power_w > 100
+            else "discharge"
+            if current and current.power_w < -100
+            else "idle"
+        )
+        first_charge = next((s.start for s in plan.slots if s.power_w > 100), None)
+        key = f"{plan.mode}|{action}|{first_charge}|{_money(plan.saving)}"
         if key == self._last_plan:
             return
         self._last_plan = key
-        unit = data.price_unit or ""
-        charge_price = _avg_price(plan.slots, charging=True)
-        discharge_price = _avg_price(plan.slots, charging=False)
-        if charge_price is not None and discharge_price is not None:
-            spread = discharge_price - charge_price
-            efficiency = _plan_efficiency(self.battery_states())
-            net = discharge_price * efficiency - charge_price - self.cycle_cost
-            prices = {
-                "spread": f"{spread:.3f} {unit}".strip(),
-                "net_spread": f"{net:.3f} {unit}".strip(),
-            }
-            key_name = "battery_plan_prices"
-        else:
-            prices = {}
-            key_name = "battery_plan"
-        self._decisions.async_log(
-            "planning",
-            key_name,
-            mode=plan.mode,
-            strategy=plan.strategy,
-            saving=_money(plan.saving),
-            others=others or "-",
-            charge=_periods(
-                plan.slots, charging=True, language=self.hass.config.language
-            ),
-            discharge=_periods(
-                plan.slots, charging=False, language=self.hass.config.language
-            ),
-            charge_price=_price(charge_price, unit),
-            discharge_price=_price(discharge_price, unit),
-            **prices,
-        )
+        self._decisions.async_log("planning", "battery_plan_story", text=text)
 
     def _explain_method(self, data: ForecastData) -> None:
         """Explain on which history the consumption forecast is based."""
@@ -589,8 +578,16 @@ def _avg_price(
     return total / weight if weight else None
 
 
-def _price(value: float | None, unit: str | None) -> str:
-    return "-" if value is None else f"{value:.3f} {unit or ''}".strip()
+def _price(value: float | None, unit: str | None, language: str | None = None) -> str:
+    if value is None:
+        return "-"
+    if (language or "").startswith("nl"):
+        return f"€ {value:.2f}".replace(".", ",")
+    return (
+        f"€ {value:.2f}"
+        if (unit or "").startswith("€")
+        else f"{value:.3f} {unit or ''}".strip()
+    )
 
 
 def _plan_efficiency(states: Iterable[BatteryState]) -> float:

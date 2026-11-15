@@ -17,6 +17,7 @@ from homeassistant.core import Event, EventStateChangedData, HomeAssistant, call
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.util import dt as dt_util
 
 from .const import CONF_HISTORY_INTERVAL, DEFAULT_HISTORY_INTERVAL, DOMAIN
 from .explain import DecisionLog
@@ -79,6 +80,14 @@ async def async_setup_entry(
     forecast.last_full = lambda battery_id: batteries.stats.get(battery_id, {}).get(
         "last_full_charge"
     )
+
+    def _price_now() -> float | None:
+        data, now = forecast.data, dt_util.utcnow()
+        if data is None:
+            return None
+        return next((p.price for p in data.prices if p.start <= now < p.end), None)
+
+    batteries.price_now = _price_now
     await forecast.async_config_entry_first_refresh()
     if not hass.is_running:
         # Other integrations (price and PV forecasts) may still be starting:

@@ -509,6 +509,9 @@
       },
       "battery_forecast": {
         "name": "Batterijplan"
+      },
+      "battery_realized_value": {
+        "name": "Gerealiseerd rendement"
       }
     },
     "button": {

@@ -187,6 +187,7 @@ def websocket_history(
         return
     records = entry.runtime_data.history.records
     forecast = entry.runtime_data.forecast
+    batteries = entry.runtime_data.batteries
     now = dt_util.utcnow()
     since = now - timedelta(days=msg["days"])
     connection.send_result(
@@ -246,6 +247,49 @@ def websocket_history(
                     forecast.cycle_cost,
                 )
             ],
+            # Realised value of all batteries so far, and the expected value
+            # of the selected plan until the end of the planning window.
+            "value": {
+                "realized": round(
+                    sum(s.get("value", 0.0) for s in batteries.stats.values()), 2
+                ),
+                "since": min(
+                    (
+                        s["value_since"]
+                        for s in batteries.stats.values()
+                        if "value_since" in s
+                    ),
+                    default=None,
+                ),
+                "expected": (
+                    round(plan.saving, 2)
+                    if (plan := forecast.data.plans.get(forecast.data.plan_mode))
+                    and plan.saving is not None
+                    else None
+                ),
+                "until": forecast.data.window.end.isoformat(),
+                "currency": hass.config.currency,
+            },
+            # State of charge in kWh: measured per battery (every quarter), and
+            # the plan's total ahead.
+            "soc": {
+                "batteries": [
+                    {
+                        "name": c.name,
+                        "virtual": c.virtual,
+                        "capacity_kwh": c.capacity_kwh,
+                        "points": [
+                            [
+                                int(dt_util.parse_datetime(t).timestamp() * 1000),
+                                round(soc / 100 * c.capacity_kwh, 3),
+                            ]
+                            for t, soc in batteries.soc_log.get(c.id, [])
+                            if t >= since.isoformat()
+                        ],
+                    }
+                    for c in batteries.configs
+                ],
+            },
             "has_pv": bool(entry.runtime_data.measurements.pv_sensors),
             "has_battery": bool(entry.runtime_data.batteries.configs),
             "has_excluded": bool(entry.runtime_data.measurements.excluded_sensors),

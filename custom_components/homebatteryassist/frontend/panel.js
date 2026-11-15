@@ -70,6 +70,13 @@ const TEXT = {
     planInfo: "Battery plan ({mode}, advice): expected saving {saving}",
     planOther: "{mode}: {saving}",
     socExpected: "Expected state of charge",
+    socTitle: "State of charge of the batteries",
+    socTotal: "Total",
+    socPlan: "Total (plan)",
+    realized: "Realised return",
+    expectedReturn: "Expected return",
+    since: "since {date}",
+    until: "until {date}",
     advantageUntil: "Advantage of arbitrage over NOM until here",
     arbVsNom: "arbitrage vs. NOM: {diff} in the planning window",
     batteryNote: "The battery plan is how HomeBatteryAssist would control the batteries; for now it is advice only.",
@@ -169,6 +176,13 @@ const TEXT = {
     planInfo: "Batterijplan ({mode}, advies): verwachte besparing {saving}",
     planOther: "{mode}: {saving}",
     socExpected: "Verwachte vulling",
+    socTitle: "Vulling batterijen",
+    socTotal: "Totaal",
+    socPlan: "Totaal (plan)",
+    realized: "Gerealiseerd rendement",
+    expectedReturn: "Verwacht rendement",
+    since: "sinds {date}",
+    until: "tot {date}",
     advantageUntil: "Voordeel arbitrage t.o.v. NOM tot hier",
     arbVsNom: "arbitrage t.o.v. NOM: {diff} in het planningsvenster",
     batteryNote: "Het batterijplan is hoe HomeBatteryAssist de batterijen zou aansturen; voorlopig alleen advies.",
@@ -445,6 +459,15 @@ class HomeBatteryAssistPanel extends HTMLElement {
       );
     }
     if (s.has_excluded) parts.push(this._flow("excluded", "mdi:ev-station", t.excluded, this._power(this._num(e.excluded_power))));
+    const value = this._history?.value;
+    if (value && s.batteries.length) {
+      const date = (iso) =>
+        iso ? new Date(iso).toLocaleString(this._hass.locale?.language || this._hass.language, { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }) : "–";
+      const money = (v) =>
+        v == null ? "–" : new Intl.NumberFormat(this._hass.locale?.language || this._hass.language, { style: "currency", currency: value.currency || "EUR" }).format(v);
+      parts.push(this._flow("value", "mdi:cash-check", t.realized, money(value.realized), t.since.replace("{date}", date(value.since))));
+      parts.push(this._flow("value", "mdi:cash-clock", t.expectedReturn, money(value.expected), t.until.replace("{date}", date(value.until))));
+    }
     return `<div class="card"><h2>${esc(t.flows)}</h2><div class="flows">${parts.join("")}</div></div>`;
   }
 
@@ -529,10 +552,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return 10 * step;
   }
 
-  _chart(id, series, xMin, xMax, ticks, gapLimit, markers = [], xFmt = (v) => this._time(new Date(v).toISOString())) {
+  _chart(id, series, xMin, xMax, ticks, gapLimit, markers = [], xFmt = (v) => this._time(new Date(v).toISOString()), yFmt = null) {
     // Full-width charts get a wider canvas so they are as high as the others.
     // The full-width flow chart gets a wider and higher canvas.
-    const W = id === "forecast" ? 1232 : 600, H = id === "forecast" ? 300 : 190, L = 58, R = 8, T = 8, B = 24;
+    const wide = id === "forecast" || id === "soc";
+    const W = wide ? 1232 : 600, H = id === "forecast" ? 300 : 190, L = 58, R = 8, T = 8, B = 24;
     const all = series.flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
     const yMax = this._niceMax(Math.max(...all, 0));
     const low = Math.min(...all, 0);
@@ -544,7 +568,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     for (let i = 0; i <= steps; i++) {
       const v = yMin + ((yMax - yMin) / steps) * i;
       svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>`;
-      svg += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${esc(this._axisPower(v))}</text>`;
+      svg += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${esc(yFmt ? yFmt(v) : this._axisPower(v))}</text>`;
     }
     if (yMin < 0) svg += `<line class="zero" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
     for (const [v, label] of ticks) {
@@ -567,7 +591,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     }
     svg += `<g class="hover" style="display:none"><line class="cursor" y1="${T}" y2="${H - B}"/>
       ${series.map((s, i) => `<circle r="3.5" data-i="${i}" style="fill:${s.color}"/>`).join("")}</g>`;
-    this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt };
+    this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt, yFmt };
     return `<svg data-chart="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${svg}</svg>
       <div class="tip" data-tip="${id}" hidden></div>`;
   }
@@ -726,7 +750,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     });
     const rows = c.series
       .map((s, i) => (hits[i] ? `<div class="r"><span><i style="background:${s.color}"></i>${esc(s.label || "")}</span>
-        <b>${esc(this._power(hits[i][1]))}</b></div>` : ""))
+        <b>${esc(c.yFmt ? c.yFmt(hits[i][1]) : this._power(hits[i][1]))}</b></div>` : ""))
       .join("");
     const extra = c.extra ? c.extra(anchor[0], hits) : "";
     tip.innerHTML = `<div class="t">${esc(c.xFmt(anchor[0]))}</div>${rows}${extra}`;
@@ -813,6 +837,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
           const hour = Math.floor(ts / 3600e3) * 3600e3;
           return [ts, Math.round(power - (pvByHour.get(hour) || 0))];
         });
+    let socChart = "";
     if (!fc.length && !verified.length && !past.length) {
       forecastChart = `<div class="muted">${esc(t.noForecast)}</div>`;
     } else {
@@ -880,6 +905,56 @@ class HomeBatteryAssistPanel extends HTMLElement {
           }),
       );
       this._charts.forecast.gapLimit = slot;
+
+      // State of charge (kWh): measured total + per battery, plan ahead.
+      const socBatteries = h.soc?.batteries || [];
+      if (socBatteries.length) {
+        const capacity = socBatteries.reduce((sum, b) => sum + b.capacity_kwh, 0);
+        const totals = new Map();
+        for (const b of socBatteries) {
+          for (const [ts, kwh] of b.points) totals.set(ts, (totals.get(ts) || 0) + kwh);
+        }
+        const complete = [...totals.entries()]
+          .filter(([ts]) => socBatteries.every((b) => b.points.some(([bts]) => bts === ts)))
+          .sort((a, b) => a[0] - b[0]);
+        const planned = (h.battery_forecast || []).map(([ts, , soc]) => [ts, (soc / 100) * capacity]);
+        const kwhFmt = (v) => `${Number(v).toFixed(1)} kWh`;
+        socChart = this._chart(
+          "soc",
+          [
+            { points: inView(complete), color: batteryColor, label: t.socTotal },
+            { points: inView(planned), color: batteryColor, dashed: true, label: t.socPlan },
+          ],
+          fMin,
+          fMax,
+          fTicks,
+          2 * 3600e3,
+          now >= fMin && now <= fMax ? [[now, t.now]] : [],
+          this._charts.forecast.xFmt,
+          kwhFmt,
+        );
+        const socInfo = this._charts.soc;
+        socInfo.gapLimit = 3600e3;
+        socInfo.extra = (ts) => {
+          const rows = socBatteries.map((b) => {
+            let value;
+            let approx = "";
+            if (ts <= Date.now()) {
+              const hit = this._nearest(b.points, ts, 20 * 60e3);
+              value = hit ? hit[1] : null;
+            } else {
+              const plan = this._nearest(planned, ts, 20 * 60e3);
+              value = plan ? (plan[1] * b.capacity_kwh) / capacity : null;
+              approx = "≈ ";
+            }
+            if (value == null) return "";
+            const pct = Math.round((value / b.capacity_kwh) * 100);
+            const name = `${b.name}${b.virtual ? ` (${t.virtual})` : ""}`;
+            return `<div class="r muted"><span>${esc(name)}</span><b>${approx}${esc(kwhFmt(value))} · ${pct}%</b></div>`;
+          });
+          return rows.join("");
+        };
+      }
       // Tooltip extras: the deviation in the past, the usual deviation ahead.
       const accuracy = h.accuracy || {};
       const leadKey = (ms) => {
@@ -954,6 +1029,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       <div class="chart wide"><div class="head"><h3>${esc(t.flowTitle)}</h3>${this._flowNav(t)}</div>${forecastChart}${forecastLegend}
         <div class="muted">${esc(accText)}</div>
         ${h.battery_forecast?.length ? `<div class="muted">${esc(this._planText(h, t))} · ${esc(t.batteryNote)}</div>` : ""}</div>
+      ${socChart ? `<div class="chart wide"><h3>${esc(t.socTitle)}</h3>${socChart}</div>` : ""}
       <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}</div>
       <div class="chart"><h3>${esc(t.avgDay)}</h3>${avg}
         <div class="legend"><span><i style="background:${primary}"></i>${esc(t.weekday)}</span>

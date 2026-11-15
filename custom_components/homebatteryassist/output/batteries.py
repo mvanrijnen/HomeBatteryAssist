@@ -138,6 +138,14 @@ BATTERY_SENSORS: tuple[BatterySensorDescription, ...] = (
         attrs_fn=_full_charge_attrs,
     ),
     BatterySensorDescription(
+        key="battery_realized_value",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.TOTAL,
+        suggested_display_precision=2,
+        value_fn=lambda b, s: round(b.stats[s.config.id].get("value", 0.0), 2),
+        attrs_fn=lambda b, s: {"since": b.stats[s.config.id].get("value_since")},
+    ),
+    BatterySensorDescription(
         key="battery_capacity",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda b, s: s.config.capacity_kwh,
@@ -146,6 +154,7 @@ BATTERY_SENSORS: tuple[BatterySensorDescription, ...] = (
 )
 # Values that are always known (configuration or persisted counters).
 ALWAYS_AVAILABLE = {
+    "battery_realized_value",
     "battery_capacity",
     "battery_charged_energy",
     "battery_discharged_energy",
@@ -256,6 +265,13 @@ class BatterySensor(_BatteryEntityBase):
     @property
     def _state(self) -> BatteryState:
         return self._batteries.states[self._battery_id]
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        """Money in Home Assistant's currency."""
+        if self.entity_description.key == "battery_realized_value":
+            return self.hass.config.currency if self.hass else None
+        return super().native_unit_of_measurement
 
     @property
     def available(self) -> bool:
