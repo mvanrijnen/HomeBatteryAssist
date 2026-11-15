@@ -34,13 +34,15 @@
           "history_interval": "Interval verbruikshistorie",
           "planning_horizon_days": "Maximale planningshorizon",
           "price_forecast_entity": "Sensor prijsvoorspelling",
-          "pv_forecast_entries": "PV-voorspelling"
+          "pv_forecast_entries": "PV-voorspelling",
+          "forecast_interval": "Herberekenen elke"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
           "planning_horizon_days": "Hoeveel dagen het systeem maximaal vooruit mag plannen.",
           "price_forecast_entity": "Sensor van een energieprijs-integration (bijv. Nordpool, ENTSO-e, Frank Energie) met de komende prijzen in de attributen.",
-          "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning."
+          "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
+          "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend."
         }
       }
     },
@@ -84,6 +86,14 @@
       "options": {
         "manual": "Handmatig koppelen (zelf de entities kiezen)"
       }
+    },
+    "forecast_interval": {
+      "options": {
+        "5": "5 minuten",
+        "15": "15 minuten",
+        "30": "30 minuten",
+        "60": "60 minuten"
+      }
     }
   },
   "options": {
@@ -95,13 +105,15 @@
           "history_interval": "Interval verbruikshistorie",
           "planning_horizon_days": "Maximale planningshorizon",
           "price_forecast_entity": "Sensor prijsvoorspelling",
-          "pv_forecast_entries": "PV-voorspelling"
+          "pv_forecast_entries": "PV-voorspelling",
+          "forecast_interval": "Herberekenen elke"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
           "planning_horizon_days": "Hoeveel dagen het systeem maximaal vooruit mag plannen.",
           "price_forecast_entity": "Sensor van een energieprijs-integration (bijv. Nordpool, ENTSO-e, Frank Energie) met de komende prijzen in de attributen.",
-          "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning."
+          "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
+          "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend."
         }
       }
     }
@@ -358,6 +370,12 @@
       },
       "phase_l3_load": {
         "name": "Belasting fase L3"
+      },
+      "consumption_forecast": {
+        "name": "Verwacht verbruik"
+      },
+      "consumption_forecast_accuracy": {
+        "name": "Nauwkeurigheid verbruiksvoorspelling"
       }
     },
     "button": {
@@ -392,11 +410,62 @@
           "description": "Laat geïmporteerde waarden eigen metingen in dezelfde perioden vervangen."
         }
       }
+    },
+    "adjust_forecast": {
+      "name": "Verbruiksvoorspelling aanpassen",
+      "description": "Past het verwachte huisverbruik aan voor een periode, bijvoorbeeld vanuit een script voor vakantie, gasten of een geplande grote verbruiker. Geef een begin (standaard: nu), een einde of duur, en precies één wijziging: een factor, een extra vermogen in W of een vast vermogen in W. Aanpassingen blijven tot hun einde bewaard.",
+      "fields": {
+        "name": {
+          "name": "Naam",
+          "description": "Zichtbaar in de voorspelling en het beslissingslog, en bruikbaar om hem weer te verwijderen."
+        },
+        "start": {
+          "name": "Begin",
+          "description": "Standaard: nu."
+        },
+        "end": {
+          "name": "Einde",
+          "description": "Einde van de periode (of geef een duur)."
+        },
+        "duration": {
+          "name": "Duur",
+          "description": "Lengte van de periode (in plaats van een einde)."
+        },
+        "factor": {
+          "name": "Factor",
+          "description": "Vermenigvuldig het verwachte verbruik, bijvoorbeeld 0,3 tijdens vakantie of 1,5 met gasten."
+        },
+        "offset_w": {
+          "name": "Extra vermogen",
+          "description": "Tel dit vermogen in W erbij op (of met een min eraf), bijvoorbeeld 2000 voor de oven."
+        },
+        "power_w": {
+          "name": "Vast vermogen",
+          "description": "Vervang het verwachte verbruik door dit vermogen in W."
+        }
+      }
+    },
+    "clear_forecast_adjustments": {
+      "name": "Aanpassingen voorspelling verwijderen",
+      "description": "Verwijdert aanpassingen van de verbruiksvoorspelling op id of naam; zonder id of naam worden alle aanpassingen verwijderd.",
+      "fields": {
+        "id": {
+          "name": "Id",
+          "description": "Id('s) van de aanpassingen die weg moeten."
+        },
+        "name": {
+          "name": "Naam",
+          "description": "Na(a)m(en) van de aanpassingen die weg moeten."
+        }
+      }
     }
   },
   "exceptions": {
     "not_loaded": {
       "message": "HomeBatteryAssist is niet geladen."
+    },
+    "end_before_start": {
+      "message": "Het einde van de aanpassing moet na het begin liggen."
     }
   }
 }

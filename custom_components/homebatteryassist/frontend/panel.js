@@ -50,6 +50,21 @@ const TEXT = {
     imported: "incl. imported",
     noHistory: "No consumption history yet.",
     houseLine: "House",
+    forecastTitle: "Expected consumption (past 24 h checked, next 48 h)",
+    measured: "Measured",
+    predicted: "Was expected",
+    expectedLine: "Expected",
+    now: "now",
+    accuracy: "Average deviation last 7 days: {mae} ({mape}%)",
+    notVerified: "Not checked yet: measured slots are compared with the forecast as time passes.",
+    noForecast: "No consumption forecast yet.",
+    reachTitle: "How far the forecasts reach",
+    reachConsumption: "Consumption",
+    reachPrice: "Prices",
+    reachPv: "PV",
+    reachUntil: "until {end} ({hours} h)",
+    reachNone: "no data",
+    reachOff: "not configured",
     excludedLine: "Excluded devices",
     recalculating: "Recalculating…",
     notLoaded: "HomeBatteryAssist is not set up yet. Add it under Settings → Devices & services → Add integration → HomeBatteryAssist.",
@@ -101,6 +116,21 @@ const TEXT = {
     imported: "incl. geïmporteerd",
     noHistory: "Nog geen verbruikshistorie.",
     houseLine: "Huis",
+    forecastTitle: "Verwacht verbruik (afgelopen 24 uur gecontroleerd, komende 48 uur)",
+    measured: "Gemeten",
+    predicted: "Was verwacht",
+    expectedLine: "Verwacht",
+    now: "nu",
+    accuracy: "Gemiddelde afwijking afgelopen 7 dagen: {mae} ({mape}%)",
+    notVerified: "Nog niet gecontroleerd: gemeten tijdvakken worden in de loop van de tijd met de voorspelling vergeleken.",
+    noForecast: "Nog geen verbruiksvoorspelling.",
+    reachTitle: "Hoe ver de voorspellingen reiken",
+    reachConsumption: "Verbruik",
+    reachPrice: "Prijzen",
+    reachPv: "PV",
+    reachUntil: "tot {end} ({hours} uur)",
+    reachNone: "geen gegevens",
+    reachOff: "niet ingesteld",
     excludedLine: "Uitgesloten apparaten",
     recalculating: "Bezig met herberekenen…",
     notLoaded: "HomeBatteryAssist is nog niet ingesteld. Voeg hem toe via Instellingen → Apparaten & diensten → Integratie toevoegen → HomeBatteryAssist.",
@@ -148,7 +178,8 @@ const STYLE = `
   .row { display: flex; justify-content: space-between; font-size: 14px; color: var(--secondary-text-color); }
   .row b { color: var(--primary-text-color); font-weight: 500; }
   .phases { display: grid; gap: 10px; }
-  .phase { display: grid; grid-template-columns: 40px 1fr 110px; gap: 8px; align-items: center; font-size: 14px; }
+  .phase { display: grid; grid-template-columns: 40px 1fr 190px; gap: 8px; align-items: center; font-size: 14px; }
+  .phase b { color: var(--primary-text-color); font-weight: 500; }
   ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
   li { display: grid; grid-template-columns: 90px 1fr; gap: 8px; font-size: 14px; }
   li time { color: var(--secondary-text-color); }
@@ -159,6 +190,12 @@ const STYLE = `
   .chart .grid { stroke: var(--divider-color); stroke-width: 1; }
   .chart .axis { fill: var(--secondary-text-color); font-size: 11px; }
   .chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+  .chart .line.dashed { stroke-dasharray: 5 4; stroke-width: 1.5; }
+  .chart .now { stroke: var(--secondary-text-color); stroke-width: 1; stroke-dasharray: 2 3; }
+  .chart.wide { grid-column: 1 / -1; }
+  .reach { display: grid; gap: 8px; margin-top: 12px; }
+  .reach .row { display: grid; grid-template-columns: 90px 1fr 170px; gap: 8px; align-items: center; }
+  .reach .bar { height: 12px; }
   .legend { display: flex; gap: 16px; font-size: 13px; color: var(--secondary-text-color); margin-top: 4px; }
   .legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 `;
@@ -344,12 +381,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
     for (let i = 1; i <= s.phases; i++) {
       const id = s.entities[`phase_l${i}_load`];
       const load = this._num(id);
-      const current = id && this._hass.states[id] ? this._hass.states[id].attributes.current : null;
+      const attrs = id && this._hass.states[id] ? this._hass.states[id].attributes : {};
+      const current = attrs.current ?? null;
+      const power = attrs.power ?? null;
       const cls = load !== null && load >= 90 ? "alert" : load !== null && load >= 75 ? "warn" : "";
       rows.push(`<div class="phase"><span>L${i}</span>
         <div class="bar"><div class="fill ${cls}" style="width:${Math.min(load ?? 0, 100)}%"></div>
           <div class="text">${load === null ? "–" : `${Math.round(load)}%`}</div></div>
-        <span class="muted">${current == null ? "–" : `${current} A`} / ${s.max_current} A</span></div>`);
+        <span class="muted"><b>${this._power(power)}</b> · ${current == null ? "–" : `${current} A`} / ${s.max_current} A</span></div>`);
     }
     return `<div class="card"><h2>${esc(t.phases)} · ${s.phases}x${s.max_current}A</h2><div class="phases">${rows.join("")}</div></div>`;
   }
@@ -360,8 +399,27 @@ class HomeBatteryAssistPanel extends HTMLElement {
       w.hours > 0
         ? t.planningUntil.replace("{hours}", Math.round(w.hours)).replace("{end}", this._time(w.end))
         : t.noPlanning;
+    const r = s.reach || {};
+    const start = new Date(w.start).getTime();
+    const span = Math.max(new Date(r.max_end || w.end).getTime() - start, 1);
+    const row = (label, end, configured) => {
+      let fill = 0;
+      let info = configured ? t.reachNone : t.reachOff;
+      if (configured && end) {
+        const ms = new Date(end).getTime() - start;
+        fill = Math.max(0, Math.min(100, (ms / span) * 100));
+        info = t.reachUntil.replace("{end}", this._time(end)).replace("{hours}", Math.max(0, Math.round(ms / 3600e3)));
+      }
+      return `<div class="row"><span>${esc(label)}</span>
+        <div class="bar"><div class="fill" style="width:${fill}%"></div></div>
+        <span class="muted">${esc(info)}</span></div>`;
+    };
+    const reach = `<h2 style="margin-top:16px">${esc(t.reachTitle)}</h2><div class="reach">
+      ${row(t.reachConsumption, r.consumption_end, true)}
+      ${row(t.reachPrice, r.price_end, r.has_price)}
+      ${row(t.reachPv, r.pv_end, r.has_pv_forecast)}</div>`;
     return `<div class="card"><h2>${esc(t.planning)}</h2><div>${esc(text)}</div>
-      <div class="muted">${esc(t.limit[w.limited_by] || w.limited_by)}</div></div>`;
+      <div class="muted">${esc(t.limit[w.limited_by] || w.limited_by)}</div>${reach}</div>`;
   }
 
   _niceMax(value) {
@@ -371,7 +429,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return 10 * step;
   }
 
-  _chart(series, xMin, xMax, ticks, gapLimit) {
+  _chart(series, xMin, xMax, ticks, gapLimit, markers = []) {
     const W = 600, H = 190, L = 46, R = 8, T = 8, B = 24;
     const all = series.flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
     const yMax = this._niceMax(Math.max(...all, 0));
@@ -395,7 +453,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
         d += `${jump ? "M" : "L"}${x(px).toFixed(1)},${y(py).toFixed(1)}`;
         prev = px;
       }
-      svg += `<path class="line" d="${d}" stroke="${s.color}"/>`;
+      svg += `<path class="line${s.dashed ? " dashed" : ""}" d="${d}" stroke="${s.color}"/>`;
+    }
+    for (const [v, label] of markers) {
+      svg += `<line class="now" x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H - B}"/>`;
+      svg += `<text class="axis" x="${x(v) + 4}" y="${T + 10}">${esc(label)}</text>`;
     }
     return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${svg}</svg>`;
   }
@@ -443,8 +505,51 @@ class HomeBatteryAssistPanel extends HTMLElement {
       hourTicks,
       null,
     );
+    // Expected consumption: past 24 h measured vs. predicted, next 48 h forecast.
+    const now = Date.now();
+    const secondary = "var(--secondary-text-color)";
+    const forecastColor = "var(--info-color, #039be5)";
+    const verified = h.verification || [];
+    const fc = h.forecast || [];
+    let forecastChart;
+    if (!fc.length && !verified.length) {
+      forecastChart = `<div class="muted">${esc(t.noForecast)}</div>`;
+    } else {
+      const fMin = now - 24 * 3600e3;
+      const fMax = now + 48 * 3600e3;
+      const fTicks = [];
+      const d = new Date(fMin);
+      d.setHours(d.getHours() < 12 ? 12 : 24, 0, 0, 0);
+      for (; d.getTime() < fMax; d.setHours(d.getHours() + 12)) {
+        const label = d.getHours() === 0 ? d.toLocaleDateString(lang, { weekday: "short" }) : "12:00";
+        fTicks.push([d.getTime(), label]);
+      }
+      forecastChart = this._chart(
+        [
+          { points: verified.map(([ts, actual]) => [ts, actual]), color: primary },
+          { points: verified.map(([ts, , predicted]) => [ts, predicted]), color: secondary, dashed: true },
+          { points: fc.map(([ts, power]) => [ts, power]), color: forecastColor },
+        ],
+        fMin,
+        fMax,
+        fTicks,
+        2 * 3600e3,
+        [[now, t.now]],
+      );
+    }
+    const acc = h.accuracy?.latest;
+    const accText =
+      acc && acc.samples
+        ? t.accuracy.replace("{mae}", this._power(acc.mae_w)).replace("{mape}", acc.mape ?? "–")
+        : t.notVerified;
+    const forecastLegend = `<div class="legend"><span><i style="background:${primary}"></i>${esc(t.measured)}</span>
+      <span><i style="background:${secondary}"></i>${esc(t.predicted)}</span>
+      <span><i style="background:${forecastColor}"></i>${esc(t.expectedLine)}</span></div>`;
+
     const info = t.daysOfData.replace("{days}", Math.round(h.days_covered)) + (h.imported ? ` · ${t.imported}` : "");
     return `<div class="card"><h2>${esc(t.consumption)} · ${esc(info)}</h2><div class="charts">
+      <div class="chart wide"><h3>${esc(t.forecastTitle)}</h3>${forecastChart}${forecastLegend}
+        <div class="muted">${esc(accText)}</div></div>
       <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}</div>
       <div class="chart"><h3>${esc(t.avgDay)}</h3>${avg}
         <div class="legend"><span><i style="background:${primary}"></i>${esc(t.weekday)}</span>

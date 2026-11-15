@@ -4,9 +4,12 @@ Every cycle runs in a fixed order:
 
 1. read the forecast inputs (prices, PV) from other integrations;
 2. determine the planning window: how far ahead we can calculate;
-3. calculate everything else only within that window.
+3. calculate everything else only within that window: the price and PV series
+   and the house consumption forecast (with user adjustments);
+4. remember the predictions and check measured slots afterwards.
 
-Refreshes every ``FORECAST_UPDATE_INTERVAL`` and when the price sensor changes
+Refreshes every configured forecast interval (5/15/30/60 min, default 15), on
+the recalculate action/button, and when the price sensor changes
 (new day-ahead prices). Changes of what limits the window are explained in the
 decision log.
 """
@@ -14,8 +17,9 @@ decision log.
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -25,17 +29,22 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from ..const import (
+    CONF_FORECAST_INTERVAL,
     CONF_PLANNING_HORIZON,
     CONF_PRICE_FORECAST,
     CONF_PV_FORECAST,
+    DEFAULT_FORECAST_INTERVAL,
     DEFAULT_PLANNING_HORIZON,
     DOMAIN,
-    FORECAST_UPDATE_INTERVAL,
 )
 from ..explain import DecisionLog
+from ..history.consumption import ConsumptionHistory
 from ..inputs.prices import PricePoint, parse_price_forecast
 from ..inputs.solar import PV_PERIOD, async_get_pv_forecast
+from .adjustments import AdjustmentStore
+from .consumption import ForecastSlot, forecast_consumption
 from .horizon import HorizonLimit, PlanningWindow, planning_horizon
+from .verification import ForecastVerification
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,6 +64,18 @@ class ForecastData:
     pv_end: datetime | None = None
     # Expected PV production in the current hour (average W), if forecast.
     pv_now_w: float | None = None
+    # Expected house consumption per slot (history interval) within the window.
+    consumption: list[ForecastSlot] = field(default_factory=list)
+
+    @property
+    def consumption_method(self) -> str | None:
+        """Most used forecast method in the window."""
+        methods = Counter(slot.method for slot in self.consumption)
+        return methods.most_common(1)[0][0] if methods else None
+
+    def consumption_at(self, when: datetime) -> ForecastSlot | None:
+        """The forecast slot containing ``when``."""
+        return next((s for s in self.consumption if s.start <= when < s.end), None)
 
 
 class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
@@ -63,7 +84,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
     config_entry: ConfigEntry
 
     def __init__(
-        self, hass: HomeAssistant, entry: ConfigEntry, decisions: DecisionLog
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        decisions: DecisionLog,
+        history: ConsumptionHistory,
+        adjustments: AdjustmentStore,
+        verification: ForecastVerification,
     ) -> None:
         """Initialize."""
         super().__init__(
@@ -71,9 +98,17 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             _LOGGER,
             config_entry=entry,
             name=f"{DOMAIN} forecasts",
-            update_interval=FORECAST_UPDATE_INTERVAL,
+            update_interval=timedelta(
+                minutes=entry.options.get(
+                    CONF_FORECAST_INTERVAL, DEFAULT_FORECAST_INTERVAL
+                )
+            ),
         )
         self._decisions = decisions
+        self.history = history
+        self.adjustments = adjustments
+        self.verification = verification
+        self._last_method: str | None = None
         options = entry.options
         self.max_days: int = options.get(
             CONF_PLANNING_HORIZON, DEFAULT_PLANNING_HORIZON
@@ -124,9 +159,22 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             len(prices),
             len(pv_wh),
         )
-        data = ForecastData(
-            window, prices, price_unit, pv_wh, price_end, pv_end, pv_now_w
+        self.adjustments.prune(now)
+        consumption = forecast_consumption(
+            self.history.records,
+            window,
+            timedelta(minutes=self.history.minutes),
+            self.adjustments.items,
+            now,
         )
+        data = ForecastData(
+            window, prices, price_unit, pv_wh, price_end, pv_end, pv_now_w, consumption
+        )
+        self._explain_method(data)
+
+        # 4. Check the forecast afterwards.
+        self.verification.evaluate(self.history.records, now)
+        self.verification.record(consumption, now)
         self.hass.bus.async_fire(EVENT_FORECAST_UPDATED, summarise(data))
         return data
 
@@ -147,6 +195,20 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             return {}
         forecast = await async_get_pv_forecast(self.hass, self.pv_entries)
         return {start: wh for start, wh in forecast.items() if start + PV_PERIOD > now}
+
+    def _explain_method(self, data: ForecastData) -> None:
+        """Explain on which history the consumption forecast is based."""
+        method = data.consumption_method or "none"
+        if method == self._last_method:
+            return
+        self._last_method = method
+        self._decisions.async_log(
+            "forecast",
+            f"consumption_method_{method}",
+            days=round(
+                sum(r["minutes"] * r["coverage"] for r in self.history.records) / 1440
+            ),
+        )
 
     def _explain_window(self, window: PlanningWindow) -> None:
         """Log in the decision log when the limiting factor changes."""
@@ -174,4 +236,13 @@ def summarise(data: ForecastData) -> dict[str, Any]:
         "price_points": len(data.prices),
         "price_points_estimated": sum(p.estimated for p in data.prices),
         "pv_hours": len(data.pv_wh),
+        "consumption_slots": len(data.consumption),
+        "consumption_kwh": round(
+            sum(
+                s.power_w * (s.end - s.start).total_seconds() / 3_600_000
+                for s in data.consumption
+            ),
+            2,
+        ),
+        "consumption_method": data.consumption_method,
     }

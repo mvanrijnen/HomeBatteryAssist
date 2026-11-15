@@ -24,3 +24,55 @@ import_history:
       default: false
       selector:
         boolean:
+
+adjust_forecast:
+  fields:
+    name:
+      example: Vacation
+      selector:
+        text:
+    start:
+      selector:
+        datetime:
+    end:
+      selector:
+        datetime:
+    duration:
+      selector:
+        duration:
+    factor:
+      example: 0.3
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 0.05
+          mode: box
+    offset_w:
+      example: 2000
+      selector:
+        number:
+          min: -50000
+          max: 50000
+          step: 1
+          unit_of_measurement: W
+          mode: box
+    power_w:
+      selector:
+        number:
+          min: 0
+          max: 50000
+          step: 1
+          unit_of_measurement: W
+          mode: box
+
+clear_forecast_adjustments:
+  fields:
+    id:
+      selector:
+        text:
+          multiple: true
+    name:
+      selector:
+        text:
+          multiple: true

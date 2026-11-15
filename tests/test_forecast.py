@@ -273,7 +273,11 @@ async def test_planning_horizon_sensor(
         assert state.attributes["limited_by"] == "pv"
 
     # Each change of the limiting factor is explained once in the decision log.
-    keys = [d["key"] for d in entry.runtime_data.decisions.entries]
+    keys = [
+        d["key"]
+        for d in entry.runtime_data.decisions.entries
+        if d["category"] == "planning"
+    ]
     assert keys == ["horizon_price", "horizon_pv"]
 
 

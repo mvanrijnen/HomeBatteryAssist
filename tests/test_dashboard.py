@@ -137,6 +137,9 @@ async def test_status_websocket(
     assert battery["capacity_kwh"] == 5.12
     assert "battery_soc" in battery["entities"]
     assert result["window"]["limited_by"] == "setting"
+    assert result["reach"]["has_price"] is False
+    assert result["reach"]["price_end"] is None
+    assert result["reach"]["max_end"] > result["window"]["start"]
     assert result["decisions"][0]["message"]
 
     await hass.config_entries.async_unload(entry.entry_id)

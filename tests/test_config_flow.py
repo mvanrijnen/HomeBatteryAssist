@@ -69,6 +69,7 @@ async def test_three_phase_flow(hass: HomeAssistant) -> None:
     assert result["options"] == {
         CONF_HISTORY_INTERVAL: 5,
         CONF_PLANNING_HORIZON: 3,
+        "forecast_interval": 15,  # default
         CONF_PRICE_FORECAST: "sensor.prices",
     }
 
@@ -91,7 +92,11 @@ async def test_single_phase_flow(hass: HomeAssistant) -> None:
         result["flow_id"], {CONF_HISTORY_INTERVAL: "15", CONF_PLANNING_HORIZON: 2}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert result["options"] == {CONF_HISTORY_INTERVAL: 15, CONF_PLANNING_HORIZON: 2}
+    assert result["options"] == {
+        CONF_HISTORY_INTERVAL: 15,
+        CONF_PLANNING_HORIZON: 2,
+        "forecast_interval": 15,
+    }
     assert result["data"] == {
         CONF_PHASES: 1,
         CONF_MAX_CURRENT: 35,
@@ -166,11 +171,23 @@ async def test_options_flow_changes_settings(hass: HomeAssistant) -> None:
     assert result["step_id"] == "init"
 
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {CONF_HISTORY_INTERVAL: "60", CONF_PLANNING_HORIZON: 5}
+        result["flow_id"],
+        {
+            CONF_HISTORY_INTERVAL: "60",
+            CONF_PLANNING_HORIZON: 5,
+            "forecast_interval": "5",
+        },
     )
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert entry.options == {CONF_HISTORY_INTERVAL: 60, CONF_PLANNING_HORIZON: 5}
+    assert entry.options == {
+        CONF_HISTORY_INTERVAL: 60,
+        CONF_PLANNING_HORIZON: 5,
+        "forecast_interval": 5,
+    }
+    await hass.async_block_till_done()
+    # The reloaded entry recalculates every 5 minutes.
+    assert entry.runtime_data.forecast.update_interval.total_seconds() == 300
 
 
 async def test_reconfigure_grid_connection(hass: HomeAssistant) -> None:

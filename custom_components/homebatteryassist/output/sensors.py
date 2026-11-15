@@ -19,6 +19,7 @@ from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME
 from ..forecasts.coordinator import ForecastCoordinator
@@ -48,6 +49,8 @@ async def async_setup_entry(
         *(FlowSensor(entry, description) for description in FLOW_SENSORS),
         *(FlowSensor(entry, phase_load_description(i)) for i in range(phases)),
         PlanningHorizonSensor(entry),
+        ConsumptionForecastSensor(entry),
+        ConsumptionForecastAccuracySensor(entry),
         LastDecisionSensor(entry),
     ]
     batteries = entry.runtime_data.batteries
@@ -250,6 +253,97 @@ class PlanningHorizonSensor(
             "price_unit": data.price_unit,
             "pv_forecast_end": data.pv_end,
             "pv_forecast_hours": len(data.pv_wh),
+        }
+
+
+class ConsumptionForecastSensor(
+    HomeBatteryAssistEntity, CoordinatorEntity[ForecastCoordinator], SensorEntity
+):
+    """Expected house consumption now; the full forecast in the attributes."""
+
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfPower.WATT
+    # The forecast list is large and changes every cycle: keep it out of the DB.
+    _unrecorded_attributes = frozenset({"forecast", "adjustments"})
+
+    def __init__(self, entry: HomeBatteryAssistConfigEntry) -> None:
+        """Initialize."""
+        CoordinatorEntity.__init__(self, entry.runtime_data.forecast)
+        HomeBatteryAssistEntity.__init__(self, entry, "consumption_forecast")
+
+    @property
+    def native_value(self) -> float | None:
+        """Expected consumption in the current slot (W)."""
+        slot = self.coordinator.data.consumption_at(dt_util.utcnow())
+        return slot.power_w if slot else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The forecast per slot, for scripts, automations and charts."""
+        data = self.coordinator.data
+        slots = data.consumption
+        return {
+            "method": data.consumption_method,
+            "slots": len(slots),
+            "total_kwh": round(
+                sum(s.power_w * (s.end - s.start).total_seconds() for s in slots)
+                / 3_600_000,
+                2,
+            ),
+            "adjustments": [dict(a) for a in self.coordinator.adjustments.items],
+            "forecast": [
+                {
+                    "start": s.start.isoformat(),
+                    "end": s.end.isoformat(),
+                    "power_w": s.power_w,
+                    **(
+                        {"base_w": s.base_w, "adjusted_by": list(s.adjustments)}
+                        if s.adjustments
+                        else {}
+                    ),
+                }
+                for s in slots
+            ],
+        }
+
+
+class ConsumptionForecastAccuracySensor(
+    HomeBatteryAssistEntity, CoordinatorEntity[ForecastCoordinator], SensorEntity
+):
+    """Mean absolute error of the consumption forecast over the last 7 days."""
+
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfPower.WATT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, entry: HomeBatteryAssistConfigEntry) -> None:
+        """Initialize."""
+        CoordinatorEntity.__init__(self, entry.runtime_data.forecast)
+        HomeBatteryAssistEntity.__init__(self, entry, "consumption_forecast_accuracy")
+
+    @property
+    def native_value(self) -> float | None:
+        """Mean absolute error (W) of the latest predictions."""
+        return self.coordinator.verification.summary(dt_util.utcnow())["latest"][
+            "mae_w"
+        ]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Bias, MAPE and the day-ahead accuracy."""
+        summary = self.coordinator.verification.summary(dt_util.utcnow())
+        latest, day_ahead = summary["latest"], summary["day_ahead"]
+        return {
+            "period_days": summary["period_days"],
+            "samples": latest["samples"],
+            "bias_w": latest["bias_w"],
+            "mape": latest["mape"],
+            "day_ahead_mae_w": day_ahead["mae_w"],
+            "day_ahead_bias_w": day_ahead["bias_w"],
+            "day_ahead_mape": day_ahead["mape"],
+            "day_ahead_samples": day_ahead["samples"],
         }
 
 

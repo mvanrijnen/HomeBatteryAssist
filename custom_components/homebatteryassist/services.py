@@ -4,12 +4,15 @@
   automation when new prices or PV forecasts arrive.
 - ``import_history``: fill the consumption history from Home Assistant's
   statistics (e.g. as starting or test data).
+- ``adjust_forecast`` / ``clear_forecast_adjustments``: let users, scripts and
+  other integrations influence the consumption forecast for a period.
 
 Both only touch HomeBatteryAssist's own data; no device is ever controlled.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 import voluptuous as vol
@@ -34,6 +37,60 @@ ATTR_DAYS = "days"
 ATTR_SOURCE_ENTITY = "source_entity"
 ATTR_BATTERY_POWER_HISTORY = "battery_power_history"
 ATTR_REPLACE = "replace"
+SERVICE_ADJUST_FORECAST = "adjust_forecast"
+SERVICE_CLEAR_ADJUSTMENTS = "clear_forecast_adjustments"
+ATTR_NAME = "name"
+ATTR_START = "start"
+ATTR_END = "end"
+ATTR_DURATION = "duration"
+ATTR_FACTOR = "factor"
+ATTR_OFFSET = "offset_w"
+ATTR_POWER = "power_w"
+ATTR_ID = "id"
+
+
+def _to_utc(value: datetime) -> datetime:
+    """Times without a time zone are local (Home Assistant's time zone)."""
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=dt_util.get_default_time_zone())
+    return dt_util.as_utc(value)
+
+
+def _one_change(data: dict[str, Any]) -> dict[str, Any]:
+    changes = [k for k in (ATTR_FACTOR, ATTR_OFFSET, ATTR_POWER) if k in data]
+    if len(changes) != 1:
+        raise vol.Invalid("give exactly one of factor, offset_w or power_w")
+    if (ATTR_END in data) == (ATTR_DURATION in data):
+        raise vol.Invalid("give either end or duration")
+    return data
+
+
+ADJUST_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Optional(ATTR_NAME): cv.string,
+            vol.Optional(ATTR_START): cv.datetime,
+            vol.Optional(ATTR_END): cv.datetime,
+            vol.Optional(ATTR_DURATION): cv.positive_time_period,
+            vol.Optional(ATTR_FACTOR): vol.All(
+                vol.Coerce(float), vol.Range(min=0, max=10)
+            ),
+            vol.Optional(ATTR_OFFSET): vol.All(
+                vol.Coerce(float), vol.Range(min=-50000, max=50000)
+            ),
+            vol.Optional(ATTR_POWER): vol.All(
+                vol.Coerce(float), vol.Range(min=0, max=50000)
+            ),
+        }
+    ),
+    _one_change,
+)
+CLEAR_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_ID, default=[]): vol.All(cv.ensure_list, [cv.string]),
+        vol.Optional(ATTR_NAME, default=[]): vol.All(cv.ensure_list, [cv.string]),
+    }
+)
 
 IMPORT_SCHEMA = vol.Schema(
     {
@@ -97,6 +154,69 @@ def async_setup_services(hass: HomeAssistant) -> None:
         )
         return result if call.return_response else None
 
+    async def _adjust_forecast(call: ServiceCall) -> ServiceResponse:
+        entry = _loaded_entries(hass)[0]
+        start = (
+            _to_utc(call.data[ATTR_START])
+            if ATTR_START in call.data
+            else dt_util.utcnow()
+        )
+        end = (
+            _to_utc(call.data[ATTR_END])
+            if ATTR_END in call.data
+            else start + call.data[ATTR_DURATION]
+        )
+        if end <= start:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="end_before_start"
+            )
+        kind = next(k for k in (ATTR_FACTOR, ATTR_OFFSET, ATTR_POWER) if k in call.data)
+        forecast = entry.runtime_data.forecast
+        adjustment = await forecast.adjustments.async_add(
+            call.data.get(ATTR_NAME), start, end, kind, call.data[kind]
+        )
+        change = {
+            ATTR_FACTOR: f"x{adjustment['value']:g}",
+            ATTR_OFFSET: f"{adjustment['value']:+g} W",
+            ATTR_POWER: f"= {adjustment['value']:g} W",
+        }[kind]
+        entry.runtime_data.decisions.async_log(
+            "forecast",
+            "forecast_adjusted",
+            name=adjustment["name"],
+            change=change,
+            start=start,
+            end=end,
+        )
+        await forecast.async_refresh()
+        return dict(adjustment) if call.return_response else None
+
+    async def _clear_adjustments(call: ServiceCall) -> ServiceResponse:
+        entry = _loaded_entries(hass)[0]
+        forecast = entry.runtime_data.forecast
+        count = await forecast.adjustments.async_clear(
+            call.data[ATTR_ID], call.data[ATTR_NAME]
+        )
+        entry.runtime_data.decisions.async_log(
+            "forecast", "forecast_adjustments_cleared", count=count
+        )
+        await forecast.async_refresh()
+        return {"removed": count} if call.return_response else None
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ADJUST_FORECAST,
+        _adjust_forecast,
+        schema=ADJUST_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_CLEAR_ADJUSTMENTS,
+        _clear_adjustments,
+        schema=CLEAR_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_RECALCULATE,

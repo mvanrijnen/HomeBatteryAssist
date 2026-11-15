@@ -26,6 +26,13 @@ MESSAGES: dict[str, dict[str, str]] = {
         "battery_restored": "Battery {name} is available again.",
         "battery_full_charge": "Battery {name} is fully charged.",
         "history_imported": "Consumption history imported: {count} periods from {first} to {last}.",
+        "consumption_method_weekday_hour": "Consumption forecast based on the average per weekday and hour ({days} days of history).",
+        "consumption_method_daytype_hour": "Consumption forecast based on weekdays/weekend per hour: not enough history per weekday yet ({days} days).",
+        "consumption_method_hour": "Consumption forecast based on the average per hour of the day: little history yet ({days} days).",
+        "consumption_method_overall": "Consumption forecast based on the overall average: very little history yet ({days} days).",
+        "consumption_method_none": "No consumption forecast: no history yet, or no planning possible.",
+        "forecast_adjusted": "Consumption forecast adjusted: {name} ({change}) from {start} to {end}.",
+        "forecast_adjustments_cleared": "{count} adjustment(s) of the consumption forecast removed.",
     },
     "nl": {
         "horizon_setting": "Planning {hours} uur vooruit (tot {end}): het ingestelde maximum van {days} dagen.",
@@ -39,6 +46,13 @@ MESSAGES: dict[str, dict[str, str]] = {
         "battery_restored": "Batterij {name} is weer beschikbaar.",
         "battery_full_charge": "Batterij {name} is volledig opgeladen.",
         "history_imported": "Verbruikshistorie geïmporteerd: {count} perioden van {first} tot {last}.",
+        "consumption_method_weekday_hour": "Verbruiksvoorspelling gebaseerd op het gemiddelde per weekdag en uur ({days} dagen historie).",
+        "consumption_method_daytype_hour": "Verbruiksvoorspelling gebaseerd op werkdag/weekend per uur: nog te weinig historie per weekdag ({days} dagen).",
+        "consumption_method_hour": "Verbruiksvoorspelling gebaseerd op het gemiddelde per uur van de dag: nog weinig historie ({days} dagen).",
+        "consumption_method_overall": "Verbruiksvoorspelling gebaseerd op het totale gemiddelde: nog zeer weinig historie ({days} dagen).",
+        "consumption_method_none": "Geen verbruiksvoorspelling: nog geen historie, of geen planning mogelijk.",
+        "forecast_adjusted": "Verbruiksvoorspelling aangepast: {name} ({change}) van {start} tot {end}.",
+        "forecast_adjustments_cleared": "{count} aanpassing(en) van de verbruiksvoorspelling verwijderd.",
     },
 }
 

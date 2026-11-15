@@ -84,11 +84,16 @@ def _entity_ids(registry: er.EntityRegistry, prefix: str, keys: Any) -> dict[str
     return ids
 
 
+def _iso(value: Any) -> str | None:
+    return value.isoformat() if value else None
+
+
 def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str, Any]:
     """Everything the panel needs besides live entity states."""
     data = entry.runtime_data
     registry = er.async_get(hass)
-    window = data.forecast.data.window
+    forecast_data = data.forecast.data
+    window = forecast_data.window
     return {
         "phases": len(data.measurements.grid_phases),
         "max_current": data.measurements.max_current,
@@ -117,6 +122,21 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             "end": window.end.isoformat(),
             "hours": round(window.hours, 1),
             "limited_by": window.limited_by.value,
+        },
+        # How far each forecast reaches (ISO end or None), for the indicators.
+        "reach": {
+            "max_end": (
+                window.start + timedelta(days=data.forecast.max_days)
+            ).isoformat(),
+            "consumption_end": (
+                forecast_data.consumption[-1].end.isoformat()
+                if forecast_data.consumption
+                else None
+            ),
+            "price_end": _iso(forecast_data.price_end),
+            "pv_end": _iso(forecast_data.pv_end),
+            "has_price": data.forecast.price_entity is not None,
+            "has_pv_forecast": bool(data.forecast.pv_entries),
         },
         "decisions": [
             {"time": d["time"], "category": d["category"], "message": d["message"]}
@@ -163,7 +183,9 @@ def websocket_history(
         connection.send_error(msg["id"], "not_loaded", f"{NAME} is not loaded")
         return
     records = entry.runtime_data.history.records
-    since = dt_util.utcnow() - timedelta(days=msg["days"])
+    forecast = entry.runtime_data.forecast
+    now = dt_util.utcnow()
+    since = now - timedelta(days=msg["days"])
     connection.send_result(
         msg["id"],
         {
@@ -176,6 +198,23 @@ def websocket_history(
                 for t, house, excluded in hourly_series(records, since)
             ],
             "has_excluded": bool(entry.runtime_data.measurements.excluded_sensors),
+            # Next 48 h: [time ms, expected W, before adjustments W]
+            "forecast": [
+                [int(s.start.timestamp() * 1000), s.power_w, s.base_w]
+                for s in forecast.data.consumption
+                if s.start < now + timedelta(hours=48)
+            ],
+            # Last 24 h checked afterwards: [time ms, measured W, predicted W]
+            "verification": [
+                [
+                    int(dt_util.parse_datetime(r["start"]).timestamp() * 1000),
+                    r["actual"],
+                    r["latest"],
+                ]
+                for r in forecast.verification.results
+                if r["start"] >= (now - timedelta(hours=24)).isoformat()
+            ],
+            "accuracy": forecast.verification.summary(now),
             "profile": day_profile(records),
         },
     )

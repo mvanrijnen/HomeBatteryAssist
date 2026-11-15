@@ -34,13 +34,15 @@
           "history_interval": "Consumption history interval",
           "planning_horizon_days": "Maximum planning horizon",
           "price_forecast_entity": "Price forecast sensor",
-          "pv_forecast_entries": "PV forecast"
+          "pv_forecast_entries": "PV forecast",
+          "forecast_interval": "Recalculate every"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
           "planning_horizon_days": "How many days ahead the system may plan at most.",
           "price_forecast_entity": "Sensor of an energy price integration (e.g. Nordpool, ENTSO-e, Frank Energie) whose attributes contain the upcoming prices.",
-          "pv_forecast_entries": "Integrations providing a solar forecast (e.g. Forecast.Solar, Solcast). Selected forecasts are added up to the total for your home."
+          "pv_forecast_entries": "Integrations providing a solar forecast (e.g. Forecast.Solar, Solcast). Selected forecasts are added up to the total for your home.",
+          "forecast_interval": "How often the forecasts are recalculated automatically."
         }
       }
     },
@@ -84,6 +86,14 @@
       "options": {
         "manual": "Link manually (choose the entities yourself)"
       }
+    },
+    "forecast_interval": {
+      "options": {
+        "5": "5 minutes",
+        "15": "15 minutes",
+        "30": "30 minutes",
+        "60": "60 minutes"
+      }
     }
   },
   "options": {
@@ -95,13 +105,15 @@
           "history_interval": "Consumption history interval",
           "planning_horizon_days": "Maximum planning horizon",
           "price_forecast_entity": "Price forecast sensor",
-          "pv_forecast_entries": "PV forecast"
+          "pv_forecast_entries": "PV forecast",
+          "forecast_interval": "Recalculate every"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
           "planning_horizon_days": "How many days ahead the system may plan at most.",
           "price_forecast_entity": "Sensor of an energy price integration (e.g. Nordpool, ENTSO-e, Frank Energie) whose attributes contain the upcoming prices.",
-          "pv_forecast_entries": "Integrations providing a solar forecast (e.g. Forecast.Solar, Solcast). Selected forecasts are added up to the total for your home."
+          "pv_forecast_entries": "Integrations providing a solar forecast (e.g. Forecast.Solar, Solcast). Selected forecasts are added up to the total for your home.",
+          "forecast_interval": "How often the forecasts are recalculated automatically."
         }
       }
     }
@@ -358,6 +370,12 @@
       },
       "phase_l3_load": {
         "name": "Phase L3 load"
+      },
+      "consumption_forecast": {
+        "name": "Expected consumption"
+      },
+      "consumption_forecast_accuracy": {
+        "name": "Consumption forecast accuracy"
       }
     },
     "button": {
@@ -392,11 +410,62 @@
           "description": "Let imported values replace own measurements in the same periods."
         }
       }
+    },
+    "adjust_forecast": {
+      "name": "Adjust consumption forecast",
+      "description": "Changes the expected house consumption for a period, e.g. from a script for a holiday, guests or a planned large load. Give a start (default: now), an end or duration, and exactly one change: a factor, an offset in W or a fixed power in W. Adjustments are kept until their end.",
+      "fields": {
+        "name": {
+          "name": "Name",
+          "description": "Shown in the forecast and the decision log, and usable to remove it again."
+        },
+        "start": {
+          "name": "Start",
+          "description": "Default: now."
+        },
+        "end": {
+          "name": "End",
+          "description": "End of the period (or give a duration)."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "Length of the period (instead of an end)."
+        },
+        "factor": {
+          "name": "Factor",
+          "description": "Multiply the expected consumption, e.g. 0.3 while on holiday or 1.5 with guests."
+        },
+        "offset_w": {
+          "name": "Extra power",
+          "description": "Add (or with a minus subtract) this power in W, e.g. 2000 for the oven."
+        },
+        "power_w": {
+          "name": "Fixed power",
+          "description": "Replace the expected consumption by this power in W."
+        }
+      }
+    },
+    "clear_forecast_adjustments": {
+      "name": "Remove forecast adjustments",
+      "description": "Removes adjustments of the consumption forecast by id or name; without id or name all adjustments are removed.",
+      "fields": {
+        "id": {
+          "name": "Id",
+          "description": "Id(s) of the adjustments to remove."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Name(s) of the adjustments to remove."
+        }
+      }
     }
   },
   "exceptions": {
     "not_loaded": {
       "message": "HomeBatteryAssist is not loaded."
+    },
+    "end_before_start": {
+      "message": "The end of the adjustment must be after its start."
     }
   }
 }

@@ -18,7 +18,9 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import CONF_HISTORY_INTERVAL, DEFAULT_HISTORY_INTERVAL, DOMAIN
 from .explain import DecisionLog
+from .forecasts.adjustments import AdjustmentStore
 from .forecasts.coordinator import ForecastCoordinator
+from .forecasts.verification import ForecastVerification
 from .history import ConsumptionHistory
 from .inputs.batteries import BatteryInput
 from .inputs.measurements import MeasurementInput
@@ -47,8 +49,21 @@ async def async_setup_entry(
     """Set up HomeBatteryAssist from a config entry."""
     decisions = DecisionLog(hass, entry.entry_id)
     await decisions.async_load()
+    adjustments = AdjustmentStore(hass, entry.entry_id)
+    await adjustments.async_load()
+    verification = ForecastVerification(hass, entry.entry_id)
+    await verification.async_load()
 
-    forecast = ForecastCoordinator(hass, entry, decisions)
+    history = ConsumptionHistory(
+        hass,
+        entry.entry_id,
+        entry.options.get(CONF_HISTORY_INTERVAL, DEFAULT_HISTORY_INTERVAL),
+    )
+    await history.async_load()
+
+    forecast = ForecastCoordinator(
+        hass, entry, decisions, history, adjustments, verification
+    )
     await forecast.async_config_entry_first_refresh()
     if forecast.price_entity:
         # New day-ahead prices arrive as a state/attribute update of the sensor.
@@ -60,11 +75,6 @@ async def async_setup_entry(
             async_track_state_change_event(hass, forecast.price_entity, _price_updated)
         )
 
-    history = ConsumptionHistory(
-        hass,
-        entry.entry_id,
-        entry.options.get(CONF_HISTORY_INTERVAL, DEFAULT_HISTORY_INTERVAL),
-    )
     await history.async_start()
 
     batteries = BatteryInput(hass, entry, decisions)
@@ -110,6 +120,7 @@ async def async_unload_entry(
         # Persist before a reload reads the stores again.
         await data.history.async_stop()
         await data.decisions.async_save()
+        await data.forecast.verification.async_save()
     return unloaded
 
 

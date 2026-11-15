@@ -60,6 +60,7 @@ from .const import (
     BATTERY_SENSOR_KEYS,
     CONF_CAPACITY,
     CONF_EFFICIENCY,
+    CONF_FORECAST_INTERVAL,
     CONF_FULL_CHARGE_INTERVAL,
     CONF_HISTORY_INTERVAL,
     CONF_MAX_CHARGE_POWER,
@@ -78,6 +79,7 @@ from .const import (
     CONF_SOC_SENSOR,
     CONF_SOURCE,
     DEFAULT_EFFICIENCY,
+    DEFAULT_FORECAST_INTERVAL,
     DEFAULT_FULL_CHARGE_INTERVAL,
     DEFAULT_HISTORY_INTERVAL,
     DEFAULT_MAX_CURRENT,
@@ -85,6 +87,7 @@ from .const import (
     DEFAULT_MIN_SOC,
     DEFAULT_PLANNING_HORIZON,
     DOMAIN,
+    FORECAST_INTERVAL_OPTIONS,
     HISTORY_INTERVAL_OPTIONS,
     MAX_CURRENT_OPTIONS,
     MAX_PLANNING_HORIZON,
@@ -218,6 +221,16 @@ async def settings_schema(
                 unit_of_measurement="d",
             )
         ),
+        vol.Required(
+            CONF_FORECAST_INTERVAL,
+            default=str(current.get(CONF_FORECAST_INTERVAL, DEFAULT_FORECAST_INTERVAL)),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=[str(m) for m in FORECAST_INTERVAL_OPTIONS],
+                mode=SelectSelectorMode.LIST,
+                translation_key=CONF_FORECAST_INTERVAL,
+            )
+        ),
         vol.Optional(CONF_PRICE_FORECAST): EntitySelector(
             EntitySelectorConfig(domain="sensor")
         ),
@@ -252,6 +265,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     options: dict[str, Any] = {
         CONF_HISTORY_INTERVAL: int(user_input[CONF_HISTORY_INTERVAL]),
         CONF_PLANNING_HORIZON: int(user_input[CONF_PLANNING_HORIZON]),
+        CONF_FORECAST_INTERVAL: int(
+            user_input.get(CONF_FORECAST_INTERVAL, DEFAULT_FORECAST_INTERVAL)
+        ),
     }
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]

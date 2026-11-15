@@ -42,7 +42,11 @@ DEFAULT_PLANNING_HORIZON: Final = 2
 #   dashboard (Forecast.Solar, Solcast, Open-Meteo Solar Forecast, ...)
 CONF_PRICE_FORECAST: Final = "price_forecast_entity"
 CONF_PV_FORECAST: Final = "pv_forecast_entries"
-FORECAST_UPDATE_INTERVAL: Final = timedelta(minutes=15)
+# How often the forecasts are recalculated (minutes).
+CONF_FORECAST_INTERVAL: Final = "forecast_interval"
+FORECAST_INTERVAL_OPTIONS: Final = (5, 15, 30, 60)
+DEFAULT_FORECAST_INTERVAL: Final = 15
+FORECAST_UPDATE_INTERVAL: Final = timedelta(minutes=DEFAULT_FORECAST_INTERVAL)
 
 # Per-phase grid measurement sensors (power in W or current in A).
 # Either one signed sensor per phase (+ import / - export), or an import sensor
