@@ -133,8 +133,10 @@ from .const import (
 )
 from .inputs.direct import (
     SOURCE_HOMEWIZARD,
+    SOURCE_SHELLY,
     SOURCE_SPEEDWIRE,
     discover_speedwire,
+    shelly_3em_hosts,
 )
 from .inputs.meters import MeterCandidate, find_meter_candidates
 from .inputs.profiles import BatteryCandidate, find_battery_candidates
@@ -389,7 +391,9 @@ def _direct_key(source: str | None, address: str | None) -> str:
 
 
 def _direct_options(
-    meters: list[MeterCandidate], speedwire: dict[str, int]
+    meters: list[MeterCandidate],
+    speedwire: dict[str, int],
+    shelly: dict[str, str],
 ) -> dict[str, tuple[str, str, int | None]]:
     """Meters that can be read directly: key -> (source, address, phases)."""
     options: dict[str, tuple[str, str, int | None]] = {}
@@ -397,6 +401,8 @@ def _direct_options(
         if meter.profile.direct and meter.address:
             key = _direct_key(meter.profile.direct, meter.address)
             options[key] = (meter.profile.direct, meter.address, meter.phases)
+    for address in sorted(shelly):
+        options[_direct_key(SOURCE_SHELLY, address)] = (SOURCE_SHELLY, address, None)
     for address in sorted(speedwire):
         options[_direct_key(SOURCE_SPEEDWIRE, address)] = (
             SOURCE_SPEEDWIRE,
@@ -411,6 +417,7 @@ def _direct_label(key: str, dutch: bool) -> str:
     name = {
         SOURCE_HOMEWIZARD: "HomeWizard P1",
         SOURCE_SPEEDWIRE: "SMA Home Manager / Energy Meter",
+        SOURCE_SHELLY: "Shelly 3EM",
     }.get(source, source)
     how = (
         "rechtstreeks, elke seconde, alleen lezen"
@@ -420,25 +427,25 @@ def _direct_label(key: str, dutch: bool) -> str:
     return f"{name} {address} ({how})"
 
 
-class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle the UI setup of HomeBatteryAssist."""
+class _GridSteps:
+    """Steps 0-3 (grid meter, phases, connection size, sensors).
 
-    VERSION = 1
+    Shared by the setup (and reconfigure) flow and the options flow, so the
+    meter and the phases can also be changed under "Configure".
+    """
 
-    def __init__(self) -> None:
-        """Initialize the flow."""
-        self._data: dict[str, Any] = {}
+    _data: dict[str, Any]
+    hass: Any
+
+    def _init_grid(self) -> None:
+        self._data = {}
         self._meters: dict[str, MeterCandidate] = {}
         self._direct: dict[str, tuple[str, str, int | None]] = {}
         self._meter_offered = False
         self._from_meter = False
 
-    async def async_step_reconfigure(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
-        """Change the grid connection (steps 1-3), prefilled with the current data."""
-        self._data = dict(self._get_reconfigure_entry().data)
-        return await self.async_step_user()
+    async def _async_grid_done(self) -> ConfigFlowResult:
+        raise NotImplementedError
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -451,7 +458,9 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
             self._meter_offered = True
             found = find_meter_candidates(self.hass)
             self._meters = {c.device_id: c for c in found}
-            self._direct = _direct_options(found, await discover_speedwire(self.hass))
+            self._direct = _direct_options(
+                found, await discover_speedwire(self.hass), shelly_3em_hosts(self.hass)
+            )
             if self._meters or self._direct:
                 return await self.async_step_meter()
         if user_input is not None:
@@ -604,6 +613,23 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+
+class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
+    """Handle the UI setup of HomeBatteryAssist."""
+
+    VERSION = 1
+
+    def __init__(self) -> None:
+        """Initialize the flow."""
+        self._init_grid()
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change the grid connection (steps 1-3), prefilled with the current data."""
+        self._data = dict(self._get_reconfigure_entry().data)
+        return await self.async_step_user()
+
     async def _async_grid_done(self) -> ConfigFlowResult:
         """The grid connection is complete: save it (reconfigure) or continue."""
         if self.source == SOURCE_RECONFIGURE:
@@ -645,22 +671,44 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
         return HomeBatteryAssistOptionsFlow()
 
 
-class HomeBatteryAssistOptionsFlow(OptionsFlow):
-    """Change settings of an existing HomeBatteryAssist entry."""
+class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
+    """Change an existing entry: settings, or the grid connection and meter."""
+
+    def __init__(self) -> None:
+        """Initialize the flow."""
+        self._init_grid()
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Change interval, planning horizon and forecast inputs."""
+        """Choose what to change."""
+        return self.async_show_menu(step_id="init", menu_options=["settings", "grid"])
+
+    async def async_step_settings(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change interval, planning horizon, forecast inputs and battery settings."""
         if user_input is not None:
             return self.async_create_entry(data=settings_from_input(user_input))
 
         current = self.config_entry.options
         schema = await settings_schema(self.hass, current)
         return self.async_show_form(
-            step_id="init",
+            step_id="settings",
             data_schema=self.add_suggested_values_to_schema(schema, current),
         )
+
+    async def async_step_grid(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change the grid meter, phases, connection size and sensors."""
+        self._data = dict(self.config_entry.data)
+        return await self.async_step_user()
+
+    async def _async_grid_done(self) -> ConfigFlowResult:
+        """Save the new grid connection; the entry reloads."""
+        self.hass.config_entries.async_update_entry(self.config_entry, data=self._data)
+        return self.async_create_entry(data=dict(self.config_entry.options))
 
 
 class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):

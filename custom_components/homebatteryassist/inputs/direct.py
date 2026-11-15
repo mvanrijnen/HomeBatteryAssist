@@ -6,6 +6,10 @@ read straight from a meter that allows this without disturbing anyone:
 - ``homewizard``: a HomeWizard P1 meter's local API v1 (``GET /api/v1/data``,
   a read-only endpoint any number of clients may poll); the address is taken
   from the HomeWizard integration's config entry;
+- ``shelly``: a Shelly 3-phase energy meter's local HTTP API (Gen2+ Pro 3EM /
+  3EM-63: ``GET /rpc/EM.GetStatus?id=0``; Gen1 3EM: ``GET /status``), also
+  read-only; the address comes from the Shelly integration's config entry.
+  Implemented from Shelly's API documentation, not yet verified on a device;
 - ``speedwire``: the telegrams an SMA Home Manager 2.0 / Energy Meter
   multicasts on the network anyway (``speedwire.py``); only received, nothing
   is ever sent to the meter.
@@ -37,7 +41,11 @@ _LOGGER = logging.getLogger(__name__)
 SOURCE_SENSORS = "sensors"
 SOURCE_HOMEWIZARD = "homewizard"
 SOURCE_SPEEDWIRE = "speedwire"
-DIRECT_SOURCES = (SOURCE_HOMEWIZARD, SOURCE_SPEEDWIRE)
+SOURCE_SHELLY = "shelly"
+DIRECT_SOURCES = (SOURCE_HOMEWIZARD, SOURCE_SPEEDWIRE, SOURCE_SHELLY)
+
+# Shelly models with a 3-phase energy meter: model id prefix -> generation
+SHELLY_3EM_MODELS = {"SHEM-3": 1, "SPEM-003": 2, "S3EM-003": 3}
 
 POLL_INTERVAL = timedelta(seconds=1)
 STALE_AFTER = timedelta(seconds=10)  # no value this long: unknown
@@ -101,10 +109,8 @@ class DirectMeter:
         }
 
 
-class HomeWizardP1(DirectMeter):
-    """Polls a HomeWizard P1 meter's local API v1 every second."""
-
-    label = SOURCE_HOMEWIZARD
+class PollingMeter(DirectMeter):
+    """Polls a meter's read-only HTTP API every second."""
 
     def __init__(self, hass: HomeAssistant, address: str) -> None:
         """Initialize."""
@@ -131,8 +137,8 @@ class HomeWizardP1(DirectMeter):
             return
         self._busy = True
         try:
-            data = await read_homewizard(self.hass, self.address)
-        except (TimeoutError, OSError, ValueError) as err:
+            phases = await self._async_read()
+        except (TimeoutError, OSError, ValueError, KeyError, TypeError) as err:
             if not self._failed:
                 _LOGGER.warning("Cannot read %s: %s", self.address, err)
             self._failed = True
@@ -142,8 +148,48 @@ class HomeWizardP1(DirectMeter):
         if self._failed:
             _LOGGER.info("Reading %s again", self.address)
         self._failed = False
-        if phases := homewizard_phases(data):
+        if phases:
             self._set(phases)
+
+    async def _async_read(self) -> tuple[float, ...] | None:
+        raise NotImplementedError
+
+
+class HomeWizardP1(PollingMeter):
+    """Polls a HomeWizard P1 meter's local API v1 every second."""
+
+    label = SOURCE_HOMEWIZARD
+
+    async def _async_read(self) -> tuple[float, ...] | None:
+        return homewizard_phases(await read_homewizard(self.hass, self.address))
+
+
+class ShellyMeter(PollingMeter):
+    """Polls a Shelly 3-phase energy meter every second (Gen1 or Gen2+)."""
+
+    label = SOURCE_SHELLY
+
+    def __init__(self, hass: HomeAssistant, address: str) -> None:
+        """Initialize."""
+        super().__init__(hass, address)
+        self._gen1: bool | None = None  # found out on the first read
+
+    async def _async_read(self) -> tuple[float, ...] | None:
+        session = async_get_clientsession(self.hass)
+        if self._gen1 is not True:
+            async with asyncio.timeout(3):
+                response = await session.get(
+                    f"http://{self.address}/rpc/EM.GetStatus?id=0"
+                )
+            if response.status != 404:
+                response.raise_for_status()
+                self._gen1 = False
+                return shelly_gen2_phases(await response.json(content_type=None))
+            self._gen1 = True
+        async with asyncio.timeout(3):
+            response = await session.get(f"http://{self.address}/status")
+            response.raise_for_status()
+            return shelly_gen1_phases(await response.json(content_type=None))
 
 
 async def read_homewizard(hass: HomeAssistant, address: str) -> dict[str, Any]:
@@ -163,6 +209,35 @@ def homewizard_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
     if values[1] is None or values[2] is None:
         return (float(values[0]),)
     return tuple(float(v) for v in values)
+
+
+def shelly_gen2_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
+    """Signed power per phase from ``EM.GetStatus`` (+ consumption / - return)."""
+    values = [data.get(f"{p}_act_power") for p in "abc"]
+    if any(v is None for v in values):
+        return None
+    return tuple(float(v) for v in values)
+
+
+def shelly_gen1_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
+    """Signed power per phase from a Gen1 3EM ``/status`` (``emeters``)."""
+    meters = data.get("emeters") or []
+    if len(meters) < 3 or not all(m.get("is_valid", True) for m in meters[:3]):
+        return None
+    return tuple(float(m["power"]) for m in meters[:3])
+
+
+def shelly_3em_hosts(hass: HomeAssistant) -> dict[str, str]:
+    """Hosts of Shelly 3-phase energy meters: host -> model (from config entries)."""
+    return {
+        entry.data["host"]: entry.data.get("model", "")
+        for entry in hass.config_entries.async_entries("shelly")
+        if entry.data.get("host")
+        and any(
+            str(entry.data.get("model", "")).startswith(prefix)
+            for prefix in SHELLY_3EM_MODELS
+        )
+    }
 
 
 class _SpeedwireProtocol(asyncio.DatagramProtocol):
@@ -248,4 +323,6 @@ def create_meter(hass: HomeAssistant, source: str, address: str) -> DirectMeter:
     """The direct meter for a configured source."""
     if source == SOURCE_HOMEWIZARD:
         return HomeWizardP1(hass, address)
+    if source == SOURCE_SHELLY:
+        return ShellyMeter(hass, address)
     return SpeedwireMeter(hass, address)

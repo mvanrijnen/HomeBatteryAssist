@@ -181,8 +181,12 @@ async def test_options_flow_changes_settings(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "init"
+    assert result["type"] is FlowResultType.MENU
+    assert result["menu_options"] == ["settings", "grid"]
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "settings"}
+    )
+    assert result["step_id"] == "settings"
 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
@@ -347,3 +351,38 @@ async def test_detected_meter_manual_choice(hass: HomeAssistant) -> None:
         result["flow_id"], {CONF_MAX_CURRENT: "35"}
     )
     assert result["step_id"] == "sensors"
+
+
+async def test_options_flow_changes_grid_meter(hass: HomeAssistant) -> None:
+    """The meter and phases can also be changed under Configure."""
+    _homewizard(hass, "HWE-P1_abc", 3, marker=True)
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_PHASES: 1, CONF_MAX_CURRENT: 35, "sensor_l1": "sensor.power_l1"},
+        options={CONF_HISTORY_INTERVAL: 15, CONF_PLANNING_HORIZON: 2},
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "grid"}
+    )
+    assert result["step_id"] == "meter"
+    options = result["data_schema"].schema["source"].config["options"]
+    values = [o["value"] for o in options]
+    assert values[-1] == "manual" and len(values) == 2  # P1 sensors + manual
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"source": values[0]}
+    )
+    assert result["step_id"] == "max_current"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_MAX_CURRENT: "25"}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    assert entry.data[CONF_PHASES] == 3
+    assert entry.data[CONF_MAX_CURRENT] == 25
+    assert entry.data["sensor_l3"] == "sensor.hwe_p1_abc_power_l3"
+    assert entry.options[CONF_PLANNING_HORIZON] == 2

@@ -137,3 +137,36 @@ async def test_measurements_from_homewizard_api(
             assert measurements.power is None
             assert measurements.missing == ["homewizard 192.0.2.229"]
         assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+def test_shelly_phases() -> None:
+    """Shelly 3EM: Gen2+ EM.GetStatus and Gen1 /status (as documented)."""
+    from custom_components.homebatteryassist.inputs.direct import (
+        shelly_gen1_phases,
+        shelly_gen2_phases,
+    )
+
+    assert shelly_gen2_phases(
+        {"id": 0, "a_act_power": 120.5, "b_act_power": -800.0, "c_act_power": 0.0}
+    ) == (120.5, -800.0, 0.0)
+    assert shelly_gen2_phases({"a_act_power": 1.0}) is None
+    meters = [{"power": 10.0, "is_valid": True}, {"power": -5.0}, {"power": 0.0}]
+    assert shelly_gen1_phases({"emeters": meters}) == (10.0, -5.0, 0.0)
+    assert shelly_gen1_phases({"emeters": meters[:1]}) is None
+
+
+async def test_shelly_3em_found_in_config_entries(hass: HomeAssistant) -> None:
+    from custom_components.homebatteryassist.inputs.direct import shelly_3em_hosts
+
+    for host, model in (
+        ("192.0.2.10", "SPEM-003CEBEU"),
+        ("192.0.2.11", "SHEM-3"),
+        ("192.0.2.79", "SHPLG-S"),  # a plug: not a grid meter
+    ):
+        MockConfigEntry(
+            domain="shelly", data={"host": host, "model": model}
+        ).add_to_hass(hass)
+    assert shelly_3em_hosts(hass) == {
+        "192.0.2.10": "SPEM-003CEBEU",
+        "192.0.2.11": "SHEM-3",
+    }
