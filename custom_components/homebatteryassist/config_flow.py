@@ -79,6 +79,7 @@ from .const import (
     CONF_LOSS_MIN,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_CURRENT,
+    CONF_MAX_CYCLES,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MAX_SOC,
     CONF_METER_ADDRESS,
@@ -112,6 +113,7 @@ from .const import (
     DEFAULT_LOSS_MAX,
     DEFAULT_LOSS_MIN,
     DEFAULT_MAX_CURRENT,
+    DEFAULT_MAX_CYCLES,
     DEFAULT_MAX_SOC,
     DEFAULT_MIN_BATTERY_POWER,
     DEFAULT_MIN_SOC,
@@ -288,6 +290,12 @@ async def settings_schema(
             )
         ),
         vol.Required(
+            CONF_MAX_CYCLES,
+            default=current.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES),
+        ): NumberSelector(
+            NumberSelectorConfig(min=0, max=5, step=0.1, mode=NumberSelectorMode.BOX)
+        ),
+        vol.Required(
             CONF_EXPORT_MODE,
             default=current.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE),
         ): SelectSelector(
@@ -408,6 +416,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]
     options[CONF_EXPORT_MODE] = user_input.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE)
+    options[CONF_MAX_CYCLES] = float(
+        user_input.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES)
+    )
     if user_input.get(CONF_EXPORT_ENTITIES):
         options[CONF_EXPORT_ENTITIES] = list(user_input[CONF_EXPORT_ENTITIES])
     if user_input.get(CONF_PV_FORECAST):

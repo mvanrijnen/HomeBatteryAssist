@@ -25,7 +25,12 @@ from ..inputs.direct import SOURCE_NAMES, find_direct_meters
 from ..inputs.measurements import MeasurementInput
 from ..inputs.meters import find_meter_candidates
 from ..models import HomeBatteryAssistConfigEntry
-from ..planning.battery_plan import MODE_ARBITRAGE, MODE_NOM, compare_modes
+from ..planning.battery_plan import (
+    ARBITRAGE_MODES,
+    MODE_ARBITRAGE,
+    MODE_NOM,
+    compare_modes,
+)
 from ..planning.phase_limit import phase_limit_w
 from .batteries import BATTERY_SENSORS, TOTAL_SENSORS
 
@@ -317,7 +322,11 @@ def websocket_history(
                 [int(t.timestamp() * 1000), value]
                 for t, value in compare_modes(
                     forecast.data.plans,
-                    MODE_ARBITRAGE,
+                    (
+                        forecast.data.plan_mode
+                        if forecast.data.plan_mode in ARBITRAGE_MODES
+                        else MODE_ARBITRAGE
+                    ),
                     MODE_NOM,
                     forecast.export_factor,
                     forecast.cycle_cost,
@@ -360,6 +369,7 @@ def websocket_history(
                     if other.saving is not None
                 },
                 "mode": forecast.data.plan_mode,
+                "max_cycles": forecast.max_cycles,
                 "until": forecast.data.window.end.isoformat(),
                 "currency": hass.config.currency,
             },

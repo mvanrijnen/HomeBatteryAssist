@@ -59,7 +59,8 @@
           "full_charge_window_days": "Volledig opladen forceren binnen",
           "phase_margin": "Veiligheidsmarge per fase",
           "export_price_mode": "Terugleverprijs",
-          "export_price_entities": "Terugleverprijs-sensoren"
+          "export_price_entities": "Terugleverprijs-sensoren",
+          "max_cycles_per_day": "Max. cycli per dag (arbitrage)"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -75,7 +76,8 @@
           "full_charge_window_days": "Als een batterij niet binnen zijn interval volledig is opgeladen, wordt een volledige oplading geforceerd op het goedkoopste moment binnen zoveel dagen vóór de deadline.",
           "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie.",
           "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of een terugleverprijsvoorspelling uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
-          "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor."
+          "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
+          "max_cycles_per_day": "Arbitrage laadt en ontlaadt hoogstens zoveel volledige cycli per dag (ontladen energie / capaciteit), om de batterijen te sparen. 0 = geen grens."
         }
       }
     },
@@ -158,7 +160,8 @@
     "plan_mode": {
       "options": {
         "nom": "Nul op de meter (NOM)",
-        "arbitrage": "Arbitrage (kostenoptimaal)"
+        "arbitrage": "Arbitrage (kostenoptimaal)",
+        "arbitrage_full": "Arbitrage volledig (ook terugleveren)"
       }
     },
     "balance_interval": {
@@ -218,7 +221,8 @@
           "full_charge_window_days": "Volledig opladen forceren binnen",
           "phase_margin": "Veiligheidsmarge per fase",
           "export_price_mode": "Terugleverprijs",
-          "export_price_entities": "Terugleverprijs-sensoren"
+          "export_price_entities": "Terugleverprijs-sensoren",
+          "max_cycles_per_day": "Max. cycli per dag (arbitrage)"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -234,7 +238,8 @@
           "full_charge_window_days": "Als een batterij niet binnen zijn interval volledig is opgeladen, wordt een volledige oplading geforceerd op het goedkoopste moment binnen zoveel dagen vóór de deadline.",
           "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie.",
           "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of een terugleverprijsvoorspelling uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
-          "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor."
+          "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
+          "max_cycles_per_day": "Arbitrage laadt en ontlaadt hoogstens zoveel volledige cycli per dag (ontladen energie / capaciteit), om de batterijen te sparen. 0 = geen grens."
         }
       },
       "meter": {

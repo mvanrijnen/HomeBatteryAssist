@@ -152,3 +152,47 @@ def test_export_price_per_slot() -> None:
     assert [s.export_price for s in plan.slots] == [0.10, 0.15]
     merged = merge_price_forecasts([[PricePoint(T0, T0 + H, 0.1)], _prices([0.5, 0.6])])
     assert [(p.start, p.price) for p in merged] == [(T0, 0.1), (T0 + H, 0.6)]
+
+
+def test_full_arbitrage_exports_when_it_pays() -> None:
+    """Full arbitrage may discharge to the grid; own-use arbitrage never does."""
+    from custom_components.homebatteryassist.planning.battery_plan import (
+        MODE_ARBITRAGE_FULL,
+    )
+
+    slots = _slots([200.0] * 4)
+    prices = _prices([0.10, 0.10, 0.60, 0.60])
+    own = plan_batteries([_battery(soc=10.0)], slots, {}, prices, mode=MODE_ARBITRAGE)
+    full = plan_batteries(
+        [_battery(soc=10.0)], slots, {}, prices, mode=MODE_ARBITRAGE_FULL
+    )
+    assert full.strategy == MODE_ARBITRAGE_FULL
+    assert min(s.grid_w for s in own.slots) >= -1  # no export
+    assert min(s.grid_w for s in full.slots) < -1000  # exports when expensive
+    assert full.saving > own.saving
+
+
+def test_cycle_limit_per_day() -> None:
+    """Arbitrage stays within the maximum number of full cycles per day."""
+    from custom_components.homebatteryassist.planning.battery_plan import (
+        MODE_ARBITRAGE_FULL,
+        cycles_per_day,
+    )
+
+    # Two cheap/expensive swings in a day: unlimited it cycles about twice.
+    slots = _slots([0.0] * 8)
+    prices = _prices([0.05, 0.05, 0.60, 0.60, 0.05, 0.05, 0.60, 0.60])
+    free = plan_batteries(
+        [_battery(soc=10.0)], slots, {}, prices, mode=MODE_ARBITRAGE_FULL
+    )
+    limited = plan_batteries(
+        [_battery(soc=10.0)],
+        slots,
+        {},
+        prices,
+        mode=MODE_ARBITRAGE_FULL,
+        max_cycles_per_day=1.0,
+    )
+    assert max(cycles_per_day(free).values()) > 1.2
+    assert max(cycles_per_day(limited).values()) <= 1.01
+    assert limited.saving < free.saving  # the limit costs something

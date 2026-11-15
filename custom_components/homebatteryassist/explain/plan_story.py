@@ -35,6 +35,7 @@ TEXT = {
         "now_charge_pv": "De batterijen laden nu {power} met zonnestroom die anders naar het net zou gaan.",
         "now_charge_grid": "De batterijen laden nu {power} uit het net, omdat stroom nu goedkoop is ({price}).",
         "now_discharge": "De batterijen leveren nu {power} aan het huis, omdat stroom nu duur is ({price}).",
+        "now_discharge_export": "De batterijen ontladen nu {power}, waarvan {export} terug aan het net, omdat teruglevering nu veel oplevert ({price}).",
         "now_discharge_nom": "De batterijen leveren nu {power} aan het huis, zodat er geen stroom van het net nodig is.",
         "next_grid": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use} als stroom {use_price} kost. Na verlies levert dat ongeveer {gain} op.",
         "next_pv": "{when} laden we {energy} met zonnestroom, om die te gebruiken {use}.",
@@ -49,7 +50,11 @@ TEXT = {
         "tonight": "Vannacht",
         "today": "Vandaag",
         "tomorrow": "Morgen",
-        "modes": {"nom": "nul op de meter", "arbitrage": "arbitrage"},
+        "modes": {
+            "nom": "nul op de meter",
+            "arbitrage": "arbitrage",
+            "arbitrage_full": "arbitrage volledig",
+        },
     },
     "en": {
         "now_idle_empty": "The batteries are idle: they are as empty as allowed, and charging does not pay off now.",
@@ -61,6 +66,7 @@ TEXT = {
         "now_charge_pv": "The batteries are charging {power} with solar power that would otherwise go to the grid.",
         "now_charge_grid": "The batteries are charging {power} from the grid, because power is cheap now ({price}).",
         "now_discharge": "The batteries supply {power} to the house, because power is expensive now ({price}).",
+        "now_discharge_export": "The batteries discharge {power}, of which {export} goes to the grid, because export pays well now ({price}).",
         "now_discharge_nom": "The batteries supply {power} to the house, so no power from the grid is needed.",
         "next_grid": "{when} we charge {energy} from the grid at {price}, to use it {use} when power costs {use_price}. After losses that brings about {gain}.",
         "next_pv": "{when} we charge {energy} with solar power, to use it {use}.",
@@ -75,7 +81,11 @@ TEXT = {
         "tonight": "Tonight",
         "today": "Today",
         "tomorrow": "Tomorrow",
-        "modes": {"nom": "zero on the meter", "arbitrage": "arbitrage"},
+        "modes": {
+            "nom": "zero on the meter",
+            "arbitrage": "arbitrage",
+            "arbitrage_full": "full arbitrage",
+        },
     },
 }
 
@@ -226,6 +236,14 @@ def plan_story(
         if plan.strategy == "nom" or price_now is None:
             sentences.append(
                 t["now_discharge_nom"].format(power=_power(current.power_w))
+            )
+        elif current.grid_w < -ACTIVE_W:
+            sentences.append(
+                t["now_discharge_export"].format(
+                    power=_power(current.power_w),
+                    export=_power(current.grid_w),
+                    price=per_kwh(current.export_price or price_now),
+                )
             )
         else:
             sentences.append(

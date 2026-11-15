@@ -51,7 +51,7 @@ from ..explain import DecisionLog
 from ..forecasts.coordinator import ForecastCoordinator
 from ..inputs.batteries import BatteryConfig, BatteryInput
 from ..inputs.measurements import MeasurementInput
-from ..planning.battery_plan import MODE_ARBITRAGE
+from ..planning.battery_plan import ARBITRAGE_MODES
 from ..planning.distribution import Candidate, Distributor
 from ..planning.phase_limit import (
     PhaseDevice,
@@ -349,7 +349,7 @@ class VirtualBatterySimulator:
         few batteries at low power, more when more power is needed.
         """
         data = self._forecast.data
-        if data is not None and data.plan_mode == MODE_ARBITRAGE and data.battery:
+        if data is not None and data.plan_mode in ARBITRAGE_MODES and data.battery:
             # Arbitrage: the virtual batteries' share of the planned power.
             slot = next((s for s in data.battery if s.start <= now < s.end), None)
             states = [s for s in self._batteries.states.values() if s.soc is not None]

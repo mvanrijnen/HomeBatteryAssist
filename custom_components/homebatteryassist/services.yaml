@@ -124,5 +124,5 @@ set_plan_mode:
       required: true
       selector:
         select:
-          options: [nom, arbitrage]
+          options: [nom, arbitrage, arbitrage_full]
           translation_key: plan_mode

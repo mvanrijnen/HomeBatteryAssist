@@ -76,7 +76,7 @@ const TEXT = {
     gridMeasured: "Grid (+ import / − export)",
     gridExpected: "Grid expected",
     batteryExpected: "Battery plan",
-    planModes: { nom: "NOM", arbitrage: "arbitrage" },
+    planModes: { nom: "NOM", arbitrage: "arbitrage", arbitrage_full: "full arbitrage" },
     planInfo: "Battery plan ({mode}, advice): expected saving {saving}",
     planOther: "{mode}: {saving}",
     socExpected: "Expected state of charge",
@@ -87,8 +87,10 @@ const TEXT = {
     expectedReturn: "Expected return",
     vsNoBattery: "vs no battery",
     vsMode: "{mode} vs {other}",
-    modeNames: { nom: "Zero on the meter", arbitrage: "Arbitrage" },
+    modeNames: { nom: "Zero on the meter", arbitrage: "Arbitrage", arbitrage_full: "Full arbitrage" },
     compareTitle: "Return compared",
+    modeLabel: "Plan mode",
+    modeSwitching: "switching…",
     vsNone: "vs no battery",
     selected: "selected",
     realizedRow: "Realised ({mode})",
@@ -200,7 +202,7 @@ const TEXT = {
     gridMeasured: "Net (+ afname / − teruglevering)",
     gridExpected: "Net verwacht",
     batteryExpected: "Batterijplan",
-    planModes: { nom: "NOM", arbitrage: "arbitrage" },
+    planModes: { nom: "NOM", arbitrage: "arbitrage", arbitrage_full: "arbitrage volledig" },
     planInfo: "Batterijplan ({mode}, advies): verwachte besparing {saving}",
     planOther: "{mode}: {saving}",
     socExpected: "Verwachte vulling",
@@ -211,8 +213,10 @@ const TEXT = {
     expectedReturn: "Verwacht rendement",
     vsNoBattery: "t.o.v. geen batterij",
     vsMode: "{mode} t.o.v. {other}",
-    modeNames: { nom: "Nul op de meter", arbitrage: "Arbitrage" },
+    modeNames: { nom: "Nul op de meter", arbitrage: "Arbitrage", arbitrage_full: "Arbitrage volledig" },
     compareTitle: "Rendement vergeleken",
+    modeLabel: "Planmodus",
+    modeSwitching: "wisselen…",
     vsNone: "t.o.v. geen batterij",
     selected: "gekozen",
     realizedRow: "Gerealiseerd ({mode})",
@@ -364,6 +368,22 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this._hover = null;
     this._flowSpan = 72; // hours in view
     this._flowEnd = null; // ms; null = follow "now"
+  }
+
+  async _setMode(mode) {
+    if (this._modeBusy || !this._hass || mode === this._history?.value?.mode) return;
+    this._modeBusy = true;
+    this._scheduleRender();
+    try {
+      await this._hass.callService("homebatteryassist", "set_plan_mode", { mode });
+      // The integration reloads and plans again with the new mode.
+      await new Promise((resolve) => setTimeout(resolve, 8000));
+    } catch (err) {
+      this._error = err?.message || String(err);
+    }
+    this._modeBusy = false;
+    this._historyAt = 0;
+    await this._load();
   }
 
   async _recalculate() {
@@ -554,10 +574,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
       ([mode, saving]) =>
         `<tr${mode === value.mode ? ' class="sel"' : ""}><td>${esc(name(mode))}${mode === value.mode ? ` <small>${esc(t.selected)}</small>` : ""}</td><td>${esc(t.vsNone)}</td><td class="num">${esc(signed(saving))}</td></tr>`,
     );
-    const arb = value.by_mode.arbitrage, nom = value.by_mode.nom;
-    if (arb != null && nom != null) {
+    const nom = value.by_mode.nom;
+    for (const [mode, saving] of Object.entries(value.by_mode)) {
+      if (mode === "nom" || nom == null || saving == null) continue;
       rows.push(
-        `<tr><td>${esc(name("arbitrage"))}</td><td>${esc(t.vsMode.replace("{mode}", "").replace("{other}", name("nom").toLowerCase()).trim())}</td><td class="num"><b>${esc(signed(arb - nom))}</b></td></tr>`,
+        `<tr><td>${esc(name(mode))}</td><td>${esc(t.vsMode.replace("{mode}", "").replace("{other}", name("nom").toLowerCase()).trim())}</td><td class="num"><b>${esc(signed(saving - nom))}</b></td></tr>`,
       );
     }
     rows.push(
@@ -566,7 +587,16 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const date = value.until
       ? new Date(value.until).toLocaleString(lang, { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })
       : "–";
-    return `<div class="card"><h2>${esc(t.compareTitle)}</h2>
+    // Choose the plan mode here (the integration reloads with it).
+    const modes = Object.keys(t.modeNames).filter((m) => m in value.by_mode || m === value.mode);
+    const buttons = modes
+      .map(
+        (m) =>
+          `<button data-mode="${esc(m)}" class="${m === value.mode ? "active" : ""}" ${this._modeBusy ? "disabled" : ""}>${esc(name(m))}</button>`,
+      )
+      .join("");
+    return `<div class="card"><div class="chart"><div class="head"><h2>${esc(t.compareTitle)}</h2>
+      <div class="nav"><span class="muted">${esc(this._modeBusy ? t.modeSwitching : t.modeLabel)}:</span>${buttons}</div></div></div>
       <table class="compare">${rows.join("")}</table>
       <div class="muted">${esc(t.compareNote.replace("{date}", date))}</div></div>`;
   }
@@ -1229,6 +1259,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
     menu.narrow = this._narrow;
     this.shadowRoot.querySelector(".menu").appendChild(menu);
     this.shadowRoot.querySelector(".recalc")?.addEventListener("click", () => this._recalculate());
+    this.shadowRoot
+      .querySelectorAll("button[data-mode]")
+      .forEach((button) => button.addEventListener("click", () => this._setMode(button.dataset.mode)));
     this._bindCharts();
     this._bindFlowNav();
     this._showHover();

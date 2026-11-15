@@ -48,6 +48,8 @@ CONF_PV_FORECAST: Final = "pv_forecast_entries"
 CONF_PLAN_MODE: Final = "plan_mode"
 CONF_EXPORT_FACTOR: Final = "export_price_factor"
 CONF_EXPORT_MODE: Final = "export_price_mode"
+CONF_MAX_CYCLES: Final = "max_cycles_per_day"
+DEFAULT_MAX_CYCLES: Final = 1.0  # full cycles per day for arbitrage (0 = no limit)
 CONF_EXPORT_ENTITIES: Final = "export_price_entities"
 EXPORT_FACTOR: Final = "factor"  # import price x factor
 EXPORT_SENSOR: Final = "sensor"  # export price forecast from sensor(s)
