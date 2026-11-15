@@ -75,7 +75,7 @@ from .const import (
     phase_return_sensor_keys,
     phase_sensor_keys,
 )
-from .forecast import async_solar_forecast_entries
+from .inputs.solar import async_solar_forecast_entries
 
 PHASES_SCHEMA = vol.Schema(
     {

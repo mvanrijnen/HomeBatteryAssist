@@ -185,6 +185,9 @@
       },
       "planning_horizon": {
         "name": "Planning horizon"
+      },
+      "last_decision": {
+        "name": "Last decision"
       }
     }
   }

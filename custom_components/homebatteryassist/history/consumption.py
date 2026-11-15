@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from typing import Any, TypedDict
 
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.helpers.event import async_track_utc_time_change
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN, HISTORY_RETENTION
+from ..const import DOMAIN, HISTORY_RETENTION
+
+_LOGGER = logging.getLogger(__name__)
 
 STORAGE_VERSION = 1
 SAVE_DELAY = 60  # seconds
@@ -27,12 +31,14 @@ class ConsumptionRecord(TypedDict):
 class ConsumptionHistory:
     """Time-weighted average of house consumption per interval, persisted to disk.
 
-    Feed power samples with :meth:`add_sample`; call :meth:`close_interval` at
-    every interval boundary. Records older than ``HISTORY_RETENTION`` are pruned.
+    Feed power samples with :meth:`add_sample`. After :meth:`async_start`,
+    intervals are closed automatically at every clock-aligned boundary. Records
+    older than ``HISTORY_RETENTION`` are pruned.
     """
 
     def __init__(self, hass: HomeAssistant, entry_id: str, minutes: int) -> None:
         """Initialize."""
+        self.hass = hass
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.consumption"
         )
@@ -45,6 +51,27 @@ class ConsumptionHistory:
         self._last_power: float | None = None
         self._energy_ws = 0.0
         self._measured_s = 0.0
+        self._unsub_timer: CALLBACK_TYPE | None = None
+
+    async def async_start(self) -> None:
+        """Load stored records and close intervals at every boundary."""
+        await self.async_load()
+        minute: str | int = f"/{self.minutes}" if self.minutes < 60 else 0
+        self._unsub_timer = async_track_utc_time_change(
+            self.hass, self._async_boundary, minute=minute, second=0
+        )
+        _LOGGER.debug(
+            "Consumption history started: %s-minute interval, %d stored records",
+            self.minutes,
+            len(self.records),
+        )
+
+    async def async_stop(self) -> None:
+        """Stop the boundary timer and write records to disk."""
+        if self._unsub_timer is not None:
+            self._unsub_timer()
+            self._unsub_timer = None
+        await self.async_save()
 
     async def async_load(self) -> None:
         """Load stored records."""
@@ -77,13 +104,17 @@ class ConsumptionHistory:
     def close_interval(self, when: datetime) -> ConsumptionRecord | None:
         """Finish the running interval if ``when`` is past its end.
 
-        Called at every interval boundary. Safe to call late or more than once:
-        the interval is closed exactly at its end and only once.
+        Safe to call late or more than once: the interval is closed exactly at
+        its end and only once.
         """
         start = self.interval_start(when)
         if self._interval_start is None or start <= self._interval_start:
             return None
         return self._roll_over(start)
+
+    @callback
+    def _async_boundary(self, now: datetime) -> None:
+        self.close_interval(now)
 
     def _roll_over(self, new_start: datetime) -> ConsumptionRecord | None:
         """Close the running interval at its end and continue at ``new_start``.
@@ -114,6 +145,7 @@ class ConsumptionHistory:
             self.records.append(record)
             self._prune(self._interval_start)
             self._store.async_delay_save(self._data, SAVE_DELAY)
+            _LOGGER.debug("Recorded %s", record)
 
         self._energy_ws = 0.0
         self._measured_s = 0.0

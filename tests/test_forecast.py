@@ -24,11 +24,12 @@ from custom_components.homebatteryassist.const import (
     CONF_PV_FORECAST,
     DOMAIN,
 )
-from custom_components.homebatteryassist.forecast import (
-    async_get_pv_forecast,
-    parse_price_forecast,
-    planning_horizon_end,
+from custom_components.homebatteryassist.forecasts.horizon import (
+    HorizonLimit,
+    planning_horizon,
 )
+from custom_components.homebatteryassist.inputs.prices import parse_price_forecast
+from custom_components.homebatteryassist.inputs.solar import async_get_pv_forecast
 
 NOW = datetime(2026, 11, 16, 12, 0, tzinfo=dt_util.UTC)
 H = timedelta(hours=1)
@@ -97,34 +98,37 @@ def test_parse_mapping_and_garbage() -> None:
 
 
 @pytest.mark.parametrize(
-    ("price_end", "pv_end", "price_cfg", "pv_cfg", "expected"),
+    ("price_end", "pv_end", "price_cfg", "pv_cfg", "expected", "limit"),
     [
-        (None, None, False, False, NOW + timedelta(days=2)),  # setting only
-        (NOW + 30 * H, None, True, False, NOW + 30 * H),  # prices limit
-        (NOW + 30 * H, NOW + 20 * H, True, True, NOW + 20 * H),  # PV limits
-        (NOW + timedelta(days=5), None, True, False, NOW + timedelta(days=2)),
-        (None, None, True, False, NOW),  # configured but no data
+        (None, None, False, False, NOW + timedelta(days=2), HorizonLimit.SETTING),
+        (NOW + 30 * H, None, True, False, NOW + 30 * H, HorizonLimit.PRICE),
+        (NOW + 30 * H, NOW + 20 * H, True, True, NOW + 20 * H, HorizonLimit.PV),
+        (
+            NOW + timedelta(days=5),
+            None,
+            True,
+            False,
+            NOW + timedelta(days=2),
+            HorizonLimit.SETTING,
+        ),
+        (None, None, True, False, NOW, HorizonLimit.NO_PRICE),
+        (NOW + 30 * H, NOW - H, True, True, NOW, HorizonLimit.NO_PV),
+        (None, NOW + 5 * H, False, True, NOW + 5 * H, HorizonLimit.PV),
     ],
 )
-def test_planning_horizon_end(
+def test_planning_horizon(
     price_end: datetime | None,
     pv_end: datetime | None,
     price_cfg: bool,
     pv_cfg: bool,
     expected: datetime,
+    limit: HorizonLimit,
 ) -> None:
     """The horizon is the minimum of the setting and the configured forecasts."""
-    assert (
-        planning_horizon_end(
-            NOW,
-            2,
-            price_end,
-            pv_end,
-            price_configured=price_cfg,
-            pv_configured=pv_cfg,
-        )
-        == expected
+    horizon = planning_horizon(
+        NOW, 2, price_end, pv_end, price_configured=price_cfg, pv_configured=pv_cfg
     )
+    assert (horizon.end, horizon.limited_by) == (expected, limit)
 
 
 async def test_pv_forecast_is_summed(hass: HomeAssistant) -> None:
@@ -144,7 +148,7 @@ async def test_pv_forecast_is_summed(hass: HomeAssistant) -> None:
         async_get_solar_forecast=AsyncMock(side_effect=lambda h, eid: forecasts[eid])
     )
     with patch(
-        "custom_components.homebatteryassist.forecast._async_solar_forecast_platform",
+        "custom_components.homebatteryassist.inputs.solar._async_solar_forecast_platform",
         AsyncMock(return_value=platform),
     ):
         total = await async_get_pv_forecast(hass, [e.entry_id for e in entries])
@@ -175,7 +179,7 @@ async def test_planning_horizon_sensor(
     )
     entry.add_to_hass(hass)
     with patch(
-        "custom_components.homebatteryassist.forecast.async_get_pv_forecast",
+        "custom_components.homebatteryassist.forecasts.coordinator.async_get_pv_forecast",
         AsyncMock(return_value={NOW + h * H: 100.0 for h in range(24)}),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -185,6 +189,7 @@ async def test_planning_horizon_sensor(
         assert dt_util.parse_datetime(state.state) == NOW + 12 * H
         assert state.attributes["pv_forecast_hours"] == 24
         assert state.attributes["max_days"] == 2
+        assert state.attributes["limited_by"] == "price"
 
         # Tomorrow's prices arrive: now PV (24h) limits the horizon.
         hass.states.async_set(
@@ -199,6 +204,11 @@ async def test_planning_horizon_sensor(
 
         state = hass.states.get(HORIZON)
         assert dt_util.parse_datetime(state.state) == NOW + 24 * H
+        assert state.attributes["limited_by"] == "pv"
+
+    # Each change of the limiting factor is explained once in the decision log.
+    keys = [d["key"] for d in entry.runtime_data.decisions.entries]
+    assert keys == ["horizon_price", "horizon_pv"]
 
 
 async def test_settings_step_lists_pv_forecasts(hass: HomeAssistant) -> None:

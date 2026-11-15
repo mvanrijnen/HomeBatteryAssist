@@ -13,16 +13,27 @@ HomeBatteryAssist is a **Home Assistant custom integration** (not an add-on/Dock
 
 ## Architecture
 
-`__init__.py` builds a `HomeBatteryAssistData` (`models.py`) on `entry.runtime_data`, holding two independent parts, then forwards to `sensor.py`:
+The integration is split into modules with a one-way data flow. Keep new code in the right module and do not import "upstream" (e.g. `inputs` must not import `forecasts` or `output`):
 
-- **`HouseConsumption`** (`consumption.py`), event-driven, no polling. Listens to state changes of all source sensors and computes
-  `house = Σ grid phases + Σ PV sources − Σ excluded loads`, floored at 0 W. Grid per phase is either one signed sensor (+import/−export) or an import sensor minus an optional separate return sensor; PV and excluded loads use absolute values. `state_to_watts` converts W/kW/MW and A/mA (× `NOMINAL_VOLTAGE` 230 V). Unknown grid phase → consumption unknown; unknown PV/excluded → 0 W. Every value is fed to:
-- **`ConsumptionHistory`** (`history.py`): time-weighted average per clock-aligned interval (5/15/60 min), persisted with `helpers.storage.Store` (`.storage/homebatteryassist.<entry_id>.consumption`), pruned after `HISTORY_RETENTION` (28 days). Records carry `coverage` (fraction measured). Interval roll-over is idempotent and handles late/missed boundaries; gaps count as unmeasured. This is the data source for the future consumption forecast.
-- **`ForecastCoordinator`** (`forecast.py`), a `DataUpdateCoordinator` (15 min, plus refresh on price-sensor state change):
-  - Prices: parsed from the attributes of a user-chosen sensor (`parse_price_forecast`), recognising common formats — lists of dicts with start/end/price-like keys under attributes such as `prices`, `raw_today`/`raw_tomorrow`, `forecast`, or `{timestamp: price}` mappings. Price unit is whatever the source sensor uses.
-  - PV: via the Energy dashboard solar forecast platform (`<domain>/energy.py` → `async_get_solar_forecast`, returns `wh_hours`), so any integration supported by the Energy dashboard works; multiple entries are summed per hour.
-  - `planning_horizon_end`: min(now + configured days, price forecast end, PV forecast end); a configured forecast without data limits the horizon to now.
-- Sensors: `House consumption` (W) and diagnostic `Planning horizon` (timestamp, with forecast-end attributes).
+```
+inputs  ->  history  ->  forecasts  ->  (planning, later)  ->  output
+explain (decision log, "why") and Python logging are used by all modules
+```
+
+`__init__.py` only wires the modules of a config entry into `HomeBatteryAssistData` (`models.py`, on `entry.runtime_data`): `decisions`, `measurements`, `history`, `forecast`. Root platform files (`sensor.py`) only delegate to `output/`, because HA looks for platforms in the package root.
+
+- **`inputs/`** — reads and normalises external data; never forecasts or decides.
+  - `units.py`: `state_to_watts` (W/kW/MW, A/mA × `NOMINAL_VOLTAGE` 230 V), `parse_time`, `parse_float`.
+  - `measurements.py`: `MeasurementInput`, event-driven (state change listener, no polling). `house = Σ grid phases + Σ PV sources − Σ excluded loads`, floored at 0 W. Grid per phase: one signed sensor (+import/−export) or import minus optional separate return sensor; PV/excluded use absolute values. Unknown grid sensor → consumption unknown (`missing` lists them); unknown PV/excluded → 0 W. Listeners receive `(time, power)`.
+  - `prices.py`: `parse_price_forecast` reads a price sensor's attributes in common formats (lists of dicts with start/end/price-like keys under `prices`, `raw_today`/`raw_tomorrow`, `forecast`, ...; or `{timestamp: price}`). Unit = the source sensor's unit.
+  - `solar.py`: PV forecast via the Energy dashboard solar forecast platform (`<domain>/energy.py` → `async_get_solar_forecast` → `wh_hours`); multiple entries summed per hour.
+- **`history/`** — `ConsumptionHistory`: time-weighted average per clock-aligned interval (5/15/60 min), own boundary timer, `Store` `.storage/homebatteryassist.<entry_id>.consumption`, pruned after 28 days, `coverage` per record. Roll-over is idempotent and handles late/missed boundaries; gaps count as unmeasured. Basis for the future consumption forecast.
+- **`forecasts/`** — derived knowledge about the future.
+  - `horizon.py`: `planning_horizon` → `Horizon(end, limited_by: HorizonLimit)` = min(now + configured days, price end, PV end); a configured forecast without data → `NO_PRICE`/`NO_PV`, end = now.
+  - `coordinator.py`: `ForecastCoordinator` (`DataUpdateCoordinator`, 15 min + refresh on price-sensor change) collects price/PV inputs and the horizon into `ForecastData`.
+- **`output/`** — entities. `sensors.py`: `House consumption` (W), diagnostic `Planning horizon` (timestamp; attributes incl. `limited_by`), `Last decision` (explanation; `recent` attribute). Common base `HomeBatteryAssistEntity` (one service device, unique id `<entry_id>_<key>`, translation key = key). Battery control will go here.
+- **`explain/`** — the decision log ("why"), separate from technical logging. `DecisionLog.async_log(category, key, **params)` renders a message from `messages.py` in `hass.config.language` (nl/en, fallback en), persists the last 200 (`.storage/homebatteryassist.<entry_id>.decisions`), logs it at INFO, fires event `homebatteryassist_decision`, and notifies the `Last decision` sensor. Log only *changes* worth explaining (e.g. horizon limit changes, measurement lost/restored — not the first state after start-up). Every message key must exist in all languages (tested).
+- **Technical logging** — `_LOGGER = logging.getLogger(__name__)` in every module (so users can set levels per module); details at DEBUG. `diagnostics.py` provides the diagnostics download with config and the state of each module.
 
 ### Configuration model
 

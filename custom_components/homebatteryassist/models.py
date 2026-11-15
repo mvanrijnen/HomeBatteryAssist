@@ -6,15 +6,19 @@ from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
 
-from .consumption import HouseConsumption
-from .forecast import ForecastCoordinator
+from .explain import DecisionLog
+from .forecasts.coordinator import ForecastCoordinator
+from .history import ConsumptionHistory
+from .inputs.measurements import MeasurementInput
 
 
 @dataclass(slots=True)
 class HomeBatteryAssistData:
-    """Objects shared by the platforms of one config entry."""
+    """The modules of one config entry, wired together in ``__init__.py``."""
 
-    consumption: HouseConsumption
+    decisions: DecisionLog
+    measurements: MeasurementInput
+    history: ConsumptionHistory
     forecast: ForecastCoordinator
 
 

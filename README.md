@@ -29,6 +29,20 @@ HomeBatteryAssist will plan and control home batteries based on your house consu
 
 Copy `custom_components/homebatteryassist` into your Home Assistant `config/custom_components/` directory and restart Home Assistant.
 
+## Why did it do that? Logging
+
+- **Last decision** sensor: a short explanation (in your language) of the most recent decision or notable change, e.g. why the planning horizon is shorter than configured. The `recent` attribute holds the last 10.
+- Every decision is also fired as the `homebatteryassist_decision` event, so you can use it in automations or notifications.
+- **Diagnostics**: Settings → Devices & services → HomeBatteryAssist → ⋮ → *Download diagnostics* gives the configuration and the internal state of each module, useful when reporting an issue.
+- **Technical logging** per module, e.g. in `configuration.yaml`:
+
+  ```yaml
+  logger:
+    logs:
+      custom_components.homebatteryassist: info               # decisions
+      custom_components.homebatteryassist.forecasts: debug    # forecast details
+  ```
+
 ## Development
 
 ```bash

@@ -1,4 +1,4 @@
-"""Tests for the house consumption calculation and sensor."""
+"""Tests for the measurement inputs, house consumption and its sensor."""
 
 from typing import Any
 
@@ -18,7 +18,7 @@ from custom_components.homebatteryassist.const import (
     SUBENTRY_EXCLUDED_LOAD,
     SUBENTRY_PV_SOURCE,
 )
-from custom_components.homebatteryassist.consumption import state_to_watts
+from custom_components.homebatteryassist.inputs.units import state_to_watts
 
 SENSOR = "sensor.homebatteryassist_house_consumption"
 
