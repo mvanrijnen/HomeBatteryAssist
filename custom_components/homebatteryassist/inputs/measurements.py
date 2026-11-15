@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 
 from homeassistant.config_entries import ConfigEntry
@@ -27,8 +28,10 @@ from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.util import dt as dt_util
 
 from ..const import (
+    CONF_MAX_CURRENT,
     CONF_PHASES,
     CONF_SENSOR,
+    NOMINAL_VOLTAGE,
     SUBENTRY_EXCLUDED_LOAD,
     SUBENTRY_PV_SOURCE,
     phase_return_sensor_keys,
@@ -43,6 +46,36 @@ _LOGGER = logging.getLogger(__name__)
 type MeasurementListener = Callable[[datetime, float | None], None]
 
 
+@dataclass(frozen=True, slots=True)
+class PowerFlow:
+    """All power flows at one moment, in W.
+
+    grid: net over all phases, + import / - export. battery: + charging /
+    - discharging. pv, excluded and house are never negative.
+    """
+
+    grid_w: float
+    pv_w: float
+    excluded_w: float
+    battery_w: float
+    house_w: float
+    phase_w: tuple[float, ...]  # net grid power per phase, + import / - export
+
+    @property
+    def import_w(self) -> float:
+        """Power taken from the grid."""
+        return max(self.grid_w, 0.0)
+
+    @property
+    def export_w(self) -> float:
+        """Power returned to the grid."""
+        return max(-self.grid_w, 0.0)
+
+    def phase_current(self, index: int) -> float:
+        """Absolute current on a phase in A (at nominal voltage)."""
+        return abs(self.phase_w[index]) / NOMINAL_VOLTAGE
+
+
 class MeasurementInput:
     """Tracks the source sensors and computes the house consumption."""
 
@@ -53,6 +86,7 @@ class MeasurementInput:
         self.hass = hass
         self._decisions = decisions
         phases = entry.data[CONF_PHASES]
+        self.max_current: int = entry.data[CONF_MAX_CURRENT]
         # (import or signed sensor, optional return sensor) per phase
         self.grid_phases: list[tuple[str, str | None]] = [
             (entry.data[key], entry.data.get(return_key) or None)
@@ -65,6 +99,7 @@ class MeasurementInput:
         self.batteries = battery_configs(entry)
 
         self.power: float | None = None
+        self.flow: PowerFlow | None = None
         self.missing: list[str] = []  # grid sensors without a valid value
         self._was_available: bool | None = None
         self._listeners: list[MeasurementListener] = []
@@ -99,13 +134,13 @@ class MeasurementInput:
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener)
 
-    def calculate(self) -> tuple[float | None, list[str]]:
-        """Compute house consumption in W and the grid sensors without a value.
+    def calculate(self) -> tuple[PowerFlow | None, list[str]]:
+        """Compute all power flows and the grid sensors without a value.
 
         Unknown if any grid measurement is unknown; unknown PV sources,
         excluded loads and batteries count as 0 W.
         """
-        grid = 0.0
+        phase_w: list[float] = []
         missing: list[str] = []
         for main, ret in self.grid_phases:
             value = self._watts(main)
@@ -115,13 +150,17 @@ class MeasurementInput:
             if returned is None:
                 missing.append(ret)  # type: ignore[arg-type]
             if value is not None and returned is not None:
-                grid += value - abs(returned)
+                phase_w.append(round(value - abs(returned), 1))
         if missing:
             return None, missing
-        pv = self._sum_abs(self.pv_sensors)
-        excluded = self._sum_abs(self.excluded_sensors)
-        charging = sum(battery_power(self.hass, b) or 0.0 for b in self.batteries)
-        return max(round(grid + pv - excluded - charging, 1), 0.0), []
+        grid = round(sum(phase_w), 1)
+        pv = round(self._sum_abs(self.pv_sensors), 1)
+        excluded = round(self._sum_abs(self.excluded_sensors), 1)
+        battery = round(
+            sum(battery_power(self.hass, b) or 0.0 for b in self.batteries), 1
+        )
+        house = max(round(grid + pv - excluded - battery, 1), 0.0)
+        return PowerFlow(grid, pv, excluded, battery, house, tuple(phase_w)), []
 
     def _watts(self, entity_id: str) -> float | None:
         return state_to_watts(self.hass.states.get(entity_id))
@@ -136,7 +175,8 @@ class MeasurementInput:
 
     @callback
     def _update(self, when: datetime) -> None:
-        self.power, self.missing = self.calculate()
+        self.flow, self.missing = self.calculate()
+        self.power = self.flow.house_w if self.flow else None
         self._explain_availability()
         for listener in list(self._listeners):
             listener(when, self.power)

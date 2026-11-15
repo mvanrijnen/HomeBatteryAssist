@@ -357,6 +357,30 @@
       },
       "batteries_capacity": {
         "name": "Batteries capacity"
+      },
+      "grid_power": {
+        "name": "Grid power"
+      },
+      "grid_import_power": {
+        "name": "Grid import"
+      },
+      "grid_export_power": {
+        "name": "Grid export"
+      },
+      "pv_power": {
+        "name": "PV power"
+      },
+      "excluded_power": {
+        "name": "Excluded devices power"
+      },
+      "phase_l1_load": {
+        "name": "Phase L1 load"
+      },
+      "phase_l2_load": {
+        "name": "Phase L2 load"
+      },
+      "phase_l3_load": {
+        "name": "Phase L3 load"
       }
     }
   }

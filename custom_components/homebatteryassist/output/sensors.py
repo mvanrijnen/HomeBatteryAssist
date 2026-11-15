@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
+    SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import EntityCategory, UnitOfPower
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfPower
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity import Entity
@@ -19,6 +22,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ..const import DOMAIN, NAME
 from ..forecasts.coordinator import ForecastCoordinator
+from ..inputs.measurements import MeasurementInput, PowerFlow
 from ..models import HomeBatteryAssistConfigEntry
 from .batteries import (
     BATTERY_SENSORS,
@@ -37,8 +41,11 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the sensors: main device, battery totals and one device per battery."""
-    main = [
+    phases = len(entry.runtime_data.measurements.grid_phases)
+    main: list[SensorEntity] = [
         HouseConsumptionSensor(entry),
+        *(FlowSensor(entry, description) for description in FLOW_SENSORS),
+        *(FlowSensor(entry, phase_load_description(i)) for i in range(phases)),
         PlanningHorizonSensor(entry),
         LastDecisionSensor(entry),
     ]
@@ -108,6 +115,97 @@ class HouseConsumptionSensor(HomeBatteryAssistEntity, SensorEntity):
     def native_value(self) -> float | None:
         """Return the house consumption in W."""
         return self._measurements.power
+
+
+@dataclass(frozen=True, kw_only=True)
+class FlowSensorDescription(SensorEntityDescription):
+    """A value derived from the current power flows."""
+
+    value_fn: Callable[[PowerFlow], float]
+    attrs_fn: Callable[[PowerFlow, MeasurementInput], dict[str, Any]] | None = None
+
+
+POWER = {
+    "device_class": SensorDeviceClass.POWER,
+    "state_class": SensorStateClass.MEASUREMENT,
+    "native_unit_of_measurement": UnitOfPower.WATT,
+}
+
+FLOW_SENSORS: tuple[FlowSensorDescription, ...] = (
+    FlowSensorDescription(key="grid_power", value_fn=lambda f: f.grid_w, **POWER),
+    FlowSensorDescription(
+        key="grid_import_power", value_fn=lambda f: f.import_w, **POWER
+    ),
+    FlowSensorDescription(
+        key="grid_export_power", value_fn=lambda f: f.export_w, **POWER
+    ),
+    FlowSensorDescription(key="pv_power", value_fn=lambda f: f.pv_w, **POWER),
+    FlowSensorDescription(
+        key="excluded_power", value_fn=lambda f: f.excluded_w, **POWER
+    ),
+)
+
+
+def phase_load_description(index: int) -> FlowSensorDescription:
+    """Load of one phase; ``value_fn`` gives A, shown as % of the fuse rating."""
+    return FlowSensorDescription(
+        key=f"phase_l{index + 1}_load",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
+        value_fn=lambda f: f.phase_current(index),
+        attrs_fn=lambda f, m: {
+            "current": round(f.phase_current(index), 1),
+            "power": f.phase_w[index],
+            "max_current": m.max_current,
+        },
+    )
+
+
+class FlowSensor(HomeBatteryAssistEntity, SensorEntity):
+    """Grid, PV, excluded load or phase load, from the current power flows."""
+
+    entity_description: FlowSensorDescription
+    _attr_should_poll = False
+
+    def __init__(
+        self, entry: HomeBatteryAssistConfigEntry, description: FlowSensorDescription
+    ) -> None:
+        """Initialize."""
+        super().__init__(entry, description.key)
+        self.entity_description = description
+        self._measurements = entry.runtime_data.measurements
+
+    async def async_added_to_hass(self) -> None:
+        """Follow updates of the measurements."""
+        self.async_on_remove(self._measurements.async_add_listener(self._updated))
+
+    @callback
+    def _updated(self, when: datetime, power: float | None) -> None:
+        self.async_write_ha_state()
+
+    @property
+    def available(self) -> bool:
+        """Unavailable while a grid phase measurement is unknown."""
+        return self._measurements.flow is not None
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the value."""
+        if (flow := self._measurements.flow) is None:
+            return None
+        value = self.entity_description.value_fn(flow)
+        if self.entity_description.native_unit_of_measurement == PERCENTAGE:
+            return round(value / self._measurements.max_current * 100, 1)
+        return value
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return extra attributes, if any."""
+        flow = self._measurements.flow
+        if self.entity_description.attrs_fn is None or flow is None:
+            return None
+        return self.entity_description.attrs_fn(flow, self._measurements)
 
 
 class PlanningHorizonSensor(

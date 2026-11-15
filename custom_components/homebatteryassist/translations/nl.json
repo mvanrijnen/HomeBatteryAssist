@@ -357,6 +357,30 @@
       },
       "batteries_capacity": {
         "name": "Capaciteit batterijen"
+      },
+      "grid_power": {
+        "name": "Netvermogen"
+      },
+      "grid_import_power": {
+        "name": "Netafname"
+      },
+      "grid_export_power": {
+        "name": "Teruglevering"
+      },
+      "pv_power": {
+        "name": "PV-vermogen"
+      },
+      "excluded_power": {
+        "name": "Vermogen uitgesloten apparaten"
+      },
+      "phase_l1_load": {
+        "name": "Belasting fase L1"
+      },
+      "phase_l2_load": {
+        "name": "Belasting fase L2"
+      },
+      "phase_l3_load": {
+        "name": "Belasting fase L3"
       }
     }
   }

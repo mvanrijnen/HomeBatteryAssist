@@ -14,13 +14,14 @@ from homeassistant.const import Platform
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_state_change_event
 
-from .const import CONF_HISTORY_INTERVAL, DEFAULT_HISTORY_INTERVAL
+from .const import CONF_HISTORY_INTERVAL, DEFAULT_HISTORY_INTERVAL, DOMAIN
 from .explain import DecisionLog
 from .forecasts.coordinator import ForecastCoordinator
 from .history import ConsumptionHistory
 from .inputs.batteries import BatteryInput
 from .inputs.measurements import MeasurementInput
 from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
+from .output.panel import async_remove_panel, async_setup_panel
 
 PLATFORMS: list[Platform] = [Platform.SENSOR]
 
@@ -66,6 +67,7 @@ async def async_setup_entry(
         forecast=forecast,
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await async_setup_panel(hass, await _async_version(hass))
     # Options and subentry changes (PV sources, excluded loads) require a reload.
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     return True
@@ -84,6 +86,7 @@ async def async_unload_entry(
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
+        async_remove_panel(hass)
         data = entry.runtime_data
         data.measurements.async_stop()
         await data.batteries.async_stop()
@@ -91,3 +94,11 @@ async def async_unload_entry(
         await data.history.async_stop()
         await data.decisions.async_save()
     return unloaded
+
+
+async def _async_version(hass: HomeAssistant) -> str:
+    """Integration version, used to bust the browser cache of the panel."""
+    from homeassistant.loader import async_get_integration
+
+    integration = await async_get_integration(hass, DOMAIN)
+    return str(integration.version)
