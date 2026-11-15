@@ -16,9 +16,10 @@ Subentries (added/changed afterwards under the integration, any number of each):
 - excluded_load: a device kept out of house consumption (e.g. an EV charger)
   Both have a name, a power/current sensor and, on 3-phase connections, an
   optional phase.
-- battery:       a home battery, linked through entities of its own integration.
-  Steps: battery (reading + properties) -> control -> modes (if a mode select
-  is used).
+- battery:       a home battery, linked read-only through entities of its own
+  integration. Step "user" offers batteries found in known integrations
+  (``inputs.profiles``) with all values prefilled, or manual linking; step
+  "battery" holds the sensors and properties. Batteries are never controlled.
 
 A sensor can only be used once: as grid sensor or by one subentry.
 """
@@ -57,9 +58,6 @@ from homeassistant.helpers.selector import (
 from .const import (
     BATTERY_SENSOR_KEYS,
     CONF_CAPACITY,
-    CONF_CHARGE_ENTITY,
-    CONF_CONTROL_TYPE,
-    CONF_DISCHARGE_ENTITY,
     CONF_EFFICIENCY,
     CONF_FULL_CHARGE_INTERVAL,
     CONF_HISTORY_INTERVAL,
@@ -68,10 +66,6 @@ from .const import (
     CONF_MAX_DISCHARGE_POWER,
     CONF_MAX_SOC,
     CONF_MIN_SOC,
-    CONF_MODE_CHARGE,
-    CONF_MODE_DISCHARGE,
-    CONF_MODE_ENTITY,
-    CONF_MODE_IDLE,
     CONF_PHASE,
     CONF_PHASES,
     CONF_PLANNING_HORIZON,
@@ -80,13 +74,8 @@ from .const import (
     CONF_PRICE_FORECAST,
     CONF_PV_FORECAST,
     CONF_SENSOR,
-    CONF_SETPOINT_ENTITY,
-    CONF_SETPOINT_SIGN,
     CONF_SOC_SENSOR,
-    CONTROL_NONE,
-    CONTROL_SEPARATE,
-    CONTROL_SETPOINT,
-    CONTROL_TYPES,
+    CONF_SOURCE,
     DEFAULT_EFFICIENCY,
     DEFAULT_FULL_CHARGE_INTERVAL,
     DEFAULT_HISTORY_INTERVAL,
@@ -105,12 +94,14 @@ from .const import (
     PHASE_OPTIONS,
     SIGN_CHARGING_POSITIVE,
     SIGN_DISCHARGING_POSITIVE,
+    SOURCE_MANUAL,
     SUBENTRY_BATTERY,
     SUBENTRY_EXCLUDED_LOAD,
     SUBENTRY_PV_SOURCE,
     phase_return_sensor_keys,
     phase_sensor_keys,
 )
+from .inputs.profiles import BatteryCandidate, find_battery_candidates
 from .inputs.solar import async_solar_forecast_entries
 
 PHASES_SCHEMA = vol.Schema(
@@ -471,9 +462,14 @@ def _select(options: list[str], key: str) -> SelectSelector:
 
 
 SIGN_OPTIONS = [SIGN_CHARGING_POSITIVE, SIGN_DISCHARGING_POSITIVE]
-CONTROL_NUMBER_SELECTOR = EntitySelector(
-    EntitySelectorConfig(domain=["number", "input_number"])
-)
+
+
+def used_sensors(entry: ConfigEntry) -> set[str]:
+    """All sensors already used by the grid connection or a subentry."""
+    used = set(grid_sensors(entry.data))
+    for subentry in entry.subentries.values():
+        used.update(v for key in SUBENTRY_SENSOR_KEYS if (v := subentry.data.get(key)))
+    return used
 
 
 def battery_schema(three_phase: bool) -> vol.Schema:
@@ -510,53 +506,54 @@ def battery_schema(three_phase: bool) -> vol.Schema:
     return vol.Schema(schema)
 
 
-CONTROL_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_CONTROL_TYPE, default=CONTROL_NONE): SelectSelector(
-            SelectSelectorConfig(
-                options=list(CONTROL_TYPES),
-                mode=SelectSelectorMode.LIST,
-                translation_key=CONF_CONTROL_TYPE,
-            )
-        ),
-        vol.Optional(CONF_SETPOINT_ENTITY): CONTROL_NUMBER_SELECTOR,
-        vol.Required(CONF_SETPOINT_SIGN, default=SIGN_CHARGING_POSITIVE): _select(
-            SIGN_OPTIONS, CONF_POWER_SIGN
-        ),
-        vol.Optional(CONF_CHARGE_ENTITY): CONTROL_NUMBER_SELECTOR,
-        vol.Optional(CONF_DISCHARGE_ENTITY): CONTROL_NUMBER_SELECTOR,
-        vol.Optional(CONF_MODE_ENTITY): EntitySelector(
-            EntitySelectorConfig(domain=["select", "input_select"])
-        ),
-    }
-)
-
-MODE_KEYS = (CONF_MODE_CHARGE, CONF_MODE_DISCHARGE, CONF_MODE_IDLE)
-
-
 class BatterySubentryFlow(ConfigSubentryFlow):
-    """Add or change a home battery: reading, properties and control."""
+    """Link a home battery (read-only): pick a detected one or link manually."""
 
     def __init__(self) -> None:
         """Initialize."""
-        self._data: dict[str, Any] = {}
+        self._candidates: dict[str, BatteryCandidate] = {}
+        self._suggested_data: dict[str, Any] | None = None
 
     def _current(self) -> ConfigSubentry | None:
         return (
             self._get_reconfigure_subentry() if self.source == "reconfigure" else None
         )
 
-    def _suggested(self, user_input: dict[str, Any] | None) -> dict[str, Any] | None:
-        if user_input is not None:
-            return user_input
-        current = self._current()
-        return dict(current.data) if current else None
-
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Add a battery."""
-        return await self._async_step_battery("user", user_input)
+        """Step 1: a battery found in another integration, or manual linking."""
+        if user_input is not None:
+            candidate = self._candidates.get(user_input[CONF_SOURCE])
+            self._suggested_data = dict(candidate.data) if candidate else None
+            return await self.async_step_battery()
+
+        found = find_battery_candidates(self.hass, used_sensors(self._get_entry()))
+        if not found:
+            return await self.async_step_battery()
+        self._candidates = {c.device_id: c for c in found}
+        options = [SelectOptionDict(value=c.device_id, label=c.label) for c in found]
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_SOURCE, default=found[0].device_id
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                *options,
+                                SelectOptionDict(
+                                    value=SOURCE_MANUAL, label=SOURCE_MANUAL
+                                ),
+                            ],
+                            mode=SelectSelectorMode.LIST,
+                            translation_key=CONF_SOURCE,
+                        )
+                    )
+                }
+            ),
+        )
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
@@ -564,132 +561,68 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         """Change a battery."""
         return await self._async_step_battery("reconfigure", user_input)
 
+    async def async_step_battery(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Step 2: sensors and properties (prefilled for a detected battery)."""
+        return await self._async_step_battery("battery", user_input)
+
     async def _async_step_battery(
         self, step_id: str, user_input: dict[str, Any] | None
     ) -> SubentryFlowResult:
-        """Step 1: name, sensors and properties."""
         entry = self._get_entry()
+        current = self._current()
         errors: dict[str, str] = {}
         if user_input is not None:
             for key in BATTERY_SENSOR_KEYS:
-                if error := sensor_conflict(entry, user_input[key], self._current()):
+                if error := sensor_conflict(entry, user_input[key], current):
                     errors[key] = error
             if user_input[CONF_SOC_SENSOR] == user_input[CONF_POWER_SENSOR]:
                 errors[CONF_POWER_SENSOR] = "sensor_in_use"
             if user_input[CONF_MIN_SOC] >= user_input[CONF_MAX_SOC]:
                 errors[CONF_MAX_SOC] = "soc_range"
             if not errors:
-                self._data = {
-                    **user_input,
-                    CONF_PHASE: user_input.get(CONF_PHASE, PHASE_NONE),
-                    CONF_CAPACITY: float(user_input[CONF_CAPACITY]),
-                    **{
-                        key: int(user_input[key])
-                        for key in (
-                            CONF_MAX_CHARGE_POWER,
-                            CONF_MAX_DISCHARGE_POWER,
-                            CONF_MIN_SOC,
-                            CONF_MAX_SOC,
-                            CONF_EFFICIENCY,
-                            CONF_FULL_CHARGE_INTERVAL,
-                        )
-                    },
-                }
-                return await self.async_step_control()
+                return self._async_finish(self._battery_data(user_input), current)
 
+        suggested = (
+            user_input
+            or self._suggested_data
+            or (dict(current.data) if current else None)
+        )
         return self.async_show_form(
             step_id=step_id,
             data_schema=self.add_suggested_values_to_schema(
-                battery_schema(entry.data[CONF_PHASES] == 3),
-                self._suggested(user_input),
+                battery_schema(entry.data[CONF_PHASES] == 3), suggested
             ),
             errors=errors,
-        )
-
-    async def async_step_control(
-        self, user_input: dict[str, Any] | None = None
-    ) -> SubentryFlowResult:
-        """Step 2: how the battery can be controlled (optional)."""
-        errors: dict[str, str] = {}
-        if user_input is not None:
-            control_type = user_input[CONF_CONTROL_TYPE]
-            if control_type == CONTROL_SETPOINT and not user_input.get(
-                CONF_SETPOINT_ENTITY
-            ):
-                errors[CONF_SETPOINT_ENTITY] = "control_entity_required"
-            if control_type == CONTROL_SEPARATE:
-                for key in (CONF_CHARGE_ENTITY, CONF_DISCHARGE_ENTITY):
-                    if not user_input.get(key):
-                        errors[key] = "control_entity_required"
-            if not errors:
-                self._data.update(self._control_data(user_input))
-                if self._data.get(CONF_MODE_ENTITY):
-                    return await self.async_step_modes()
-                return self._async_finish()
-
-        return self.async_show_form(
-            step_id="control",
-            data_schema=self.add_suggested_values_to_schema(
-                CONTROL_SCHEMA, self._suggested(user_input)
-            ),
-            errors=errors,
-            description_placeholders={"name": self._data[CONF_NAME]},
-        )
-
-    async def async_step_modes(
-        self, user_input: dict[str, Any] | None = None
-    ) -> SubentryFlowResult:
-        """Step 3: which option of the mode select means charge/discharge/idle."""
-        if user_input is not None:
-            self._data.update({k: v for k, v in user_input.items() if v})
-            return self._async_finish()
-
-        mode_entity = self._data[CONF_MODE_ENTITY]
-        state = self.hass.states.get(mode_entity)
-        options = list(state.attributes.get("options", [])) if state else []
-        selector: Any = (
-            SelectSelector(
-                SelectSelectorConfig(options=options, mode=SelectSelectorMode.DROPDOWN)
-            )
-            if options
-            else TextSelector()
-        )
-        return self.async_show_form(
-            step_id="modes",
-            data_schema=self.add_suggested_values_to_schema(
-                vol.Schema({vol.Optional(key): selector for key in MODE_KEYS}),
-                self._suggested(None),
-            ),
-            description_placeholders={"entity": mode_entity},
         )
 
     @staticmethod
-    def _control_data(user_input: dict[str, Any]) -> dict[str, Any]:
-        """Keep only the control entities that belong to the chosen type."""
-        control_type = user_input[CONF_CONTROL_TYPE]
-        data: dict[str, Any] = {CONF_CONTROL_TYPE: control_type}
-        if control_type == CONTROL_SETPOINT:
-            data[CONF_SETPOINT_ENTITY] = user_input[CONF_SETPOINT_ENTITY]
-            data[CONF_SETPOINT_SIGN] = user_input[CONF_SETPOINT_SIGN]
-        elif control_type == CONTROL_SEPARATE:
-            data[CONF_CHARGE_ENTITY] = user_input[CONF_CHARGE_ENTITY]
-            data[CONF_DISCHARGE_ENTITY] = user_input[CONF_DISCHARGE_ENTITY]
-        if control_type != CONTROL_NONE and user_input.get(CONF_MODE_ENTITY):
-            data[CONF_MODE_ENTITY] = user_input[CONF_MODE_ENTITY]
-        return data
+    def _battery_data(user_input: dict[str, Any]) -> dict[str, Any]:
+        return {
+            **user_input,
+            CONF_PHASE: user_input.get(CONF_PHASE, PHASE_NONE),
+            CONF_CAPACITY: float(user_input[CONF_CAPACITY]),
+            **{
+                key: int(user_input[key])
+                for key in (
+                    CONF_MAX_CHARGE_POWER,
+                    CONF_MAX_DISCHARGE_POWER,
+                    CONF_MIN_SOC,
+                    CONF_MAX_SOC,
+                    CONF_EFFICIENCY,
+                    CONF_FULL_CHARGE_INTERVAL,
+                )
+            },
+        }
 
     @callback
-    def _async_finish(self) -> SubentryFlowResult:
-        title = self._data[CONF_NAME]
-        unique_id = self._data[CONF_POWER_SENSOR]
-        if (current := self._current()) is None:
-            return self.async_create_entry(
-                title=title, data=self._data, unique_id=unique_id
-            )
+    def _async_finish(
+        self, data: dict[str, Any], current: ConfigSubentry | None
+    ) -> SubentryFlowResult:
+        title, unique_id = data[CONF_NAME], data[CONF_POWER_SENSOR]
+        if current is None:
+            return self.async_create_entry(title=title, data=data, unique_id=unique_id)
         return self.async_update_and_abort(
-            self._get_entry(),
-            current,
-            title=title,
-            data=self._data,
-            unique_id=unique_id,
+            self._get_entry(), current, title=title, data=data, unique_id=unique_id
         )

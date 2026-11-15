@@ -79,11 +79,9 @@
         "discharging_positive": "Positief = ontladen"
       }
     },
-    "control_type": {
+    "source": {
       "options": {
-        "none": "Geen (alleen bewaken)",
-        "setpoint": "Eén vermogen-instelwaarde (+ laden / - ontladen)",
-        "separate": "Apart laad- en ontlaadvermogen"
+        "manual": "Handmatig koppelen (zelf de entities kiezen)"
       }
     }
   },
@@ -198,36 +196,14 @@
       "step": {
         "user": {
           "title": "Batterij",
-          "description": "Koppel een thuisbatterij via de entities van zijn eigen integration. Het laden en ontladen van de batterij wordt buiten het huisverbruik gehouden.",
+          "description": "Deze batterijen zijn gevonden in andere integrations. Kies er een om hem te koppelen met alle waarden ingevuld, of koppel een batterij handmatig. HomeBatteryAssist leest de batterij alleen uit; de integration die hem aanstuurt blijft dat doen.",
           "data": {
-            "name": "Naam",
-            "soc_sensor": "Sensor vulling",
-            "power_sensor": "Sensor vermogen",
-            "power_sign": "Richting vermogensensor",
-            "capacity_kwh": "Bruikbare capaciteit",
-            "max_charge_power": "Maximaal laadvermogen",
-            "max_discharge_power": "Maximaal ontlaadvermogen",
-            "min_soc": "Minimale vulling",
-            "max_soc": "Maximale vulling",
-            "round_trip_efficiency": "Rendement laden en ontladen",
-            "full_charge_interval_days": "Volledig opladen elke",
-            "phase": "Fase"
-          },
-          "data_description": {
-            "soc_sensor": "Sensor met de vulling in %.",
-            "power_sensor": "Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij.",
-            "power_sign": "Is de vermogensensor positief tijdens laden of tijdens ontladen?",
-            "capacity_kwh": "Capaciteit van de batterij in kWh (uit de specificaties).",
-            "min_soc": "De batterij wordt niet verder ontladen dan dit niveau.",
-            "max_soc": "De batterij wordt niet verder geladen dan dit niveau (behalve bij volledig opladen).",
-            "round_trip_efficiency": "Deel van de geladen energie dat bij ontladen weer terugkomt.",
-            "full_charge_interval_days": "Minstens elke zoveel dagen tot 100% laden (balanceren van de cellen). 0 = nooit.",
-            "phase": "De fase waarop de batterij is aangesloten, als hij één fase gebruikt."
+            "source": "Batterij"
           }
         },
         "reconfigure": {
           "title": "Batterij",
-          "description": "Koppel een thuisbatterij via de entities van zijn eigen integration. Het laden en ontladen van de batterij wordt buiten het huisverbruik gehouden.",
+          "description": "Koppel een thuisbatterij via de entities van zijn eigen integration (alleen uitlezen). Het laden en ontladen van de batterij wordt buiten het huisverbruik gehouden.",
           "data": {
             "name": "Naam",
             "soc_sensor": "Sensor vulling",
@@ -254,40 +230,40 @@
             "phase": "De fase waarop de batterij is aangesloten, als hij één fase gebruikt."
           }
         },
-        "control": {
-          "title": "Aansturing van {name}",
-          "description": "Hoe HomeBatteryAssist deze batterij kan aansturen. Dit wordt gebruikt door de planning; tot die tijd wordt de batterij alleen bewaakt.",
+        "battery": {
+          "title": "Batterij",
+          "description": "Koppel een thuisbatterij via de entities van zijn eigen integration (alleen uitlezen). Het laden en ontladen van de batterij wordt buiten het huisverbruik gehouden.",
           "data": {
-            "control_type": "Aansturing",
-            "setpoint_entity": "Vermogen-instelwaarde",
-            "setpoint_sign": "Richting instelwaarde",
-            "charge_power_entity": "Laadvermogen",
-            "discharge_power_entity": "Ontlaadvermogen",
-            "mode_entity": "Modus (optioneel)"
+            "name": "Naam",
+            "soc_sensor": "Sensor vulling",
+            "power_sensor": "Sensor vermogen",
+            "power_sign": "Richting vermogensensor",
+            "capacity_kwh": "Bruikbare capaciteit",
+            "max_charge_power": "Maximaal laadvermogen",
+            "max_discharge_power": "Maximaal ontlaadvermogen",
+            "min_soc": "Minimale vulling",
+            "max_soc": "Maximale vulling",
+            "round_trip_efficiency": "Rendement laden en ontladen",
+            "full_charge_interval_days": "Volledig opladen elke",
+            "phase": "Fase"
           },
           "data_description": {
-            "setpoint_entity": "Number-entity voor één vermogen-instelwaarde (W) waarmee zowel geladen als ontladen wordt.",
-            "setpoint_sign": "Is een positieve instelwaarde laden of ontladen?",
-            "charge_power_entity": "Number-entity voor het laadvermogen (W).",
-            "discharge_power_entity": "Number-entity voor het ontlaadvermogen (W).",
-            "mode_entity": "Select-entity die de batterij schakelt tussen bijvoorbeeld laden, ontladen en stand-by."
-          }
-        },
-        "modes": {
-          "title": "Modi van {entity}",
-          "description": "Kies welke optie van de modus-entity laden, ontladen en rust betekent.",
-          "data": {
-            "mode_charge": "Laden",
-            "mode_discharge": "Ontladen",
-            "mode_idle": "Rust"
+            "soc_sensor": "Sensor met de vulling in %.",
+            "power_sensor": "Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij.",
+            "power_sign": "Is de vermogensensor positief tijdens laden of tijdens ontladen?",
+            "capacity_kwh": "Capaciteit van de batterij in kWh (uit de specificaties).",
+            "min_soc": "De batterij wordt niet verder ontladen dan dit niveau.",
+            "max_soc": "De batterij wordt niet verder geladen dan dit niveau (behalve bij volledig opladen).",
+            "round_trip_efficiency": "Deel van de geladen energie dat bij ontladen weer terugkomt.",
+            "full_charge_interval_days": "Minstens elke zoveel dagen tot 100% laden (balanceren van de cellen). 0 = nooit.",
+            "phase": "De fase waarop de batterij is aangesloten, als hij één fase gebruikt."
           }
         }
       },
       "error": {
         "sensor_is_phase_sensor": "Deze sensor wordt al gebruikt als netmeting van een fase.",
         "sensor_in_use": "Deze sensor wordt al door een ander apparaat gebruikt.",
-        "soc_range": "De maximale vulling moet hoger zijn dan de minimale.",
-        "control_entity_required": "Kies de entity voor dit type aansturing."
+        "soc_range": "De maximale vulling moet hoger zijn dan de minimale."
       },
       "abort": {
         "reconfigure_successful": "Instellingen opgeslagen."

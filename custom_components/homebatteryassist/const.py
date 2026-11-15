@@ -60,7 +60,8 @@ CONF_PHASE: Final = "phase"
 PHASE_NONE: Final = "none"
 PHASE_IDS: Final = ("l1", "l2", "l3")
 
-# Subentry: a home battery, linked through entities of its own integration.
+# Subentry: a home battery, linked (read-only) through entities of its own
+# integration. HomeBatteryAssist never controls batteries.
 SUBENTRY_BATTERY: Final = "battery"
 # Reading
 CONF_SOC_SENSOR: Final = "soc_sensor"  # state of charge, %
@@ -80,30 +81,12 @@ DEFAULT_MIN_SOC: Final = 10
 DEFAULT_MAX_SOC: Final = 100
 DEFAULT_EFFICIENCY: Final = 90
 DEFAULT_FULL_CHARGE_INTERVAL: Final = 0
-# Control (optional; executed by the future planning module)
-CONF_CONTROL_TYPE: Final = "control_type"
-CONTROL_NONE: Final = "none"  # monitoring only
-CONTROL_SETPOINT: Final = "setpoint"  # one number: + charge / - discharge
-CONTROL_SEPARATE: Final = "separate"  # charge number + discharge number
-CONTROL_TYPES: Final = (CONTROL_NONE, CONTROL_SETPOINT, CONTROL_SEPARATE)
-CONF_SETPOINT_ENTITY: Final = "setpoint_entity"
-CONF_SETPOINT_SIGN: Final = "setpoint_sign"
-CONF_CHARGE_ENTITY: Final = "charge_power_entity"
-CONF_DISCHARGE_ENTITY: Final = "discharge_power_entity"
-CONF_MODE_ENTITY: Final = "mode_entity"  # optional select
-CONF_MODE_CHARGE: Final = "mode_charge"
-CONF_MODE_DISCHARGE: Final = "mode_discharge"
-CONF_MODE_IDLE: Final = "mode_idle"
 # Monitoring
 IDLE_THRESHOLD_W: Final = 20.0  # |power| below this counts as idle
 FULL_CHARGE_SOC: Final = 99.5  # % at or above which a full charge is registered
 BATTERY_SENSOR_KEYS: Final = (CONF_SOC_SENSOR, CONF_POWER_SENSOR)
-CONTROL_ENTITY_KEYS: Final = (
-    CONF_SETPOINT_ENTITY,
-    CONF_CHARGE_ENTITY,
-    CONF_DISCHARGE_ENTITY,
-    CONF_MODE_ENTITY,
-)
+CONF_SOURCE: Final = "source"  # battery flow: detected device or manual
+SOURCE_MANUAL: Final = "manual"
 
 
 def phase_sensor_keys(phases: int) -> tuple[str, ...]:

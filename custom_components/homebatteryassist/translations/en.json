@@ -79,11 +79,9 @@
         "discharging_positive": "Positive = discharging"
       }
     },
-    "control_type": {
+    "source": {
       "options": {
-        "none": "None (monitoring only)",
-        "setpoint": "One power setpoint (+ charge / - discharge)",
-        "separate": "Separate charge and discharge power"
+        "manual": "Link manually (choose the entities yourself)"
       }
     }
   },
@@ -198,36 +196,14 @@
       "step": {
         "user": {
           "title": "Battery",
-          "description": "Link a home battery through the entities of its own integration. The battery's charging and discharging is kept out of the house consumption.",
+          "description": "These batteries were found in other integrations. Choose one to link it with all values filled in, or link a battery manually. HomeBatteryAssist only reads the battery; the integration that controls it keeps doing so.",
           "data": {
-            "name": "Name",
-            "soc_sensor": "State of charge sensor",
-            "power_sensor": "Power sensor",
-            "power_sign": "Power sensor direction",
-            "capacity_kwh": "Usable capacity",
-            "max_charge_power": "Maximum charge power",
-            "max_discharge_power": "Maximum discharge power",
-            "min_soc": "Minimum state of charge",
-            "max_soc": "Maximum state of charge",
-            "round_trip_efficiency": "Round-trip efficiency",
-            "full_charge_interval_days": "Full charge every",
-            "phase": "Phase"
-          },
-          "data_description": {
-            "soc_sensor": "Sensor with the state of charge in %.",
-            "power_sensor": "Sensor with the charge/discharge power (W) or current (A) of the battery.",
-            "power_sign": "Is the power sensor positive while charging or while discharging?",
-            "capacity_kwh": "Capacity of the battery in kWh (from the specifications).",
-            "min_soc": "The battery is not discharged below this level.",
-            "max_soc": "The battery is not charged above this level (except for a full charge).",
-            "round_trip_efficiency": "Share of charged energy that comes back out when discharging.",
-            "full_charge_interval_days": "Charge to 100% at least every this many days (cell balancing). 0 = never.",
-            "phase": "The phase the battery is connected to, if it uses a single phase."
+            "source": "Battery"
           }
         },
         "reconfigure": {
           "title": "Battery",
-          "description": "Link a home battery through the entities of its own integration. The battery's charging and discharging is kept out of the house consumption.",
+          "description": "Link a home battery through the entities of its own integration (read-only). Its charging and discharging is kept out of the house consumption.",
           "data": {
             "name": "Name",
             "soc_sensor": "State of charge sensor",
@@ -254,40 +230,40 @@
             "phase": "The phase the battery is connected to, if it uses a single phase."
           }
         },
-        "control": {
-          "title": "Control of {name}",
-          "description": "How HomeBatteryAssist can control this battery. This is used by the planning; until then the battery is only monitored.",
+        "battery": {
+          "title": "Battery",
+          "description": "Link a home battery through the entities of its own integration (read-only). Its charging and discharging is kept out of the house consumption.",
           "data": {
-            "control_type": "Control",
-            "setpoint_entity": "Power setpoint",
-            "setpoint_sign": "Setpoint direction",
-            "charge_power_entity": "Charge power",
-            "discharge_power_entity": "Discharge power",
-            "mode_entity": "Mode (optional)"
+            "name": "Name",
+            "soc_sensor": "State of charge sensor",
+            "power_sensor": "Power sensor",
+            "power_sign": "Power sensor direction",
+            "capacity_kwh": "Usable capacity",
+            "max_charge_power": "Maximum charge power",
+            "max_discharge_power": "Maximum discharge power",
+            "min_soc": "Minimum state of charge",
+            "max_soc": "Maximum state of charge",
+            "round_trip_efficiency": "Round-trip efficiency",
+            "full_charge_interval_days": "Full charge every",
+            "phase": "Phase"
           },
           "data_description": {
-            "setpoint_entity": "Number entity for one power setpoint (W) that both charges and discharges.",
-            "setpoint_sign": "Is a positive setpoint charging or discharging?",
-            "charge_power_entity": "Number entity for the charge power (W).",
-            "discharge_power_entity": "Number entity for the discharge power (W).",
-            "mode_entity": "Select entity that switches the battery between e.g. charging, discharging and standby."
-          }
-        },
-        "modes": {
-          "title": "Modes of {entity}",
-          "description": "Select which option of the mode entity means charging, discharging and idle.",
-          "data": {
-            "mode_charge": "Charge",
-            "mode_discharge": "Discharge",
-            "mode_idle": "Idle"
+            "soc_sensor": "Sensor with the state of charge in %.",
+            "power_sensor": "Sensor with the charge/discharge power (W) or current (A) of the battery.",
+            "power_sign": "Is the power sensor positive while charging or while discharging?",
+            "capacity_kwh": "Capacity of the battery in kWh (from the specifications).",
+            "min_soc": "The battery is not discharged below this level.",
+            "max_soc": "The battery is not charged above this level (except for a full charge).",
+            "round_trip_efficiency": "Share of charged energy that comes back out when discharging.",
+            "full_charge_interval_days": "Charge to 100% at least every this many days (cell balancing). 0 = never.",
+            "phase": "The phase the battery is connected to, if it uses a single phase."
           }
         }
       },
       "error": {
         "sensor_is_phase_sensor": "This sensor is already used as a grid phase measurement.",
         "sensor_in_use": "This sensor is already used by another device.",
-        "soc_range": "The maximum state of charge must be higher than the minimum.",
-        "control_entity_required": "Select the entity for this type of control."
+        "soc_range": "The maximum state of charge must be higher than the minimum."
       },
       "abort": {
         "reconfigure_successful": "Settings saved."

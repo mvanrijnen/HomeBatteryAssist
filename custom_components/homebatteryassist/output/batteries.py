@@ -54,7 +54,6 @@ def _status_attrs(batteries: BatteryInput, state: BatteryState) -> dict[str, Any
         "max_soc": config.max_soc,
         "round_trip_efficiency": round(config.efficiency * 100),
         "phase": config.phase,
-        "control": config.control.type,
     }
 
 

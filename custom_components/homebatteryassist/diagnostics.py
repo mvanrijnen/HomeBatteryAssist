@@ -51,7 +51,6 @@ async def async_get_config_entry_diagnostics(
                     "max_discharge_w": state.config.max_discharge_w,
                     "min_soc": state.config.min_soc,
                     "max_soc": state.config.max_soc,
-                    "control": state.config.control.type,
                 },
                 "stats": data.batteries.stats.get(state.config.id),
             }

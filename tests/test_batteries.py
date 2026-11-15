@@ -20,9 +20,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.homebatteryassist.const import (
     CONF_CAPACITY,
-    CONF_CHARGE_ENTITY,
-    CONF_CONTROL_TYPE,
-    CONF_DISCHARGE_ENTITY,
     CONF_EFFICIENCY,
     CONF_FULL_CHARGE_INTERVAL,
     CONF_HISTORY_INTERVAL,
@@ -31,17 +28,12 @@ from custom_components.homebatteryassist.const import (
     CONF_MAX_DISCHARGE_POWER,
     CONF_MAX_SOC,
     CONF_MIN_SOC,
-    CONF_MODE_CHARGE,
-    CONF_MODE_DISCHARGE,
-    CONF_MODE_ENTITY,
-    CONF_MODE_IDLE,
     CONF_PHASE,
     CONF_PHASES,
     CONF_POWER_SENSOR,
     CONF_POWER_SIGN,
-    CONF_SETPOINT_ENTITY,
-    CONF_SETPOINT_SIGN,
     CONF_SOC_SENSOR,
+    CONF_SOURCE,
     DOMAIN,
     SUBENTRY_BATTERY,
 )
@@ -70,7 +62,7 @@ async def _entry(
     if battery:
         subentries.append(
             ConfigSubentryData(
-                data={**BATTERY_INPUT, CONF_PHASE: "none", CONF_CONTROL_TYPE: "none"},
+                data={**BATTERY_INPUT, CONF_PHASE: "none"},
                 subentry_type=SUBENTRY_BATTERY,
                 title="Venus",
                 unique_id="sensor.marstek_power",
@@ -109,60 +101,116 @@ def _set(hass: HomeAssistant, entity_id: str, value: str, unit: str) -> None:
 # Linking (subentry flow)
 
 
-async def test_add_battery_with_setpoint_and_modes(hass: HomeAssistant) -> None:
-    """Battery -> control -> modes; mode options come from the select entity."""
+async def test_add_battery_manually(hass: HomeAssistant) -> None:
+    """Without detected batteries the flow goes straight to the battery form."""
     entry = await _entry(hass, battery=False)
-    hass.states.async_set(
-        "select.venus_mode",
-        "auto",
-        {"options": ["auto", "manual_charge", "manual_discharge", "stop"]},
-    )
-
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, SUBENTRY_BATTERY), context={"source": SOURCE_USER}
     )
-    assert result["step_id"] == "user"
+    assert result["step_id"] == "battery"
     assert CONF_PHASE not in result["data_schema"].schema  # 1-phase connection
 
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], BATTERY_INPUT
-    )
-    assert result["step_id"] == "control"
-
-    result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"],
-        {
-            CONF_CONTROL_TYPE: "setpoint",
-            CONF_SETPOINT_ENTITY: "number.venus_power",
-            CONF_SETPOINT_SIGN: "charging_positive",
-            CONF_CHARGE_ENTITY: "number.ignored",  # not for this control type
-            CONF_MODE_ENTITY: "select.venus_mode",
-        },
-    )
-    assert result["step_id"] == "modes"
-    assert result["data_schema"].schema[CONF_MODE_CHARGE].config["options"] == [
-        "auto",
-        "manual_charge",
-        "manual_discharge",
-        "stop",
-    ]
-
-    result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"],
-        {
-            CONF_MODE_CHARGE: "manual_charge",
-            CONF_MODE_DISCHARGE: "manual_discharge",
-            CONF_MODE_IDLE: "stop",
-        },
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     (subentry,) = entry.subentries.values()
     assert subentry.title == "Venus"
     assert subentry.data[CONF_CAPACITY] == 5.12
     assert subentry.data[CONF_MAX_CHARGE_POWER] == 2500
-    assert subentry.data[CONF_SETPOINT_ENTITY] == "number.venus_power"
-    assert CONF_CHARGE_ENTITY not in subentry.data
-    assert subentry.data[CONF_MODE_IDLE] == "stop"
+    assert not any("control" in key or "entity" in key for key in subentry.data)
+
+
+def _omnibattery_device(hass: HomeAssistant, phases: int = 3) -> None:
+    """Entities as the Omnibattery integration creates them for a Venus E v3."""
+    owner = MockConfigEntry(domain="omnibattery")
+    owner.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=owner.entry_id,
+        identifiers={("omnibattery", "venus1")},
+        name="Marstek Venus 1",
+    )
+    registry = er.async_get(hass)
+    for domain, key, state, unit in (
+        ("sensor", "battery_soc", "12", "%"),
+        ("sensor", "ac_power", "0", "W"),
+        ("sensor", "battery_total_energy", "5.12", "kWh"),
+        ("sensor", "round_trip_efficiency_total", "84.72", "%"),
+        ("number", "max_charge_power", "2500.0", "W"),
+        ("number", "max_discharge_power", "2500.0", "W"),
+        ("number", "charging_cutoff_capacity", "100.0", "%"),
+        ("number", "discharging_cutoff_capacity", "12.0", "%"),
+        ("select", "battery_phase", "l3", None),
+    ):
+        entity = registry.async_get_or_create(
+            domain,
+            "omnibattery",
+            f"venus1_{key}",
+            config_entry=owner,
+            device_id=device.id,
+            translation_key=key,
+            suggested_object_id=f"marstek_venus_1_{key}",
+        )
+        hass.states.async_set(
+            entity.entity_id, state, {"unit_of_measurement": unit} if unit else {}
+        )
+
+
+async def test_add_detected_omnibattery(hass: HomeAssistant) -> None:
+    """A battery of Omnibattery is offered with all values prefilled."""
+    _omnibattery_device(hass)
+    entry = await _entry(
+        hass,
+        {
+            CONF_PHASES: 3,
+            CONF_MAX_CURRENT: 25,
+            "sensor_l1": "sensor.l1",
+            "sensor_l2": "sensor.l2",
+            "sensor_l3": "sensor.l3",
+        },
+        battery=False,
+    )
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_BATTERY), context={"source": SOURCE_USER}
+    )
+    assert result["step_id"] == "user"
+    options = result["data_schema"].schema[CONF_SOURCE].config["options"]
+    assert options[0]["label"] == "Marstek Venus 1 (Omnibattery)"
+    assert options[-1]["value"] == "manual"
+
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {CONF_SOURCE: options[0]["value"]}
+    )
+    assert result["step_id"] == "battery"
+    suggested = {
+        str(key): key.description["suggested_value"]
+        for key in result["data_schema"].schema
+        if key.description and "suggested_value" in key.description
+    }
+    assert suggested == {
+        CONF_NAME: "Marstek Venus 1",
+        CONF_SOC_SENSOR: "sensor.marstek_venus_1_battery_soc",
+        CONF_POWER_SENSOR: "sensor.marstek_venus_1_ac_power",
+        CONF_POWER_SIGN: "discharging_positive",
+        CONF_CAPACITY: 5.12,
+        CONF_MAX_CHARGE_POWER: 2500,
+        CONF_MAX_DISCHARGE_POWER: 2500,
+        CONF_MIN_SOC: 12,
+        CONF_MAX_SOC: 100,
+        CONF_EFFICIENCY: 85,
+        CONF_PHASE: "l3",
+    }
+
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {**suggested, CONF_FULL_CHARGE_INTERVAL: 7}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+
+    # Once linked, the battery is no longer offered.
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_BATTERY), context={"source": SOURCE_USER}
+    )
+    assert result["step_id"] == "battery"
 
 
 @pytest.mark.parametrize(
@@ -184,37 +232,12 @@ async def test_battery_validation(
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, SUBENTRY_BATTERY), context={"source": SOURCE_USER}
     )
+    assert result["step_id"] == "battery"
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {**BATTERY_INPUT, **changes}
     )
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == errors
-
-
-async def test_separate_control_requires_both_entities(hass: HomeAssistant) -> None:
-    """Separate charge/discharge control needs both number entities."""
-    entry = await _entry(hass, battery=False)
-    result = await hass.config_entries.subentries.async_init(
-        (entry.entry_id, SUBENTRY_BATTERY), context={"source": SOURCE_USER}
-    )
-    result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"], BATTERY_INPUT
-    )
-    result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"],
-        {CONF_CONTROL_TYPE: "separate", CONF_CHARGE_ENTITY: "number.charge"},
-    )
-    assert result["errors"] == {CONF_DISCHARGE_ENTITY: "control_entity_required"}
-
-    result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"],
-        {
-            CONF_CONTROL_TYPE: "separate",
-            CONF_CHARGE_ENTITY: "number.charge",
-            CONF_DISCHARGE_ENTITY: "number.discharge",
-        },
-    )
-    assert result["type"] is FlowResultType.CREATE_ENTRY
 
 
 async def test_reconfigure_battery(hass: HomeAssistant) -> None:
@@ -228,9 +251,6 @@ async def test_reconfigure_battery(hass: HomeAssistant) -> None:
     assert result["step_id"] == "reconfigure"
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {**BATTERY_INPUT, CONF_CAPACITY: 10.24}
-    )
-    result = await hass.config_entries.subentries.async_configure(
-        result["flow_id"], {CONF_CONTROL_TYPE: "none"}
     )
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.ABORT

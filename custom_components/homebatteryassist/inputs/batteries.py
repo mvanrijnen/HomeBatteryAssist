@@ -1,8 +1,9 @@
 """Home batteries: configuration, live state and monitoring counters.
 
-A battery is linked through entities of its own integration (state of charge
-and power sensors, optionally control entities), so any brand works. Battery
-power is normalised to: positive = charging, negative = discharging.
+A battery is linked read-only through entities of its own integration (state
+of charge and power sensors), so any brand works and the integration that owns
+the battery is never disturbed. HomeBatteryAssist never controls a battery.
+Battery power is normalised to: positive = charging, negative = discharging.
 """
 
 from __future__ import annotations
@@ -30,26 +31,16 @@ from homeassistant.util import dt as dt_util
 
 from ..const import (
     CONF_CAPACITY,
-    CONF_CHARGE_ENTITY,
-    CONF_CONTROL_TYPE,
-    CONF_DISCHARGE_ENTITY,
     CONF_EFFICIENCY,
     CONF_FULL_CHARGE_INTERVAL,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MAX_SOC,
     CONF_MIN_SOC,
-    CONF_MODE_CHARGE,
-    CONF_MODE_DISCHARGE,
-    CONF_MODE_ENTITY,
-    CONF_MODE_IDLE,
     CONF_PHASE,
     CONF_POWER_SENSOR,
     CONF_POWER_SIGN,
-    CONF_SETPOINT_ENTITY,
-    CONF_SETPOINT_SIGN,
     CONF_SOC_SENSOR,
-    CONTROL_NONE,
     DEFAULT_EFFICIENCY,
     DEFAULT_FULL_CHARGE_INTERVAL,
     DEFAULT_MAX_SOC,
@@ -80,21 +71,6 @@ class BatteryStatus(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
-class BatteryControl:
-    """How the battery can be controlled (executed by the planning module)."""
-
-    type: str = CONTROL_NONE
-    setpoint_entity: str | None = None
-    setpoint_sign: str = SIGN_CHARGING_POSITIVE
-    charge_entity: str | None = None
-    discharge_entity: str | None = None
-    mode_entity: str | None = None
-    mode_charge: str | None = None
-    mode_discharge: str | None = None
-    mode_idle: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
 class BatteryConfig:
     """Static properties of one battery (from its subentry)."""
 
@@ -111,7 +87,6 @@ class BatteryConfig:
     efficiency: float  # round trip, 0..1
     full_charge_interval_days: int  # 0 = no periodic full charge
     phase: str
-    control: BatteryControl
 
     @classmethod
     def from_subentry(cls, subentry: ConfigSubentry) -> BatteryConfig:
@@ -133,17 +108,6 @@ class BatteryConfig:
                 data.get(CONF_FULL_CHARGE_INTERVAL, DEFAULT_FULL_CHARGE_INTERVAL)
             ),
             phase=data.get(CONF_PHASE, PHASE_NONE),
-            control=BatteryControl(
-                type=data.get(CONF_CONTROL_TYPE, CONTROL_NONE),
-                setpoint_entity=data.get(CONF_SETPOINT_ENTITY),
-                setpoint_sign=data.get(CONF_SETPOINT_SIGN, SIGN_CHARGING_POSITIVE),
-                charge_entity=data.get(CONF_CHARGE_ENTITY),
-                discharge_entity=data.get(CONF_DISCHARGE_ENTITY),
-                mode_entity=data.get(CONF_MODE_ENTITY),
-                mode_charge=data.get(CONF_MODE_CHARGE),
-                mode_discharge=data.get(CONF_MODE_DISCHARGE),
-                mode_idle=data.get(CONF_MODE_IDLE),
-            ),
         )
 
 
