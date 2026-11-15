@@ -86,6 +86,7 @@ from .const import (
     CONF_METER_SOURCE,
     CONF_MIN_BATTERY_POWER,
     CONF_MIN_SOC,
+    CONF_PEAK_LIMIT,
     CONF_PHASE,
     CONF_PHASE_MARGIN,
     CONF_PHASE_RETURN_SENSORS,
@@ -118,6 +119,7 @@ from .const import (
     DEFAULT_MAX_SOC,
     DEFAULT_MIN_BATTERY_POWER,
     DEFAULT_MIN_SOC,
+    DEFAULT_PEAK_LIMIT,
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
     DEFAULT_PV_MARGIN,
@@ -292,6 +294,10 @@ async def settings_schema(
             )
         ),
         vol.Required(
+            CONF_PEAK_LIMIT,
+            default=current.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT),
+        ): _number(0, 60000, 100, "W"),
+        vol.Required(
             CONF_PV_MARGIN,
             default=current.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN),
         ): _number(0, 50, 1, "%"),
@@ -422,6 +428,7 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]
     options[CONF_EXPORT_MODE] = user_input.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE)
+    options[CONF_PEAK_LIMIT] = int(user_input.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT))
     options[CONF_PV_MARGIN] = int(user_input.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN))
     options[CONF_MAX_CYCLES] = float(
         user_input.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES)

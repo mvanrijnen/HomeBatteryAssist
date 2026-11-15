@@ -50,6 +50,8 @@ CONF_EXPORT_FACTOR: Final = "export_price_factor"
 CONF_EXPORT_MODE: Final = "export_price_mode"
 CONF_MAX_CYCLES: Final = "max_cycles_per_day"
 CONF_PV_MARGIN: Final = "pv_forecast_margin"
+CONF_PEAK_LIMIT: Final = "peak_limit_w"
+DEFAULT_PEAK_LIMIT: Final = 0  # W grid import (all phases); 0 = no peak shaving
 DEFAULT_PV_MARGIN: Final = 0  # % of the PV forecast the plan does not count on
 DEFAULT_MAX_CYCLES: Final = 1.0  # full cycles per day for arbitrage (0 = no limit)
 CONF_EXPORT_ENTITIES: Final = "export_price_entities"

@@ -42,6 +42,7 @@ from ..const import (
     CONF_MAX_CURRENT,
     CONF_MAX_CYCLES,
     CONF_MIN_BATTERY_POWER,
+    CONF_PEAK_LIMIT,
     CONF_PHASE_MARGIN,
     CONF_PHASES,
     CONF_PLAN_MODE,
@@ -57,6 +58,7 @@ from ..const import (
     DEFAULT_FULL_CHARGE_WINDOW,
     DEFAULT_MAX_CYCLES,
     DEFAULT_MIN_BATTERY_POWER,
+    DEFAULT_PEAK_LIMIT,
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
     DEFAULT_PV_MARGIN,
@@ -185,6 +187,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.cycle_cost: float = entry.options.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
         self.max_cycles: float = entry.options.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES)
         self.pv_margin: float = entry.options.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN)
+        self.peak_w: float = entry.options.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT)
         self.phase_margin: float = entry.options.get(
             CONF_PHASE_MARGIN, DEFAULT_PHASE_MARGIN
         )
@@ -333,6 +336,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                     limits=limits,
                     export_prices=export_prices,
                     max_cycles_per_day=self.max_cycles,
+                    peak_w=self.peak_w,
                 )
             )
             if plan is not None:

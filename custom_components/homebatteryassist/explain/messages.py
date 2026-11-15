@@ -52,6 +52,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "phase_limit_cleared": "The phases have room again: the virtual batteries are no longer held back by the main fuse.",
         "phase_relief": "Phase protection: phase {phase} carries {current} A, above the limit of {limit} A. {names} {action} {power} to take load off the phase.",
         "phase_relief_ended": "Phase {phase} is back under the limit. {names} took load off it for {minutes} min, {energy} kWh in total.",
+        "peak_shaving": "Peak shaving: the grid would supply {grid}, above the peak limit of {limit}. {names} take {power} off it.",
+        "peak_shaving_ended": "Grid import is back under the peak limit. The batteries shaved the peak for {minutes} min, {energy} kWh in total.",
     },
     "nl": {
         "horizon_setting": "Planning {hours} uur vooruit (tot {end}): het ingestelde maximum van {days} dagen.",
@@ -91,6 +93,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "phase_limit_cleared": "De fasen hebben weer ruimte: de virtuele batterijen worden niet meer beperkt door de hoofdzekering.",
         "phase_relief": "Fasebeveiliging: fase {phase} voert {current} A, boven de grens van {limit} A. {names} gaat {power} {action} om de fase te ontlasten.",
         "phase_relief_ended": "Fase {phase} is weer onder de grens. {names} ontlastte de fase {minutes} min, met in totaal {energy} kWh.",
+        "peak_shaving": "Piekafvlakking: het net zou {grid} leveren, boven de piekgrens van {limit}. {names} vangen daarvan {power} op.",
+        "peak_shaving_ended": "De netafname is weer onder de piekgrens. De batterijen vlakten de piek {minutes} min af, met in totaal {energy} kWh.",
     },
 }
 

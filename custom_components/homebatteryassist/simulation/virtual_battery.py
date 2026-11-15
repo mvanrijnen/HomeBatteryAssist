@@ -59,6 +59,7 @@ from ..planning.phase_limit import (
     overloaded,
     phase_limit_w,
     relieve,
+    shave_peak,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -129,6 +130,7 @@ class VirtualBatterySimulator:
         self._unsub_measured: CALLBACK_TYPE | None = None
         # phase index -> {"start", "seen", "wh", "names"} while relieving it
         self.relief: dict[int, dict[str, Any]] = {}
+        self._peak: dict[str, Any] | None = None  # running peak shaving
 
     @property
     def virtual(self) -> list[BatteryConfig]:
@@ -176,8 +178,11 @@ class VirtualBatterySimulator:
             index = PhaseDevice.from_config(config, phases).phase
             for i in range(phases) if index is None else (index,):
                 with_virtual[i] += power / (phases if index is None else 1)
-        if overloaded(with_virtual, self._limit_w()) or overloaded(
-            flow.phase_w, self._limit_w()
+        peak = self._forecast.peak_w
+        if (
+            overloaded(with_virtual, self._limit_w())
+            or overloaded(flow.phase_w, self._limit_w())
+            or (peak > 0 and sum(with_virtual) > peak)
         ):
             self.step(when)
 
@@ -213,6 +218,7 @@ class VirtualBatterySimulator:
                 config.max_charge_w if full[config.id] else targets(config, soc)
             )
         wanted = self._phase_relief(wanted, socs, full, now, hours)
+        wanted = self._peak_shaving(wanted, socs, full, now, hours)
         wanted = self._phase_limited(wanted, now)
         for config in self.virtual:
             limits = replace(config, max_soc=100.0) if full[config.id] else config
@@ -298,6 +304,58 @@ class VirtualBatterySimulator:
                         ".", "," if dutch else "."
                     ),
                 )
+        return result
+
+    def _peak_shaving(
+        self,
+        wanted: dict[str, float],
+        socs: dict[str, float],
+        full: dict[str, Any],
+        now: datetime,
+        hours: float,
+    ) -> dict[str, float]:
+        """Keep the total grid import below the peak limit; explain it."""
+        peak = self._forecast.peak_w
+        flow = self._measurements.flow
+        if peak <= 0 or flow is None:
+            return wanted
+        phases = max(len(flow.phase_w), 1)
+        devices = [PhaseDevice.from_config(c, phases) for c in self.virtual]
+        result, shaved = shave_peak(
+            wanted,
+            devices,
+            flow.grid_w,
+            peak,
+            [
+                c.id
+                for c in self.virtual
+                if socs[c.id] > c.min_soc + 0.01 and not full[c.id]
+            ],
+        )
+        dutch = (self.hass.config.language or "").startswith("nl")
+        if shaved > 0:
+            event = self._peak
+            if event is None:
+                names = [c.name for c in self.virtual if abs(result[c.id]) > 1]
+                self._peak = event = {"start": now, "wh": 0.0}
+                self._decisions.async_log(
+                    "battery",
+                    "peak_shaving",
+                    grid=f"{flow.grid_w + sum(wanted.values()):.0f} W",
+                    limit=f"{peak:.0f} W",
+                    names=", ".join(names) or "-",
+                    power=f"{shaved:.0f} W",
+                )
+            event["seen"] = now
+            event["wh"] += shaved * hours
+        elif self._peak is not None and now - self._peak["seen"] >= RELIEF_END_AFTER:
+            event, self._peak = self._peak, None
+            self._decisions.async_log(
+                "battery",
+                "peak_shaving_ended",
+                minutes=max(round((event["seen"] - event["start"]).seconds / 60), 1),
+                energy=f"{event['wh'] / 1000:.2f}".replace(".", "," if dutch else "."),
+            )
         return result
 
     def _phase_limited(

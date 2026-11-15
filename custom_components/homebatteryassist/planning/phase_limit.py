@@ -176,3 +176,49 @@ def relieve(
         if taken > 0.5:
             relieved[index] = round(min(taken, need), 1)
     return {k: round(v, 1) + 0.0 for k, v in result.items()}, relieved
+
+
+def shave_peak(
+    powers: Mapping[str, float],
+    devices: Iterable[PhaseDevice],
+    grid_w: float,
+    peak_w: float,
+    can_discharge: Iterable[str],
+) -> tuple[dict[str, float], float]:
+    """Keep the total grid import (all phases) at or below ``peak_w``.
+
+    ``grid_w`` is the measured grid power without these batteries. Charging is
+    reduced first; then batteries that can discharge take over the rest.
+    Returns the new powers and how much power was shaved off.
+    """
+    result = dict(powers)
+    if peak_w <= 0:
+        return result, 0.0
+    excess = grid_w + sum(result.values()) - peak_w
+    if excess <= 0.5:
+        return result, 0.0
+    need = excess
+    charging = {k: v for k, v in result.items() if v > 0}
+    total_charge = sum(charging.values())
+    if total_charge > 0:
+        cut = min(total_charge, need)
+        for key, value in charging.items():
+            result[key] = value - cut * value / total_charge
+        need -= cut
+    allowed = set(can_discharge)
+    open_ = [d for d in devices if d.id in result and d.id in allowed]
+    while open_ and need > 0.5:
+        share = need / len(open_)
+        still_open = []
+        for d in open_:
+            take = min(share, d.max_discharge_w + min(result[d.id], 0.0))
+            if take <= 0:
+                continue
+            result[d.id] -= take
+            need -= take
+            if d.max_discharge_w + result[d.id] > 0.5:
+                still_open.append(d)
+        if len(still_open) == len(open_):
+            break
+        open_ = still_open
+    return {k: round(v, 1) + 0.0 for k, v in result.items()}, round(excess - need, 1)

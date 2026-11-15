@@ -10,6 +10,10 @@ Modes (more will follow):
 - ``arbitrage_full`` (maximum profit): like arbitrage, but may also discharge
   to the grid when the export price makes that worthwhile.
 
+Peak shaving (``peak_w`` > 0, arbitrage modes): grid import above ``peak_w``
+(all phases together) gets a high extra cost, so the plan keeps energy in
+reserve for expected peaks and does not charge into a peak.
+
 Both arbitrage modes respect ``max_cycles_per_day`` (full cycles = energy
 discharged / capacity, per local day): when the cheapest plan cycles more,
 discharging gets an extra cost per kWh, raised (bisection) until every day is
@@ -59,6 +63,7 @@ MODE_ARBITRAGE_FULL = "arbitrage_full"
 PLAN_MODES = (MODE_NOM, MODE_ARBITRAGE, MODE_ARBITRAGE_FULL)
 ARBITRAGE_MODES = (MODE_ARBITRAGE, MODE_ARBITRAGE_FULL)
 CYCLE_SEARCH_STEPS = 6  # bisection steps for the cycle limit
+PEAK_PENALTY = 5.0  # extra cost per kWh imported above the peak limit
 DEFAULT_PLAN_MODE = MODE_NOM
 
 
@@ -150,6 +155,7 @@ def plan_batteries(
     limits: Mapping[datetime, tuple[float, float]] | None = None,
     export_prices: Sequence[PricePoint] = (),
     max_cycles_per_day: float = 0.0,
+    peak_w: float = 0.0,
 ) -> BatteryPlan | None:
     """Plan the batteries in ``mode`` over the consumption slots; None without batteries.
 
@@ -197,6 +203,7 @@ def plan_batteries(
             mode,
             mode == MODE_ARBITRAGE_FULL,
             max_cycles_per_day,
+            peak_w,
         )
     return _nom(pack, slots, cycle_cost, mode, priced)
 
@@ -221,9 +228,10 @@ def _optimise_limited(
     mode: str,
     allow_export: bool,
     max_cycles: float,
+    peak_w: float = 0.0,
 ) -> BatteryPlan:
     """The cheapest plan within ``max_cycles`` full cycles per day (0 = no limit)."""
-    plan = _optimise(pack, slots, cycle_cost, mode, allow_export)
+    plan = _optimise(pack, slots, cycle_cost, mode, allow_export, peak_w=peak_w)
 
     def within(p: BatteryPlan) -> bool:
         return max(cycles_per_day(p).values(), default=0.0) <= max_cycles + 0.01
@@ -231,13 +239,15 @@ def _optimise_limited(
     if max_cycles <= 0 or within(plan):
         return plan
     low, high = 0.0, 0.5  # extra cost per kWh discharged
-    best = _optimise(pack, slots, cycle_cost, mode, allow_export, high)
+    best = _optimise(pack, slots, cycle_cost, mode, allow_export, high, peak_w)
     while not within(best) and high < 8:
         low, high = high, high * 2
-        best = _optimise(pack, slots, cycle_cost, mode, allow_export, high)
+        best = _optimise(pack, slots, cycle_cost, mode, allow_export, high, peak_w)
     for _ in range(CYCLE_SEARCH_STEPS):
         middle = (low + high) / 2
-        candidate = _optimise(pack, slots, cycle_cost, mode, allow_export, middle)
+        candidate = _optimise(
+            pack, slots, cycle_cost, mode, allow_export, middle, peak_w
+        )
         if within(candidate):
             high, best = middle, candidate
         else:
@@ -304,6 +314,7 @@ def _optimise(
     mode: str,
     allow_export: bool = False,
     penalty: float = 0.0,
+    peak_w: float = 0.0,
 ) -> BatteryPlan:
     """Dynamic programming over the stored energy (backward), then forward.
 
@@ -347,6 +358,11 @@ def _optimise(
                     _grid_cost(net + power, hours, price, export)
                     + abs(power) * hours / 1000 * cycle_cost
                     + (-power * hours / 1000 * penalty if power < 0 else 0.0)
+                    + (
+                        max(net + power - peak_w, 0.0) * hours / 1000 * PEAK_PENALTY
+                        if peak_w > 0
+                        else 0.0
+                    )
                     + future[j]
                 )
                 if cost < best:

@@ -244,3 +244,40 @@ def test_simulator_phase_protection(hass: HomeAssistant) -> None:
     assert sim._phase_relief({"v1": 1000.0}, socs, full, T0 + H, 0.5) == {"v1": 1000.0}
     assert logged[-1][0][1] == "phase_relief_ended"
     assert logged[-1][1]["energy"] == "0,50" or logged[-1][1]["energy"] == "0.50"
+
+
+def test_shave_peak_total() -> None:
+    """Total import above the peak limit: charging stops, then batteries discharge."""
+    from custom_components.homebatteryassist.planning.phase_limit import shave_peak
+
+    devices = [PhaseDevice("a", 0, 2500, 2500), PhaseDevice("b", 1, 2500, 2500)]
+    # 6 kW import + 1 kW charging, limit 5 kW: stop charging, discharge 1 kW.
+    powers, shaved = shave_peak({"a": 1000.0, "b": 0.0}, devices, 6000.0, 5000.0, ["b"])
+    assert powers == {"a": 0.0, "b": -1000.0}
+    assert shaved == 2000.0
+    # Below the limit, or no limit: unchanged.
+    assert shave_peak({"a": 500.0}, devices, 1000.0, 5000.0, ["a"]) == (
+        {"a": 500.0},
+        0.0,
+    )
+    assert shave_peak({"a": 500.0}, devices, 9000.0, 0.0, ["a"]) == ({"a": 500.0}, 0.0)
+
+
+def test_plan_keeps_reserve_for_peak() -> None:
+    """With a peak limit the arbitrage plan saves energy for the expected peak."""
+    batteries = [_battery()]
+    batteries[0].soc = 60.0
+    slots = [
+        ForecastSlot(T0 + i * H, T0 + (i + 1) * H, w, w, "hour")
+        for i, w in enumerate([3000.0, 3000.0, 7000.0])
+    ]
+    prices = [
+        PricePoint(T0 + i * H, T0 + (i + 1) * H, p)
+        for i, p in enumerate([0.40, 0.40, 0.30])
+    ]
+    free = plan_batteries(batteries, slots, {}, prices, mode=MODE_ARBITRAGE)
+    shaved = plan_batteries(
+        batteries, slots, {}, prices, mode=MODE_ARBITRAGE, peak_w=5000.0
+    )
+    assert free.slots[2].grid_w > 5000  # spends it early when it is dearer
+    assert shaved.slots[2].grid_w <= 5000.5  # keeps it for the peak
