@@ -63,7 +63,8 @@
           "max_cycles_per_day": "Max. cycli per dag (arbitrage)",
           "pv_forecast_margin": "Marge op de zonvoorspelling",
           "peak_limit_w": "Piekgrens netafname",
-          "manual_power_w": "Handmatig vermogen"
+          "manual_power_w": "Handmatig vermogen",
+          "pv_correction": "Correctie zonvoorspelling"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -81,9 +82,10 @@
           "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of een terugleverprijsvoorspelling uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
           "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
           "max_cycles_per_day": "Arbitrage laadt en ontlaadt hoogstens zoveel volledige cycli per dag (ontladen energie / capaciteit), om de batterijen te sparen. 0 = geen grens.",
-          "pv_forecast_margin": "De plannen rekenen op zoveel minder zonnestroom dan voorspeld, als buffer tegen te optimistische voorspellingen: waar nodig wordt meer uit het net geladen. Komt bovenop de correctie die uit eerdere voorspellingen is geleerd.",
+          "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen.",
           "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
-          "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen."
+          "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
+          "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet."
         }
       }
     },
@@ -219,6 +221,14 @@
         "discharge": "Ontladen",
         "idle": "Niets doen"
       }
+    },
+    "pv_correction": {
+      "options": {
+        "both": "Automatisch en vaste marge",
+        "auto": "Automatisch (geleerd)",
+        "fixed": "Alleen vaste marge",
+        "off": "Geen correctie"
+      }
     }
   },
   "options": {
@@ -251,7 +261,8 @@
           "max_cycles_per_day": "Max. cycli per dag (arbitrage)",
           "pv_forecast_margin": "Marge op de zonvoorspelling",
           "peak_limit_w": "Piekgrens netafname",
-          "manual_power_w": "Handmatig vermogen"
+          "manual_power_w": "Handmatig vermogen",
+          "pv_correction": "Correctie zonvoorspelling"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -269,9 +280,10 @@
           "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of een terugleverprijsvoorspelling uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
           "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
           "max_cycles_per_day": "Arbitrage laadt en ontlaadt hoogstens zoveel volledige cycli per dag (ontladen energie / capaciteit), om de batterijen te sparen. 0 = geen grens.",
-          "pv_forecast_margin": "De plannen rekenen op zoveel minder zonnestroom dan voorspeld, als buffer tegen te optimistische voorspellingen: waar nodig wordt meer uit het net geladen. Komt bovenop de correctie die uit eerdere voorspellingen is geleerd.",
+          "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen.",
           "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
-          "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen."
+          "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
+          "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet."
         }
       },
       "meter": {

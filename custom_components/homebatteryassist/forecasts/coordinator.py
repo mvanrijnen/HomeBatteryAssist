@@ -49,6 +49,7 @@ from ..const import (
     CONF_PLAN_MODE,
     CONF_PLANNING_HORIZON,
     CONF_PRICE_FORECAST,
+    CONF_PV_CORRECTION,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
     DEFAULT_BALANCE_INTERVAL,
@@ -67,6 +68,9 @@ from ..const import (
     DOMAIN,
     EXPORT_FACTOR,
     EXPORT_MARKET,
+    PV_CORRECTION_AUTO,
+    PV_CORRECTION_BOTH,
+    PV_CORRECTION_FIXED,
     SUBENTRY_TIME_SLOT,
 )
 from ..explain import DecisionLog
@@ -192,7 +196,14 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.cycle_cost: float = entry.options.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
         self.max_cycles: float = entry.options.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES)
-        self.pv_margin: float = entry.options.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN)
+        self.pv_correction: str = entry.options.get(
+            CONF_PV_CORRECTION, PV_CORRECTION_BOTH
+        )
+        self.pv_margin: float = (
+            entry.options.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN)
+            if self.pv_correction in (PV_CORRECTION_FIXED, PV_CORRECTION_BOTH)
+            else 0
+        )
         self.peak_w: float = entry.options.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT)
         self.manual_power: float = entry.options.get(
             CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER
@@ -299,7 +310,12 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             if window.overlaps(p.start, p.end)
         ]
         pv_wh = {
-            start: round(accuracy.correct("pv", wh, start, now), 1)
+            start: round(
+                accuracy.correct("pv", wh, start, now)
+                if self.pv_correction in (PV_CORRECTION_AUTO, PV_CORRECTION_BOTH)
+                else wh,
+                1,
+            )
             for start, wh in pv_wh.items()
             if window.overlaps(start, start + PV_PERIOD)
         }

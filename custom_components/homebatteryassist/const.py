@@ -50,6 +50,17 @@ CONF_EXPORT_FACTOR: Final = "export_price_factor"
 CONF_EXPORT_MODE: Final = "export_price_mode"
 CONF_MAX_CYCLES: Final = "max_cycles_per_day"
 CONF_PV_MARGIN: Final = "pv_forecast_margin"
+CONF_PV_CORRECTION: Final = "pv_correction"
+PV_CORRECTION_AUTO: Final = "auto"  # learned from past forecasts
+PV_CORRECTION_FIXED: Final = "fixed"  # only the fixed margin (%)
+PV_CORRECTION_BOTH: Final = "both"
+PV_CORRECTION_OFF: Final = "off"
+PV_CORRECTION_MODES: Final = (
+    PV_CORRECTION_BOTH,
+    PV_CORRECTION_AUTO,
+    PV_CORRECTION_FIXED,
+    PV_CORRECTION_OFF,
+)
 CONF_PEAK_LIMIT: Final = "peak_limit_w"
 CONF_MANUAL_POWER: Final = "manual_power_w"  # + charge / - discharge
 DEFAULT_MANUAL_POWER: Final = 0

@@ -99,6 +99,7 @@ from .const import (
     CONF_POWER_SENSOR,
     CONF_POWER_SIGN,
     CONF_PRICE_FORECAST,
+    CONF_PV_CORRECTION,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
     CONF_SENSOR,
@@ -137,6 +138,8 @@ from .const import (
     PHASE_IDS,
     PHASE_NONE,
     PHASE_OPTIONS,
+    PV_CORRECTION_BOTH,
+    PV_CORRECTION_MODES,
     SIGN_CHARGING_POSITIVE,
     SIGN_DISCHARGING_POSITIVE,
     SOURCE_MANUAL,
@@ -307,6 +310,16 @@ async def settings_schema(
             default=current.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT),
         ): _number(0, 60000, 100, "W"),
         vol.Required(
+            CONF_PV_CORRECTION,
+            default=current.get(CONF_PV_CORRECTION, PV_CORRECTION_BOTH),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=list(PV_CORRECTION_MODES),
+                mode=SelectSelectorMode.LIST,
+                translation_key=CONF_PV_CORRECTION,
+            )
+        ),
+        vol.Required(
             CONF_PV_MARGIN,
             default=current.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN),
         ): _number(0, 50, 1, "%"),
@@ -441,6 +454,7 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
         user_input.get(CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER)
     )
     options[CONF_PEAK_LIMIT] = int(user_input.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT))
+    options[CONF_PV_CORRECTION] = user_input.get(CONF_PV_CORRECTION, PV_CORRECTION_BOTH)
     options[CONF_PV_MARGIN] = int(user_input.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN))
     options[CONF_MAX_CYCLES] = float(
         user_input.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES)
