@@ -9,6 +9,8 @@ NAME: Final = "HomeBatteryAssist"
 # Grid connection
 CONF_PHASES: Final = "phases"
 CONF_MAX_CURRENT: Final = "max_current_per_phase"
+CONF_METER_SOURCE: Final = "meter_source"  # sensors (default) or a direct meter
+CONF_METER_ADDRESS: Final = "meter_address"  # IP address of a direct meter
 
 PHASE_OPTIONS: Final = (1, 3)
 

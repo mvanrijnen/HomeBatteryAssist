@@ -127,6 +127,7 @@ async def async_setup_entry(
 
     measurements.async_add_listener(_record)
     measurements.async_start()
+    await measurements.async_start_meter()
 
     simulator = VirtualBatterySimulator(
         hass, batteries, measurements, forecast, decisions
@@ -162,6 +163,7 @@ async def async_unload_entry(
     if unloaded:
         data = entry.runtime_data
         data.measurements.async_stop()
+        await data.measurements.async_stop_meter()
         await data.batteries.async_stop()
         # Persist before a reload reads the stores again.
         await data.history.async_stop()

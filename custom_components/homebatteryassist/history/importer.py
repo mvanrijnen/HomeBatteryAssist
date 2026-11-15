@@ -20,9 +20,10 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
-from ..const import NOMINAL_VOLTAGE, SIGN_DISCHARGING_POSITIVE
+from ..const import DOMAIN, NOMINAL_VOLTAGE, SIGN_DISCHARGING_POSITIVE
 from .consumption import ConsumptionHistory, ConsumptionRecord
 
 _LOGGER = logging.getLogger(__name__)
@@ -50,6 +51,11 @@ def formula_terms(
 ) -> list[Term]:
     """The live house consumption formula as weighted sensors."""
     data = entry.runtime_data
+    if data.measurements.direct is not None:
+        # A meter read directly has no history in Home Assistant.
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="import_direct_meter"
+        )
     terms: list[Term] = []
     for main, ret in data.measurements.grid_phases:
         terms.append(Term(main, 1.0, required=True))

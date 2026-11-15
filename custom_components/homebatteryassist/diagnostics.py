@@ -33,6 +33,11 @@ async def async_get_config_entry_diagnostics(
         "inputs": {
             "house_consumption_w": data.measurements.power,
             "missing_grid_sensors": data.measurements.missing,
+            "meter": (
+                data.measurements.direct.diagnostics()
+                if data.measurements.direct
+                else data.measurements.source
+            ),
             "sources": {
                 entity_id: _state(hass, entity_id)
                 for entity_id in data.measurements.source_entity_ids

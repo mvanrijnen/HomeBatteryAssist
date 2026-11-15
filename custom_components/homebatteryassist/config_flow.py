@@ -78,6 +78,8 @@ from .const import (
     CONF_MAX_CURRENT,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MAX_SOC,
+    CONF_METER_ADDRESS,
+    CONF_METER_SOURCE,
     CONF_MIN_BATTERY_POWER,
     CONF_MIN_SOC,
     CONF_PHASE,
@@ -128,6 +130,11 @@ from .const import (
     SUBENTRY_VIRTUAL_BATTERY,
     phase_return_sensor_keys,
     phase_sensor_keys,
+)
+from .inputs.direct import (
+    SOURCE_HOMEWIZARD,
+    SOURCE_SPEEDWIRE,
+    discover_speedwire,
 )
 from .inputs.meters import MeterCandidate, find_meter_candidates
 from .inputs.profiles import BatteryCandidate, find_battery_candidates
@@ -377,6 +384,42 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     return options
 
 
+def _direct_key(source: str | None, address: str | None) -> str:
+    return f"direct:{source}:{address}"
+
+
+def _direct_options(
+    meters: list[MeterCandidate], speedwire: dict[str, int]
+) -> dict[str, tuple[str, str, int | None]]:
+    """Meters that can be read directly: key -> (source, address, phases)."""
+    options: dict[str, tuple[str, str, int | None]] = {}
+    for meter in meters:
+        if meter.profile.direct and meter.address:
+            key = _direct_key(meter.profile.direct, meter.address)
+            options[key] = (meter.profile.direct, meter.address, meter.phases)
+    for address in sorted(speedwire):
+        options[_direct_key(SOURCE_SPEEDWIRE, address)] = (
+            SOURCE_SPEEDWIRE,
+            address,
+            None,
+        )
+    return options
+
+
+def _direct_label(key: str, dutch: bool) -> str:
+    _, source, address = key.split(":", 2)
+    name = {
+        SOURCE_HOMEWIZARD: "HomeWizard P1",
+        SOURCE_SPEEDWIRE: "SMA Home Manager / Energy Meter",
+    }.get(source, source)
+    how = (
+        "rechtstreeks, elke seconde, alleen lezen"
+        if dutch
+        else "read directly, every second, read-only"
+    )
+    return f"{name} {address} ({how})"
+
+
 class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the UI setup of HomeBatteryAssist."""
 
@@ -386,6 +429,7 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
         """Initialize the flow."""
         self._data: dict[str, Any] = {}
         self._meters: dict[str, MeterCandidate] = {}
+        self._direct: dict[str, tuple[str, str, int | None]] = {}
         self._meter_offered = False
         self._from_meter = False
 
@@ -405,8 +449,10 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
         """
         if user_input is None and not self._meter_offered:
             self._meter_offered = True
-            if found := find_meter_candidates(self.hass):
-                self._meters = {c.device_id: c for c in found}
+            found = find_meter_candidates(self.hass)
+            self._meters = {c.device_id: c for c in found}
+            self._direct = _direct_options(found, await discover_speedwire(self.hass))
+            if self._meters or self._direct:
                 return await self.async_step_meter()
         if user_input is not None:
             self._data[CONF_PHASES] = int(user_input[CONF_PHASES])
@@ -423,7 +469,20 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Step 0: a grid meter found in another integration, or manual."""
         if user_input is not None:
-            meter = self._meters.get(user_input[CONF_SOURCE])
+            choice = user_input[CONF_SOURCE]
+            if direct := self._direct.get(choice):
+                source, address, phases = direct
+                self._from_meter = True
+                self._data = {
+                    **{k: v for k, v in self._data.items() if k == CONF_MAX_CURRENT},
+                    CONF_METER_SOURCE: source,
+                    CONF_METER_ADDRESS: address,
+                }
+                if phases:
+                    self._data[CONF_PHASES] = phases
+                    return await self.async_step_max_current()
+                return await self._async_ask_phases()
+            meter = self._meters.get(choice)
             if meter is None:
                 self._from_meter = False
                 return await self.async_step_user()
@@ -435,17 +494,26 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
             }
             return await self.async_step_max_current()
 
-        default = next(iter(self._meters))
-        if self._data:  # reconfigure: keep manual unless a meter matches
-            default = next(
-                (
-                    c.device_id
-                    for c in self._meters.values()
-                    if all(self._data.get(k) == v for k, v in c.sensors.items())
-                    and self._data.get(CONF_PHASES) == c.phases
-                ),
-                SOURCE_MANUAL,
+        default = next(iter(self._direct), None) or next(iter(self._meters))
+        if self._data:  # reconfigure: keep what is used now
+            current = _direct_key(
+                self._data.get(CONF_METER_SOURCE), self._data.get(CONF_METER_ADDRESS)
             )
+            default = (
+                current
+                if current in self._direct
+                else next(
+                    (
+                        c.device_id
+                        for c in self._meters.values()
+                        if all(self._data.get(k) == v for k, v in c.sensors.items())
+                        and self._data.get(CONF_PHASES) == c.phases
+                        and CONF_METER_SOURCE not in self._data
+                    ),
+                    SOURCE_MANUAL,
+                )
+            )
+        dutch = (self.hass.config.language or "").startswith("nl")
         return self.async_show_form(
             step_id="meter",
             data_schema=vol.Schema(
@@ -453,6 +521,12 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
                     vol.Required(CONF_SOURCE, default=default): SelectSelector(
                         SelectSelectorConfig(
                             options=[
+                                *(
+                                    SelectOptionDict(
+                                        value=key, label=_direct_label(key, dutch)
+                                    )
+                                    for key in self._direct
+                                ),
                                 *(
                                     SelectOptionDict(value=c.device_id, label=c.label)
                                     for c in self._meters.values()
@@ -466,6 +540,15 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
                         )
                     )
                 }
+            ),
+        )
+
+    async def _async_ask_phases(self) -> ConfigFlowResult:
+        """The phases of a directly read meter that measures all three."""
+        return self.async_show_form(
+            step_id="user",
+            data_schema=self.add_suggested_values_to_schema(
+                PHASES_SCHEMA, {CONF_PHASES: str(self._data.get(CONF_PHASES, 3))}
             ),
         )
 

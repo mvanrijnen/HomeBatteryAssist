@@ -30,6 +30,8 @@ class MeterProfile:
     marker: str  # translation key of a sensor only grid meters have
     phase_power: str  # translation key of the signed power sensor per phase
     phase_pattern: str  # regex on the unique id, group 1 = phase number
+    address_key: str | None = None  # config entry data key with the IP address
+    direct: str | None = None  # direct source that can read this meter
 
 
 PROFILES: tuple[MeterProfile, ...] = (
@@ -42,6 +44,8 @@ PROFILES: tuple[MeterProfile, ...] = (
         marker="dsmr_version",
         phase_power="active_power_phase_w",
         phase_pattern=r"_active_power_l([123])_w$",
+        address_key="ip_address",
+        direct="homewizard",
     ),
 )
 
@@ -55,6 +59,7 @@ class MeterCandidate:
     model: str | None
     profile: MeterProfile
     sensors: dict[str, str]  # sensor_l1.. -> entity id (signed power)
+    address: str | None = None  # IP address (from the owning config entry)
 
     @property
     def phases(self) -> int:
@@ -101,6 +106,16 @@ def find_meter_candidates(hass: HomeAssistant) -> list[MeterCandidate]:
                 continue
             device = devices.async_get(device_id)
             name = (device.name_by_user or device.name) if device else None
+            address = next(
+                (
+                    entry.data.get(profile.address_key)
+                    for entry_id in (device.config_entries if device else ())
+                    if (entry := hass.config_entries.async_get_entry(entry_id))
+                    and entry.domain == profile.platform
+                    and profile.address_key
+                ),
+                None,
+            )
             candidates.append(
                 MeterCandidate(
                     device_id,
@@ -108,6 +123,7 @@ def find_meter_candidates(hass: HomeAssistant) -> list[MeterCandidate]:
                     device.model if device else None,
                     profile,
                     {CONF_PHASE_SENSORS[n - 1]: found[n] for n in range(1, count + 1)},
+                    address,
                 )
             )
     return candidates

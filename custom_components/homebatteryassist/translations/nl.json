@@ -3,7 +3,7 @@
     "step": {
       "meter": {
         "title": "Netmeter",
-        "description": "Deze netmeters zijn gevonden in andere integraties. Kies er een om zijn metingen per fase te gebruiken, of kies zelf de fasen en sensoren. HomeBatteryAssist leest de meter alleen uit.",
+        "description": "Deze netmeters zijn gevonden. Een meter die rechtstreeks wordt uitgelezen geeft ongeveer elke seconde een waarde (alleen lezen, er verandert niets aan de meter); een meter van een andere integratie gebruikt zijn sensoren. Of kies zelf de fasen en sensoren. HomeBatteryAssist leest de meter alleen uit.",
         "data": {
           "source": "Meter"
         }
@@ -667,6 +667,9 @@
     },
     "manual_needs_value": {
       "message": "Een handmatige correctie heeft een waarde nodig."
+    },
+    "import_direct_meter": {
+      "message": "De netmeter wordt rechtstreeks uitgelezen, dus Home Assistant heeft daar geen geschiedenis van. Kies een sensor met het huisverbruik om over te nemen (source_entity)."
     }
   }
 }

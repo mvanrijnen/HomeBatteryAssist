@@ -43,7 +43,7 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the sensors: main device, battery totals and one device per battery."""
-    phases = len(entry.runtime_data.measurements.grid_phases)
+    phases = entry.runtime_data.measurements.phases
     main: list[SensorEntity] = [
         HouseConsumptionSensor(entry),
         *(FlowSensor(entry, description) for description in FLOW_SENSORS),
@@ -114,7 +114,9 @@ class HouseConsumptionSensor(HomeBatteryAssistEntity, SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Follow updates of the measurements."""
-        self.async_on_remove(self._measurements.async_add_listener(self._updated))
+        self.async_on_remove(
+            self._measurements.async_add_listener(self._updated, entity=True)
+        )
 
     @callback
     def _updated(self, when: datetime, power: float | None) -> None:
@@ -192,7 +194,9 @@ class FlowSensor(HomeBatteryAssistEntity, SensorEntity):
 
     async def async_added_to_hass(self) -> None:
         """Follow updates of the measurements."""
-        self.async_on_remove(self._measurements.async_add_listener(self._updated))
+        self.async_on_remove(
+            self._measurements.async_add_listener(self._updated, entity=True)
+        )
 
     @callback
     def _updated(self, when: datetime, power: float | None) -> None:

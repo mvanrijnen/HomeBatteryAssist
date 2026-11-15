@@ -98,7 +98,8 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
     forecast_data = data.forecast.data
     window = forecast_data.window
     return {
-        "phases": len(data.measurements.grid_phases),
+        "phases": data.measurements.phases,
+        "meter": data.measurements.source,
         "max_current": data.measurements.max_current,
         "phase_limit_a": round(
             phase_limit_w(data.measurements.max_current, data.forecast.phase_margin)

@@ -3,7 +3,7 @@
     "step": {
       "meter": {
         "title": "Grid meter",
-        "description": "These grid meters were found in other integrations. Choose one to use its phase measurements, or choose the phases and sensors yourself. HomeBatteryAssist only reads the meter.",
+        "description": "These grid meters were found. A meter read directly gives a value about every second (read-only, nothing on the meter changes); a meter of another integration uses its sensors. Or choose the phases and sensors yourself. HomeBatteryAssist only reads the meter.",
         "data": {
           "source": "Meter"
         }
@@ -667,6 +667,9 @@
     },
     "manual_needs_value": {
       "message": "A manual correction needs a value."
+    },
+    "import_direct_meter": {
+      "message": "The grid meter is read directly, so Home Assistant has no history of it. Choose a sensor with the house consumption to take over (source_entity)."
     }
   }
 }

@@ -7,6 +7,12 @@ Grid power per phase is either one signed sensor (positive = import, negative =
 export) or an import sensor minus an optional separate export (return) sensor.
 PV sources and excluded loads are taken as absolute values; battery power is
 normalised by ``batteries.battery_power``. The result is never below 0 W.
+
+Instead of grid sensors, the grid power per phase can come from a meter that
+is read directly about once a second (``direct.py``: HomeWizard P1 API, SMA
+Speedwire). Listeners can then ask to be called at most every
+``ENTITY_INTERVAL`` (entities), so the recorder does not store a state per
+second; the history still gets every value.
 """
 
 from __future__ import annotations
@@ -14,7 +20,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import (
@@ -24,11 +30,16 @@ from homeassistant.core import (
     HomeAssistant,
     callback,
 )
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_call_later,
+    async_track_state_change_event,
+)
 from homeassistant.util import dt as dt_util
 
 from ..const import (
     CONF_MAX_CURRENT,
+    CONF_METER_ADDRESS,
+    CONF_METER_SOURCE,
     CONF_PHASE,
     CONF_PHASES,
     CONF_SENSOR,
@@ -42,11 +53,14 @@ from ..const import (
 )
 from ..explain import DecisionLog
 from .batteries import battery_configs, battery_power
+from .direct import DIRECT_SOURCES, SOURCE_SENSORS, DirectMeter, create_meter
 from .units import state_to_watts
 
 _LOGGER = logging.getLogger(__name__)
 
 type MeasurementListener = Callable[[datetime, float | None], None]
+
+ENTITY_INTERVAL = timedelta(seconds=10)  # entities with a direct meter
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,14 +107,28 @@ class MeasurementInput:
         self.hass = hass
         self._decisions = decisions
         phases = entry.data[CONF_PHASES]
+        self.phases: int = phases
         self.max_current: int = entry.data[CONF_MAX_CURRENT]
+        self.source: str = entry.data.get(CONF_METER_SOURCE, SOURCE_SENSORS)
+        self.direct: DirectMeter | None = (
+            create_meter(hass, self.source, entry.data[CONF_METER_ADDRESS])
+            if self.source in DIRECT_SOURCES
+            else None
+        )
         # (import or signed sensor, optional return sensor) per phase
-        self.grid_phases: list[tuple[str, str | None]] = [
-            (entry.data[key], entry.data.get(return_key) or None)
-            for key, return_key in zip(
-                phase_sensor_keys(phases), phase_return_sensor_keys(phases), strict=True
-            )
-        ]
+        self.grid_phases: list[tuple[str, str | None]] = (
+            []
+            if self.direct
+            else [
+                (entry.data[key], entry.data.get(return_key) or None)
+                for key, return_key in zip(
+                    phase_sensor_keys(phases),
+                    phase_return_sensor_keys(phases),
+                    strict=True,
+                )
+            ]
+        )
+        self._unsub_direct: CALLBACK_TYPE | None = None
         self.pv_sources = _subentry_devices(entry, SUBENTRY_PV_SOURCE)
         self.excluded_loads = _subentry_devices(entry, SUBENTRY_EXCLUDED_LOAD)
         self.pv_sensors = [sensor for sensor, _ in self.pv_sources]
@@ -112,6 +140,7 @@ class MeasurementInput:
         self.missing: list[str] = []  # grid sensors without a valid value
         self._was_available: bool | None = None
         self._listeners: list[MeasurementListener] = []
+        self._pending: dict[int, CALLBACK_TYPE] = {}
         self._unsub: CALLBACK_TYPE | None = None
 
     @property
@@ -128,7 +157,14 @@ class MeasurementInput:
             self.hass, self.source_entity_ids, self._async_state_changed
         )
         _LOGGER.debug("Following %s", self.source_entity_ids)
+        if self.direct is not None:
+            self._unsub_direct = self.direct.async_add_listener(self._update)
         self._update(dt_util.utcnow())
+
+    async def async_start_meter(self) -> None:
+        """Start reading the direct meter (if any)."""
+        if self.direct is not None:
+            await self.direct.async_start()
 
     @callback
     def async_stop(self) -> None:
@@ -136,12 +172,55 @@ class MeasurementInput:
         if self._unsub is not None:
             self._unsub()
             self._unsub = None
+        if self._unsub_direct is not None:
+            self._unsub_direct()
+            self._unsub_direct = None
+        for cancel in self._pending.values():
+            cancel()
+        self._pending.clear()
+
+    async def async_stop_meter(self) -> None:
+        """Stop reading the direct meter (if any)."""
+        if self.direct is not None:
+            await self.direct.async_stop()
 
     @callback
-    def async_add_listener(self, listener: MeasurementListener) -> CALLBACK_TYPE:
-        """Call ``listener(time, power)`` whenever the house consumption changes."""
+    def async_add_listener(
+        self, listener: MeasurementListener, *, entity: bool = False
+    ) -> CALLBACK_TYPE:
+        """Call ``listener(time, power)`` whenever the house consumption changes.
+
+        ``entity``: with a direct meter, at most every ``ENTITY_INTERVAL``
+        (and once more with the latest value after a quiet period).
+        """
+        if entity and self.direct is not None:
+            listener = self._throttled(listener)
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener)
+
+    def _throttled(self, listener: MeasurementListener) -> MeasurementListener:
+        key = id(listener)
+        last: list[datetime | None] = [None]
+
+        @callback
+        def call(when: datetime, power: float | None) -> None:
+            if key in self._pending:
+                return  # a delayed call follows anyway
+            if last[0] is None or when - last[0] >= ENTITY_INTERVAL:
+                last[0] = when
+                listener(when, power)
+                return
+
+            @callback
+            def later(_now: datetime) -> None:
+                self._pending.pop(key, None)
+                last[0] = dt_util.utcnow()
+                listener(last[0], self.power)
+
+            delay = (ENTITY_INTERVAL - (when - last[0])).total_seconds()
+            self._pending[key] = async_call_later(self.hass, delay, later)
+
+        return call
 
     def calculate(self) -> tuple[PowerFlow | None, list[str]]:
         """Compute all power flows and the grid sensors without a value.
@@ -151,6 +230,11 @@ class MeasurementInput:
         """
         phase_w: list[float] = []
         missing: list[str] = []
+        if self.direct is not None:
+            if self.direct.available and self.direct.phase_w:
+                phase_w = list(self.direct.phase_w[: self.phases])
+            else:
+                missing.append(f"{self.direct.label} {self.direct.address}")
         for main, ret in self.grid_phases:
             value = self._watts(main)
             returned = self._watts(ret) if ret is not None else 0.0
