@@ -20,22 +20,38 @@ def _weighted(record: ConsumptionRecord) -> tuple[datetime, float, float]:
 
 def hourly_series(
     records: Iterable[ConsumptionRecord], since: datetime
-) -> list[tuple[datetime, float, float]]:
-    """Per clock hour from ``since``: average house consumption and excluded devices (W)."""
+) -> list[tuple[datetime, float, float, float | None, float | None]]:
+    """Per clock hour from ``since``: house, excluded devices, PV and battery (W).
+
+    PV / battery are None for hours without such measurements.
+    """
     hours: dict[datetime, list[float]] = {}
     for record in records:
         start, avg, weight = _weighted(record)
         if start < since or weight <= 0:
             continue
         hour = start.replace(minute=0, second=0, microsecond=0)
-        acc = hours.setdefault(hour, [0.0, 0.0, 0.0])
+        # house, excluded, weight, pv sum, pv weight, battery sum, battery weight
+        acc = hours.setdefault(hour, [0.0] * 7)
         acc[0] += avg * weight
         acc[1] += record.get("excluded_w", 0.0) * weight
         acc[2] += weight
+        if "pv_w" in record:
+            acc[3] += record["pv_w"] * weight
+            acc[4] += weight
+        if "battery_w" in record:
+            acc[5] += record["battery_w"] * weight
+            acc[6] += weight
     return [
-        (hour, round(s / w, 1), round(e / w, 1))
-        for hour, (s, e, w) in sorted(hours.items())
-        if w
+        (
+            hour,
+            round(a[0] / a[2], 1),
+            round(a[1] / a[2], 1),
+            round(a[3] / a[4], 1) if a[4] else None,
+            round(a[5] / a[6], 1) if a[6] else None,
+        )
+        for hour, a in sorted(hours.items())
+        if a[2]
     ]
 
 

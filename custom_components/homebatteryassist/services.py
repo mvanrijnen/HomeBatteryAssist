@@ -6,6 +6,8 @@
   statistics (e.g. as starting or test data).
 - ``adjust_forecast`` / ``clear_forecast_adjustments``: let users, scripts and
   other integrations influence the consumption forecast for a period.
+- ``set_forecast_correction`` / ``reset_forecast_accuracy``: control how the
+  consumption, PV and price forecasts are corrected from their running accuracy.
 
 Both only touch HomeBatteryAssist's own data; no device is ever controlled.
 """
@@ -29,6 +31,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, HISTORY_RETENTION
+from .forecasts.accuracy import ALL_BUCKETS, BUCKET_KEYS, KINDS, MODES
 from .history.importer import async_import_history
 
 SERVICE_RECALCULATE = "recalculate"
@@ -47,6 +50,28 @@ ATTR_FACTOR = "factor"
 ATTR_OFFSET = "offset_w"
 ATTR_POWER = "power_w"
 ATTR_ID = "id"
+SERVICE_SET_CORRECTION = "set_forecast_correction"
+SERVICE_RESET_ACCURACY = "reset_forecast_accuracy"
+ATTR_KIND = "kind"
+ATTR_MODE = "mode"
+ATTR_VALUE = "value"
+ATTR_BUCKET = "bucket"
+KIND_ALL = "all"
+
+SET_CORRECTION_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_KIND): vol.In([*KINDS, KIND_ALL]),
+        vol.Required(ATTR_MODE): vol.In(MODES),
+        vol.Optional(ATTR_VALUE): vol.Coerce(float),
+        vol.Optional(ATTR_BUCKET, default=ALL_BUCKETS): vol.In(
+            [ALL_BUCKETS, *BUCKET_KEYS]
+        ),
+        vol.Optional(ATTR_DURATION): cv.positive_time_period,
+    }
+)
+RESET_ACCURACY_SCHEMA = vol.Schema(
+    {vol.Optional(ATTR_KIND, default=KIND_ALL): vol.In([*KINDS, KIND_ALL])}
+)
 
 
 def _to_utc(value: datetime) -> datetime:
@@ -203,6 +228,62 @@ def async_setup_services(hass: HomeAssistant) -> None:
         await forecast.async_refresh()
         return {"removed": count} if call.return_response else None
 
+    async def _set_correction(call: ServiceCall) -> ServiceResponse:
+        entry = _loaded_entries(hass)[0]
+        forecast = entry.runtime_data.forecast
+        mode = call.data[ATTR_MODE]
+        if mode == "manual" and ATTR_VALUE not in call.data:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="manual_needs_value"
+            )
+        until = (
+            dt_util.utcnow() + call.data[ATTR_DURATION]
+            if ATTR_DURATION in call.data
+            else None
+        )
+        kinds = KINDS if call.data[ATTR_KIND] == KIND_ALL else (call.data[ATTR_KIND],)
+        for kind in kinds:
+            forecast.accuracy.set_mode(
+                kind, mode, call.data.get(ATTR_VALUE), call.data[ATTR_BUCKET], until
+            )
+            entry.runtime_data.decisions.async_log(
+                "forecast",
+                f"correction_mode_{mode}",
+                kind=kind,
+                value=call.data.get(ATTR_VALUE, ""),
+                until=until or "-",
+            )
+        await forecast.async_refresh()
+        return (
+            {kind: forecast.accuracy.settings[kind] for kind in kinds}
+            if call.return_response
+            else None
+        )
+
+    async def _reset_accuracy(call: ServiceCall) -> None:
+        entry = _loaded_entries(hass)[0]
+        forecast = entry.runtime_data.forecast
+        kinds = KINDS if call.data[ATTR_KIND] == KIND_ALL else (call.data[ATTR_KIND],)
+        for kind in kinds:
+            forecast.accuracy.reset(kind)
+            entry.runtime_data.decisions.async_log(
+                "forecast", "accuracy_reset", kind=kind
+            )
+        await forecast.async_refresh()
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SET_CORRECTION,
+        _set_correction,
+        schema=SET_CORRECTION_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_RESET_ACCURACY,
+        _reset_accuracy,
+        schema=RESET_ACCURACY_SCHEMA,
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_ADJUST_FORECAST,

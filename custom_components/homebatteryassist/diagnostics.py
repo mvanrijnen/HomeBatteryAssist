@@ -73,6 +73,14 @@ async def async_get_config_entry_diagnostics(
             "pv_end": forecast.pv_end.isoformat() if forecast.pv_end else None,
             "last_update_success": data.forecast.last_update_success,
         },
+        "accuracy": {
+            kind: {
+                "settings": data.forecast.accuracy.settings[kind],
+                "lead_times": data.forecast.accuracy.summary(kind),
+                "pending_predictions": len(data.forecast.accuracy.predictions[kind]),
+            }
+            for kind in ("consumption", "pv", "price")
+        },
         "decisions": data.decisions.entries[-RECENT_DECISIONS:],
     }
 

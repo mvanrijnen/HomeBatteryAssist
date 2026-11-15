@@ -76,3 +76,44 @@ clear_forecast_adjustments:
       selector:
         text:
           multiple: true
+
+set_forecast_correction:
+  fields:
+    kind:
+      required: true
+      selector:
+        select:
+          options: [consumption, pv, price, all]
+          translation_key: forecast_kind
+    mode:
+      required: true
+      selector:
+        select:
+          options: [learned, "off", manual]
+          translation_key: correction_mode
+    value:
+      example: 0.85
+      selector:
+        number:
+          min: -100000
+          max: 100000
+          step: 0.001
+          mode: box
+    bucket:
+      default: all
+      selector:
+        select:
+          options: [all, 0-1h, 1-6h, 6-24h, 1-2d, 2-3d, 3-5d, 5d+]
+          translation_key: lead_time
+    duration:
+      selector:
+        duration:
+
+reset_forecast_accuracy:
+  fields:
+    kind:
+      default: all
+      selector:
+        select:
+          options: [consumption, pv, price, all]
+          translation_key: forecast_kind

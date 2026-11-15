@@ -1,0 +1,129 @@
+{
+  "entity": {
+    "sensor": {
+      "house_consumption": {
+        "default": "mdi:home-lightning-bolt"
+      },
+      "grid_power": {
+        "default": "mdi:transmission-tower"
+      },
+      "grid_import_power": {
+        "default": "mdi:transmission-tower-import"
+      },
+      "grid_export_power": {
+        "default": "mdi:transmission-tower-export"
+      },
+      "pv_power": {
+        "default": "mdi:solar-power"
+      },
+      "excluded_power": {
+        "default": "mdi:ev-station"
+      },
+      "phase_l1_load": {
+        "default": "mdi:sine-wave"
+      },
+      "phase_l2_load": {
+        "default": "mdi:sine-wave"
+      },
+      "phase_l3_load": {
+        "default": "mdi:sine-wave"
+      },
+      "planning_horizon": {
+        "default": "mdi:calendar-clock"
+      },
+      "last_decision": {
+        "default": "mdi:head-lightbulb-outline"
+      },
+      "consumption_forecast": {
+        "default": "mdi:home-clock"
+      },
+      "consumption_forecast_accuracy": {
+        "default": "mdi:target"
+      },
+      "pv_forecast_accuracy": {
+        "default": "mdi:solar-power-variant-outline"
+      },
+      "price_forecast_accuracy": {
+        "default": "mdi:cash-check"
+      },
+      "battery_soc": {
+        "default": "mdi:battery"
+      },
+      "battery_power": {
+        "default": "mdi:battery-charging"
+      },
+      "battery_status": {
+        "default": "mdi:battery-sync",
+        "state": {
+          "charging": "mdi:battery-charging",
+          "discharging": "mdi:battery-arrow-down",
+          "idle": "mdi:battery-outline"
+        }
+      },
+      "battery_stored_energy": {
+        "default": "mdi:battery-high"
+      },
+      "battery_usable_energy": {
+        "default": "mdi:battery-arrow-down-outline"
+      },
+      "battery_room": {
+        "default": "mdi:battery-arrow-up-outline"
+      },
+      "battery_time_to_target": {
+        "default": "mdi:battery-clock"
+      },
+      "battery_charged_energy": {
+        "default": "mdi:battery-plus-variant"
+      },
+      "battery_discharged_energy": {
+        "default": "mdi:battery-minus-variant"
+      },
+      "battery_last_full_charge": {
+        "default": "mdi:battery-check"
+      },
+      "battery_capacity": {
+        "default": "mdi:battery-heart-variant"
+      },
+      "batteries_soc": {
+        "default": "mdi:home-battery"
+      },
+      "batteries_power": {
+        "default": "mdi:home-battery-outline"
+      },
+      "batteries_stored_energy": {
+        "default": "mdi:home-battery"
+      },
+      "batteries_usable_energy": {
+        "default": "mdi:home-battery-outline"
+      },
+      "batteries_capacity": {
+        "default": "mdi:home-battery"
+      }
+    },
+    "button": {
+      "recalculate": {
+        "default": "mdi:refresh"
+      }
+    }
+  },
+  "services": {
+    "recalculate": {
+      "service": "mdi:refresh"
+    },
+    "import_history": {
+      "service": "mdi:database-import"
+    },
+    "adjust_forecast": {
+      "service": "mdi:tune-variant"
+    },
+    "clear_forecast_adjustments": {
+      "service": "mdi:tune-vertical"
+    },
+    "set_forecast_correction": {
+      "service": "mdi:target-variant"
+    },
+    "reset_forecast_accuracy": {
+      "service": "mdi:restore"
+    }
+  }
+}

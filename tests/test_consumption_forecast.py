@@ -1,4 +1,4 @@
-"""Tests for the consumption forecast, user adjustments and verification."""
+"""Tests for the consumption forecast and user adjustments."""
 
 from datetime import datetime, timedelta
 
@@ -23,15 +23,11 @@ from custom_components.homebatteryassist.forecasts.adjustments import (
 )
 from custom_components.homebatteryassist.forecasts.consumption import (
     ConsumptionProfile,
-    ForecastSlot,
     forecast_consumption,
 )
 from custom_components.homebatteryassist.forecasts.horizon import (
     HorizonLimit,
     PlanningWindow,
-)
-from custom_components.homebatteryassist.forecasts.verification import (
-    ForecastVerification,
 )
 
 UTC = dt_util.UTC
@@ -164,36 +160,6 @@ async def test_forecast_within_window_only(hass: HomeAssistant) -> None:
     assert forecast_consumption([], window, H) == []
 
 
-async def test_verification(hass: HomeAssistant) -> None:
-    """Predictions are compared with own measurements, not with imports."""
-    verification = ForecastVerification(hass, "test")
-    slot = ForecastSlot(MONDAY + 13 * H, MONDAY + 14 * H, 600.0, 600.0, "hour")
-    verification.record([slot], MONDAY)  # 13 h ahead -> also day-ahead
-    later = ForecastSlot(slot.start, slot.end, 500.0, 500.0, "hour")
-    verification.record([later], MONDAY + 12 * H)  # 1 h ahead -> latest only
-
-    imported = [_record(slot.start, 999.0, source="import")]
-    assert verification.evaluate(imported, MONDAY + 15 * H) == 0
-    measured = [_record(slot.start, 400.0)]
-    assert verification.evaluate(measured, MONDAY + 15 * H) == 1
-    assert verification.results == [
-        {
-            "start": slot.start.isoformat(),
-            "actual": 400.0,
-            "latest": 500.0,
-            "day_ahead": 600.0,
-        }
-    ]
-    summary = verification.summary(MONDAY + 15 * H)
-    assert summary["latest"] == {
-        "samples": 1,
-        "mae_w": 100.0,
-        "bias_w": 100.0,
-        "mape": 25.0,
-    }
-    assert summary["day_ahead"]["mae_w"] == 200.0
-
-
 async def _setup(hass: HomeAssistant) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -292,25 +258,3 @@ async def test_forecast_sensor_and_adjust_actions(
         DOMAIN, "clear_forecast_adjustments", {}, blocking=True
     )
     assert data.forecast.adjustments.items == []
-
-
-async def test_accuracy_sensor(
-    hass: HomeAssistant, freezer: FrozenDateTimeFactory
-) -> None:
-    """Accuracy appears once forecast slots have been measured."""
-    freezer.move_to(MONDAY + timedelta(minutes=10))
-    entry = await _setup(hass)
-    data = entry.runtime_data
-    data.history.records = _weeks(2, lambda day, hour: 500.0)
-    await data.forecast.async_refresh()
-    assert _sensor(hass, entry, "consumption_forecast_accuracy").state == "unknown"
-
-    # The 01:00 slot is measured at 600 W; the forecast said 500 W.
-    freezer.move_to(MONDAY + 2 * H + timedelta(minutes=5))
-    data.history.records.append(_record(MONDAY + H, 600.0))
-    await data.forecast.async_refresh()
-    await hass.async_block_till_done()
-    state = _sensor(hass, entry, "consumption_forecast_accuracy")
-    assert float(state.state) == 100.0
-    assert state.attributes["bias_w"] == -100.0
-    assert state.attributes["samples"] == 1

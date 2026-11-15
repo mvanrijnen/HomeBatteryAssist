@@ -4,9 +4,11 @@ Every cycle runs in a fixed order:
 
 1. read the forecast inputs (prices, PV) from other integrations;
 2. determine the planning window: how far ahead we can calculate;
-3. calculate everything else only within that window: the price and PV series
-   and the house consumption forecast (with user adjustments);
-4. remember the predictions and check measured slots afterwards.
+3. check earlier predictions against what really happened (consumption, PV,
+   prices) and update the running accuracy;
+4. calculate everything else only within the window, with the learned (or
+   user-set) corrections: prices, PV and the house consumption forecast;
+5. remember the raw predictions, to check them later.
 
 Refreshes every configured forecast interval (5/15/30/60 min, default 15), on
 the recalculate action/button, and when the price sensor changes
@@ -41,10 +43,10 @@ from ..explain import DecisionLog
 from ..history.consumption import ConsumptionHistory
 from ..inputs.prices import PricePoint, parse_price_forecast
 from ..inputs.solar import PV_PERIOD, async_get_pv_forecast
+from .accuracy import KINDS, ForecastAccuracy
 from .adjustments import AdjustmentStore
 from .consumption import ForecastSlot, forecast_consumption
 from .horizon import HorizonLimit, PlanningWindow, planning_horizon
-from .verification import ForecastVerification
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -90,7 +92,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         decisions: DecisionLog,
         history: ConsumptionHistory,
         adjustments: AdjustmentStore,
-        verification: ForecastVerification,
+        accuracy: ForecastAccuracy,
     ) -> None:
         """Initialize."""
         super().__init__(
@@ -107,8 +109,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self._decisions = decisions
         self.history = history
         self.adjustments = adjustments
-        self.verification = verification
+        self.accuracy = accuracy
         self._last_method: str | None = None
+        self._last_corrections: dict[str, str] = {}
         options = entry.options
         self.max_days: int = options.get(
             CONF_PLANNING_HORIZON, DEFAULT_PLANNING_HORIZON
@@ -139,13 +142,45 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self._explain_window(window)
 
-        # 3. Everything else only within the window.
-        prices = [p for p in prices if window.overlaps(p.start, p.end)]
+        # 3. Check earlier predictions; update the running accuracy.
+        accuracy = self.accuracy
+        accuracy.evaluate_consumption(self.history.records)
+        accuracy.evaluate_pv(self.history.records)
+        accuracy.evaluate_prices(
+            {p.start.isoformat(): p.price for p in prices if not p.estimated}
+        )
+        accuracy.prune(now)
+        accuracy.refresh_stats(now)
+        self._explain_corrections(now)
+
+        # 5 (inputs). Remember the raw predictions of prices and PV.
+        accuracy.record(
+            "price", [(p.start, p.end, p.price) for p in prices if p.estimated], now
+        )
+        accuracy.record(
+            "pv", [(start, start + PV_PERIOD, wh) for start, wh in pv_wh.items()], now
+        )
+
+        # 4. Everything else only within the window, corrected.
+        prices = [
+            PricePoint(
+                p.start,
+                p.end,
+                round(accuracy.correct("price", p.price, p.start, now), 5),
+                p.estimated,
+            )
+            if p.estimated
+            else p
+            for p in prices
+            if window.overlaps(p.start, p.end)
+        ]
         pv_wh = {
-            start: wh
+            start: round(accuracy.correct("pv", wh, start, now), 1)
             for start, wh in pv_wh.items()
             if window.overlaps(start, start + PV_PERIOD)
         }
+        if self.pv_entries:
+            pv_now_w = pv_wh.get(hour)
 
         _LOGGER.debug(
             "Inputs: prices until %s, PV until %s -> window %s - %s (%.1f h, %s); "
@@ -166,15 +201,17 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             timedelta(minutes=self.history.minutes),
             self.adjustments.items,
             now,
+            lambda value, start: accuracy.correct("consumption", value, start, now),
         )
         data = ForecastData(
             window, prices, price_unit, pv_wh, price_end, pv_end, pv_now_w, consumption
         )
         self._explain_method(data)
 
-        # 4. Check the forecast afterwards.
-        self.verification.evaluate(self.history.records, now)
-        self.verification.record(consumption, now)
+        # 5. Remember the raw consumption predictions.
+        accuracy.record(
+            "consumption", [(s.start, s.end, s.raw) for s in consumption], now
+        )
         self.hass.bus.async_fire(EVENT_FORECAST_UPDATED, summarise(data))
         return data
 
@@ -195,6 +232,40 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             return {}
         forecast = await async_get_pv_forecast(self.hass, self.pv_entries)
         return {start: wh for start, wh in forecast.items() if start + PV_PERIOD > now}
+
+    def _explain_corrections(self, now: datetime) -> None:
+        """Explain when the correction of a forecast changes noticeably."""
+        for kind in KINDS:
+            mode = self.accuracy.mode(kind, now)
+            stats = self.accuracy.headline(kind)
+            correction = self.accuracy.correction_for(kind, "6-24h", now)
+            if (
+                mode == "off"
+                or correction is None
+                or stats is None
+                or (mode == "learned" and stats.strength < 1)
+            ):
+                text = "none"
+            elif kind == "pv":
+                text = f"x{correction:.2f}"
+            elif kind == "price":
+                text = f"{correction:+.3f}"
+            else:
+                text = f"{round(correction / 10) * 10:+.0f} W"
+            if self._last_corrections.get(kind) == text:
+                continue
+            first = kind not in self._last_corrections
+            self._last_corrections[kind] = text
+            if first and text == "none":
+                continue  # nothing to explain at start-up
+            self._decisions.async_log(
+                "forecast",
+                f"correction_{kind}" if text != "none" else "correction_none",
+                kind=kind,
+                mode=mode,
+                correction=text,
+                samples=stats.samples if stats else 0,
+            )
 
     def _explain_method(self, data: ForecastData) -> None:
         """Explain on which history the consumption forecast is based."""

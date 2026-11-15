@@ -19,6 +19,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME
+from ..forecasts.accuracy import BUCKET_KEYS, KINDS
 from ..history.profile import day_profile, days_covered, hourly_series
 from ..models import HomeBatteryAssistConfigEntry
 from .batteries import BATTERY_SENSORS, TOTAL_SENSORS
@@ -195,8 +196,23 @@ def websocket_history(
             # [time ms, house consumption W, excluded devices W]
             "hourly": [
                 [int(t.timestamp() * 1000), house, excluded]
-                for t, house, excluded in hourly_series(records, since)
+                for t, house, excluded, _, _ in hourly_series(records, since)
             ],
+            # Last 24 h measured: [time ms, house, excluded, PV, battery] (W)
+            "past": [
+                [int(t.timestamp() * 1000), house, excluded, pv, battery]
+                for t, house, excluded, pv, battery in hourly_series(
+                    records, now - timedelta(hours=24)
+                )
+            ],
+            # Next 48 h PV forecast (corrected), average W per hour
+            "pv_forecast": [
+                [int(t.timestamp() * 1000), wh]
+                for t, wh in sorted(forecast.data.pv_wh.items())
+                if t < now + timedelta(hours=48)
+            ],
+            "has_pv": bool(entry.runtime_data.measurements.pv_sensors),
+            "has_battery": bool(entry.runtime_data.batteries.configs),
             "has_excluded": bool(entry.runtime_data.measurements.excluded_sensors),
             # Next 48 h: [time ms, expected W, before adjustments W]
             "forecast": [
@@ -205,16 +221,24 @@ def websocket_history(
                 if s.start < now + timedelta(hours=48)
             ],
             # Last 24 h checked afterwards: [time ms, measured W, predicted W]
+            # (predicted = the prediction with the shortest lead time).
             "verification": [
                 [
                     int(dt_util.parse_datetime(r["start"]).timestamp() * 1000),
                     r["actual"],
-                    r["latest"],
+                    next((r["pred"][b] for b in BUCKET_KEYS if b in r["pred"]), None),
                 ]
-                for r in forecast.verification.results
+                for r in forecast.accuracy.results["consumption"]
                 if r["start"] >= (now - timedelta(hours=24)).isoformat()
             ],
-            "accuracy": forecast.verification.summary(now),
+            "accuracy": {
+                kind: {
+                    "mode": forecast.accuracy.mode(kind, now),
+                    "lead_times": forecast.accuracy.summary(kind),
+                }
+                for kind in KINDS
+            },
+            "price_unit": forecast.data.price_unit,
             "profile": day_profile(records),
         },
     )

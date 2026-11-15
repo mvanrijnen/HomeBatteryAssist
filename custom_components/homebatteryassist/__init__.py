@@ -10,6 +10,8 @@ This file only wires the modules of a config entry together.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from homeassistant.const import Platform
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
@@ -18,9 +20,9 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import CONF_HISTORY_INTERVAL, DEFAULT_HISTORY_INTERVAL, DOMAIN
 from .explain import DecisionLog
+from .forecasts.accuracy import ForecastAccuracy
 from .forecasts.adjustments import AdjustmentStore
 from .forecasts.coordinator import ForecastCoordinator
-from .forecasts.verification import ForecastVerification
 from .history import ConsumptionHistory
 from .inputs.batteries import BatteryInput
 from .inputs.measurements import MeasurementInput
@@ -51,8 +53,8 @@ async def async_setup_entry(
     await decisions.async_load()
     adjustments = AdjustmentStore(hass, entry.entry_id)
     await adjustments.async_load()
-    verification = ForecastVerification(hass, entry.entry_id)
-    await verification.async_load()
+    accuracy = ForecastAccuracy(hass, entry.entry_id)
+    await accuracy.async_load()
 
     history = ConsumptionHistory(
         hass,
@@ -62,7 +64,7 @@ async def async_setup_entry(
     await history.async_load()
 
     forecast = ForecastCoordinator(
-        hass, entry, decisions, history, adjustments, verification
+        hass, entry, decisions, history, adjustments, accuracy
     )
     await forecast.async_config_entry_first_refresh()
     if forecast.price_entity:
@@ -81,11 +83,19 @@ async def async_setup_entry(
     await batteries.async_start()
 
     measurements = MeasurementInput(hass, entry, decisions)
-    measurements.async_add_listener(
-        lambda when, power: history.add_sample(
-            when, power, measurements.flow.excluded_w if measurements.flow else None
+
+    @callback
+    def _record(when: datetime, power: float | None) -> None:
+        flow = measurements.flow
+        history.add_sample(
+            when,
+            power,
+            flow.excluded_w if flow else None,
+            flow.pv_w if flow and measurements.pv_sensors else None,
+            flow.battery_w if flow and measurements.batteries else None,
         )
-    )
+
+    measurements.async_add_listener(_record)
     measurements.async_start()
 
     entry.runtime_data = HomeBatteryAssistData(
@@ -120,7 +130,7 @@ async def async_unload_entry(
         # Persist before a reload reads the stores again.
         await data.history.async_stop()
         await data.decisions.async_save()
-        await data.forecast.verification.async_save()
+        await data.forecast.accuracy.async_save()
     return unloaded
 
 

@@ -1,3 +1,5 @@
+<img src="images/icon.png" alt="HomeBatteryAssist" width="128" align="right">
+
 # HomeBatteryAssist
 
 A Home Assistant custom integration that gives insight into your home batteries and energy flows, and forecasts what is coming.

@@ -94,6 +94,33 @@
         "30": "30 minuten",
         "60": "60 minuten"
       }
+    },
+    "forecast_kind": {
+      "options": {
+        "consumption": "Verbruik",
+        "pv": "PV",
+        "price": "Prijs",
+        "all": "Alle"
+      }
+    },
+    "correction_mode": {
+      "options": {
+        "learned": "Geleerd",
+        "off": "Uit",
+        "manual": "Handmatig"
+      }
+    },
+    "lead_time": {
+      "options": {
+        "all": "Alle vooruitzichten",
+        "0-1h": "0-1 uur",
+        "1-6h": "1-6 uur",
+        "6-24h": "6-24 uur",
+        "1-2d": "1-2 dagen",
+        "2-3d": "2-3 dagen",
+        "3-5d": "3-5 dagen",
+        "5d+": "Meer dan 5 dagen"
+      }
     }
   },
   "options": {
@@ -376,6 +403,12 @@
       },
       "consumption_forecast_accuracy": {
         "name": "Nauwkeurigheid verbruiksvoorspelling"
+      },
+      "pv_forecast_accuracy": {
+        "name": "Nauwkeurigheid PV-voorspelling"
+      },
+      "price_forecast_accuracy": {
+        "name": "Nauwkeurigheid prijsvoorspelling"
       }
     },
     "button": {
@@ -458,6 +491,42 @@
           "description": "Na(a)m(en) van de aanpassingen die weg moeten."
         }
       }
+    },
+    "set_forecast_correction": {
+      "name": "Correctie voorspelling instellen",
+      "description": "Bepaalt hoe een voorspelling wordt gecorrigeerd op basis van de meelopende nauwkeurigheid: geleerd (standaard), uit (alleen meten) of handmatig met een eigen waarde. Optioneel voor één vooruitzicht en voor een beperkte tijd.",
+      "fields": {
+        "kind": {
+          "name": "Voorspelling",
+          "description": "Welke voorspelling: verbruik, PV, prijs of alle."
+        },
+        "mode": {
+          "name": "Modus",
+          "description": "geleerd: gebruik de meelopende nauwkeurigheid; uit: niet corrigeren; handmatig: gebruik de opgegeven waarde."
+        },
+        "value": {
+          "name": "Waarde",
+          "description": "Handmatige correctie: een factor voor PV (bijv. 0,85), een afwijking in W voor verbruik, een afwijking in de prijseenheid voor prijzen."
+        },
+        "bucket": {
+          "name": "Vooruitzicht",
+          "description": "Alleen voor voorspellingen die zo lang vóór de periode gemaakt zijn (standaard: alle)."
+        },
+        "duration": {
+          "name": "Duur",
+          "description": "Na deze tijd terug naar geleerd (standaard: tot het weer gewijzigd wordt)."
+        }
+      }
+    },
+    "reset_forecast_accuracy": {
+      "name": "Nauwkeurigheid voorspelling wissen",
+      "description": "Vergeet wat er over een voorspelling geleerd is (bijv. na het wisselen van PV-voorspeller) en begint opnieuw te meten.",
+      "fields": {
+        "kind": {
+          "name": "Voorspelling",
+          "description": "Welke voorspelling: verbruik, PV, prijs of alle."
+        }
+      }
     }
   },
   "exceptions": {
@@ -466,6 +535,9 @@
     },
     "end_before_start": {
       "message": "Het einde van de aanpassing moet na het begin liggen."
+    },
+    "manual_needs_value": {
+      "message": "Een handmatige correctie heeft een waarde nodig."
     }
   }
 }

@@ -9,14 +9,17 @@ too little data it falls back step by step:
 3. all days, same hour  ("hour")
 4. overall average  ("overall")
 
-User adjustments (see ``adjustments``) are applied on top. Like every forward
-calculation, it only calculates within the planning window.
+Per slot: profile (``base_w``) -> learned or manual correction (``accuracy``)
+-> user adjustments (``adjustments``, applied last because they are intent).
+``raw_w`` (profile + adjustments, without correction) is what accuracy learns
+from. Like every forward calculation, it only calculates within the planning
+window.
 """
 
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -54,10 +57,16 @@ class ForecastSlot:
 
     start: datetime
     end: datetime
-    power_w: float  # after adjustments
+    power_w: float  # final: corrected profile + adjustments
     base_w: float  # from the history profile
     method: str
     adjustments: tuple[str, ...] = ()  # names of applied adjustments
+    raw_w: float | None = None  # profile + adjustments, without correction
+
+    @property
+    def raw(self) -> float:
+        """The uncorrected prediction (learning input)."""
+        return self.raw_w if self.raw_w is not None else self.power_w
 
 
 class ConsumptionProfile:
@@ -121,8 +130,12 @@ def forecast_consumption(
     step: timedelta,
     adjustments: Iterable[Adjustment] = (),
     now: datetime | None = None,
+    correct: Callable[[float, datetime], float] | None = None,
 ) -> list[ForecastSlot]:
-    """Expected consumption per slot of ``window`` (empty without history)."""
+    """Expected consumption per slot of ``window`` (empty without history).
+
+    ``correct(value, slot_start)`` applies the accuracy correction.
+    """
     if window.is_empty:
         return []
     profile = ConsumptionProfile(records, now or window.start)
@@ -135,6 +148,8 @@ def forecast_consumption(
         if predicted is None:
             continue
         base, method = predicted
-        power, applied = apply_adjustments(base, start, end, adjustments)
-        slots.append(ForecastSlot(start, end, power, base, method, applied))
+        raw, applied = apply_adjustments(base, start, end, adjustments)
+        corrected = round(correct(base, start), 1) if correct else base
+        power, _ = apply_adjustments(corrected, start, end, adjustments)
+        slots.append(ForecastSlot(start, end, power, base, method, applied, raw))
     return slots

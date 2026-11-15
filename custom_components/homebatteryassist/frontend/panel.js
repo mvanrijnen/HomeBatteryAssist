@@ -54,11 +54,23 @@ const TEXT = {
     measured: "Measured",
     predicted: "Was expected",
     expectedLine: "Expected",
+    houseMeasured: "House",
+    houseExpected: "House expected",
+    pvMeasured: "PV",
+    pvExpected: "PV expected",
+    batteryLine: "Battery (+ charging / − discharging)",
+    flowTitle: "Energy flows and expected consumption (past 24 h, next 48 h)",
     now: "now",
-    accuracy: "Average deviation last 7 days: {mae} ({mape}%)",
+    accuracy: "Average deviation (shortest lead time): {mae} ({mape}%)",
     notVerified: "Not checked yet: measured slots are compared with the forecast as time passes.",
     noForecast: "No consumption forecast yet.",
     reachTitle: "How far the forecasts reach",
+    accTitle: "Forecast accuracy (running, last weeks)",
+    accHelp: "Per lead time: average deviation, and the correction applied to new forecasts.",
+    accKinds: { consumption: "Consumption", pv: "PV", price: "Prices" },
+    accModes: { learned: "learned", off: "off", manual: "manual" },
+    accNoData: "No comparisons yet: forecasts are checked as soon as the real values are known.",
+    leads: { "0-1h": "0-1 h", "1-6h": "1-6 h", "6-24h": "6-24 h", "1-2d": "1-2 d", "2-3d": "2-3 d", "3-5d": "3-5 d", "5d+": "5+ d" },
     reachConsumption: "Consumption",
     reachPrice: "Prices",
     reachPv: "PV",
@@ -120,11 +132,23 @@ const TEXT = {
     measured: "Gemeten",
     predicted: "Was verwacht",
     expectedLine: "Verwacht",
+    houseMeasured: "Huis",
+    houseExpected: "Huis verwacht",
+    pvMeasured: "PV",
+    pvExpected: "PV verwacht",
+    batteryLine: "Batterij (+ laden / − ontladen)",
+    flowTitle: "Energiestromen en verwacht verbruik (afgelopen 24 uur, komende 48 uur)",
     now: "nu",
-    accuracy: "Gemiddelde afwijking afgelopen 7 dagen: {mae} ({mape}%)",
+    accuracy: "Gemiddelde afwijking (kortste vooruitzicht): {mae} ({mape}%)",
     notVerified: "Nog niet gecontroleerd: gemeten tijdvakken worden in de loop van de tijd met de voorspelling vergeleken.",
     noForecast: "Nog geen verbruiksvoorspelling.",
     reachTitle: "Hoe ver de voorspellingen reiken",
+    accTitle: "Nauwkeurigheid voorspellingen (meelopend, afgelopen weken)",
+    accHelp: "Per vooruitzicht: gemiddelde afwijking, en de correctie die op nieuwe voorspellingen wordt toegepast.",
+    accKinds: { consumption: "Verbruik", pv: "PV", price: "Prijzen" },
+    accModes: { learned: "geleerd", off: "uit", manual: "handmatig" },
+    accNoData: "Nog geen vergelijkingen: voorspellingen worden gecontroleerd zodra de werkelijke waarden bekend zijn.",
+    leads: { "0-1h": "0-1 u", "1-6h": "1-6 u", "6-24h": "6-24 u", "1-2d": "1-2 d", "2-3d": "2-3 d", "3-5d": "3-5 d", "5d+": "5+ d" },
     reachConsumption: "Verbruik",
     reachPrice: "Prijzen",
     reachPv: "PV",
@@ -191,6 +215,7 @@ const STYLE = `
   .chart .axis { fill: var(--secondary-text-color); font-size: 11px; }
   .chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; }
   .chart .line.dashed { stroke-dasharray: 5 4; stroke-width: 1.5; }
+  .chart .zero { stroke: var(--secondary-text-color); stroke-width: 1; opacity: .6; }
   .chart .now { stroke: var(--secondary-text-color); stroke-width: 1; stroke-dasharray: 2 3; }
   .chart.wide { grid-column: 1 / -1; }
   .chart { position: relative; }
@@ -204,6 +229,11 @@ const STYLE = `
   .tip .r { display: flex; justify-content: space-between; gap: 12px; }
   .tip i { display: inline-block; width: 8px; height: 8px; border-radius: 4px; margin-right: 6px; }
   .reach { display: grid; gap: 8px; margin-top: 12px; }
+  .acc { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .acc th, .acc td { padding: 6px 4px; text-align: right; border-bottom: 1px solid var(--divider-color); }
+  .acc th:first-child, .acc td:first-child { text-align: left; }
+  .acc td small { display: block; color: var(--secondary-text-color); }
+  .acc-wrap { overflow-x: auto; }
   .reach .row { display: grid; grid-template-columns: 90px 1fr 170px; gap: 8px; align-items: center; }
   .reach .bar { height: 12px; }
   .legend { display: flex; gap: 16px; font-size: 13px; color: var(--secondary-text-color); margin-top: 4px; }
@@ -446,14 +476,18 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const W = id === "forecast" ? 1232 : 600, H = 190, L = 46, R = 8, T = 8, B = 24;
     const all = series.flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
     const yMax = this._niceMax(Math.max(...all, 0));
+    const low = Math.min(...all, 0);
+    const yMin = low < 0 ? -this._niceMax(-low) : 0;
     const x = (v) => L + ((v - xMin) / (xMax - xMin || 1)) * (W - L - R);
-    const y = (v) => T + (1 - v / yMax) * (H - T - B);
+    const y = (v) => T + (1 - (v - yMin) / (yMax - yMin)) * (H - T - B);
     let svg = "";
-    for (let i = 0; i <= 4; i++) {
-      const v = (yMax / 4) * i;
+    const steps = 4;
+    for (let i = 0; i <= steps; i++) {
+      const v = yMin + ((yMax - yMin) / steps) * i;
       svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>`;
       svg += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${esc(this._power(v))}</text>`;
     }
+    if (yMin < 0) svg += `<line class="zero" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
     for (const [v, label] of ticks) {
       svg += `<text class="axis" x="${x(v)}" y="${H - 6}" text-anchor="middle">${esc(label)}</text>`;
     }
@@ -474,7 +508,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     }
     svg += `<g class="hover" style="display:none"><line class="cursor" y1="${T}" y2="${H - B}"/>
       ${series.map((s, i) => `<circle r="3.5" data-i="${i}" style="fill:${s.color}"/>`).join("")}</g>`;
-    this._charts[id] = { series, xMin, xMax, yMax, W, H, L, R, T, B, gapLimit, xFmt };
+    this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt };
     return `<svg data-chart="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${svg}</svg>
       <div class="tip" data-tip="${id}" hidden></div>`;
   }
@@ -535,7 +569,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       return;
     }
     const sx = (v) => c.L + ((v - c.xMin) / (c.xMax - c.xMin || 1)) * (c.W - c.L - c.R);
-    const sy = (v) => c.T + (1 - v / c.yMax) * (c.H - c.T - c.B);
+    const sy = (v) => c.T + (1 - (v - c.yMin) / (c.yMax - c.yMin)) * (c.H - c.T - c.B);
     layer.style.display = "";
     const cursor = layer.querySelector(".cursor");
     cursor.setAttribute("x1", sx(anchor[0]));
@@ -617,7 +651,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const verified = h.verification || [];
     const fc = h.forecast || [];
     let forecastChart;
-    if (!fc.length && !verified.length) {
+    const past = h.past || [];
+    const pvFc = h.pv_forecast || [];
+    const pvColor = "#fbc02d";
+    const batteryColor = "var(--success-color, #43a047)";
+    if (!fc.length && !verified.length && !past.length) {
       forecastChart = `<div class="muted">${esc(t.noForecast)}</div>`;
     } else {
       const fMin = now - 24 * 3600e3;
@@ -633,9 +671,21 @@ class HomeBatteryAssistPanel extends HTMLElement {
       forecastChart = this._chart(
         "forecast",
         [
-          { points: verified.map(([ts, actual]) => [ts, actual]), color: primary, label: t.measured },
+          { points: past.map(([ts, house]) => [ts, house]), color: primary, label: t.houseMeasured },
           { points: verified.map(([ts, , predicted]) => [ts, predicted]), color: secondary, dashed: true, label: t.predicted },
-          { points: fc.map(([ts, power]) => [ts, power]), color: forecastColor, label: t.expectedLine },
+          { points: fc.map(([ts, power]) => [ts, power]), color: forecastColor, label: t.houseExpected },
+          ...(h.has_pv || pvFc.length
+            ? [
+                { points: past.map(([ts, , , pv]) => [ts, pv]), color: pvColor, label: t.pvMeasured },
+                { points: pvFc, color: pvColor, dashed: true, label: t.pvExpected },
+              ]
+            : []),
+          ...(h.has_battery
+            ? [{ points: past.map(([ts, , , , battery]) => [ts, battery]), color: batteryColor, label: t.batteryLine }]
+            : []),
+          ...(h.has_excluded
+            ? [{ points: past.map(([ts, , excluded]) => [ts, excluded || null]), color: excludedColor, label: t.excludedLine }]
+            : []),
         ],
         fMin,
         fMax,
@@ -646,24 +696,66 @@ class HomeBatteryAssistPanel extends HTMLElement {
       );
       this._charts.forecast.gapLimit = slot;
     }
-    const acc = h.accuracy?.latest;
-    const accText =
-      acc && acc.samples
-        ? t.accuracy.replace("{mae}", this._power(acc.mae_w)).replace("{mape}", acc.mape ?? "–")
-        : t.notVerified;
-    const forecastLegend = `<div class="legend"><span><i style="background:${primary}"></i>${esc(t.measured)}</span>
-      <span><i style="background:${secondary}"></i>${esc(t.predicted)}</span>
-      <span><i style="background:${forecastColor}"></i>${esc(t.expectedLine)}</span></div>`;
+    const buckets = Object.values(h.accuracy?.consumption?.lead_times || {});
+    const acc = buckets.find((b) => b.samples);
+    const accText = acc
+      ? t.accuracy.replace("{mae}", this._power(acc.mae)).replace("{mape}", acc.mape ?? "–")
+      : t.notVerified;
+    const item = (color, label) => `<span><i style="background:${color}"></i>${esc(label)}</span>`;
+    const forecastLegend = `<div class="legend" style="flex-wrap:wrap">${[
+      item(primary, t.houseMeasured),
+      item(secondary, t.predicted),
+      item(forecastColor, t.houseExpected),
+      h.has_pv || pvFc.length ? item(pvColor, `${t.pvMeasured} / ${t.pvExpected}`) : "",
+      h.has_battery ? item(batteryColor, t.batteryLine) : "",
+      h.has_excluded ? item(excludedColor, t.excludedLine) : "",
+    ].join("")}</div>`;
 
     const info = t.daysOfData.replace("{days}", Math.round(h.days_covered)) + (h.imported ? ` · ${t.imported}` : "");
     return `<div class="card"><h2>${esc(t.consumption)} · ${esc(info)}</h2><div class="charts">
-      <div class="chart wide"><h3>${esc(t.forecastTitle)}</h3>${forecastChart}${forecastLegend}
+      <div class="chart wide"><h3>${esc(t.flowTitle)}</h3>${forecastChart}${forecastLegend}
         <div class="muted">${esc(accText)}</div></div>
       <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}</div>
       <div class="chart"><h3>${esc(t.avgDay)}</h3>${avg}
         <div class="legend"><span><i style="background:${primary}"></i>${esc(t.weekday)}</span>
         <span><i style="background:${accent}"></i>${esc(t.weekend)}</span></div></div>
     </div></div>`;
+  }
+
+  _accuracy(t) {
+    const acc = this._history?.accuracy;
+    if (!acc) return "";
+    const unit = this._history.price_unit || "";
+    const leads = Object.keys(t.leads);
+    const any = Object.values(acc).some((k) => Object.values(k.lead_times).some((b) => b.samples));
+    const fmt = (kind, v) => {
+      if (v == null) return "–";
+      if (kind === "price") return `${v.toFixed(3)} ${unit}`;
+      return kind === "pv" ? `${Math.round(v)} Wh` : `${Math.round(v)} W`;
+    };
+    const corr = (kind, b) => {
+      if (b.correction == null || (kind === "pv" ? b.correction === 1 : b.correction === 0)) return "";
+      if (kind === "pv") return `×${b.correction.toFixed(2)}`;
+      return kind === "price" ? `${b.correction >= 0 ? "+" : ""}${b.correction.toFixed(3)}` : `${b.correction >= 0 ? "+" : ""}${Math.round(b.correction)} W`;
+    };
+    const rows = Object.entries(acc)
+      .map(([kind, k]) => {
+        const cells = leads
+          .map((lead) => {
+            const b = k.lead_times[lead];
+            if (!b || !b.samples) return "<td>–</td>";
+            const c = corr(kind, b);
+            return `<td title="${b.samples} · bias ${fmt(kind, b.bias)}${b.mape != null ? ` · ${b.mape}%` : ""}">${esc(fmt(kind, b.mae))}${c ? `<small>${esc(c)}</small>` : ""}</td>`;
+          })
+          .join("");
+        return `<tr><td>${esc(t.accKinds[kind])}<small>${esc(t.accModes[k.mode] || k.mode)}</small></td>${cells}</tr>`;
+      })
+      .join("");
+    const head = `<tr><th></th>${leads.map((l) => `<th>${esc(t.leads[l])}</th>`).join("")}</tr>`;
+    const body = any
+      ? `<div class="acc-wrap"><table class="acc">${head}${rows}</table></div><div class="muted">${esc(t.accHelp)}</div>`
+      : `<div class="muted">${esc(t.accNoData)}</div>`;
+    return `<div class="card"><h2>${esc(t.accTitle)}</h2>${body}</div>`;
   }
 
   _decisions(s, t) {
@@ -688,6 +780,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         this._batteries(s, t),
         this._phases(s, t),
         this._planning(s, t),
+        this._accuracy(t),
         this._decisions(s, t),
       ].join("");
     }

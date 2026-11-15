@@ -33,6 +33,7 @@ async def test_diagnostics(hass: HomeAssistant) -> None:
         "batteries",
         "history",
         "forecasts",
+        "accuracy",
         "decisions",
     }
     assert diag["config"]["data"]["sensor_l1"] == "sensor.l1"

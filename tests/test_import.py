@@ -202,6 +202,9 @@ async def test_import_history_action(
         (recent.isoformat(), 15, 500.0),  # grid 300 + discharging 200
     ]
     assert entry.runtime_data.decisions.latest["key"] == "history_imported"
+    # PV and battery (+ charging) are kept alongside.
+    assert records[0]["pv_w"] == 500.0
+    assert records[1]["battery_w"] == -200.0  # the old sensor reported discharging
 
 
 async def test_import_from_source_entity(

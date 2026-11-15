@@ -13,7 +13,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfPower
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity import Entity
@@ -50,7 +50,10 @@ async def async_setup_entry(
         *(FlowSensor(entry, phase_load_description(i)) for i in range(phases)),
         PlanningHorizonSensor(entry),
         ConsumptionForecastSensor(entry),
-        ConsumptionForecastAccuracySensor(entry),
+        *(
+            ForecastAccuracySensor(entry, kind)
+            for kind in ("consumption", "pv", "price")
+        ),
         LastDecisionSensor(entry),
     ]
     batteries = entry.runtime_data.batteries
@@ -308,42 +311,53 @@ class ConsumptionForecastSensor(
         }
 
 
-class ConsumptionForecastAccuracySensor(
+class ForecastAccuracySensor(
     HomeBatteryAssistEntity, CoordinatorEntity[ForecastCoordinator], SensorEntity
 ):
-    """Mean absolute error of the consumption forecast over the last 7 days."""
+    """Running mean absolute error of one forecast, per lead time in attributes."""
 
-    _attr_device_class = SensorDeviceClass.POWER
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_native_unit_of_measurement = UnitOfPower.WATT
     _attr_entity_category = EntityCategory.DIAGNOSTIC
 
-    def __init__(self, entry: HomeBatteryAssistConfigEntry) -> None:
-        """Initialize."""
+    def __init__(self, entry: HomeBatteryAssistConfigEntry, kind: str) -> None:
+        """Initialize for ``kind``: consumption, pv or price."""
         CoordinatorEntity.__init__(self, entry.runtime_data.forecast)
-        HomeBatteryAssistEntity.__init__(self, entry, "consumption_forecast_accuracy")
+        HomeBatteryAssistEntity.__init__(self, entry, f"{kind}_forecast_accuracy")
+        self._kind = kind
+        # The error of: consumption in W, PV energy per hour in Wh (an error,
+        # not a meter reading, so no energy device class), price in its unit.
+        if kind == "consumption":
+            self._attr_device_class = SensorDeviceClass.POWER
+            self._attr_native_unit_of_measurement = UnitOfPower.WATT
+        elif kind == "pv":
+            self._attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
+        else:
+            self._attr_suggested_display_precision = 4
+
+    @property
+    def native_unit_of_measurement(self) -> str | None:
+        """Price errors are in the unit of the price sensor."""
+        if self._kind == "price":
+            return self.coordinator.data.price_unit
+        return self._attr_native_unit_of_measurement
 
     @property
     def native_value(self) -> float | None:
-        """Mean absolute error (W) of the latest predictions."""
-        return self.coordinator.verification.summary(dt_util.utcnow())["latest"][
-            "mae_w"
-        ]
+        """Mean absolute error of the shortest lead time with samples."""
+        headline = self.coordinator.accuracy.headline(self._kind)
+        if headline is None or headline.mae is None:
+            return None
+        return round(headline.mae, 4 if self._kind == "price" else 1)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Bias, MAPE and the day-ahead accuracy."""
-        summary = self.coordinator.verification.summary(dt_util.utcnow())
-        latest, day_ahead = summary["latest"], summary["day_ahead"]
+        """Mode and running accuracy and correction per lead time."""
+        accuracy = self.coordinator.accuracy
         return {
-            "period_days": summary["period_days"],
-            "samples": latest["samples"],
-            "bias_w": latest["bias_w"],
-            "mape": latest["mape"],
-            "day_ahead_mae_w": day_ahead["mae_w"],
-            "day_ahead_bias_w": day_ahead["bias_w"],
-            "day_ahead_mape": day_ahead["mape"],
-            "day_ahead_samples": day_ahead["samples"],
+            "mode": accuracy.mode(self._kind, dt_util.utcnow()),
+            "manual": accuracy.settings[self._kind]["manual"] or None,
+            "manual_until": accuracy.settings[self._kind]["until"],
+            "lead_times": accuracy.summary(self._kind),
         }
 
 

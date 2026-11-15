@@ -84,3 +84,13 @@ async def test_excluded_power_recorded(hass: HomeAssistant) -> None:
     history.add_sample(T0 + timedelta(minutes=15), 400.0, None)
     record = history.close_interval(T0 + timedelta(minutes=30))
     assert "excluded_w" not in record
+
+
+async def test_pv_and_battery_recorded(hass: HomeAssistant) -> None:
+    """Measured PV and battery power are averaged per interval."""
+    history = ConsumptionHistory(hass, "test", 15)
+    history.add_sample(T0, 500.0, None, 1000.0, 400.0)
+    history.add_sample(T0 + timedelta(minutes=5), 500.0, None, 2000.0, -200.0)
+    record = history.close_interval(T0 + timedelta(minutes=15))
+    assert record["pv_w"] == round((1000 * 5 + 2000 * 10) / 15, 1)
+    assert record["battery_w"] == 0.0  # 400 W for 5 min, -200 W for 10 min

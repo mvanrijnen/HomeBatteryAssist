@@ -28,6 +28,8 @@ class ConsumptionRecord(TypedDict):
     coverage: float  # fraction of the interval with a valid measurement (0..1)
     source: NotRequired[str]  # "import" for records imported from statistics
     excluded_w: NotRequired[float]  # average power of excluded devices (e.g. EV)
+    pv_w: NotRequired[float]  # average measured PV production
+    battery_w: NotRequired[float]  # average battery power, + charging / - discharging
 
 
 class ConsumptionHistory:
@@ -52,8 +54,14 @@ class ConsumptionHistory:
         self._last_time: datetime | None = None
         self._last_power: float | None = None
         self._last_excluded: float | None = None
+        self._last_pv: float | None = None
+        self._last_battery: float | None = None
         self._energy_ws = 0.0
         self._excluded_ws = 0.0
+        self._pv_ws = 0.0
+        self._pv_s = 0.0
+        self._battery_ws = 0.0
+        self._battery_s = 0.0
         self._measured_s = 0.0
         self._unsub_timer: CALLBACK_TYPE | None = None
 
@@ -94,7 +102,12 @@ class ConsumptionHistory:
 
     @callback
     def add_sample(
-        self, when: datetime, power: float | None, excluded: float | None = None
+        self,
+        when: datetime,
+        power: float | None,
+        excluded: float | None = None,
+        pv: float | None = None,
+        battery: float | None = None,
     ) -> None:
         """Register new values (W): house consumption and excluded devices.
 
@@ -110,6 +123,8 @@ class ConsumptionHistory:
         self._integrate(when)
         self._last_power = power
         self._last_excluded = excluded
+        self._last_pv = pv
+        self._last_battery = battery
 
     @callback
     def close_interval(self, when: datetime) -> ConsumptionRecord | None:
@@ -155,6 +170,10 @@ class ConsumptionHistory:
             )
             if self._excluded_ws > 0:
                 record["excluded_w"] = round(self._excluded_ws / self._measured_s, 1)
+            if self._pv_s > 0:
+                record["pv_w"] = round(self._pv_ws / self._pv_s, 1)
+            if self._battery_s > 0:
+                record["battery_w"] = round(self._battery_ws / self._battery_s, 1)
             self.records.append(record)
             self.prune(self._interval_start)
             self._store.async_delay_save(self._data, SAVE_DELAY)
@@ -162,6 +181,10 @@ class ConsumptionHistory:
 
         self._energy_ws = 0.0
         self._excluded_ws = 0.0
+        self._pv_ws = 0.0
+        self._pv_s = 0.0
+        self._battery_ws = 0.0
+        self._battery_s = 0.0
         self._measured_s = 0.0
         return record
 
@@ -171,6 +194,12 @@ class ConsumptionHistory:
             self._energy_ws += self._last_power * seconds
             self._excluded_ws += (self._last_excluded or 0.0) * seconds
             self._measured_s += seconds
+            if self._last_pv is not None:
+                self._pv_ws += self._last_pv * seconds
+                self._pv_s += seconds
+            if self._last_battery is not None:
+                self._battery_ws += self._last_battery * seconds
+                self._battery_s += seconds
         self._last_time = when
 
     def prune(self, now: datetime) -> None:

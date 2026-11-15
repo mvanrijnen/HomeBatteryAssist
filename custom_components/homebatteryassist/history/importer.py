@@ -96,31 +96,45 @@ def to_records(
     period: timedelta,
     minutes: int,
     excluded: dict[datetime, float] | None = None,
+    pv: dict[datetime, float] | None = None,
+    battery: dict[datetime, float] | None = None,
 ) -> list[ConsumptionRecord]:
     """Group period values into intervals of ``minutes`` (never finer than ``period``).
 
-    ``excluded``: power of excluded devices per period, averaged alongside.
+    ``excluded`` / ``pv``: power of excluded devices / PV per period, averaged
+    alongside.
     """
     step = max(timedelta(minutes=minutes), period)
     seconds = step.total_seconds()
-    buckets: dict[datetime, list[tuple[float, float]]] = {}
+    buckets: dict[datetime, list[tuple[float, float, float | None, float | None]]] = {}
     for start, value in values.items():
         ts = start.timestamp()
         bucket = dt_util.utc_from_timestamp(ts - ts % seconds)
         other = (excluded or {}).get(start, 0.0)
-        buckets.setdefault(bucket, []).append((value, other))
+        buckets.setdefault(bucket, []).append(
+            (
+                value,
+                other,
+                pv.get(start) if pv is not None else None,
+                battery.get(start) if battery is not None else None,
+            )
+        )
     per_bucket = step / period
     records: list[ConsumptionRecord] = []
     for start, vals in sorted(buckets.items()):
         record = ConsumptionRecord(
             start=start.isoformat(),
             minutes=int(seconds // 60),
-            avg_w=round(sum(v for v, _ in vals) / len(vals), 1),
+            avg_w=round(sum(v[0] for v in vals) / len(vals), 1),
             coverage=round(min(len(vals) / per_bucket, 1.0), 3),
             source=SOURCE_IMPORT,
         )
-        if (other := sum(o for _, o in vals)) > 0:
+        if (other := sum(v[1] for v in vals)) > 0:
             record["excluded_w"] = round(other / len(vals), 1)
+        if pv_values := [v[2] for v in vals if v[2] is not None]:
+            record["pv_w"] = round(sum(pv_values) / len(pv_values), 1)
+        if battery_values := [v[3] for v in vals if v[3] is not None]:
+            record["battery_w"] = round(sum(battery_values) / len(battery_values), 1)
         records.append(record)
     return records
 
@@ -161,6 +175,41 @@ def merge(
         skipped = len(imported) - len(added)
     history.records = sorted([*kept, *added], key=lambda r: r["start"])
     return len(added), skipped
+
+
+def _pv_series(
+    terms: list[Term], series: Series, starts: list[datetime]
+) -> dict[datetime, float] | None:
+    """Measured PV per period (only where a PV sensor has a value)."""
+    if not terms:
+        return None
+    return {
+        start: value
+        for start, value in combine(
+            [Term(t.entity_id, 1.0, absolute=True, required=True) for t in terms[:1]]
+            + terms[1:],
+            series,
+            starts,
+        ).items()
+    }
+
+
+def _optional_series(
+    terms: list[Term], series: Series, starts: list[datetime]
+) -> dict[datetime, float] | None:
+    """Sum of ``terms`` per period, only where at least one has a value."""
+    if not terms:
+        return None
+    result: dict[datetime, float] = {}
+    for start in starts:
+        values = [
+            t.weight * v
+            for t in terms
+            if (v := series.get(t.entity_id, {}).get(start)) is not None
+        ]
+        if values:
+            result[start] = round(sum(values), 1)
+    return result
 
 
 async def _async_fetch(
@@ -231,7 +280,17 @@ async def async_import_history(
         Term(e, 1.0, absolute=True)
         for e in entry.runtime_data.measurements.excluded_sensors
     ]
-    entity_ids = {t.entity_id for t in [*terms, *excluded_terms]}
+    battery_ids = {b.power_sensor for b in entry.runtime_data.batteries.configs} | set(
+        battery_power_history
+    )
+    # In the formula a battery term adds discharging; + charging is the negative.
+    battery_terms = [
+        Term(t.entity_id, -t.weight) for t in terms if t.entity_id in battery_ids
+    ]
+    pv_terms = [
+        Term(e, 1.0, absolute=True) for e in entry.runtime_data.measurements.pv_sensors
+    ]
+    entity_ids = {t.entity_id for t in [*terms, *excluded_terms, *pv_terms]}
     now = dt_util.utcnow()
     start = history.interval_start(now - timedelta(days=days))
     short_start = max(start, history.interval_start(now - SHORT_TERM_KEPT))
@@ -247,6 +306,8 @@ async def async_import_history(
             LONG_TERM,
             history.minutes,
             combine(excluded_terms, series, starts),
+            _pv_series(pv_terms, series, starts),
+            _optional_series(battery_terms, series, starts),
         )
     series = await _async_fetch(hass, entity_ids, short_start, end_short, "5minute")
     starts = sorted({s for values in series.values() for s in values})
@@ -255,6 +316,8 @@ async def async_import_history(
         SHORT_TERM,
         history.minutes,
         combine(excluded_terms, series, starts),
+        _pv_series(pv_terms, series, starts),
+        _optional_series(battery_terms, series, starts),
     )
 
     added, skipped = merge(history, records, replace=replace)

@@ -94,6 +94,33 @@
         "30": "30 minutes",
         "60": "60 minutes"
       }
+    },
+    "forecast_kind": {
+      "options": {
+        "consumption": "Consumption",
+        "pv": "PV",
+        "price": "Price",
+        "all": "All"
+      }
+    },
+    "correction_mode": {
+      "options": {
+        "learned": "Learned",
+        "off": "Off",
+        "manual": "Manual"
+      }
+    },
+    "lead_time": {
+      "options": {
+        "all": "All lead times",
+        "0-1h": "0-1 hour",
+        "1-6h": "1-6 hours",
+        "6-24h": "6-24 hours",
+        "1-2d": "1-2 days",
+        "2-3d": "2-3 days",
+        "3-5d": "3-5 days",
+        "5d+": "More than 5 days"
+      }
     }
   },
   "options": {
@@ -376,6 +403,12 @@
       },
       "consumption_forecast_accuracy": {
         "name": "Consumption forecast accuracy"
+      },
+      "pv_forecast_accuracy": {
+        "name": "PV forecast accuracy"
+      },
+      "price_forecast_accuracy": {
+        "name": "Price forecast accuracy"
       }
     },
     "button": {
@@ -458,6 +491,42 @@
           "description": "Name(s) of the adjustments to remove."
         }
       }
+    },
+    "set_forecast_correction": {
+      "name": "Set forecast correction",
+      "description": "Controls how a forecast is corrected from its running accuracy: learned (default), off (only measure) or manual with an own value. Optionally for one lead time and for a limited time.",
+      "fields": {
+        "kind": {
+          "name": "Forecast",
+          "description": "Which forecast: consumption, PV, price or all."
+        },
+        "mode": {
+          "name": "Mode",
+          "description": "learned: use the running accuracy; off: do not correct; manual: use the given value."
+        },
+        "value": {
+          "name": "Value",
+          "description": "Manual correction: a factor for PV (e.g. 0.85), an offset in W for consumption, an offset in the price unit for prices."
+        },
+        "bucket": {
+          "name": "Lead time",
+          "description": "Only for predictions made this long before the period (default: all)."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "Return to learned after this time (default: until changed)."
+        }
+      }
+    },
+    "reset_forecast_accuracy": {
+      "name": "Reset forecast accuracy",
+      "description": "Forgets what was learned about a forecast (e.g. after switching PV forecast provider) and starts measuring again.",
+      "fields": {
+        "kind": {
+          "name": "Forecast",
+          "description": "Which forecast: consumption, PV, price or all."
+        }
+      }
     }
   },
   "exceptions": {
@@ -466,6 +535,9 @@
     },
     "end_before_start": {
       "message": "The end of the adjustment must be after its start."
+    },
+    "manual_needs_value": {
+      "message": "A manual correction needs a value."
     }
   }
 }
