@@ -4,7 +4,10 @@
 
 A Home Assistant custom integration that gives insight into your home batteries and energy flows, forecasts what is coming, and plans what your batteries could best do — explained in plain language.
 
-> **Status:** early development. Everything works, but expect changes.
+> [!WARNING]
+> **Alpha — under active development, not even beta.** Settings, entities and behaviour can still change at any moment, and there are no releases yet. Use it to explore and give feedback, not to rely on.
+>
+> HomeBatteryAssist **does not control any physical battery** (or any other device): it only reads, forecasts and advises. Only *virtual* batteries follow its plans, as a simulation.
 
 HomeBatteryAssist **only reads, forecasts and advises — it never controls your battery or any other device.** It runs next to the integration that controls your battery (e.g. Omnibattery) without interfering. It does not make price or PV forecasts itself: it uses the forecast integrations you already have, and checks every forecast afterwards against what really happened.
 

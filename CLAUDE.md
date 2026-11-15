@@ -10,7 +10,7 @@ HomeBatteryAssist is a **Home Assistant custom integration** (not an add-on/Dock
 - Domain `homebatteryassist`, display name **HomeBatteryAssist**, single config entry (`single_config_entry` in manifest).
 - Built incrementally. Batteries are linked through entities of their own integration (`inputs/batteries.py`), helped by profiles that recognise batteries other integrations already expose (`inputs/profiles.py`). Network discovery of devices is deferred.
 - Forecasts are **not** made by this integration; it consumes them from other integrations.
-- Will be published: keep README, user-facing text and translations release-quality. Repo: https://github.com/mvanrijnen/HomeBatteryAssist (currently private; branch `main`). License: MIT (`LICENSE`).
+- Will be published: keep README, user-facing text and translations release-quality. Repo: https://github.com/mvanrijnen/HomeBatteryAssist (public, alpha: no GitHub releases until the user says so; branch `main`). License: MIT (`LICENSE`).
 
 ## Architecture
 
