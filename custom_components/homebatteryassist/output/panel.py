@@ -370,6 +370,8 @@ def websocket_history(
                 },
                 "mode": forecast.data.plan_mode,
                 "max_cycles": forecast.max_cycles,
+                "time_slots": len(forecast.time_slots),
+                "manual_w": forecast.manual_power,
                 "until": forecast.data.window.end.isoformat(),
                 "currency": hass.config.currency,
             },

@@ -84,6 +84,7 @@ const TEXT = {
     socTotal: "Total",
     socPlan: "Total (plan)",
     realized: "Realised return",
+    notYet: "no charging or discharging yet",
     expectedReturn: "Expected return",
     vsNoBattery: "vs no battery",
     vsMode: "{mode} vs {other}",
@@ -210,6 +211,7 @@ const TEXT = {
     socTotal: "Totaal",
     socPlan: "Totaal (plan)",
     realized: "Gerealiseerd rendement",
+    notYet: "nog niet geladen of ontladen",
     expectedReturn: "Verwacht rendement",
     vsNoBattery: "t.o.v. geen batterij",
     vsMode: "{mode} t.o.v. {other}",
@@ -278,6 +280,7 @@ const STYLE = `
   .flow ha-icon { --mdc-icon-size: 28px; color: var(--state-icon-color, var(--primary-color)); }
   .flow .value { font-size: 24px; font-weight: 500; }
   .flow .label { color: var(--secondary-text-color); font-size: 13px; }
+  .flow .value small { font-size: 60%; font-weight: 400; margin-left: 2px; }
   .pv ha-icon { color: var(--warning-color, #f4b400); }
   .export .value { color: var(--success-color, #43a047); }
   .import .value { color: var(--error-color, #db4437); }
@@ -530,7 +533,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       }
       if (p.export_now != null) subs.push(t.exportPrice.replace("{price}", fmt(p.export_now)));
       const cls = p.next == null ? "price" : p.next > p.now ? "price up" : "price down";
-      parts.push(this._flow(cls, "mdi:currency-eur", `${t.priceNow} /kWh`, fmt(p.now, p.now_estimated), subs.join(" · ")));
+      parts.push(this._flow(cls, "mdi:currency-eur", t.priceNow, `${fmt(p.now, p.now_estimated)}<small>/kWh</small>`, subs.join(" · ")));
     }
     if (s.has_pv || s.has_pv_forecast) {
       const expected = s.pv_forecast_now_w == null ? "" : `${t.expected} ${this._power(s.pv_forecast_now_w)}`;
@@ -539,11 +542,25 @@ class HomeBatteryAssistPanel extends HTMLElement {
       parts.push(this._flow("pv", "mdi:solar-power", t.pv, value, sub));
     }
     if (s.batteries.length) {
-      const power = this._num(e.batteries_power);
-      const soc = this._num(e.batteries_soc);
+      let power = this._num(e.batteries_power);
+      let soc = this._num(e.batteries_soc);
+      let label = t.batteries;
+      if (power === null && soc === null) {
+        // Only virtual batteries: add them up here.
+        let cap = 0, stored = 0, sum = 0, known = false;
+        for (const b of s.batteries) {
+          const p = this._num(b.entities.battery_power);
+          const c = this._num(b.entities.battery_soc);
+          if (p !== null) { sum += p; known = true; }
+          if (c !== null) { stored += (c * b.capacity_kwh) / 100; cap += b.capacity_kwh; }
+        }
+        power = known ? sum : null;
+        soc = cap ? (stored / cap) * 100 : null;
+        if (s.batteries.every((b) => b.virtual)) label = `${t.batteries} (${t.virtual})`;
+      }
       const mode = power === null ? "" : power > 20 ? t.charging : power < -20 ? t.discharging : t.idle;
       parts.push(
-        this._flow("battery", "mdi:home-battery", t.batteries, this._power(power === null ? null : Math.abs(power)),
+        this._flow("battery", "mdi:home-battery", label, this._power(power === null ? null : Math.abs(power)),
           [mode, soc === null ? "" : `${Math.round(soc)}%`].filter(Boolean).join(" · ")),
       );
     }
@@ -554,7 +571,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         iso ? new Date(iso).toLocaleString(this._hass.locale?.language || this._hass.language, { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }) : "–";
       const money = (v) =>
         v == null ? "–" : new Intl.NumberFormat(this._hass.locale?.language || this._hass.language, { style: "currency", currency: value.currency || "EUR" }).format(v);
-      parts.push(this._flow("value", "mdi:cash-check", t.realized, money(value.realized), t.since.replace("{date}", date(value.since))));
+      parts.push(this._flow("value", "mdi:cash-check", t.realized, money(value.realized), value.since ? t.since.replace("{date}", date(value.since)) : t.notYet));
       const until = t.until.replace("{date}", date(value.until));
       parts.push(this._flow("value", "mdi:cash-clock", t.expectedReturn, money(value.expected), `${t.vsNoBattery} · ${until}`));
     }
@@ -570,13 +587,16 @@ class HomeBatteryAssistPanel extends HTMLElement {
       v == null ? "–" : new Intl.NumberFormat(lang, { style: "currency", currency: value.currency || "EUR" }).format(v);
     const signed = (v) => (v == null ? "–" : `${v > 0 ? "+" : ""}${money(v)}`);
     const name = (m) => t.modeNames[m] || m;
-    const rows = Object.entries(value.by_mode).map(
+    // Time slots without slots and manual at 0 W only repeat NOM / nothing.
+    const shown = (m) =>
+      m === value.mode || (m === "time_slots" ? value.time_slots > 0 : m === "manual" ? value.manual_w !== 0 : true);
+    const rows = Object.entries(value.by_mode).filter(([m]) => shown(m)).map(
       ([mode, saving]) =>
         `<tr${mode === value.mode ? ' class="sel"' : ""}><td>${esc(name(mode))}${mode === value.mode ? ` <small>${esc(t.selected)}</small>` : ""}</td><td>${esc(t.vsNone)}</td><td class="num">${esc(signed(saving))}</td></tr>`,
     );
     const nom = value.by_mode.nom;
     for (const [mode, saving] of Object.entries(value.by_mode)) {
-      if (mode === "nom" || nom == null || saving == null) continue;
+      if (!mode.startsWith("arbitrage") || nom == null || saving == null) continue;
       rows.push(
         `<tr><td>${esc(name(mode))}</td><td>${esc(t.vsMode.replace("{mode}", "").replace("{other}", name("nom").toLowerCase()).trim())}</td><td class="num"><b>${esc(signed(saving - nom))}</b></td></tr>`,
       );

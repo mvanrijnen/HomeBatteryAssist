@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -716,13 +716,15 @@ def _with_full_charges(
             if slot.start < f.end and slot.end > f.start
         )
         if extra:
-            slot = PlanSlot(
-                slot.start,
-                slot.end,
-                round(slot.power_w + extra, 1),
-                slot.soc,
-                round(slot.grid_w + extra, 1),
-                slot.price,
+            # When the plan charges anyway, the batteries that charge fully are
+            # part of that power: count the larger of the two, not both.
+            power = (
+                max(slot.power_w, extra) if slot.power_w > 0 else slot.power_w + extra
+            )
+            slot = replace(
+                slot,
+                power_w=round(power, 1),
+                grid_w=round(slot.grid_w + power - slot.power_w, 1),
             )
         result.append(slot)
     return result
