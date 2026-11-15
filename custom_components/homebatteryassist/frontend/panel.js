@@ -193,6 +193,16 @@ const STYLE = `
   .chart .line.dashed { stroke-dasharray: 5 4; stroke-width: 1.5; }
   .chart .now { stroke: var(--secondary-text-color); stroke-width: 1; stroke-dasharray: 2 3; }
   .chart.wide { grid-column: 1 / -1; }
+  .chart { position: relative; }
+  .chart svg { touch-action: pan-y; cursor: crosshair; }
+  .chart .cursor { stroke: var(--secondary-text-color); stroke-width: 1; }
+  .tip { position: absolute; top: 28px; pointer-events: none; z-index: 2; min-width: 120px;
+    background: var(--card-background-color); color: var(--primary-text-color);
+    border: 1px solid var(--divider-color); border-radius: 8px; padding: 6px 8px; font-size: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
+  .tip .t { font-weight: 500; margin-bottom: 2px; }
+  .tip .r { display: flex; justify-content: space-between; gap: 12px; }
+  .tip i { display: inline-block; width: 8px; height: 8px; border-radius: 4px; margin-right: 6px; }
   .reach { display: grid; gap: 8px; margin-top: 12px; }
   .reach .row { display: grid; grid-template-columns: 90px 1fr 170px; gap: 8px; align-items: center; }
   .reach .bar { height: 12px; }
@@ -214,6 +224,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this._busy = false;
     this._history = null;
     this._historyAt = 0;
+    this._charts = {};
+    this._hover = null;
   }
 
   async _recalculate() {
@@ -429,7 +441,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return 10 * step;
   }
 
-  _chart(series, xMin, xMax, ticks, gapLimit, markers = []) {
+  _chart(id, series, xMin, xMax, ticks, gapLimit, markers = [], xFmt = (v) => this._time(new Date(v).toISOString())) {
     const W = 600, H = 190, L = 46, R = 8, T = 8, B = 24;
     const all = series.flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
     const yMax = this._niceMax(Math.max(...all, 0));
@@ -459,7 +471,93 @@ class HomeBatteryAssistPanel extends HTMLElement {
       svg += `<line class="now" x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H - B}"/>`;
       svg += `<text class="axis" x="${x(v) + 4}" y="${T + 10}">${esc(label)}</text>`;
     }
-    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${svg}</svg>`;
+    svg += `<g class="hover" style="display:none"><line class="cursor" y1="${T}" y2="${H - B}"/>
+      ${series.map((s, i) => `<circle r="3.5" data-i="${i}" style="fill:${s.color}"/>`).join("")}</g>`;
+    this._charts[id] = { series, xMin, xMax, yMax, W, H, L, R, T, B, gapLimit, xFmt };
+    return `<svg data-chart="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${svg}</svg>
+      <div class="tip" data-tip="${id}" hidden></div>`;
+  }
+
+  _bindCharts() {
+    for (const svg of this.shadowRoot.querySelectorAll("svg[data-chart]")) {
+      const id = svg.dataset.chart;
+      const move = (event) => {
+        const point = event.touches ? event.touches[0] : event;
+        const rect = svg.getBoundingClientRect();
+        this._hover = { id, fx: (point.clientX - rect.left) / rect.width };
+        this._showHover();
+      };
+      svg.addEventListener("mousemove", move);
+      svg.addEventListener("touchstart", move, { passive: true });
+      svg.addEventListener("touchmove", move, { passive: true });
+      const leave = () => {
+        this._hover = null;
+        this._showHover(id);
+      };
+      svg.addEventListener("mouseleave", leave);
+      svg.addEventListener("touchend", () => {
+        clearTimeout(this._touchTimer);
+        this._touchTimer = setTimeout(leave, 3000);
+      });
+    }
+  }
+
+  _nearest(points, xv, limit) {
+    let best = null;
+    for (const p of points) {
+      if (p[1] == null) continue;
+      if (best === null || Math.abs(p[0] - xv) < Math.abs(best[0] - xv)) best = p;
+    }
+    return best && (limit == null || Math.abs(best[0] - xv) <= limit) ? best : null;
+  }
+
+  _showHover(hideId = null) {
+    const id = this._hover?.id ?? hideId;
+    const svg = id && this.shadowRoot.querySelector(`svg[data-chart="${id}"]`);
+    const tip = id && this.shadowRoot.querySelector(`.tip[data-tip="${id}"]`);
+    const c = id && this._charts[id];
+    if (!svg || !tip || !c) return;
+    const layer = svg.querySelector(".hover");
+    const vx = (this._hover?.fx ?? -1) * c.W;
+    if (!this._hover || vx < c.L || vx > c.W - c.R) {
+      layer.style.display = "none";
+      tip.hidden = true;
+      return;
+    }
+    const xv = c.xMin + ((vx - c.L) / (c.W - c.L - c.R)) * (c.xMax - c.xMin);
+    const limit = c.gapLimit ?? 0.5;
+    const hits = c.series.map((s) => this._nearest(s.points, xv, limit));
+    const anchor = hits.find((h) => h) ;
+    if (!anchor) {
+      layer.style.display = "none";
+      tip.hidden = true;
+      return;
+    }
+    const sx = (v) => c.L + ((v - c.xMin) / (c.xMax - c.xMin || 1)) * (c.W - c.L - c.R);
+    const sy = (v) => c.T + (1 - v / c.yMax) * (c.H - c.T - c.B);
+    layer.style.display = "";
+    const cursor = layer.querySelector(".cursor");
+    cursor.setAttribute("x1", sx(anchor[0]));
+    cursor.setAttribute("x2", sx(anchor[0]));
+    layer.querySelectorAll("circle").forEach((circle) => {
+      const hit = hits[Number(circle.dataset.i)];
+      circle.style.display = hit ? "" : "none";
+      if (hit) {
+        circle.setAttribute("cx", sx(hit[0]));
+        circle.setAttribute("cy", sy(hit[1]));
+      }
+    });
+    const rows = c.series
+      .map((s, i) => (hits[i] ? `<div class="r"><span><i style="background:${s.color}"></i>${esc(s.label || "")}</span>
+        <b>${esc(this._power(hits[i][1]))}</b></div>` : ""))
+      .join("");
+    tip.innerHTML = `<div class="t">${esc(c.xFmt(anchor[0]))}</div>${rows}`;
+    tip.hidden = false;
+    const box = svg.getBoundingClientRect();
+    const parent = svg.parentElement.getBoundingClientRect();
+    const px = box.left - parent.left + (sx(anchor[0]) / c.W) * box.width;
+    const width = tip.offsetWidth;
+    tip.style.left = `${px + 12 + width > parent.width ? Math.max(0, px - width - 12) : px + 12}px`;
   }
 
   _consumption(t) {
@@ -484,9 +582,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
     for (; day.getTime() < xMax; day.setDate(day.getDate() + 1)) {
       ticks.push([day.getTime(), day.toLocaleDateString(lang, { weekday: "short" })]);
     }
-    const weekSeries = [{ points: pts, color: primary }];
-    if (h.has_excluded) weekSeries.push({ points: excludedPts, color: excludedColor });
-    const week = this._chart(weekSeries, xMin, xMax, ticks, 2 * 3600e3);
+    const weekSeries = [{ points: pts, color: primary, label: t.houseLine }];
+    if (h.has_excluded) weekSeries.push({ points: excludedPts, color: excludedColor, label: t.excludedLine });
+    const hourFmt = (v) =>
+      new Date(v).toLocaleString(lang, { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
+    const week = this._chart("week", weekSeries, xMin, xMax, ticks, 2 * 3600e3, [], hourFmt);
     const weekLegend = h.has_excluded
       ? `<div class="legend"><span><i style="background:${primary}"></i>${esc(t.houseLine)}</span>
          <span><i style="background:${excludedColor}"></i>${esc(t.excludedLine)}</span></div>`
@@ -495,15 +595,19 @@ class HomeBatteryAssistPanel extends HTMLElement {
     // Average day: 24 local hours, weekdays vs weekend.
     const profilePts = (values) => values.map((v, hour) => [hour, v]);
     const hourTicks = [0, 3, 6, 9, 12, 15, 18, 21].map((hour) => [hour, `${String(hour).padStart(2, "0")}:00`]);
+    const two = (n) => String(n).padStart(2, "0");
     const avg = this._chart(
+      "day",
       [
-        { points: profilePts(h.profile.weekday), color: primary },
-        { points: profilePts(h.profile.weekend), color: accent },
+        { points: profilePts(h.profile.weekday), color: primary, label: t.weekday },
+        { points: profilePts(h.profile.weekend), color: accent, label: t.weekend },
       ],
       0,
       23,
       hourTicks,
       null,
+      [],
+      (hour) => `${two(hour)}:00 – ${two((hour + 1) % 24)}:00`,
     );
     // Expected consumption: past 24 h measured vs. predicted, next 48 h forecast.
     const now = Date.now();
@@ -524,18 +628,22 @@ class HomeBatteryAssistPanel extends HTMLElement {
         const label = d.getHours() === 0 ? d.toLocaleDateString(lang, { weekday: "short" }) : "12:00";
         fTicks.push([d.getTime(), label]);
       }
+      const slot = 3600e3;  // verification/forecast points are at most an hour apart
       forecastChart = this._chart(
+        "forecast",
         [
-          { points: verified.map(([ts, actual]) => [ts, actual]), color: primary },
-          { points: verified.map(([ts, , predicted]) => [ts, predicted]), color: secondary, dashed: true },
-          { points: fc.map(([ts, power]) => [ts, power]), color: forecastColor },
+          { points: verified.map(([ts, actual]) => [ts, actual]), color: primary, label: t.measured },
+          { points: verified.map(([ts, , predicted]) => [ts, predicted]), color: secondary, dashed: true, label: t.predicted },
+          { points: fc.map(([ts, power]) => [ts, power]), color: forecastColor, label: t.expectedLine },
         ],
         fMin,
         fMax,
         fTicks,
         2 * 3600e3,
         [[now, t.now]],
+        (v) => new Date(v).toLocaleString(lang, { weekday: "short", hour: "2-digit", minute: "2-digit" }),
       );
+      this._charts.forecast.gapLimit = slot;
     }
     const acc = h.accuracy?.latest;
     const accText =
@@ -592,6 +700,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     menu.narrow = this._narrow;
     this.shadowRoot.querySelector(".menu").appendChild(menu);
     this.shadowRoot.querySelector(".recalc")?.addEventListener("click", () => this._recalculate());
+    this._bindCharts();
+    this._showHover();
   }
 }
 
