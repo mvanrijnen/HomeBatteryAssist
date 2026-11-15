@@ -64,7 +64,7 @@ class MeterCandidate:
     @property
     def label(self) -> str:
         """Shown in the selection list, e.g. "P1 meter - HWE-P1 (HomeWizard P1, 3 phases)"."""
-        model = f" - {self.model}" if self.model else ""
+        model = f" - {self.model}" if self.model and self.model != self.name else ""
         return f"{self.name}{model} ({self.profile.label}, {self.phases}x)"
 
 
