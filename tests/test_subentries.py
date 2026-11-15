@@ -63,6 +63,7 @@ async def test_add_device_three_phase(hass: HomeAssistant, kind: str) -> None:
         {CONF_NAME: "Device", CONF_SENSOR: "sensor.device", CONF_PHASE: "l2"},
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()  # the entry reloads
     (subentry,) = entry.subentries.values()
     assert subentry.subentry_type == kind
     assert subentry.title == "Device"
@@ -87,6 +88,7 @@ async def test_single_phase_has_no_phase_field(hass: HomeAssistant) -> None:
         result["flow_id"], {CONF_NAME: "Roof", CONF_SENSOR: "sensor.pv"}
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()  # the entry reloads
     (subentry,) = entry.subentries.values()
     assert subentry.data[CONF_PHASE] == "none"
 

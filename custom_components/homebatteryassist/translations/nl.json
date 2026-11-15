@@ -152,7 +152,7 @@
         "1-2d": "1-2 dagen",
         "2-3d": "2-3 dagen",
         "3-5d": "3-5 dagen",
-        "5d+": "Meer dan 5 dagen"
+        "5d-plus": "Meer dan 5 dagen"
       }
     },
     "plan_mode": {

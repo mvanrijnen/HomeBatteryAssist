@@ -65,8 +65,10 @@ SET_CORRECTION_SCHEMA = vol.Schema(
         vol.Required(ATTR_KIND): vol.In([*KINDS, KIND_ALL]),
         vol.Required(ATTR_MODE): vol.In(MODES),
         vol.Optional(ATTR_VALUE): vol.Coerce(float),
-        vol.Optional(ATTR_BUCKET, default=ALL_BUCKETS): vol.In(
-            [ALL_BUCKETS, *BUCKET_KEYS]
+        # "5d-plus" in the UI (translation keys cannot contain "+") is "5d+".
+        vol.Optional(ATTR_BUCKET, default=ALL_BUCKETS): vol.All(
+            lambda value: "5d+" if value == "5d-plus" else value,
+            vol.In([ALL_BUCKETS, *BUCKET_KEYS]),
         ),
         vol.Optional(ATTR_DURATION): cv.positive_time_period,
     }

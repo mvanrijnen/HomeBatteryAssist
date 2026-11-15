@@ -103,7 +103,7 @@ set_forecast_correction:
       default: all
       selector:
         select:
-          options: [all, 0-1h, 1-6h, 6-24h, 1-2d, 2-3d, 3-5d, 5d+]
+          options: [all, 0-1h, 1-6h, 6-24h, 1-2d, 2-3d, 3-5d, 5d-plus]
           translation_key: lead_time
     duration:
       selector:
