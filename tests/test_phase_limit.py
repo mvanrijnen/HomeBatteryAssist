@@ -174,3 +174,73 @@ def test_simulator_holds_virtual_batteries_within_limit(hass: HomeAssistant) -> 
 def test_margin_is_configurable() -> None:
     assert phase_limit_w(25, 0) == 5750.0
     assert phase_limit_w(25, 20) == 4600.0
+
+
+def test_relieve_overloaded_phase() -> None:
+    """Batteries on an overloaded phase discharge to bring it back to the limit."""
+    from custom_components.homebatteryassist.planning.phase_limit import (
+        overloaded,
+        relieve,
+    )
+
+    devices = [
+        PhaseDevice("a", 0, 2500, 2500),
+        PhaseDevice("b", 0, 2500, 2500),
+        PhaseDevice("c", 1, 2500, 2500),
+    ]
+    loads = [LIMIT + 3000.0, 0.0, -(LIMIT + 500.0)]
+    assert overloaded(loads, LIMIT) == [0, 2]
+    # a was charging (plan): it stops and discharges; b helps too.
+    powers, relieved = relieve(
+        {"a": 2000.0, "b": 0.0, "c": 0.0}, devices, loads, LIMIT, ["a", "b"], ["a"]
+    )
+    assert powers == {"a": -1500.0, "b": -1500.0, "c": 0.0}
+    assert relieved == {0: 3000.0}
+    # An empty battery cannot help; the other one gives what it can.
+    powers, relieved = relieve(
+        {"a": 0.0, "b": 0.0, "c": 0.0}, devices, loads, LIMIT, ["a"], []
+    )
+    assert powers["a"] == -2500.0 and powers["b"] == 0.0
+    assert relieved == {0: 2500.0}
+    # Too much export: a battery spread over the phases charges a share.
+    spread = [PhaseDevice("s", None, 3000, 3000)]
+    powers, relieved = relieve(
+        {"s": 0.0}, spread, [0.0, 0.0, -(LIMIT + 500.0)], LIMIT, [], ["s"]
+    )
+    assert powers == {"s": 1500.0}
+    assert relieved == {2: 500.0}
+
+
+def test_simulator_phase_protection(hass: HomeAssistant) -> None:
+    """The simulation relieves an overloaded phase and explains start and end."""
+    logged: list[tuple] = []
+    config = SimpleNamespace(
+        id="v1",
+        name="Virtueel 1",
+        virtual=True,
+        phase="l1",
+        max_charge_w=2500.0,
+        max_discharge_w=2500.0,
+        min_soc=10.0,
+        max_soc=100.0,
+    )
+    flow = SimpleNamespace(
+        phase_w=(LIMIT + 1000.0, 0.0, 0.0),
+        phase_current=lambda i: [(LIMIT + 1000) / 230, 0, 0][i],
+    )
+    sim = VirtualBatterySimulator(
+        hass,
+        SimpleNamespace(configs=[config]),
+        SimpleNamespace(flow=flow, max_current=25),
+        SimpleNamespace(balance_interval=timedelta(hours=1), phase_margin=10),
+        SimpleNamespace(async_log=lambda *a, **kw: logged.append((a, kw))),
+    )
+    socs, full = {"v1": 50.0}, {"v1": None}
+    result = sim._phase_relief({"v1": 1000.0}, socs, full, T0, 0.5)
+    assert result == {"v1": -1000.0}
+    assert logged[-1][0][1] == "phase_relief"
+    assert sim.relief[0]["wh"] == 500.0
+    flow.phase_w = (1000.0, 0.0, 0.0)
+    assert sim._phase_relief({"v1": 1000.0}, socs, full, T0 + H, 0.5) == {"v1": 1000.0}
+    assert logged[-1][0][1] == "phase_relief_ended"
+    assert logged[-1][1]["energy"] == "0,50" or logged[-1][1]["energy"] == "0.50"

@@ -50,6 +50,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "battery_switch": "{new} takes over {action} from {old} to keep the batteries balanced (state of charge {new_soc}% vs {old_soc}%).",
         "phase_limit": "{names} held back to {power} together: phase {phase} carries {current} A of at most {max} A (main fuse, with a {margin}% margin).",
         "phase_limit_cleared": "The phases have room again: the virtual batteries are no longer held back by the main fuse.",
+        "phase_relief": "Phase protection: phase {phase} carries {current} A, above the limit of {limit} A. {names} {action} {power} to take load off the phase.",
+        "phase_relief_ended": "Phase {phase} is back under the limit. {names} took load off it for {minutes} min, {energy} kWh in total.",
     },
     "nl": {
         "horizon_setting": "Planning {hours} uur vooruit (tot {end}): het ingestelde maximum van {days} dagen.",
@@ -87,6 +89,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "battery_switch": "{new} neemt het {action} over van {old} om de batterijen in balans te houden (vulling {new_soc}% tegen {old_soc}%).",
         "phase_limit": "{names} samen teruggeschroefd naar {power}: fase {phase} voert {current} A van maximaal {max} A (hoofdzekering, met {margin}% marge).",
         "phase_limit_cleared": "De fasen hebben weer ruimte: de virtuele batterijen worden niet meer beperkt door de hoofdzekering.",
+        "phase_relief": "Fasebeveiliging: fase {phase} voert {current} A, boven de grens van {limit} A. {names} gaat {power} {action} om de fase te ontlasten.",
+        "phase_relief_ended": "Fase {phase} is weer onder de grens. {names} ontlastte de fase {minutes} min, met in totaal {energy} kWh.",
     },
 }
 

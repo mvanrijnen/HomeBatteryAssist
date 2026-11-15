@@ -111,3 +111,68 @@ def cap_powers(
             lowest = min(room)
             limited.update(i for i, r in enumerate(room) if r == lowest)
     return {k: round(v, 1) + 0.0 for k, v in result.items()}, sorted(limited)
+
+
+def overloaded(load_w: Sequence[float], limit_w: float) -> list[int]:
+    """Indexes of the phases whose (import or export) power exceeds the limit."""
+    return [i for i, load in enumerate(load_w) if abs(load) > limit_w]
+
+
+def relieve(
+    powers: Mapping[str, float],
+    devices: Iterable[PhaseDevice],
+    load_w: Sequence[float],
+    limit_w: float,
+    can_discharge: Iterable[str],
+    can_charge: Iterable[str],
+) -> tuple[dict[str, float], dict[int, float]]:
+    """Let batteries take load off an overloaded phase (peak shaving per phase).
+
+    ``load_w`` is the grid power per phase without these batteries. On a phase
+    that imports more than the limit, its batteries discharge (and stop
+    charging) to bring it back to the limit; on a phase that exports more
+    (e.g. much solar power), they charge. Batteries on the phase go first,
+    batteries spread over all phases count for a share. This overrides what the
+    plan wanted for those batteries.
+
+    Returns the new powers and, per relieved phase, the power taken off it.
+    """
+    result = dict(powers)
+    devices = [d for d in devices if d.id in result]
+    discharge_ok, charge_ok = set(can_discharge), set(can_charge)
+    count = len(load_w)
+    relieved: dict[int, float] = {}
+    for index in overloaded(load_w, limit_w):
+        discharging = load_w[index] > 0
+        need = abs(load_w[index]) - limit_w
+        allowed = discharge_ok if discharging else charge_ok
+        sign = -1.0 if discharging else 1.0
+        taken = 0.0
+        groups = (
+            ([d for d in devices if d.phase == index and d.id in allowed], 1),
+            ([d for d in devices if d.phase is None and d.id in allowed], count),
+        )
+        for group, factor in groups:
+            for d in group:
+                # Power in the wrong direction stops; power in the right one counts.
+                result[d.id] = max(result[d.id] * sign, 0.0) * sign
+                taken += abs(result[d.id]) / factor
+            open_ = list(group)
+            while open_ and need - taken > 0.5:
+                share = (need - taken) * factor / len(open_)
+                still_open = []
+                for d in open_:
+                    cap = d.max_discharge_w if discharging else d.max_charge_w
+                    take = min(share, cap - abs(result[d.id]))
+                    if take <= 0:
+                        continue
+                    result[d.id] += sign * take
+                    taken += take / factor
+                    if cap - abs(result[d.id]) > 0.5:
+                        still_open.append(d)
+                if len(still_open) == len(open_):
+                    break  # everyone took the full share
+                open_ = still_open
+        if taken > 0.5:
+            relieved[index] = round(min(taken, need), 1)
+    return {k: round(v, 1) + 0.0 for k, v in result.items()}, relieved

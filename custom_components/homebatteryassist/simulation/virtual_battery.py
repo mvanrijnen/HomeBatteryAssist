@@ -11,9 +11,18 @@ selected plan mode, using the real measurements:
 The total is spread over the virtual batteries with
 ``planning.distribution.distribute`` (minimum power per battery).
 
-The powers are then held within the phase limits of the grid connection,
-on the phase power measured right now (``planning.phase_limit``): a virtual
-battery on a phase may not push that phase over its maximum current.
+Then the phase limits of the grid connection, on the phase power measured
+right now (``planning.phase_limit``):
+
+- phase protection: when a phase is over its limit by itself, the virtual
+  batteries on that phase take load off it (discharge on too much import,
+  charge on too much export), whatever the plan wanted;
+- a virtual battery may never push a phase over its limit (it charges or
+  discharges less).
+
+Besides the regular step, a step is taken as soon as a measurement shows an
+overloaded phase (at most every ``REACT_INTERVAL``), so the simulation reacts
+within seconds like real control would.
 
 Within the battery's power and state-of-charge limits. The round-trip loss is
 drawn at random per step between the battery's ``loss_min`` and ``loss_max``
@@ -31,24 +40,34 @@ import math
 import random
 from dataclasses import replace
 from datetime import datetime, timedelta
+from typing import Any
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
+from ..const import NOMINAL_VOLTAGE
 from ..explain import DecisionLog
 from ..forecasts.coordinator import ForecastCoordinator
 from ..inputs.batteries import BatteryConfig, BatteryInput
 from ..inputs.measurements import MeasurementInput
 from ..planning.battery_plan import MODE_ARBITRAGE
 from ..planning.distribution import Candidate, Distributor
-from ..planning.phase_limit import PhaseDevice, cap_powers, phase_limit_w
+from ..planning.phase_limit import (
+    PhaseDevice,
+    cap_powers,
+    overloaded,
+    phase_limit_w,
+    relieve,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 STEP = timedelta(seconds=30)
 MAX_STEP = timedelta(minutes=5)  # longer gaps (restart) are not simulated
 LIMIT_CLEAR_AFTER = timedelta(minutes=5)  # no phase limit this long: log it
+RELIEF_END_AFTER = timedelta(minutes=1)  # phase back under the limit this long
+REACT_INTERVAL = timedelta(seconds=2)  # fastest extra step on an overload
 
 
 def limit_power(
@@ -107,6 +126,9 @@ class VirtualBatterySimulator:
         self.limited_phases: list[int] = []  # phases that limit right now
         self._limit_logged = False
         self._limit_seen: datetime | None = None
+        self._unsub_measured: CALLBACK_TYPE | None = None
+        # phase index -> {"start", "seen", "wh", "names"} while relieving it
+        self.relief: dict[int, dict[str, Any]] = {}
 
     @property
     def virtual(self) -> list[BatteryConfig]:
@@ -120,6 +142,9 @@ class VirtualBatterySimulator:
             return
         self._last = dt_util.utcnow()
         self._unsub = async_track_time_interval(self.hass, self._async_step, STEP)
+        self._unsub_measured = self._measurements.async_add_listener(
+            self._async_measured
+        )
 
     @callback
     def async_stop(self) -> None:
@@ -127,10 +152,39 @@ class VirtualBatterySimulator:
         if self._unsub is not None:
             self._unsub()
             self._unsub = None
+        if self._unsub_measured is not None:
+            self._unsub_measured()
+            self._unsub_measured = None
 
     @callback
     def _async_step(self, now: datetime) -> None:
         self.step(now)
+
+    @callback
+    def _async_measured(self, when: datetime, _power: float | None) -> None:
+        """React at once when a phase is overloaded (or the virtual batteries
+        on it would overload it)."""
+        if self._last is None or when - self._last < REACT_INTERVAL:
+            return
+        flow = self._measurements.flow
+        if flow is None or not flow.phase_w:
+            return
+        phases = len(flow.phase_w)
+        with_virtual = list(flow.phase_w)
+        for config in self.virtual:
+            power = self._batteries.states[config.id].power_w or 0.0
+            index = PhaseDevice.from_config(config, phases).phase
+            for i in range(phases) if index is None else (index,):
+                with_virtual[i] += power / (phases if index is None else 1)
+        if overloaded(with_virtual, self._limit_w()) or overloaded(
+            flow.phase_w, self._limit_w()
+        ):
+            self.step(when)
+
+    def _limit_w(self) -> float:
+        return phase_limit_w(
+            self._measurements.max_current, self._forecast.phase_margin
+        )
 
     def step(self, now: datetime) -> None:
         """Let every virtual battery act for the time since the previous step."""
@@ -158,6 +212,7 @@ class VirtualBatterySimulator:
             wanted[config.id] = (
                 config.max_charge_w if full[config.id] else targets(config, soc)
             )
+        wanted = self._phase_relief(wanted, socs, full, now, hours)
         wanted = self._phase_limited(wanted, now)
         for config in self.virtual:
             limits = replace(config, max_soc=100.0) if full[config.id] else config
@@ -169,6 +224,81 @@ class VirtualBatterySimulator:
                 random_efficiency(config),
             )
             self._batteries.set_virtual(config.id, now, power, soc)
+
+    def _phase_relief(
+        self,
+        wanted: dict[str, float],
+        socs: dict[str, float],
+        full: dict[str, Any],
+        now: datetime,
+        hours: float,
+    ) -> dict[str, float]:
+        """Phase protection: take load off an overloaded phase; explain it."""
+        flow = self._measurements.flow
+        if flow is None or not flow.phase_w:
+            return wanted
+        phases = len(flow.phase_w)
+        devices = [PhaseDevice.from_config(c, phases) for c in self.virtual]
+        result, relieved = relieve(
+            wanted,
+            devices,
+            flow.phase_w,
+            self._limit_w(),
+            can_discharge=[
+                c.id
+                for c in self.virtual
+                if socs[c.id] > c.min_soc + 0.01 and not full[c.id]
+            ],
+            can_charge=[c.id for c in self.virtual if socs[c.id] < c.max_soc - 0.01],
+        )
+        names = {c.id: c.name for c in self.virtual}
+        dutch = (self.hass.config.language or "").startswith("nl")
+        for index, power in relieved.items():
+            event = self.relief.get(index)
+            helpers = [
+                d.id
+                for d in devices
+                if d.phase in (index, None) and abs(result[d.id]) > 1
+            ]
+            if event is None:
+                discharging = flow.phase_w[index] > 0
+                self.relief[index] = event = {
+                    "start": now,
+                    "wh": 0.0,
+                    "names": {names[i] for i in helpers},
+                }
+                self._decisions.async_log(
+                    "battery",
+                    "phase_relief",
+                    names=", ".join(sorted(event["names"])) or "-",
+                    action=(
+                        ("ontladen" if discharging else "laden")
+                        if dutch
+                        else ("discharge" if discharging else "charge")
+                    ),
+                    power=f"{power:.0f} W",
+                    phase=f"L{index + 1}",
+                    current=f"{flow.phase_current(index):.1f}",
+                    limit=f"{self._limit_w() / NOMINAL_VOLTAGE:.1f}",
+                )
+            event["seen"] = now
+            event["wh"] += power * hours
+            event["names"] |= {names[i] for i in helpers}
+        for index, event in list(self.relief.items()):
+            if index not in relieved and now - event["seen"] >= RELIEF_END_AFTER:
+                del self.relief[index]
+                minutes = max(round((event["seen"] - event["start"]).seconds / 60), 1)
+                self._decisions.async_log(
+                    "battery",
+                    "phase_relief_ended",
+                    phase=f"L{index + 1}",
+                    names=", ".join(sorted(event["names"])) or "-",
+                    minutes=minutes,
+                    energy=f"{event['wh'] / 1000:.2f}".replace(
+                        ".", "," if dutch else "."
+                    ),
+                )
+        return result
 
     def _phase_limited(
         self, wanted: dict[str, float], now: datetime
@@ -184,7 +314,7 @@ class VirtualBatterySimulator:
             wanted,
             devices,
             flow.phase_w,
-            phase_limit_w(max_current, self._forecast.phase_margin),
+            self._limit_w(),
         )
         self.limited_phases = limited
         if limited:
