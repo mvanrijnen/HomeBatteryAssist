@@ -67,7 +67,8 @@ const TEXT = {
     flowTitle: "Energy flows and expected consumption",
     navStart: "To the first measurement",
     navBack: "Back",
-    navNow: "Now",
+    navNow: "Auto follow",
+    navNowTitle: "Follow the current time",
     navFwd: "Forward",
     navEnd: "To the end of the forecast",
     spans: { 24: "1 day", 72: "3 days", 168: "7 days" },
@@ -156,7 +157,8 @@ const TEXT = {
     flowTitle: "Energiestromen en verwacht verbruik",
     navStart: "Naar de eerste meting",
     navBack: "Terug",
-    navNow: "Nu",
+    navNow: "Auto volgen",
+    navNowTitle: "Grafiek loopt mee met de tijd",
     navFwd: "Vooruit",
     navEnd: "Naar het einde van de voorspelling",
     spans: { 24: "1 dag", 72: "3 dagen", 168: "7 dagen" },
@@ -551,11 +553,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const nav = [
       ["start", "⏮", t.navStart],
       ["back", "◀", t.navBack],
-      ["now", t.navNow, t.navNow],
+      ["now", t.navNow, t.navNowTitle],
       ["fwd", "▶", t.navFwd],
       ["end", "⏭", t.navEnd],
     ]
-      .map(([key, label, title]) => `<button data-nav="${key}" title="${esc(title)}">${esc(label)}</button>`)
+      .map(
+        ([key, label, title]) =>
+          `<button data-nav="${key}" title="${esc(title)}" class="${key === "now" && this._flowEnd === null ? "active" : ""}">${esc(label)}</button>`,
+      )
       .join("");
     return `<div class="nav">${nav}<span style="width:8px"></span>${spans}</div>`;
   }
@@ -860,15 +865,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const item = (color, label, dashed = false) =>
       `<span><i style="${dashed ? `background:none;border-top:2px dashed ${color};height:0` : `background:${color}`}"></i>${esc(label)}</span>`;
     const forecastLegend = `<div class="legend" style="flex-wrap:wrap">${[
+      // One item per quantity: solid (measured) vs dashed (expected) is clear
+      // from the chart itself; the tooltip still names each line.
       item(primary, t.houseMeasured),
-      item(primary, t.houseExpected, true),
-      item(secondary, t.predicted, true),
-      h.has_pv ? item(pvColor, t.pvMeasured) : "",
-      pvFc.length ? item(pvColor, t.pvExpected, true) : "",
-      h.has_battery ? item(batteryColor, t.batteryLine) : "",
+      h.has_pv || pvFc.length ? item(pvColor, t.pvMeasured) : "",
       item(gridColor, t.gridMeasured),
-      fc.length ? item(gridColor, t.gridExpected, true) : "",
+      h.has_battery ? item(batteryColor, t.batteryLine) : "",
       h.has_excluded ? item(excludedColor, t.excludedLine) : "",
+      item(secondary, t.predicted, true),
     ].join("")}</div>`;
 
     const info = t.daysOfData.replace("{days}", Math.round(h.days_covered)) + (h.imported ? ` · ${t.imported}` : "");
