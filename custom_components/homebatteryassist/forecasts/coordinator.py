@@ -445,8 +445,12 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             strategy=plan.strategy,
             saving=_money(plan.saving),
             others=others or "-",
-            charge=_periods(plan.slots, charging=True),
-            discharge=_periods(plan.slots, charging=False),
+            charge=_periods(
+                plan.slots, charging=True, language=self.hass.config.language
+            ),
+            discharge=_periods(
+                plan.slots, charging=False, language=self.hass.config.language
+            ),
             charge_price=_price(charge_price, unit),
             discharge_price=_price(discharge_price, unit),
             **prices,
@@ -509,7 +513,19 @@ def _money(value: float | None) -> str:
     return "-" if value is None else f"{round(value, 1):.2f}"
 
 
-def _periods(slots: list[PlanSlot], *, charging: bool, threshold: float = 100.0) -> str:
+DAYS = {
+    "nl": ("ma", "di", "wo", "do", "vr", "za", "zo"),
+    "en": ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"),
+}
+
+
+def _periods(
+    slots: list[PlanSlot],
+    *,
+    charging: bool,
+    threshold: float = 100.0,
+    language: str | None = None,
+) -> str:
     """Up to three periods (local time) in which the plan charges / discharges."""
     periods: list[tuple[datetime, datetime]] = []
     for slot in slots:
@@ -520,11 +536,13 @@ def _periods(slots: list[PlanSlot], *, charging: bool, threshold: float = 100.0)
             periods[-1] = (periods[-1][0], slot.end)
         else:
             periods.append((slot.start, slot.end))
-    fmt = "%a %H:%M"
-    text = ", ".join(
-        f"{dt_util.as_local(a).strftime(fmt)}-{dt_util.as_local(b).strftime('%H:%M')}"
-        for a, b in periods[:3]
-    )
+    days = DAYS["nl" if (language or "").startswith("nl") else "en"]
+
+    def fmt(start: datetime, end: datetime) -> str:
+        a, b = dt_util.as_local(start), dt_util.as_local(end)
+        return f"{days[a.weekday()]} {a:%H:%M}-{b:%H:%M}"
+
+    text = ", ".join(fmt(a, b) for a, b in periods[:3])
     return text + (" ..." if len(periods) > 3 else "") if text else "-"
 
 
