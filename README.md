@@ -31,6 +31,15 @@ HomeBatteryAssist **only reads and forecasts — it never controls your battery 
 
 Copy `custom_components/homebatteryassist` into your Home Assistant `config/custom_components/` directory and restart Home Assistant.
 
+## Working with other integrations
+
+HomeBatteryAssist never controls anything, so it can run next to any battery or energy integration:
+
+- **Use its data elsewhere.** The sensors have a fixed meaning and can be used as a source by other integrations and add-ons (e.g. AstraMeter, which emulates a Marstek CT meter from Home Assistant entities): *Grid power* (+ import / − export), *Grid import*, *Grid export*, *PV power*, *House consumption* and the battery sensors.
+- **Recalculate on demand.** Call the action `homebatteryassist.recalculate` (optionally with a response containing the planning window) from automations, scripts or other integrations, or press the *Recalculate* button.
+- **React to results.** The events `homebatteryassist_forecast_updated` (after every forecast cycle) and `homebatteryassist_decision` (every explained decision) can trigger automations.
+- **Batteries of other integrations** (Omnibattery, Marstek Modbus) are recognised when adding a battery, and only read.
+
 ## Why did it do that? Logging
 
 - **Last decision** sensor: a short explanation (in your language) of the most recent decision or notable change, e.g. why the planning horizon is shorter than configured. The `recent` attribute holds the last 10.
