@@ -709,7 +709,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const day = new Date(xMin);
     day.setHours(24, 0, 0, 0);
     for (; day.getTime() < xMax; day.setDate(day.getDate() + 1)) {
-      ticks.push([day.getTime(), day.toLocaleDateString(lang, { weekday: "short" })]);
+      ticks.push([day.getTime(), day.toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" })]);
     }
     const weekSeries = [{ points: pts, color: primary, label: t.houseLine }];
     if (h.has_excluded) weekSeries.push({ points: excludedPts, color: excludedColor, label: t.excludedLine });
@@ -781,7 +781,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       for (; d.getTime() < fMax; d.setHours(d.getHours() + step)) {
         const midnight = d.getHours() === 0;
         const label = midnight
-          ? d.toLocaleDateString(lang, step === 24 ? { weekday: "short", day: "numeric" } : { weekday: "short" })
+          ? d.toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" })
           : `${String(d.getHours()).padStart(2, "0")}:00`;
         fTicks.push([d.getTime(), label]);
       }
@@ -814,7 +814,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
         fTicks,
         2 * 3600e3,
         now >= fMin && now <= fMax ? [[now, t.now]] : [],
-        (v) => new Date(v).toLocaleString(lang, { weekday: "short", hour: "2-digit", minute: "2-digit" }),
+        (v) =>
+          new Date(v).toLocaleString(lang, {
+            weekday: "short",
+            day: "numeric",
+            month: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
       );
       this._charts.forecast.gapLimit = slot;
       // Tooltip extras: the deviation in the past, the usual deviation ahead.
