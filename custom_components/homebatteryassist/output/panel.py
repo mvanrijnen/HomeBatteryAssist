@@ -422,6 +422,8 @@ def websocket_history(
                 for kind in KINDS
             },
             "price_unit": forecast.data.price_unit,
+            # The plan afterwards, per day: planned saving vs realised value.
+            "plan_check": entry.runtime_data.plan_check.days(7),
             "profile": day_profile(records),
         },
     )

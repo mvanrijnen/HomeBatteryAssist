@@ -11,6 +11,7 @@ from .forecasts.coordinator import ForecastCoordinator
 from .history import ConsumptionHistory
 from .inputs.batteries import BatteryInput
 from .inputs.measurements import MeasurementInput
+from .planning.verification import PlanVerification
 
 
 @dataclass(slots=True)
@@ -22,6 +23,7 @@ class HomeBatteryAssistData:
     batteries: BatteryInput
     history: ConsumptionHistory
     forecast: ForecastCoordinator
+    plan_check: PlanVerification
 
 
 type HomeBatteryAssistConfigEntry = ConfigEntry[HomeBatteryAssistData]

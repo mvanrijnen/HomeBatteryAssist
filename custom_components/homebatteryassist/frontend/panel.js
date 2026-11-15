@@ -90,6 +90,14 @@ const TEXT = {
     vsMode: "{mode} vs {other}",
     modeNames: { nom: "Zero on the meter", arbitrage: "Arbitrage", arbitrage_full: "Full arbitrage", time_slots: "Time slots", manual: "Manual" },
     compareTitle: "Return compared",
+    checkTitle: "Plan versus reality (per day)",
+    checkDay: "Day",
+    checkPlanned: "Planned saving",
+    checkRealized: "Realised",
+    checkDiff: "Difference",
+    checkDev: "Avg. power deviation",
+    checkNote: "Per slot the plan when the slot started, compared with what all batteries (also virtual) really did and brought. Collected from now on.",
+    checkEmpty: "No complete slots measured yet.",
     modeLabel: "Plan mode",
     modeSwitching: "switching…",
     vsNone: "vs no battery",
@@ -217,6 +225,14 @@ const TEXT = {
     vsMode: "{mode} t.o.v. {other}",
     modeNames: { nom: "Nul op de meter", arbitrage: "Arbitrage", arbitrage_full: "Arbitrage volledig", time_slots: "Tijdvakken", manual: "Handmatig" },
     compareTitle: "Rendement vergeleken",
+    checkTitle: "Plan tegen werkelijkheid (per dag)",
+    checkDay: "Dag",
+    checkPlanned: "Verwachte besparing",
+    checkRealized: "Gerealiseerd",
+    checkDiff: "Verschil",
+    checkDev: "Gem. afwijking vermogen",
+    checkNote: "Per kwartier het plan bij de start ervan, vergeleken met wat alle batterijen (ook virtuele) echt deden en opleverden. Wordt vanaf nu verzameld.",
+    checkEmpty: "Nog geen volledige kwartieren gemeten.",
     modeLabel: "Planmodus",
     modeSwitching: "wisselen…",
     vsNone: "t.o.v. geen batterij",
@@ -303,7 +319,8 @@ const STYLE = `
   .phases { display: grid; gap: 10px; }
   table.compare { border-collapse: collapse; width: 100%; max-width: 640px; margin-bottom: 8px; }
   table.compare td { padding: 6px 8px; border-bottom: 1px solid var(--divider-color); }
-  table.compare td.num { text-align: right; white-space: nowrap; }
+  table.compare td.num, table.compare th.num { text-align: right; white-space: nowrap; }
+  table.compare th { text-align: left; font-weight: 500; padding: 6px 8px; color: var(--secondary-text-color); }
   table.compare tr.sel td { font-weight: 500; }
   table.compare small { color: var(--secondary-text-color); margin-left: 4px; }
   .phase { display: grid; grid-template-columns: 40px 1fr 190px; gap: 8px; align-items: center; font-size: 14px; }
@@ -619,6 +636,24 @@ class HomeBatteryAssistPanel extends HTMLElement {
       <div class="nav"><span class="muted">${esc(this._modeBusy ? t.modeSwitching : t.modeLabel)}:</span>${buttons}</div></div></div>
       <table class="compare">${rows.join("")}</table>
       <div class="muted">${esc(t.compareNote.replace("{date}", date))}</div></div>`;
+  }
+
+  _planCheck(s, t) {
+    const days = this._history?.plan_check;
+    if (!days || !s.batteries.length) return "";
+    const lang = this._hass.locale?.language || this._hass.language;
+    const currency = this._history?.value?.currency || "EUR";
+    const money = (v) => new Intl.NumberFormat(lang, { style: "currency", currency }).format(v);
+    const signed = (v) => `${v > 0 ? "+" : ""}${money(v)}`;
+    const rows = days.map((d) => {
+      const day = new Date(`${d.day}T12:00:00`).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" });
+      const diff = d.realized - d.planned;
+      return `<tr><td>${esc(day)}</td><td class="num">${esc(money(d.planned))}</td><td class="num">${esc(money(d.realized))}</td>
+        <td class="num"><b>${esc(signed(diff))}</b></td><td class="num">${esc(this._power(d.power_deviation_w))}</td></tr>`;
+    });
+    const head = `<tr><th>${esc(t.checkDay)}</th><th class="num">${esc(t.checkPlanned)}</th><th class="num">${esc(t.checkRealized)}</th><th class="num">${esc(t.checkDiff)}</th><th class="num">${esc(t.checkDev)}</th></tr>`;
+    const body = rows.length ? `<table class="compare">${head}${rows.join("")}</table>` : `<div class="muted">${esc(t.checkEmpty)}</div>`;
+    return `<div class="card"><h2>${esc(t.checkTitle)}</h2>${body}<div class="muted">${esc(t.checkNote)}</div></div>`;
   }
 
   _battery(b, t) {
@@ -1261,6 +1296,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       body = [
         this._flows(s, t),
         this._compare(s, t),
+        this._planCheck(s, t),
         this._consumption(t),
         this._batteries(s, t),
         this._phases(s, t),

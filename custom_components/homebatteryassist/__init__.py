@@ -15,7 +15,10 @@ from datetime import datetime
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_track_state_change_event,
+    async_track_utc_time_change,
+)
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
@@ -29,6 +32,7 @@ from .inputs.batteries import BatteryInput
 from .inputs.measurements import MeasurementInput
 from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
 from .output.panel import async_setup_panel
+from .planning.verification import PlanVerification
 from .services import async_setup_services
 from .simulation.virtual_battery import VirtualBatterySimulator
 
@@ -131,6 +135,41 @@ async def async_setup_entry(
     measurements.async_start()
     await measurements.async_start_meter()
 
+    # The plan afterwards: per history interval, planned vs what happened.
+    plan_check = PlanVerification(hass, entry.entry_id)
+    await plan_check.async_load()
+
+    def _battery_totals() -> dict[str, float]:
+        stats = batteries.stats.values()
+        return {
+            "charged_kwh": sum(s.get("charged_kwh", 0.0) for s in stats),
+            "discharged_kwh": sum(s.get("discharged_kwh", 0.0) for s in stats),
+            "value": sum(s.get("value", 0.0) for s in stats),
+        }
+
+    @callback
+    def _check_plan(now: datetime) -> None:
+        plan_check.settle(now, _battery_totals)
+        if forecast.data is not None:
+            plan_check.record_plan(
+                forecast.data.battery,
+                forecast.data.plan_mode,
+                now,
+                forecast.export_factor,
+                forecast.cycle_cost,
+            )
+
+    minutes = history.minutes
+    entry.async_on_unload(
+        async_track_utc_time_change(
+            hass,
+            _check_plan,
+            minute=f"/{minutes}" if minutes < 60 else 0,
+            second=1,
+        )
+    )
+    _check_plan(dt_util.utcnow())
+
     simulator = VirtualBatterySimulator(
         hass, batteries, measurements, forecast, decisions
     )
@@ -143,6 +182,7 @@ async def async_setup_entry(
         batteries=batteries,
         history=history,
         forecast=forecast,
+        plan_check=plan_check,
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # Options and subentry changes (PV sources, excluded loads) require a reload.
@@ -171,6 +211,7 @@ async def async_unload_entry(
         await data.history.async_stop()
         await data.decisions.async_save()
         await data.forecast.accuracy.async_save()
+        await data.plan_check.async_save()
     return unloaded
 
 
