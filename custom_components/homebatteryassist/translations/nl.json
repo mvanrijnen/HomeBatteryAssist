@@ -326,6 +326,61 @@
       "abort": {
         "reconfigure_successful": "Instellingen opgeslagen."
       }
+    },
+    "virtual_battery": {
+      "entry_type": "Virtuele batterij",
+      "initiate_flow": {
+        "user": "Virtuele batterij toevoegen"
+      },
+      "step": {
+        "user": {
+          "title": "Virtuele batterij",
+          "description": "Een gesimuleerde batterij die live naast je echte batterijen meedraait in de gekozen planmodus, om te zien hoe een (extra) batterij zich zou gedragen en wat hij zou opleveren. Hij telt mee in het batterijplan, nooit in het huisverbruik.",
+          "data": {
+            "name": "Naam",
+            "capacity_kwh": "Capaciteit",
+            "max_charge_power": "Maximaal laadvermogen",
+            "max_discharge_power": "Maximaal ontlaadvermogen",
+            "min_soc": "Minimale vulling",
+            "max_soc": "Maximale vulling",
+            "initial_soc": "Startvulling",
+            "phase": "Fase",
+            "loss_min": "Minimaal verlies",
+            "loss_max": "Maximaal verlies"
+          },
+          "data_description": {
+            "loss_min": "Verlies over laden + ontladen; per simulatiestap wordt een willekeurige waarde tussen minimum en maximum gebruikt.",
+            "loss_max": "De planner rekent met het gemiddelde van minimum en maximum."
+          }
+        },
+        "reconfigure": {
+          "title": "Virtuele batterij",
+          "description": "Een gesimuleerde batterij die live naast je echte batterijen meedraait in de gekozen planmodus, om te zien hoe een (extra) batterij zich zou gedragen en wat hij zou opleveren. Hij telt mee in het batterijplan, nooit in het huisverbruik.",
+          "data": {
+            "name": "Naam",
+            "capacity_kwh": "Capaciteit",
+            "max_charge_power": "Maximaal laadvermogen",
+            "max_discharge_power": "Maximaal ontlaadvermogen",
+            "min_soc": "Minimale vulling",
+            "max_soc": "Maximale vulling",
+            "initial_soc": "Startvulling",
+            "phase": "Fase",
+            "loss_min": "Minimaal verlies",
+            "loss_max": "Maximaal verlies"
+          },
+          "data_description": {
+            "loss_min": "Verlies over laden + ontladen; per simulatiestap wordt een willekeurige waarde tussen minimum en maximum gebruikt.",
+            "loss_max": "De planner rekent met het gemiddelde van minimum en maximum."
+          }
+        }
+      },
+      "error": {
+        "soc_range": "De maximale vulling moet hoger zijn dan de minimale.",
+        "loss_range": "Het maximale verlies moet minstens het minimale zijn."
+      },
+      "abort": {
+        "reconfigure_successful": "Instellingen opgeslagen."
+      }
     }
   },
   "entity": {

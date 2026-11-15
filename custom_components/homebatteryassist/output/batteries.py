@@ -25,7 +25,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.util import dt as dt_util
 
-from ..const import DOMAIN
+from ..const import DOMAIN, NAME
 from ..inputs.batteries import BatteryInput, BatteryState, BatteryStatus
 from ..models import HomeBatteryAssistConfigEntry
 
@@ -241,11 +241,15 @@ class BatterySensor(_BatteryEntityBase):
         self._attr_unique_id = f"{battery_id}_{description.key}"
         name = self._state.config.name
         manufacturer, model = source
+        if self._state.config.virtual:
+            manufacturer, model = NAME, "Virtual battery (simulation)"
+        else:
+            model = f"{model} (read-only)" if model else "Home battery (read-only)"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, battery_id)},
             name=name,
             manufacturer=manufacturer,
-            model=f"{model} (read-only)" if model else "Home battery (read-only)",
+            model=model,
             entry_type=DeviceEntryType.SERVICE,
         )
 
@@ -291,8 +295,10 @@ class BatteriesTotalSensor(_BatteryEntityBase):
 
     @property
     def native_value(self) -> Any:
-        """Return the total."""
-        return self.entity_description.value_fn(list(self._batteries.states.values()))
+        """Return the total over the real batteries (virtual ones are what-ifs)."""
+        return self.entity_description.value_fn(
+            [s for s in self._batteries.states.values() if not s.config.virtual]
+        )
 
 
 def source_device(hass: HomeAssistant, entity_id: str) -> tuple[str | None, str | None]:

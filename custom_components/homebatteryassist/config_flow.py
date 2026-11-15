@@ -65,6 +65,9 @@ from .const import (
     CONF_FORECAST_INTERVAL,
     CONF_FULL_CHARGE_INTERVAL,
     CONF_HISTORY_INTERVAL,
+    CONF_INITIAL_SOC,
+    CONF_LOSS_MAX,
+    CONF_LOSS_MIN,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_CURRENT,
     CONF_MAX_DISCHARGE_POWER,
@@ -87,6 +90,9 @@ from .const import (
     DEFAULT_FORECAST_INTERVAL,
     DEFAULT_FULL_CHARGE_INTERVAL,
     DEFAULT_HISTORY_INTERVAL,
+    DEFAULT_INITIAL_SOC,
+    DEFAULT_LOSS_MAX,
+    DEFAULT_LOSS_MIN,
     DEFAULT_MAX_CURRENT,
     DEFAULT_MAX_SOC,
     DEFAULT_MIN_SOC,
@@ -107,6 +113,7 @@ from .const import (
     SUBENTRY_BATTERY,
     SUBENTRY_EXCLUDED_LOAD,
     SUBENTRY_PV_SOURCE,
+    SUBENTRY_VIRTUAL_BATTERY,
     phase_return_sensor_keys,
     phase_sensor_keys,
 )
@@ -416,6 +423,7 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
             SUBENTRY_PV_SOURCE: PvSourceSubentryFlow,
             SUBENTRY_EXCLUDED_LOAD: ExcludedLoadSubentryFlow,
             SUBENTRY_BATTERY: BatterySubentryFlow,
+            SUBENTRY_VIRTUAL_BATTERY: VirtualBatterySubentryFlow,
         }
 
     @staticmethod
@@ -704,4 +712,92 @@ class BatterySubentryFlow(ConfigSubentryFlow):
             return self.async_create_entry(title=title, data=data, unique_id=unique_id)
         return self.async_update_and_abort(
             self._get_entry(), current, title=title, data=data, unique_id=unique_id
+        )
+
+
+def virtual_battery_schema(three_phase: bool) -> vol.Schema:
+    """Properties of a virtual (simulated) battery."""
+    schema: dict[Any, Any] = {
+        vol.Required(CONF_NAME): TextSelector(),
+        vol.Required(CONF_CAPACITY, default=5.12): _number(0.1, 1000, 0.01, "kWh"),
+        vol.Required(CONF_MAX_CHARGE_POWER, default=2500): _number(1, 50000, 1, "W"),
+        vol.Required(CONF_MAX_DISCHARGE_POWER, default=2500): _number(1, 50000, 1, "W"),
+        vol.Required(CONF_MIN_SOC, default=DEFAULT_MIN_SOC): _number(
+            0, 100, 1, "%", slider=True
+        ),
+        vol.Required(CONF_MAX_SOC, default=DEFAULT_MAX_SOC): _number(
+            0, 100, 1, "%", slider=True
+        ),
+        vol.Required(CONF_LOSS_MIN, default=DEFAULT_LOSS_MIN): _number(0, 60, 1, "%"),
+        vol.Required(CONF_LOSS_MAX, default=DEFAULT_LOSS_MAX): _number(0, 60, 1, "%"),
+        vol.Required(CONF_INITIAL_SOC, default=DEFAULT_INITIAL_SOC): _number(
+            0, 100, 1, "%", slider=True
+        ),
+    }
+    if three_phase:
+        schema[vol.Required(CONF_PHASE, default=PHASE_NONE)] = phase_selector()
+    return vol.Schema(schema)
+
+
+class VirtualBatterySubentryFlow(ConfigSubentryFlow):
+    """Add or change a virtual battery: a live simulation to test what-ifs."""
+
+    def _current(self) -> ConfigSubentry | None:
+        return (
+            self._get_reconfigure_subentry() if self.source == "reconfigure" else None
+        )
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Add a virtual battery."""
+        return await self._async_step("user", user_input)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Change a virtual battery."""
+        return await self._async_step("reconfigure", user_input)
+
+    async def _async_step(
+        self, step_id: str, user_input: dict[str, Any] | None
+    ) -> SubentryFlowResult:
+        entry = self._get_entry()
+        current = self._current()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if user_input[CONF_MIN_SOC] >= user_input[CONF_MAX_SOC]:
+                errors[CONF_MAX_SOC] = "soc_range"
+            elif user_input[CONF_LOSS_MIN] > user_input[CONF_LOSS_MAX]:
+                errors[CONF_LOSS_MAX] = "loss_range"
+            else:
+                data = {
+                    CONF_NAME: user_input[CONF_NAME],
+                    CONF_CAPACITY: float(user_input[CONF_CAPACITY]),
+                    CONF_PHASE: user_input.get(CONF_PHASE, PHASE_NONE),
+                    **{
+                        key: int(user_input[key])
+                        for key in (
+                            CONF_MAX_CHARGE_POWER,
+                            CONF_MAX_DISCHARGE_POWER,
+                            CONF_MIN_SOC,
+                            CONF_MAX_SOC,
+                            CONF_LOSS_MIN,
+                            CONF_LOSS_MAX,
+                            CONF_INITIAL_SOC,
+                        )
+                    },
+                }
+                if current is None:
+                    return self.async_create_entry(title=data[CONF_NAME], data=data)
+                return self.async_update_and_abort(
+                    entry, current, title=data[CONF_NAME], data=data
+                )
+        suggested = user_input or (dict(current.data) if current else None)
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=self.add_suggested_values_to_schema(
+                virtual_battery_schema(entry.data[CONF_PHASES] == 3), suggested
+            ),
+            errors=errors,
         )

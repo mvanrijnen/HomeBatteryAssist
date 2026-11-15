@@ -59,6 +59,7 @@ async def async_setup_entry(
     batteries = entry.runtime_data.batteries
     if batteries.configs:
         main.append(BatteryForecastSensor(entry))
+    if any(not c.virtual for c in batteries.configs):
         main += [
             BatteriesTotalSensor(entry, description, main_device_info(entry))
             for description in TOTAL_SENSORS

@@ -181,7 +181,7 @@ def _nom(
             PlanSlot(
                 slot.start,
                 slot.end,
-                round(power, 1),
+                round(power, 1) + 0.0,  # no "-0.0"
                 round(stored / pack.capacity * 100, 1),
                 round(net + power, 1),
                 price,
@@ -256,7 +256,7 @@ def _optimise(
             PlanSlot(
                 slot.start,
                 slot.end,
-                round(power, 1),
+                round(power, 1) + 0.0,  # no "-0.0"
                 round(energy[j] / pack.capacity * 100, 1),
                 round(net + power, 1),
                 price,

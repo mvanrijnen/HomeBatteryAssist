@@ -326,6 +326,61 @@
       "abort": {
         "reconfigure_successful": "Settings saved."
       }
+    },
+    "virtual_battery": {
+      "entry_type": "Virtual battery",
+      "initiate_flow": {
+        "user": "Add virtual battery"
+      },
+      "step": {
+        "user": {
+          "title": "Virtual battery",
+          "description": "A simulated battery that runs live alongside your real batteries in the selected plan mode, to see how a (second) battery would behave and what it would save. It is included in the battery plan, never in the house consumption.",
+          "data": {
+            "name": "Name",
+            "capacity_kwh": "Capacity",
+            "max_charge_power": "Maximum charge power",
+            "max_discharge_power": "Maximum discharge power",
+            "min_soc": "Minimum state of charge",
+            "max_soc": "Maximum state of charge",
+            "initial_soc": "Starting state of charge",
+            "phase": "Phase",
+            "loss_min": "Minimum loss",
+            "loss_max": "Maximum loss"
+          },
+          "data_description": {
+            "loss_min": "Round-trip loss (charge + discharge); per simulation step a random value between minimum and maximum is used.",
+            "loss_max": "The planner uses the average of minimum and maximum."
+          }
+        },
+        "reconfigure": {
+          "title": "Virtual battery",
+          "description": "A simulated battery that runs live alongside your real batteries in the selected plan mode, to see how a (second) battery would behave and what it would save. It is included in the battery plan, never in the house consumption.",
+          "data": {
+            "name": "Name",
+            "capacity_kwh": "Capacity",
+            "max_charge_power": "Maximum charge power",
+            "max_discharge_power": "Maximum discharge power",
+            "min_soc": "Minimum state of charge",
+            "max_soc": "Maximum state of charge",
+            "initial_soc": "Starting state of charge",
+            "phase": "Phase",
+            "loss_min": "Minimum loss",
+            "loss_max": "Maximum loss"
+          },
+          "data_description": {
+            "loss_min": "Round-trip loss (charge + discharge); per simulation step a random value between minimum and maximum is used.",
+            "loss_max": "The planner uses the average of minimum and maximum."
+          }
+        }
+      },
+      "error": {
+        "soc_range": "The maximum state of charge must be higher than the minimum.",
+        "loss_range": "The maximum loss must be at least the minimum."
+      },
+      "abort": {
+        "reconfigure_successful": "Settings saved."
+      }
     }
   },
   "entity": {

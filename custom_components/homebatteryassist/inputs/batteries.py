@@ -13,7 +13,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 from homeassistant.config_entries import ConfigEntry, ConfigSubentry
 from homeassistant.const import CONF_NAME, STATE_UNAVAILABLE, STATE_UNKNOWN
@@ -33,6 +33,9 @@ from ..const import (
     CONF_CAPACITY,
     CONF_EFFICIENCY,
     CONF_FULL_CHARGE_INTERVAL,
+    CONF_INITIAL_SOC,
+    CONF_LOSS_MAX,
+    CONF_LOSS_MIN,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MAX_SOC,
@@ -43,6 +46,9 @@ from ..const import (
     CONF_SOC_SENSOR,
     DEFAULT_EFFICIENCY,
     DEFAULT_FULL_CHARGE_INTERVAL,
+    DEFAULT_INITIAL_SOC,
+    DEFAULT_LOSS_MAX,
+    DEFAULT_LOSS_MIN,
     DEFAULT_MAX_SOC,
     DEFAULT_MIN_SOC,
     DOMAIN,
@@ -52,6 +58,7 @@ from ..const import (
     SIGN_CHARGING_POSITIVE,
     SIGN_DISCHARGING_POSITIVE,
     SUBENTRY_BATTERY,
+    SUBENTRY_VIRTUAL_BATTERY,
 )
 from ..explain import DecisionLog
 from .units import parse_float, state_to_watts
@@ -87,27 +94,43 @@ class BatteryConfig:
     efficiency: float  # round trip, 0..1
     full_charge_interval_days: int  # 0 = no periodic full charge
     phase: str
+    virtual: bool = False  # simulated what-if battery, no sensors
+    initial_soc: float = DEFAULT_INITIAL_SOC
+    loss_min: float = 0.0  # virtual: round-trip loss range (fraction)
+    loss_max: float = 0.0
 
     @classmethod
     def from_subentry(cls, subentry: ConfigSubentry) -> BatteryConfig:
         """Build from subentry data."""
         data: Mapping[str, Any] = subentry.data
+        virtual = subentry.subentry_type == SUBENTRY_VIRTUAL_BATTERY
+        loss_min = float(data.get(CONF_LOSS_MIN, DEFAULT_LOSS_MIN)) / 100
+        loss_max = float(data.get(CONF_LOSS_MAX, DEFAULT_LOSS_MAX)) / 100
+        efficiency = (
+            1 - (loss_min + loss_max) / 2
+            if virtual
+            else float(data.get(CONF_EFFICIENCY, DEFAULT_EFFICIENCY)) / 100
+        )
         return cls(
             id=subentry.subentry_id,
             name=data[CONF_NAME],
-            soc_sensor=data[CONF_SOC_SENSOR],
-            power_sensor=data[CONF_POWER_SENSOR],
+            soc_sensor="" if virtual else data[CONF_SOC_SENSOR],
+            power_sensor="" if virtual else data[CONF_POWER_SENSOR],
             power_sign=data.get(CONF_POWER_SIGN, SIGN_CHARGING_POSITIVE),
             capacity_kwh=float(data[CONF_CAPACITY]),
             max_charge_w=float(data[CONF_MAX_CHARGE_POWER]),
             max_discharge_w=float(data[CONF_MAX_DISCHARGE_POWER]),
             min_soc=float(data.get(CONF_MIN_SOC, DEFAULT_MIN_SOC)),
             max_soc=float(data.get(CONF_MAX_SOC, DEFAULT_MAX_SOC)),
-            efficiency=float(data.get(CONF_EFFICIENCY, DEFAULT_EFFICIENCY)) / 100,
+            efficiency=efficiency,
             full_charge_interval_days=int(
                 data.get(CONF_FULL_CHARGE_INTERVAL, DEFAULT_FULL_CHARGE_INTERVAL)
             ),
             phase=data.get(CONF_PHASE, PHASE_NONE),
+            virtual=virtual,
+            initial_soc=float(data.get(CONF_INITIAL_SOC, DEFAULT_INITIAL_SOC)),
+            loss_min=loss_min if virtual else 0.0,
+            loss_max=loss_max if virtual else 0.0,
         )
 
 
@@ -174,12 +197,22 @@ class BatteryState:
         return now + timedelta(hours=energy * 1000 / power)  # type: ignore[operator]
 
 
-def battery_configs(entry: ConfigEntry) -> list[BatteryConfig]:
-    """All batteries configured as subentries."""
+def battery_configs(
+    entry: ConfigEntry, *, include_virtual: bool = False
+) -> list[BatteryConfig]:
+    """Batteries configured as subentries (real; optionally also virtual ones).
+
+    Virtual batteries never take part in measurements (house consumption).
+    """
+    types = (
+        {SUBENTRY_BATTERY, SUBENTRY_VIRTUAL_BATTERY}
+        if include_virtual
+        else {SUBENTRY_BATTERY}
+    )
     return [
         BatteryConfig.from_subentry(subentry)
         for subentry in entry.subentries.values()
-        if subentry.subentry_type == SUBENTRY_BATTERY
+        if subentry.subentry_type in types
     ]
 
 
@@ -213,6 +246,7 @@ class BatteryStats(TypedDict):
     charged_kwh: float
     discharged_kwh: float
     last_full_charge: str | None  # ISO 8601, UTC
+    virtual_soc: NotRequired[float]  # simulated state of charge (virtual batteries)
 
 
 class BatteryInput:
@@ -224,7 +258,7 @@ class BatteryInput:
         """Initialize."""
         self.hass = hass
         self._decisions = decisions
-        self.configs = battery_configs(entry)
+        self.configs = battery_configs(entry, include_virtual=True)
         self.states: dict[str, BatteryState] = {
             c.id: BatteryState(c, None, None) for c in self.configs
         }
@@ -244,14 +278,23 @@ class BatteryInput:
             self.stats[config.id] = BatteryStats(
                 charged_kwh=0.0, discharged_kwh=0.0, last_full_charge=None
             ) | stored.get(config.id, {})
-        entity_ids = [e for c in self.configs for e in (c.soc_sensor, c.power_sensor)]
+        entity_ids = [
+            e
+            for c in self.configs
+            if not c.virtual
+            for e in (c.soc_sensor, c.power_sensor)
+        ]
         if entity_ids:
             self._unsub = async_track_state_change_event(
                 self.hass, entity_ids, self._async_state_changed
             )
         now = dt_util.utcnow()
         for config in self.configs:
-            self._update(config, now)
+            if config.virtual:
+                soc = self.stats[config.id].get("virtual_soc", config.initial_soc)
+                self._update(config, now, BatteryState(config, soc, 0.0))
+            else:
+                self._update(config, now)
 
     async def async_stop(self) -> None:
         """Stop following and persist the counters."""
@@ -285,9 +328,20 @@ class BatteryInput:
             if entity_id in (config.soc_sensor, config.power_sensor):
                 self._update(config, event.time_fired)
 
-    def _update(self, config: BatteryConfig, when: datetime) -> None:
+    @callback
+    def set_virtual(
+        self, battery_id: str, when: datetime, power_w: float, soc: float
+    ) -> None:
+        """Update a virtual battery from the simulation."""
+        config = next(c for c in self.configs if c.id == battery_id)
+        self.stats[battery_id]["virtual_soc"] = soc
+        self._update(config, when, BatteryState(config, soc, power_w))
+
+    def _update(
+        self, config: BatteryConfig, when: datetime, state: BatteryState | None = None
+    ) -> None:
         previous = self.states[config.id]
-        state = read_battery(self.hass, config)
+        state = state or read_battery(self.hass, config)
         self.states[config.id] = state
 
         self._count_energy(config.id, when, state.power_w)

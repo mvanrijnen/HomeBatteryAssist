@@ -74,6 +74,17 @@ PHASE_IDS: Final = ("l1", "l2", "l3")
 # Subentry: a home battery, linked (read-only) through entities of its own
 # integration. HomeBatteryAssist never controls batteries.
 SUBENTRY_BATTERY: Final = "battery"
+# Subentry: a virtual battery, simulated live (what-if; the only kind of battery
+# HomeBatteryAssist "controls", because it is not a device).
+SUBENTRY_VIRTUAL_BATTERY: Final = "virtual_battery"
+CONF_INITIAL_SOC: Final = "initial_soc"
+DEFAULT_INITIAL_SOC: Final = 50
+# Round-trip loss of a virtual battery: random per simulation step between
+# min and max (%); the planner uses the average.
+CONF_LOSS_MIN: Final = "loss_min"
+CONF_LOSS_MAX: Final = "loss_max"
+DEFAULT_LOSS_MIN: Final = 10
+DEFAULT_LOSS_MAX: Final = 20
 # Reading
 CONF_SOC_SENSOR: Final = "soc_sensor"  # state of charge, %
 CONF_POWER_SENSOR: Final = "power_sensor"  # W or A

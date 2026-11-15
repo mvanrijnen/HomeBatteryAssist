@@ -107,6 +107,7 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             {
                 "id": config.id,
                 "name": config.name,
+                "virtual": config.virtual,
                 "capacity_kwh": config.capacity_kwh,
                 "min_soc": config.min_soc,
                 "max_soc": config.max_soc,

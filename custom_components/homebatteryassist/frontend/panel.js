@@ -20,6 +20,7 @@ const TEXT = {
     idle: "Idle",
     unavailable: "Unavailable",
     battery: "Batteries",
+    virtual: "virtual",
     noBatteries: "No batteries linked yet. Add one under Settings → Devices & services → HomeBatteryAssist.",
     stored: "Stored",
     usable: "Usable",
@@ -116,6 +117,7 @@ const TEXT = {
     idle: "Rust",
     unavailable: "Niet beschikbaar",
     battery: "Batterijen",
+    virtual: "virtueel",
     noBatteries: "Nog geen batterijen gekoppeld. Voeg er een toe via Instellingen → Apparaten & diensten → HomeBatteryAssist.",
     stored: "Opgeslagen",
     usable: "Bruikbaar",
@@ -443,7 +445,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const fill = soc === null ? 0 : soc;
     const cls = soc !== null && soc <= b.min_soc ? "alert" : soc !== null && soc < b.min_soc + 10 ? "warn" : "";
     return `<div class="battery">
-      <div class="head"><span class="name">${esc(b.name)}</span>
+      <div class="head"><span class="name">${esc(b.name)}${b.virtual ? ` <small class="muted">(${esc(t.virtual)})</small>` : ""}</span>
         <span class="status ${esc(status || "")}">${esc(status ? t[status] || status : t.unavailable)}</span></div>
       <div class="bar"><div class="fill ${cls}" style="width:${fill}%"></div>
         <div class="mark" style="left:${b.min_soc}%"></div><div class="mark" style="left:${b.max_soc}%"></div>

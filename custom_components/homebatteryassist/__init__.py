@@ -29,6 +29,7 @@ from .inputs.measurements import MeasurementInput
 from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
 from .output.panel import async_setup_panel
 from .services import async_setup_services
+from .simulation.virtual_battery import VirtualBatterySimulator
 
 PLATFORMS: list[Platform] = [Platform.BUTTON, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
@@ -103,6 +104,10 @@ async def async_setup_entry(
 
     measurements.async_add_listener(_record)
     measurements.async_start()
+
+    simulator = VirtualBatterySimulator(hass, batteries, measurements, forecast)
+    simulator.async_start()
+    entry.async_on_unload(simulator.async_stop)
 
     entry.runtime_data = HomeBatteryAssistData(
         decisions=decisions,
