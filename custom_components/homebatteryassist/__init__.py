@@ -23,7 +23,7 @@ from .history import ConsumptionHistory
 from .inputs.batteries import BatteryInput
 from .inputs.measurements import MeasurementInput
 from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
-from .output.panel import async_remove_panel, async_setup_panel
+from .output.panel import async_setup_panel
 from .services import async_setup_services
 
 PLATFORMS: list[Platform] = [Platform.BUTTON, Platform.SENSOR]
@@ -31,8 +31,13 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Register the actions (independent of config entries)."""
+    """Register the actions and the status panel (independent of config entries).
+
+    The panel is always in the sidebar; until the integration is set up it
+    explains how to add it.
+    """
     async_setup_services(hass)
+    await async_setup_panel(hass, await _async_version(hass))
     return True
 
 
@@ -77,7 +82,6 @@ async def async_setup_entry(
         forecast=forecast,
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    await async_setup_panel(hass, await _async_version(hass))
     # Options and subentry changes (PV sources, excluded loads) require a reload.
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     return True
@@ -96,7 +100,6 @@ async def async_unload_entry(
     """Unload a config entry."""
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unloaded:
-        async_remove_panel(hass)
         data = entry.runtime_data
         data.measurements.async_stop()
         await data.batteries.async_stop()

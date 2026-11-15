@@ -70,16 +70,6 @@ async def async_setup_panel(hass: HomeAssistant, version: str) -> None:
     hass.data[DATA_REGISTERED] = True
 
 
-@callback
-def async_remove_panel(hass: HomeAssistant) -> None:
-    """Remove the panel from the sidebar (static path and command stay)."""
-    if "frontend" in hass.config.components:
-        from homeassistant.components import frontend
-
-        frontend.async_remove_panel(hass, PANEL_URL_PATH, warn_if_unknown=False)
-    hass.data.pop(DATA_REGISTERED, None)
-
-
 def _entity_ids(registry: er.EntityRegistry, prefix: str, keys: Any) -> dict[str, str]:
     ids = {}
     for key in keys:

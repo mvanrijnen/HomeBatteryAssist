@@ -38,6 +38,7 @@ const TEXT = {
     decisions: "Why — recent decisions",
     noDecisions: "No decisions yet.",
     error: "Could not load the status",
+    notLoaded: "HomeBatteryAssist is not set up yet. Add it under Settings → Devices & services → Add integration → HomeBatteryAssist.",
   },
   nl: {
     title: "HomeBatteryAssist",
@@ -74,6 +75,7 @@ const TEXT = {
     decisions: "Waarom — recente beslissingen",
     noDecisions: "Nog geen beslissingen.",
     error: "Status kon niet worden geladen",
+    notLoaded: "HomeBatteryAssist is nog niet ingesteld. Voeg hem toe via Instellingen → Apparaten & diensten → Integratie toevoegen → HomeBatteryAssist.",
   },
 };
 
@@ -163,7 +165,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
       this._status = await this._hass.callWS({ type: "homebatteryassist/status" });
       this._error = null;
     } catch (err) {
-      this._error = err?.message || String(err);
+      this._status = null;
+      this._error = err?.code === "not_loaded" ? "not_loaded" : err?.message || String(err);
     }
     this._loading = false;
     this._scheduleRender();
@@ -304,7 +307,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     if (!this._hass) return;
     const t = this._t;
     let body;
-    if (this._error) body = `<div class="card">${esc(t.error)}: ${esc(this._error)}</div>`;
+    if (this._error === "not_loaded") body = `<div class="card">${esc(t.notLoaded)}</div>`;
+    else if (this._error) body = `<div class="card">${esc(t.error)}: ${esc(this._error)}</div>`;
     else if (!this._status) body = "";
     else {
       const s = this._status;
