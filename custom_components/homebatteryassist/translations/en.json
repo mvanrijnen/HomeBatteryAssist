@@ -1,6 +1,13 @@
 {
   "config": {
     "step": {
+      "meter": {
+        "title": "Grid meter",
+        "description": "These grid meters were found in other integrations. Choose one to use its phase measurements, or choose the phases and sensors yourself. HomeBatteryAssist only reads the meter.",
+        "data": {
+          "source": "Meter"
+        }
+      },
       "user": {
         "title": "Grid connection",
         "description": "Is your home connected to the grid with 1 phase or 3 phases?",
@@ -148,6 +155,11 @@
         "30": "30 minutes",
         "60": "60 minutes",
         "120": "120 minutes"
+      }
+    },
+    "meter": {
+      "options": {
+        "manual": "Choose the phases and sensors yourself"
       }
     }
   },

@@ -1,6 +1,13 @@
 {
   "config": {
     "step": {
+      "meter": {
+        "title": "Netmeter",
+        "description": "Deze netmeters zijn gevonden in andere integraties. Kies er een om zijn metingen per fase te gebruiken, of kies zelf de fasen en sensoren. HomeBatteryAssist leest de meter alleen uit.",
+        "data": {
+          "source": "Meter"
+        }
+      },
       "user": {
         "title": "Netaansluiting",
         "description": "Heeft je woning een 1-fase of 3-fase aansluiting op het net?",
@@ -148,6 +155,11 @@
         "30": "30 minuten",
         "60": "60 minuten",
         "120": "120 minuten"
+      }
+    },
+    "meter": {
+      "options": {
+        "manual": "Zelf de fasen en sensoren kiezen"
       }
     }
   },

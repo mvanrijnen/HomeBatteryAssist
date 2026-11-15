@@ -1,6 +1,9 @@
 """Config flow for HomeBatteryAssist.
 
 Steps:
+0. meter:      only if a known grid meter is found (``inputs.meters``, e.g. a
+               HomeWizard P1): pick it to fill in phases and sensors, or choose
+               them manually (steps 1 and 3)
 1. user:       1-phase or 3-phase grid connection
 2. max_current: connection size, i.e. fuse rating per phase (1x35A, 3x25A, ...)
 3. sensors:    per phase a power (W) or current (A) sensor: signed (+ import,
@@ -126,6 +129,7 @@ from .const import (
     phase_return_sensor_keys,
     phase_sensor_keys,
 )
+from .inputs.meters import MeterCandidate, find_meter_candidates
 from .inputs.profiles import BatteryCandidate, find_battery_candidates
 from .inputs.solar import async_solar_forecast_entries
 from .planning.battery_plan import DEFAULT_PLAN_MODE, PLAN_MODES
@@ -381,6 +385,9 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize the flow."""
         self._data: dict[str, Any] = {}
+        self._meters: dict[str, MeterCandidate] = {}
+        self._meter_offered = False
+        self._from_meter = False
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
@@ -392,7 +399,15 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 1: choose a 1-phase or 3-phase connection."""
+        """Step 1: choose a 1-phase or 3-phase connection.
+
+        First offers the grid meters found in other integrations (step meter).
+        """
+        if user_input is None and not self._meter_offered:
+            self._meter_offered = True
+            if found := find_meter_candidates(self.hass):
+                self._meters = {c.device_id: c for c in found}
+                return await self.async_step_meter()
         if user_input is not None:
             self._data[CONF_PHASES] = int(user_input[CONF_PHASES])
             return await self.async_step_max_current()
@@ -403,12 +418,65 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=self.add_suggested_values_to_schema(PHASES_SCHEMA, suggested),
         )
 
+    async def async_step_meter(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Step 0: a grid meter found in another integration, or manual."""
+        if user_input is not None:
+            meter = self._meters.get(user_input[CONF_SOURCE])
+            if meter is None:
+                self._from_meter = False
+                return await self.async_step_user()
+            self._from_meter = True
+            self._data = {
+                **{k: v for k, v in self._data.items() if k == CONF_MAX_CURRENT},
+                CONF_PHASES: meter.phases,
+                **meter.sensors,
+            }
+            return await self.async_step_max_current()
+
+        default = next(iter(self._meters))
+        if self._data:  # reconfigure: keep manual unless a meter matches
+            default = next(
+                (
+                    c.device_id
+                    for c in self._meters.values()
+                    if all(self._data.get(k) == v for k, v in c.sensors.items())
+                    and self._data.get(CONF_PHASES) == c.phases
+                ),
+                SOURCE_MANUAL,
+            )
+        return self.async_show_form(
+            step_id="meter",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_SOURCE, default=default): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                *(
+                                    SelectOptionDict(value=c.device_id, label=c.label)
+                                    for c in self._meters.values()
+                                ),
+                                SelectOptionDict(
+                                    value=SOURCE_MANUAL, label=SOURCE_MANUAL
+                                ),
+                            ],
+                            mode=SelectSelectorMode.LIST,
+                            translation_key="meter",
+                        )
+                    )
+                }
+            ),
+        )
+
     async def async_step_max_current(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Step 2: maximum current per phase (main fuse rating)."""
         if user_input is not None:
             self._data[CONF_MAX_CURRENT] = int(user_input[CONF_MAX_CURRENT])
+            if self._from_meter:
+                return await self._async_grid_done()
             return await self.async_step_sensors()
 
         phases = self._data[CONF_PHASES]
@@ -443,11 +511,7 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
                     CONF_MAX_CURRENT: self._data[CONF_MAX_CURRENT],
                     **{key: value for key, value in user_input.items() if value},
                 }
-                if self.source == SOURCE_RECONFIGURE:
-                    return self.async_update_reload_and_abort(
-                        self._get_reconfigure_entry(), data=self._data
-                    )
-                return await self.async_step_settings()
+                return await self._async_grid_done()
 
         return self.async_show_form(
             step_id="sensors",
@@ -456,6 +520,14 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
             ),
             errors=errors,
         )
+
+    async def _async_grid_done(self) -> ConfigFlowResult:
+        """The grid connection is complete: save it (reconfigure) or continue."""
+        if self.source == SOURCE_RECONFIGURE:
+            return self.async_update_reload_and_abort(
+                self._get_reconfigure_entry(), data=self._data
+            )
+        return await self.async_step_settings()
 
     async def async_step_settings(
         self, user_input: dict[str, Any] | None = None

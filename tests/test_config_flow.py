@@ -267,3 +267,83 @@ async def test_reconfigure_grid_connection(hass: HomeAssistant) -> None:
         "sensor_l3": "sensor.power_l3",
     }
     assert entry.options == {CONF_HISTORY_INTERVAL: 15}  # settings untouched
+
+
+def _homewizard(hass: HomeAssistant, prefix: str, phases: int, marker: bool) -> None:
+    """Register a HomeWizard device like the core integration does."""
+    from homeassistant.helpers import device_registry as dr
+    from homeassistant.helpers import entity_registry as er
+
+    source = MockConfigEntry(domain="homewizard")
+    source.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=source.entry_id,
+        identifiers={("homewizard", prefix)},
+        name="P1 meter" if marker else "kWh meter",
+        model="HWE-P1" if marker else "HWE-KWH1",
+    )
+    registry = er.async_get(hass)
+    if marker:
+        registry.async_get_or_create(
+            "sensor",
+            "homewizard",
+            f"{prefix}_smr_version",
+            device_id=device.id,
+            translation_key="dsmr_version",
+        )
+    for n in range(1, phases + 1):
+        registry.async_get_or_create(
+            "sensor",
+            "homewizard",
+            f"{prefix}_active_power_l{n}_w",
+            device_id=device.id,
+            translation_key="active_power_phase_w",
+            suggested_object_id=f"{prefix.lower()}_power_l{n}",
+        )
+
+
+async def test_detected_meter_fills_in_sensors(hass: HomeAssistant) -> None:
+    """A HomeWizard P1 meter is offered; kWh meters are not grid meters."""
+    _homewizard(hass, "HWE-P1_abc", 3, marker=True)
+    _homewizard(hass, "HWE-KWH1_def", 1, marker=False)
+    result = await _start(hass)
+    assert result["step_id"] == "meter"
+    options = result["data_schema"].schema["source"].config["options"]
+    assert [o["value"] for o in options][-1] == "manual"
+    assert len(options) == 2  # the P1 meter + manual
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"source": options[0]["value"]}
+    )
+    assert result["step_id"] == "max_current"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MAX_CURRENT: "25"}
+    )
+    assert result["step_id"] == "settings"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HISTORY_INTERVAL: "15", CONF_PLANNING_HORIZON: 2}
+    )
+    assert result["data"] == {
+        CONF_PHASES: 3,
+        CONF_MAX_CURRENT: 25,
+        "sensor_l1": "sensor.hwe_p1_abc_power_l1",
+        "sensor_l2": "sensor.hwe_p1_abc_power_l2",
+        "sensor_l3": "sensor.hwe_p1_abc_power_l3",
+    }
+
+
+async def test_detected_meter_manual_choice(hass: HomeAssistant) -> None:
+    """Separate sensors stay possible next to a detected meter."""
+    _homewizard(hass, "HWE-P1_abc", 3, marker=True)
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"source": "manual"}
+    )
+    assert result["step_id"] == "user"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PHASES: "1"}
+    )
+    assert result["step_id"] == "max_current"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MAX_CURRENT: "35"}
+    )
+    assert result["step_id"] == "sensors"
