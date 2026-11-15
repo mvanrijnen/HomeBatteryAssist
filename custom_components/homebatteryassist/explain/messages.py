@@ -25,6 +25,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "battery_unavailable": "Battery {name} unavailable: its state of charge or power sensor has no valid value.",
         "battery_restored": "Battery {name} is available again.",
         "battery_full_charge": "Battery {name} is fully charged.",
+        "history_imported": "Consumption history imported: {count} periods from {first} to {last}.",
     },
     "nl": {
         "horizon_setting": "Planning {hours} uur vooruit (tot {end}): het ingestelde maximum van {days} dagen.",
@@ -37,6 +38,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "battery_unavailable": "Batterij {name} niet beschikbaar: de sensor voor vulling of vermogen heeft geen geldige waarde.",
         "battery_restored": "Batterij {name} is weer beschikbaar.",
         "battery_full_charge": "Batterij {name} is volledig opgeladen.",
+        "history_imported": "Verbruikshistorie geïmporteerd: {count} perioden van {first} tot {last}.",
     },
 }
 

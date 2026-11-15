@@ -370,6 +370,28 @@
     "recalculate": {
       "name": "Recalculate",
       "description": "Recalculates the forecasts of HomeBatteryAssist now, e.g. when new prices or PV forecasts arrive. Only HomeBatteryAssist's own forecasts are recalculated; no device is controlled."
+    },
+    "import_history": {
+      "name": "Import consumption history",
+      "description": "Fills the consumption history from Home Assistant's statistics, e.g. as starting data for forecasts. By default the house consumption is reconstructed from the configured sensors (grid, PV, excluded devices, batteries). Own measurements are never overwritten unless Replace is on.",
+      "fields": {
+        "days": {
+          "name": "Days",
+          "description": "How many days back to import (at most the retention of 28 days)."
+        },
+        "source_entity": {
+          "name": "Consumption sensor (optional)",
+          "description": "Take over the house consumption of this sensor instead of reconstructing it, e.g. from Omnibattery."
+        },
+        "battery_power_history": {
+          "name": "Older battery power sensors (optional)",
+          "description": "Earlier power sensors of the battery (same direction), used for the period before its current sensor existed."
+        },
+        "replace": {
+          "name": "Replace own measurements",
+          "description": "Let imported values replace own measurements in the same periods."
+        }
+      }
     }
   },
   "exceptions": {

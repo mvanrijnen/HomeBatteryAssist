@@ -370,6 +370,28 @@
     "recalculate": {
       "name": "Herberekenen",
       "description": "Berekent de voorspellingen van HomeBatteryAssist nu opnieuw, bijvoorbeeld als er nieuwe prijzen of PV-voorspellingen zijn. Alleen de eigen voorspellingen van HomeBatteryAssist worden herberekend; er wordt geen apparaat aangestuurd."
+    },
+    "import_history": {
+      "name": "Verbruikshistorie importeren",
+      "description": "Vult de verbruikshistorie uit de statistieken van Home Assistant, bijvoorbeeld als startgegevens voor de voorspellingen. Standaard wordt het huisverbruik gereconstrueerd uit de ingestelde sensoren (net, PV, uitgesloten apparaten, batterijen). Eigen metingen worden nooit overschreven, tenzij Vervangen aan staat.",
+      "fields": {
+        "days": {
+          "name": "Dagen",
+          "description": "Hoeveel dagen terug importeren (maximaal de bewaartermijn van 28 dagen)."
+        },
+        "source_entity": {
+          "name": "Verbruikssensor (optioneel)",
+          "description": "Neem het huisverbruik van deze sensor over in plaats van het te reconstrueren, bijvoorbeeld van Omnibattery."
+        },
+        "battery_power_history": {
+          "name": "Oudere vermogensensoren batterij (optioneel)",
+          "description": "Eerdere vermogensensoren van de batterij (zelfde richting), gebruikt voor de periode voordat de huidige sensor bestond."
+        },
+        "replace": {
+          "name": "Eigen metingen vervangen",
+          "description": "Laat geïmporteerde waarden eigen metingen in dezelfde perioden vervangen."
+        }
+      }
     }
   },
   "exceptions": {

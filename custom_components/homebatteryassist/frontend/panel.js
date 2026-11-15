@@ -247,6 +247,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const e = s.entities;
     const grid = this._num(e.grid_power);
     const parts = [];
+    parts.push(this._flow("house", "mdi:home", t.house, this._power(this._num(e.house_consumption))));
     parts.push(
       this._flow(
         grid !== null && grid < 0 ? "export" : "import",
@@ -262,7 +263,6 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const sub = [s.has_pv ? "" : t.notMeasured, expected].filter(Boolean).join(" · ");
       parts.push(this._flow("pv", "mdi:solar-power", t.pv, value, sub));
     }
-    parts.push(this._flow("house", "mdi:home", t.house, this._power(this._num(e.house_consumption))));
     if (s.batteries.length) {
       const power = this._num(e.batteries_power);
       const soc = this._num(e.batteries_soc);

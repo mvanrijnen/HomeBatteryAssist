@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_utc_time_change
@@ -26,6 +26,7 @@ class ConsumptionRecord(TypedDict):
     minutes: int  # interval length
     avg_w: float  # time-weighted average power while measured
     coverage: float  # fraction of the interval with a valid measurement (0..1)
+    source: NotRequired[str]  # "import" for records imported from statistics
 
 
 class ConsumptionHistory:
@@ -143,7 +144,7 @@ class ConsumptionHistory:
                 ),
             )
             self.records.append(record)
-            self._prune(self._interval_start)
+            self.prune(self._interval_start)
             self._store.async_delay_save(self._data, SAVE_DELAY)
             _LOGGER.debug("Recorded %s", record)
 
@@ -158,7 +159,8 @@ class ConsumptionHistory:
             self._measured_s += seconds
         self._last_time = when
 
-    def _prune(self, now: datetime) -> None:
+    def prune(self, now: datetime) -> None:
+        """Drop records older than the retention period."""
         cutoff = (dt_util.as_utc(now) - HISTORY_RETENTION).isoformat()
         self.records = [r for r in self.records if r["start"] >= cutoff]
 
