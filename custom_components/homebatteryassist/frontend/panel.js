@@ -223,12 +223,6 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const e = s.entities;
     const grid = this._num(e.grid_power);
     const parts = [];
-    if (s.has_pv || s.has_pv_forecast) {
-      const expected = s.pv_forecast_now_w == null ? "" : `${t.expected} ${this._power(s.pv_forecast_now_w)}`;
-      const value = s.has_pv ? this._power(this._num(e.pv_power)) : "–";
-      const sub = [s.has_pv ? "" : t.notMeasured, expected].filter(Boolean).join(" · ");
-      parts.push(this._flow("pv", "mdi:solar-power", t.pv, value, sub));
-    }
     parts.push(
       this._flow(
         grid !== null && grid < 0 ? "export" : "import",
@@ -238,6 +232,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
         grid === null ? "" : grid < 0 ? t.exporting : t.importing,
       ),
     );
+    if (s.has_pv || s.has_pv_forecast) {
+      const expected = s.pv_forecast_now_w == null ? "" : `${t.expected} ${this._power(s.pv_forecast_now_w)}`;
+      const value = s.has_pv ? this._power(this._num(e.pv_power)) : "–";
+      const sub = [s.has_pv ? "" : t.notMeasured, expected].filter(Boolean).join(" · ");
+      parts.push(this._flow("pv", "mdi:solar-power", t.pv, value, sub));
+    }
     parts.push(this._flow("house", "mdi:home", t.house, this._power(this._num(e.house_consumption))));
     if (s.batteries.length) {
       const power = this._num(e.batteries_power);
