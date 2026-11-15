@@ -56,6 +56,9 @@ const TEXT = {
     expectedLine: "Expected",
     houseMeasured: "House",
     houseExpected: "House expected",
+    deviation: "Forecast deviation",
+    usualHouse: "Usual deviation house",
+    usualPv: "Usual deviation PV",
     pvMeasured: "PV",
     pvExpected: "PV expected",
     batteryLine: "Battery (+ charging / − discharging)",
@@ -134,6 +137,9 @@ const TEXT = {
     expectedLine: "Verwacht",
     houseMeasured: "Huis",
     houseExpected: "Huis verwacht",
+    deviation: "Afwijking voorspelling",
+    usualHouse: "Gebruikelijke afwijking huis",
+    usualPv: "Gebruikelijke afwijking PV",
     pvMeasured: "PV",
     pvExpected: "PV verwacht",
     batteryLine: "Batterij (+ laden / − ontladen)",
@@ -586,7 +592,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
       .map((s, i) => (hits[i] ? `<div class="r"><span><i style="background:${s.color}"></i>${esc(s.label || "")}</span>
         <b>${esc(this._power(hits[i][1]))}</b></div>` : ""))
       .join("");
-    tip.innerHTML = `<div class="t">${esc(c.xFmt(anchor[0]))}</div>${rows}`;
+    const extra = c.extra ? c.extra(anchor[0], hits) : "";
+    tip.innerHTML = `<div class="t">${esc(c.xFmt(anchor[0]))}</div>${rows}${extra}`;
     tip.hidden = false;
     const box = svg.getBoundingClientRect();
     const parent = svg.parentElement.getBoundingClientRect();
@@ -694,6 +701,44 @@ class HomeBatteryAssistPanel extends HTMLElement {
         (v) => new Date(v).toLocaleString(lang, { weekday: "short", hour: "2-digit", minute: "2-digit" }),
       );
       this._charts.forecast.gapLimit = slot;
+      // Tooltip extras: the deviation in the past, the usual deviation ahead.
+      const accuracy = h.accuracy || {};
+      const leadKey = (ms) => {
+        const hours = ms / 3600e3;
+        if (hours < 1) return "0-1h";
+        if (hours < 6) return "1-6h";
+        if (hours < 24) return "6-24h";
+        if (hours < 48) return "1-2d";
+        if (hours < 72) return "2-3d";
+        if (hours < 120) return "3-5d";
+        return "5d+";
+      };
+      const usual = (kind, ts, label, unit) => {
+        const key = leadKey(ts - Date.now());
+        const b = accuracy[kind]?.lead_times?.[key];
+        if (!b || !b.samples || b.mae == null) return "";
+        const value = kind === "pv" ? `${Math.round(b.mae)} ${unit}` : this._power(b.mae);
+        return `<div class="r muted"><span>${esc(label)} (${esc(t.leads[key])})</span><b>± ${esc(value)}</b></div>`;
+      };
+      const chart = this._charts.forecast;
+      chart.extra = (ts, hits) => {
+        let html = "";
+        const hit = (label) => hits[chart.series.findIndex((x) => x.label === label)] || null;
+        const house = hit(t.houseMeasured);
+        const predicted = hit(t.predicted);
+        const expected = hit(t.houseExpected);
+        const pvExpected = hit(t.pvExpected);
+        if (house && predicted && house[0] === predicted[0]) {
+          const diff = predicted[1] - house[1];
+          const pct = house[1] ? ` (${diff >= 0 ? "+" : ""}${Math.round((diff / house[1]) * 100)}%)` : "";
+          html += `<div class="r"><span>${esc(t.deviation)}</span><b>${diff >= 0 ? "+" : ""}${esc(this._power(diff))}${pct}</b></div>`;
+        }
+        if (ts > Date.now()) {
+          if (expected) html += usual("consumption", ts, t.usualHouse, "W");
+          if (pvExpected) html += usual("pv", ts, t.usualPv, "Wh");
+        }
+        return html;
+      };
     }
     const buckets = Object.values(h.accuracy?.consumption?.lead_times || {});
     const acc = buckets.find((b) => b.samples);
