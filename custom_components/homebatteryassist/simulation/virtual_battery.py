@@ -31,11 +31,12 @@ from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
+from ..explain import DecisionLog
 from ..forecasts.coordinator import ForecastCoordinator
 from ..inputs.batteries import BatteryConfig, BatteryInput
 from ..inputs.measurements import MeasurementInput
 from ..planning.battery_plan import MODE_ARBITRAGE
-from ..planning.distribution import Candidate, distribute
+from ..planning.distribution import Candidate, Distributor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,9 +86,12 @@ class VirtualBatterySimulator:
         batteries: BatteryInput,
         measurements: MeasurementInput,
         forecast: ForecastCoordinator,
+        decisions: DecisionLog,
     ) -> None:
         """Initialize."""
         self.hass = hass
+        self._decisions = decisions
+        self._distributor = Distributor(forecast.balance_interval)
         self._batteries = batteries
         self._measurements = measurements
         self._forecast = forecast
@@ -173,5 +177,26 @@ class VirtualBatterySimulator:
                     config.max_discharge_w,
                 )
             )
-        shares = distribute(total, candidates, self._forecast.min_battery_power)
+        shares, switch = self._distributor.distribute(
+            total, candidates, self._forecast.min_battery_power, now
+        )
+        if switch:
+            names = {c.id: c.name for c in virtual}
+            socs = {c.id: c.soc for c in candidates}
+            new, old = switch
+            dutch = (self.hass.config.language or "").startswith("nl")
+            action = (
+                ("laden" if total > 0 else "ontladen")
+                if dutch
+                else ("charging" if total > 0 else "discharging")
+            )
+            self._decisions.async_log(
+                "battery",
+                "battery_switch",
+                new=names[new],
+                old=names[old],
+                action=action,
+                new_soc=round(socs[new]),
+                old_soc=round(socs[old]),
+            )
         return lambda config, soc: shares.get(config.id, 0.0)

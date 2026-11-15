@@ -57,7 +57,9 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    BALANCE_INTERVAL_OPTIONS,
     BATTERY_SENSOR_KEYS,
+    CONF_BALANCE_INTERVAL,
     CONF_CAPACITY,
     CONF_CYCLE_COST,
     CONF_EFFICIENCY,
@@ -85,6 +87,7 @@ from .const import (
     CONF_SENSOR,
     CONF_SOC_SENSOR,
     CONF_SOURCE,
+    DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
     DEFAULT_EFFICIENCY,
     DEFAULT_EXPORT_FACTOR,
@@ -277,6 +280,16 @@ async def settings_schema(
             )
         ),
         vol.Required(
+            CONF_BALANCE_INTERVAL,
+            default=str(current.get(CONF_BALANCE_INTERVAL, DEFAULT_BALANCE_INTERVAL)),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=[str(m) for m in BALANCE_INTERVAL_OPTIONS],
+                mode=SelectSelectorMode.LIST,
+                translation_key=CONF_BALANCE_INTERVAL,
+            )
+        ),
+        vol.Required(
             CONF_CYCLE_COST, default=current.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
         ): NumberSelector(
             NumberSelectorConfig(
@@ -324,6 +337,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
         CONF_CYCLE_COST: float(user_input.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)),
         CONF_MIN_BATTERY_POWER: int(
             user_input.get(CONF_MIN_BATTERY_POWER, DEFAULT_MIN_BATTERY_POWER)
+        ),
+        CONF_BALANCE_INTERVAL: int(
+            user_input.get(CONF_BALANCE_INTERVAL, DEFAULT_BALANCE_INTERVAL)
         ),
     }
     if user_input.get(CONF_PRICE_FORECAST):

@@ -42,3 +42,38 @@ def test_full_or_empty_batteries_are_skipped() -> None:
     assert distribute(500.0, [full, empty], 300.0) == {"full": 0.0, "empty": 500.0}
     assert distribute(-500.0, [full, empty], 300.0) == {"full": -500.0, "empty": 0.0}
     assert distribute(0.0, [full], 300.0) == {"full": 0.0}
+
+
+def test_distributor_keeps_battery_until_balance_check() -> None:
+    """No flapping: the battery in use stays until the hourly balance check."""
+    from datetime import datetime, timedelta
+
+    from custom_components.homebatteryassist.planning.distribution import Distributor
+
+    t0 = datetime(2026, 11, 16, 0, 0)
+    distributor = Distributor(timedelta(hours=1))
+    result, switch = distributor.distribute(
+        -400.0, [_b("a", 51.0), _b("b", 50.0)], 300.0, t0
+    )
+    assert result == {"a": -400.0, "b": 0.0} and switch is None
+
+    # "a" is now emptier than "b", but it stays in use before the check.
+    later = t0 + timedelta(minutes=30)
+    result, switch = distributor.distribute(
+        -400.0, [_b("a", 47.0), _b("b", 50.0)], 300.0, later
+    )
+    assert result["a"] == -400.0 and switch is None
+
+    # At the balance check "b" is more than 2 % fuller: it takes over.
+    check = t0 + timedelta(hours=1)
+    result, switch = distributor.distribute(
+        -400.0, [_b("a", 46.0), _b("b", 50.0)], 300.0, check
+    )
+    assert result == {"a": 0.0, "b": -400.0} and switch == ("b", "a")
+
+    # Within the tolerance nothing changes at the next check.
+    next_check = check + timedelta(hours=1)
+    result, switch = distributor.distribute(
+        -400.0, [_b("a", 46.0), _b("b", 47.0)], 300.0, next_check
+    )
+    assert result["b"] == -400.0 and switch is None

@@ -75,6 +75,7 @@ async def test_three_phase_flow(hass: HomeAssistant) -> None:
         "export_price_factor": 1.0,
         "cycle_cost": 0.02,
         "min_battery_power": 300,
+        "balance_interval": 60,
     }
 
 
@@ -104,6 +105,7 @@ async def test_single_phase_flow(hass: HomeAssistant) -> None:
         "export_price_factor": 1.0,
         "cycle_cost": 0.02,
         "min_battery_power": 300,
+        "balance_interval": 60,
     }
     assert result["data"] == {
         CONF_PHASES: 1,
@@ -196,6 +198,7 @@ async def test_options_flow_changes_settings(hass: HomeAssistant) -> None:
         "export_price_factor": 1.0,
         "cycle_cost": 0.02,
         "min_battery_power": 300,
+        "balance_interval": 60,
     }
     await hass.async_block_till_done()
     # The reloaded entry recalculates every 5 minutes.

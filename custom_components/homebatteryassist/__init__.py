@@ -115,7 +115,9 @@ async def async_setup_entry(
     measurements.async_add_listener(_record)
     measurements.async_start()
 
-    simulator = VirtualBatterySimulator(hass, batteries, measurements, forecast)
+    simulator = VirtualBatterySimulator(
+        hass, batteries, measurements, forecast, decisions
+    )
     simulator.async_start()
     entry.async_on_unload(simulator.async_stop)
 

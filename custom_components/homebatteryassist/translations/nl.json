@@ -39,7 +39,8 @@
           "plan_mode": "Modus batterijplan",
           "export_price_factor": "Vergoeding teruglevering",
           "cycle_cost": "Slijtagekosten batterij",
-          "min_battery_power": "Minimaal vermogen per batterij"
+          "min_battery_power": "Minimaal vermogen per batterij",
+          "balance_interval": "Balanscontrole elke"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -50,7 +51,8 @@
           "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
           "export_price_factor": "Deel van de prijs dat je terugkrijgt voor teruggeleverde energie (1 = salderen).",
           "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
-          "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is."
+          "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is.",
+          "balance_interval": "Hoe vaak gekeken wordt of een andere batterij het moet overnemen, zodat de batterijen gelijk gevuld blijven. Daartussen blijven de gebruikte batterijen actief."
         }
       }
     },
@@ -135,6 +137,14 @@
         "nom": "Nul op de meter (NOM)",
         "arbitrage": "Arbitrage (kostenoptimaal)"
       }
+    },
+    "balance_interval": {
+      "options": {
+        "15": "15 minuten",
+        "30": "30 minuten",
+        "60": "60 minuten",
+        "120": "120 minuten"
+      }
     }
   },
   "options": {
@@ -151,7 +161,8 @@
           "plan_mode": "Modus batterijplan",
           "export_price_factor": "Vergoeding teruglevering",
           "cycle_cost": "Slijtagekosten batterij",
-          "min_battery_power": "Minimaal vermogen per batterij"
+          "min_battery_power": "Minimaal vermogen per batterij",
+          "balance_interval": "Balanscontrole elke"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -162,7 +173,8 @@
           "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
           "export_price_factor": "Deel van de prijs dat je terugkrijgt voor teruggeleverde energie (1 = salderen).",
           "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
-          "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is."
+          "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is.",
+          "balance_interval": "Hoe vaak gekeken wordt of een andere batterij het moet overnemen, zodat de batterijen gelijk gevuld blijven. Daartussen blijven de gebruikte batterijen actief."
         }
       }
     }

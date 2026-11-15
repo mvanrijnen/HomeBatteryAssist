@@ -32,6 +32,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from ..const import (
+    CONF_BALANCE_INTERVAL,
     CONF_CYCLE_COST,
     CONF_EXPORT_FACTOR,
     CONF_FORECAST_INTERVAL,
@@ -40,6 +41,7 @@ from ..const import (
     CONF_PLANNING_HORIZON,
     CONF_PRICE_FORECAST,
     CONF_PV_FORECAST,
+    DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
     DEFAULT_EXPORT_FACTOR,
     DEFAULT_FORECAST_INTERVAL,
@@ -141,6 +143,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.cycle_cost: float = entry.options.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
         self.min_battery_power: float = entry.options.get(
             CONF_MIN_BATTERY_POWER, DEFAULT_MIN_BATTERY_POWER
+        )
+        self.balance_interval = timedelta(
+            minutes=entry.options.get(CONF_BALANCE_INTERVAL, DEFAULT_BALANCE_INTERVAL)
         )
         self._last_plan: str | None = None
         self._last_method: str | None = None
