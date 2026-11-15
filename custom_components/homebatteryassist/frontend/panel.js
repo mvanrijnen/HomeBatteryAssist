@@ -62,6 +62,8 @@ const TEXT = {
     pvMeasured: "PV",
     pvExpected: "PV expected",
     batteryLine: "Battery (+ charging / − discharging)",
+    gridMeasured: "Grid (+ import / − export)",
+    gridExpected: "Grid expected (without battery)",
     flowTitle: "Energy flows and expected consumption (past 24 h, next 48 h)",
     now: "now",
     accuracy: "Average deviation (shortest lead time): {mae} ({mape}%)",
@@ -143,6 +145,8 @@ const TEXT = {
     pvMeasured: "PV",
     pvExpected: "PV verwacht",
     batteryLine: "Batterij (+ laden / − ontladen)",
+    gridMeasured: "Net (+ afname / − teruglevering)",
+    gridExpected: "Net verwacht (zonder batterij)",
     flowTitle: "Energiestromen en verwacht verbruik (afgelopen 24 uur, komende 48 uur)",
     now: "nu",
     accuracy: "Gemiddelde afwijking (kortste vooruitzicht): {mae} ({mape}%)",
@@ -661,6 +665,18 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const pvFc = h.pv_forecast || [];
     const pvColor = "#fbc02d";
     const batteryColor = "var(--success-color, #43a047)";
+    const gridColor = "#e53935";
+    // Grid = house - PV + excluded devices + battery charging (from the history).
+    const gridPast = past.map(([ts, house, excluded, pv, battery]) => [
+      ts,
+      house == null ? null : Math.round(house - (pv || 0) + (excluded || 0) + (battery || 0)),
+    ]);
+    // Expected grid without battery: expected house minus expected PV (per hour).
+    const pvByHour = new Map(pvFc.map(([ts, wh]) => [ts, wh]));
+    const gridFc = fc.map(([ts, power]) => {
+      const hour = Math.floor(ts / 3600e3) * 3600e3;
+      return [ts, Math.round(power - (pvByHour.get(hour) || 0))];
+    });
     if (!fc.length && !verified.length && !past.length) {
       forecastChart = `<div class="muted">${esc(t.noForecast)}</div>`;
     } else {
@@ -689,6 +705,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
           ...(h.has_battery
             ? [{ points: past.map(([ts, , , , battery]) => [ts, battery]), color: batteryColor, label: t.batteryLine }]
             : []),
+          { points: gridPast, color: gridColor, label: t.gridMeasured },
+          { points: gridFc, color: gridColor, dashed: true, label: t.gridExpected },
           ...(h.has_excluded
             ? [{ points: past.map(([ts, , excluded]) => [ts, excluded || null]), color: excludedColor, label: t.excludedLine }]
             : []),
@@ -755,6 +773,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
       h.has_pv ? item(pvColor, t.pvMeasured) : "",
       pvFc.length ? item(pvColor, t.pvExpected, true) : "",
       h.has_battery ? item(batteryColor, t.batteryLine) : "",
+      item(gridColor, t.gridMeasured),
+      fc.length ? item(gridColor, t.gridExpected, true) : "",
       h.has_excluded ? item(excludedColor, t.excludedLine) : "",
     ].join("")}</div>`;
 
