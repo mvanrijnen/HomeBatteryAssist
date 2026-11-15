@@ -54,7 +54,15 @@ TEXT = {
             "nom": "nul op de meter",
             "arbitrage": "arbitrage",
             "arbitrage_full": "arbitrage volledig",
+            "time_slots": "tijdvakken",
+            "manual": "handmatig",
         },
+        "now_fixed_charge": "De batterijen laden nu {power}: {why}.",
+        "now_fixed_discharge": "De batterijen ontladen nu {power}: {why}.",
+        "now_fixed_idle": "De batterijen doen nu niets: {why}.",
+        "why_manual": "zo ingesteld (handmatig)",
+        "why_slot": "volgens tijdvak {name}",
+        "fixed_outside": "Buiten de tijdvakken werken ze als nul op de meter.",
     },
     "en": {
         "now_idle_empty": "The batteries are idle: they are as empty as allowed, and charging does not pay off now.",
@@ -85,7 +93,15 @@ TEXT = {
             "nom": "zero on the meter",
             "arbitrage": "arbitrage",
             "arbitrage_full": "full arbitrage",
+            "time_slots": "time slots",
+            "manual": "manual",
         },
+        "now_fixed_charge": "The batteries are charging {power}: {why}.",
+        "now_fixed_discharge": "The batteries are discharging {power}: {why}.",
+        "now_fixed_idle": "The batteries are idle: {why}.",
+        "why_manual": "as set (manual)",
+        "why_slot": "following time slot {name}",
+        "fixed_outside": "Outside the time slots they work as zero on the meter.",
     },
 }
 
@@ -227,7 +243,24 @@ def plan_story(
     def per_kwh(value: float) -> str:
         return t["per_kwh"].format(amount=_money(value, lang))
 
-    if current.power_w > ACTIVE_W:
+    if current.reason is not None:
+        # Manual / time slot: the action is fixed, its reason is the setting.
+        why = (
+            t["why_manual"]
+            if current.reason == "manual"
+            else t["why_slot"].format(name=current.reason)
+        )
+        key = (
+            "now_fixed_charge"
+            if current.power_w > ACTIVE_W
+            else "now_fixed_discharge"
+            if current.power_w < -ACTIVE_W
+            else "now_fixed_idle"
+        )
+        sentences.append(t[key].format(power=_power(current.power_w), why=why))
+        if plan.strategy == "time_slots":
+            sentences.append(t["fixed_outside"])
+    elif current.power_w > ACTIVE_W:
         key = "now_charge_grid" if current.grid_w > ACTIVE_W else "now_charge_pv"
         sentences.append(
             t[key].format(power=_power(current.power_w), price=per_kwh(price_now or 0))

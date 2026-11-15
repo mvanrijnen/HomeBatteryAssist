@@ -39,6 +39,7 @@ from ..const import (
     CONF_EXPORT_MODE,
     CONF_FORECAST_INTERVAL,
     CONF_FULL_CHARGE_WINDOW,
+    CONF_MANUAL_POWER,
     CONF_MAX_CURRENT,
     CONF_MAX_CYCLES,
     CONF_MIN_BATTERY_POWER,
@@ -56,6 +57,7 @@ from ..const import (
     DEFAULT_EXPORT_MODE,
     DEFAULT_FORECAST_INTERVAL,
     DEFAULT_FULL_CHARGE_WINDOW,
+    DEFAULT_MANUAL_POWER,
     DEFAULT_MAX_CYCLES,
     DEFAULT_MIN_BATTERY_POWER,
     DEFAULT_PEAK_LIMIT,
@@ -65,6 +67,7 @@ from ..const import (
     DOMAIN,
     EXPORT_FACTOR,
     EXPORT_MARKET,
+    SUBENTRY_TIME_SLOT,
 )
 from ..explain import DecisionLog
 from ..explain.plan_story import plan_story
@@ -79,6 +82,8 @@ from ..inputs.prices import (
 from ..inputs.solar import PV_PERIOD, async_get_pv_forecast
 from ..planning.battery_plan import (
     DEFAULT_PLAN_MODE,
+    MODE_MANUAL,
+    MODE_TIME_SLOTS,
     PLAN_MODES,
     BatteryPlan,
     PlanSlot,
@@ -91,6 +96,7 @@ from ..planning.phase_limit import (
     max_power,
     phase_limit_w,
 )
+from ..planning.schedule import Target, TimeSlot, slot_target
 from .accuracy import KINDS, ForecastAccuracy
 from .adjustments import AdjustmentStore
 from .consumption import ForecastSlot, forecast_consumption
@@ -188,6 +194,14 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.max_cycles: float = entry.options.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES)
         self.pv_margin: float = entry.options.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN)
         self.peak_w: float = entry.options.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT)
+        self.manual_power: float = entry.options.get(
+            CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER
+        )
+        self.time_slots = [
+            TimeSlot.from_data(sub.data)
+            for sub in entry.subentries.values()
+            if sub.subentry_type == SUBENTRY_TIME_SLOT
+        ]
         self.phase_margin: float = entry.options.get(
             CONF_PHASE_MARGIN, DEFAULT_PHASE_MARGIN
         )
@@ -337,6 +351,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                     export_prices=export_prices,
                     max_cycles_per_day=self.max_cycles,
                     peak_w=self.peak_w,
+                    target=self._target(m),
                 )
             )
             if plan is not None:
@@ -410,6 +425,16 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             )
             for start, loads in self.phase_profile.loads(consumption, pv_wh).items()
         }
+
+    def _target(self, mode: str) -> Callable[[datetime], Target | None] | None:
+        """The fixed actions of the manual and time slot modes."""
+        if mode == MODE_MANUAL:
+            manual = Target(self.manual_power, None, "manual")
+            return lambda _when: manual
+        if mode == MODE_TIME_SLOTS:
+            slots = self.time_slots
+            return lambda when: slot_target(slots, when)
+        return None
 
     def _fits_connection(
         self,

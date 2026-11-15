@@ -58,6 +58,7 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     SelectSelectorMode,
     TextSelector,
+    TimeSelector,
 )
 
 from .const import (
@@ -77,6 +78,7 @@ from .const import (
     CONF_INITIAL_SOC,
     CONF_LOSS_MAX,
     CONF_LOSS_MIN,
+    CONF_MANUAL_POWER,
     CONF_MAX_CHARGE_POWER,
     CONF_MAX_CURRENT,
     CONF_MAX_CYCLES,
@@ -114,6 +116,7 @@ from .const import (
     DEFAULT_INITIAL_SOC,
     DEFAULT_LOSS_MAX,
     DEFAULT_LOSS_MIN,
+    DEFAULT_MANUAL_POWER,
     DEFAULT_MAX_CURRENT,
     DEFAULT_MAX_CYCLES,
     DEFAULT_MAX_SOC,
@@ -140,6 +143,7 @@ from .const import (
     SUBENTRY_BATTERY,
     SUBENTRY_EXCLUDED_LOAD,
     SUBENTRY_PV_SOURCE,
+    SUBENTRY_TIME_SLOT,
     SUBENTRY_VIRTUAL_BATTERY,
     phase_return_sensor_keys,
     phase_sensor_keys,
@@ -157,6 +161,7 @@ from .inputs.meters import MeterCandidate, find_meter_candidates
 from .inputs.profiles import BatteryCandidate, find_battery_candidates
 from .inputs.solar import async_solar_forecast_entries
 from .planning.battery_plan import DEFAULT_PLAN_MODE, PLAN_MODES
+from .planning.schedule import ACTION_CHARGE, ACTIONS, WEEKDAYS
 
 PHASES_SCHEMA = vol.Schema(
     {
@@ -294,6 +299,10 @@ async def settings_schema(
             )
         ),
         vol.Required(
+            CONF_MANUAL_POWER,
+            default=current.get(CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER),
+        ): _number(-20000, 20000, 50, "W"),
+        vol.Required(
             CONF_PEAK_LIMIT,
             default=current.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT),
         ): _number(0, 60000, 100, "W"),
@@ -428,6 +437,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]
     options[CONF_EXPORT_MODE] = user_input.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE)
+    options[CONF_MANUAL_POWER] = int(
+        user_input.get(CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER)
+    )
     options[CONF_PEAK_LIMIT] = int(user_input.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT))
     options[CONF_PV_MARGIN] = int(user_input.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN))
     options[CONF_MAX_CYCLES] = float(
@@ -762,6 +774,7 @@ class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
             SUBENTRY_EXCLUDED_LOAD: ExcludedLoadSubentryFlow,
             SUBENTRY_BATTERY: BatterySubentryFlow,
             SUBENTRY_VIRTUAL_BATTERY: VirtualBatterySubentryFlow,
+            SUBENTRY_TIME_SLOT: TimeSlotSubentryFlow,
         }
 
     @staticmethod
@@ -1167,6 +1180,89 @@ class VirtualBatterySubentryFlow(ConfigSubentryFlow):
             step_id=step_id,
             data_schema=self.add_suggested_values_to_schema(
                 virtual_battery_schema(entry.data[CONF_PHASES] == 3), suggested
+            ),
+            errors=errors,
+        )
+
+
+def time_slot_schema() -> vol.Schema:
+    """A time slot: when, and what the batteries do."""
+    return vol.Schema(
+        {
+            vol.Required(CONF_NAME): TextSelector(),
+            vol.Required("start", default="01:00:00"): TimeSelector(),
+            vol.Required("end", default="05:00:00"): TimeSelector(),
+            vol.Required("days", default=list(WEEKDAYS)): SelectSelector(
+                SelectSelectorConfig(
+                    options=list(WEEKDAYS),
+                    multiple=True,
+                    mode=SelectSelectorMode.LIST,
+                    translation_key="weekday",
+                )
+            ),
+            vol.Required("action", default=ACTION_CHARGE): SelectSelector(
+                SelectSelectorConfig(
+                    options=list(ACTIONS),
+                    mode=SelectSelectorMode.LIST,
+                    translation_key="slot_action",
+                )
+            ),
+            vol.Required("power", default=2000): _number(0, 20000, 50, "W"),
+            vol.Optional("soc"): _number(0, 100, 1, "%", slider=True),
+        }
+    )
+
+
+class TimeSlotSubentryFlow(ConfigSubentryFlow):
+    """Add or change a time slot (used in the plan mode "time slots")."""
+
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Add a time slot."""
+        return await self._async_step("user", user_input)
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Change a time slot."""
+        return await self._async_step("reconfigure", user_input)
+
+    async def _async_step(
+        self, step_id: str, user_input: dict[str, Any] | None
+    ) -> SubentryFlowResult:
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            if not user_input.get("days"):
+                errors["days"] = "no_days"
+            else:
+                data = {
+                    CONF_NAME: user_input[CONF_NAME],
+                    "start": user_input["start"],
+                    "end": user_input["end"],
+                    "days": list(user_input["days"]),
+                    "action": user_input["action"],
+                    "power": int(user_input.get("power", 0)),
+                }
+                if user_input.get("soc") is not None:
+                    data["soc"] = int(user_input["soc"])
+                if step_id == "reconfigure":
+                    return self.async_update_and_abort(
+                        self._get_entry(),
+                        self._get_reconfigure_subentry(),
+                        data=data,
+                        title=data[CONF_NAME],
+                    )
+                return self.async_create_entry(title=data[CONF_NAME], data=data)
+        current = (
+            dict(self._get_reconfigure_subentry().data)
+            if step_id == "reconfigure"
+            else {}
+        )
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=self.add_suggested_values_to_schema(
+                time_slot_schema(), user_input or current
             ),
             errors=errors,
         )

@@ -10,6 +10,10 @@ Modes (more will follow):
 - ``arbitrage_full`` (maximum profit): like arbitrage, but may also discharge
   to the grid when the export price makes that worthwhile.
 
+- ``manual``: always a fixed power (``planning.schedule``);
+- ``time_slots``: the actions of the configured time slots, zero on the meter
+  outside them.
+
 Peak shaving (``peak_w`` > 0, arbitrage modes): grid import above ``peak_w``
 (all phases together) gets a high extra cost, so the plan keeps energy in
 reserve for expected peaks and does not charge into a peak.
@@ -44,7 +48,7 @@ The plan is designed so it can later be turned into battery commands 1:1.
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -53,6 +57,7 @@ from homeassistant.util import dt as dt_util
 from ..forecasts.consumption import ForecastSlot
 from ..inputs.batteries import BatteryState
 from ..inputs.prices import PricePoint
+from .schedule import Target
 
 SOC_STEPS = 100  # resolution of the stored energy (1 % of the usable range)
 DEFAULT_EXPORT_FACTOR = 1.0  # export earns the import price (net metering)
@@ -60,7 +65,16 @@ DEFAULT_CYCLE_COST = 0.02  # per kWh through the battery (wear)
 MODE_NOM = "nom"
 MODE_ARBITRAGE = "arbitrage"
 MODE_ARBITRAGE_FULL = "arbitrage_full"
-PLAN_MODES = (MODE_NOM, MODE_ARBITRAGE, MODE_ARBITRAGE_FULL)
+MODE_MANUAL = "manual"
+MODE_TIME_SLOTS = "time_slots"
+PLAN_MODES = (
+    MODE_NOM,
+    MODE_ARBITRAGE,
+    MODE_ARBITRAGE_FULL,
+    MODE_TIME_SLOTS,
+    MODE_MANUAL,
+)
+FIXED_MODES = (MODE_MANUAL, MODE_TIME_SLOTS)
 ARBITRAGE_MODES = (MODE_ARBITRAGE, MODE_ARBITRAGE_FULL)
 CYCLE_SEARCH_STEPS = 6  # bisection steps for the cycle limit
 PEAK_PENALTY = 5.0  # extra cost per kWh imported above the peak limit
@@ -79,6 +93,7 @@ class PlanSlot:
     price: float | None  # price used for this slot
     limited: bool = False  # less power because of the phase limits
     export_price: float | None = None  # what exported energy earns in this slot
+    reason: str | None = None  # time slot name / "manual" in the fixed modes
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +171,7 @@ def plan_batteries(
     export_prices: Sequence[PricePoint] = (),
     max_cycles_per_day: float = 0.0,
     peak_w: float = 0.0,
+    target: Callable[[datetime], Target | None] | None = None,
 ) -> BatteryPlan | None:
     """Plan the batteries in ``mode`` over the consumption slots; None without batteries.
 
@@ -205,6 +221,8 @@ def plan_batteries(
             max_cycles_per_day,
             peak_w,
         )
+    if mode in FIXED_MODES:
+        return _nom(pack, slots, cycle_cost, mode, priced, target)
     return _nom(pack, slots, cycle_cost, mode, priced)
 
 
@@ -261,14 +279,34 @@ def _nom(
     cycle_cost: float,
     mode: str,
     priced: bool,
+    target: Callable[[datetime], Target | None] | None = None,
 ) -> BatteryPlan:
-    """Zero on the meter: charge with surplus, discharge on shortage."""
+    """Zero on the meter: charge with surplus, discharge on shortage.
+
+    With ``target`` (manual / time slots): its fixed action where it gives one.
+    """
     stored = pack.stored
     result: list[PlanSlot] = []
     cost_with = cost_without = 0.0
     for slot, hours, net, price, max_c, max_d, export in slots:
         power = 0.0
-        if net < 0:
+        fixed = target(slot.start) if target else None
+        if fixed is not None:
+            if fixed.power_w > 0:
+                top = pack.ceiling
+                if fixed.soc_limit is not None:
+                    top = min(top, fixed.soc_limit * pack.capacity / 100)
+                room = max(top - stored, 0.0)
+                power = min(fixed.power_w, max_c, room / (hours * pack.eff))
+                stored += power * hours * pack.eff
+            elif fixed.power_w < 0:
+                bottom = pack.floor
+                if fixed.soc_limit is not None:
+                    bottom = max(bottom, fixed.soc_limit * pack.capacity / 100)
+                available = max(stored - bottom, 0.0)
+                power = -min(-fixed.power_w, max_d, available * pack.eff / hours)
+                stored += power * hours / pack.eff
+        elif net < 0:
             room = max(pack.ceiling - stored, 0.0)
             power = min(-net, max_c, room / (hours * pack.eff))
             stored += power * hours * pack.eff
@@ -290,15 +328,17 @@ def _nom(
                 price,
                 _limited(pack, power, max_c, max_d),
                 export,
+                fixed.reason if fixed is not None else None,
             )
         )
+    strategy = mode if mode in FIXED_MODES else MODE_NOM
     if not priced:
-        return BatteryPlan(mode, MODE_NOM, result, None, None)
+        return BatteryPlan(mode, strategy, result, None, None)
     avg_price = sum(s[3] for s in slots) / len(slots)
     cost_with += (pack.stored - stored) / 1000 * avg_price * pack.eff
     return BatteryPlan(
         mode,
-        MODE_NOM,
+        strategy,
         result,
         round(cost_with, 4),
         round(cost_without, 4),

@@ -62,7 +62,8 @@
           "export_price_entities": "Export price sensors",
           "max_cycles_per_day": "Max. cycles per day (arbitrage)",
           "pv_forecast_margin": "Margin on the PV forecast",
-          "peak_limit_w": "Peak limit grid import"
+          "peak_limit_w": "Peak limit grid import",
+          "manual_power_w": "Manual power"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -81,7 +82,8 @@
           "export_price_entities": "One or more sensors with prices (state and/or price list attributes), e.g. a market price sensor for today/tomorrow plus a forecast sensor for the days after. For overlapping periods the first sensor wins.",
           "max_cycles_per_day": "Arbitrage charges and discharges at most this many full cycles per day (energy discharged / capacity), to spare the batteries. 0 = no limit.",
           "pv_forecast_margin": "The plans count on this much less solar power than forecast, to hedge optimistic forecasts: more is charged from the grid where needed. Comes on top of the correction learned from past forecasts.",
-          "peak_limit_w": "Peak shaving on the total grid import (all phases together): the arbitrage plans keep energy in reserve to stay below this power, and virtual batteries take load off when it is exceeded. Next to the per-phase protection of the main fuse. 0 = off."
+          "peak_limit_w": "Peak shaving on the total grid import (all phases together): the arbitrage plans keep energy in reserve to stay below this power, and virtual batteries take load off when it is exceeded. Next to the per-phase protection of the main fuse. 0 = off.",
+          "manual_power_w": "Used in the plan mode “Manual”: the batteries always charge (positive) or discharge (negative) at this power, within their limits."
         }
       }
     },
@@ -165,7 +167,9 @@
       "options": {
         "nom": "Zero on the meter (NOM)",
         "arbitrage": "Arbitrage (cost optimal)",
-        "arbitrage_full": "Full arbitrage (also export)"
+        "arbitrage_full": "Full arbitrage (also export)",
+        "time_slots": "Time slots",
+        "manual": "Manual (fixed power)"
       }
     },
     "balance_interval": {
@@ -196,6 +200,24 @@
         "shelly": "Shelly Pro 3EM / 3EM",
         "shelly_em": "Shelly EM / Pro EM (1 phase)",
         "iammeter": "Iammeter WEM3080 / WEM3080T"
+      }
+    },
+    "weekday": {
+      "options": {
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      }
+    },
+    "slot_action": {
+      "options": {
+        "charge": "Charge",
+        "discharge": "Discharge",
+        "idle": "Do nothing"
       }
     }
   },
@@ -228,7 +250,8 @@
           "export_price_entities": "Export price sensors",
           "max_cycles_per_day": "Max. cycles per day (arbitrage)",
           "pv_forecast_margin": "Margin on the PV forecast",
-          "peak_limit_w": "Peak limit grid import"
+          "peak_limit_w": "Peak limit grid import",
+          "manual_power_w": "Manual power"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -247,7 +270,8 @@
           "export_price_entities": "One or more sensors with prices (state and/or price list attributes), e.g. a market price sensor for today/tomorrow plus a forecast sensor for the days after. For overlapping periods the first sensor wins.",
           "max_cycles_per_day": "Arbitrage charges and discharges at most this many full cycles per day (energy discharged / capacity), to spare the batteries. 0 = no limit.",
           "pv_forecast_margin": "The plans count on this much less solar power than forecast, to hedge optimistic forecasts: more is charged from the grid where needed. Comes on top of the correction learned from past forecasts.",
-          "peak_limit_w": "Peak shaving on the total grid import (all phases together): the arbitrage plans keep energy in reserve to stay below this power, and virtual batteries take load off when it is exceeded. Next to the per-phase protection of the main fuse. 0 = off."
+          "peak_limit_w": "Peak shaving on the total grid import (all phases together): the arbitrage plans keep energy in reserve to stay below this power, and virtual batteries take load off when it is exceeded. Next to the per-phase protection of the main fuse. 0 = off.",
+          "manual_power_w": "Used in the plan mode “Manual”: the batteries always charge (positive) or discharge (negative) at this power, within their limits."
         }
       },
       "meter": {
@@ -514,6 +538,52 @@
       "error": {
         "soc_range": "The maximum state of charge must be higher than the minimum.",
         "loss_range": "The maximum loss must be at least the minimum."
+      },
+      "abort": {
+        "reconfigure_successful": "Settings saved."
+      }
+    },
+    "time_slot": {
+      "entry_type": "Time slot",
+      "initiate_flow": {
+        "user": "Add time slot"
+      },
+      "step": {
+        "user": {
+          "title": "Time slot",
+          "description": "What the batteries do between two times on the chosen days, in the plan mode “Time slots”. A slot that ends before it starts runs past midnight. Outside the time slots the batteries work as zero on the meter.",
+          "data": {
+            "name": "Name",
+            "start": "Start",
+            "end": "End",
+            "days": "Days",
+            "action": "Action",
+            "power": "Power",
+            "soc": "Until state of charge (optional)"
+          },
+          "data_description": {
+            "soc": "Charge up to, or discharge down to, this state of charge. Empty: the batteries' own limits."
+          }
+        },
+        "reconfigure": {
+          "title": "Time slot",
+          "description": "What the batteries do between two times on the chosen days, in the plan mode “Time slots”. A slot that ends before it starts runs past midnight. Outside the time slots the batteries work as zero on the meter.",
+          "data": {
+            "name": "Name",
+            "start": "Start",
+            "end": "End",
+            "days": "Days",
+            "action": "Action",
+            "power": "Power",
+            "soc": "Until state of charge (optional)"
+          },
+          "data_description": {
+            "soc": "Charge up to, or discharge down to, this state of charge. Empty: the batteries' own limits."
+          }
+        }
+      },
+      "error": {
+        "no_days": "Choose at least one day."
       },
       "abort": {
         "reconfigure_successful": "Settings saved."

@@ -62,7 +62,8 @@
           "export_price_entities": "Terugleverprijs-sensoren",
           "max_cycles_per_day": "Max. cycli per dag (arbitrage)",
           "pv_forecast_margin": "Marge op de zonvoorspelling",
-          "peak_limit_w": "Piekgrens netafname"
+          "peak_limit_w": "Piekgrens netafname",
+          "manual_power_w": "Handmatig vermogen"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -81,7 +82,8 @@
           "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
           "max_cycles_per_day": "Arbitrage laadt en ontlaadt hoogstens zoveel volledige cycli per dag (ontladen energie / capaciteit), om de batterijen te sparen. 0 = geen grens.",
           "pv_forecast_margin": "De plannen rekenen op zoveel minder zonnestroom dan voorspeld, als buffer tegen te optimistische voorspellingen: waar nodig wordt meer uit het net geladen. Komt bovenop de correctie die uit eerdere voorspellingen is geleerd.",
-          "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit."
+          "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
+          "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen."
         }
       }
     },
@@ -165,7 +167,9 @@
       "options": {
         "nom": "Nul op de meter (NOM)",
         "arbitrage": "Arbitrage (kostenoptimaal)",
-        "arbitrage_full": "Arbitrage volledig (ook terugleveren)"
+        "arbitrage_full": "Arbitrage volledig (ook terugleveren)",
+        "time_slots": "Tijdvakken",
+        "manual": "Handmatig (vast vermogen)"
       }
     },
     "balance_interval": {
@@ -196,6 +200,24 @@
         "shelly": "Shelly Pro 3EM / 3EM",
         "shelly_em": "Shelly EM / Pro EM (1 fase)",
         "iammeter": "Iammeter WEM3080 / WEM3080T"
+      }
+    },
+    "weekday": {
+      "options": {
+        "mon": "Maandag",
+        "tue": "Dinsdag",
+        "wed": "Woensdag",
+        "thu": "Donderdag",
+        "fri": "Vrijdag",
+        "sat": "Zaterdag",
+        "sun": "Zondag"
+      }
+    },
+    "slot_action": {
+      "options": {
+        "charge": "Laden",
+        "discharge": "Ontladen",
+        "idle": "Niets doen"
       }
     }
   },
@@ -228,7 +250,8 @@
           "export_price_entities": "Terugleverprijs-sensoren",
           "max_cycles_per_day": "Max. cycli per dag (arbitrage)",
           "pv_forecast_margin": "Marge op de zonvoorspelling",
-          "peak_limit_w": "Piekgrens netafname"
+          "peak_limit_w": "Piekgrens netafname",
+          "manual_power_w": "Handmatig vermogen"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -247,7 +270,8 @@
           "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
           "max_cycles_per_day": "Arbitrage laadt en ontlaadt hoogstens zoveel volledige cycli per dag (ontladen energie / capaciteit), om de batterijen te sparen. 0 = geen grens.",
           "pv_forecast_margin": "De plannen rekenen op zoveel minder zonnestroom dan voorspeld, als buffer tegen te optimistische voorspellingen: waar nodig wordt meer uit het net geladen. Komt bovenop de correctie die uit eerdere voorspellingen is geleerd.",
-          "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit."
+          "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
+          "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen."
         }
       },
       "meter": {
@@ -514,6 +538,52 @@
       "error": {
         "soc_range": "De maximale vulling moet hoger zijn dan de minimale.",
         "loss_range": "Het maximale verlies moet minstens het minimale zijn."
+      },
+      "abort": {
+        "reconfigure_successful": "Instellingen opgeslagen."
+      }
+    },
+    "time_slot": {
+      "entry_type": "Tijdvak",
+      "initiate_flow": {
+        "user": "Tijdvak toevoegen"
+      },
+      "step": {
+        "user": {
+          "title": "Tijdvak",
+          "description": "Wat de batterijen doen tussen twee tijden op de gekozen dagen, in de planmodus “Tijdvakken”. Een tijdvak dat eindigt voordat het begint, loopt over middernacht. Buiten de tijdvakken werken de batterijen als nul op de meter.",
+          "data": {
+            "name": "Naam",
+            "start": "Begin",
+            "end": "Einde",
+            "days": "Dagen",
+            "action": "Actie",
+            "power": "Vermogen",
+            "soc": "Tot laadniveau (optioneel)"
+          },
+          "data_description": {
+            "soc": "Laden tot, of ontladen tot, dit laadniveau. Leeg: de eigen grenzen van de batterijen."
+          }
+        },
+        "reconfigure": {
+          "title": "Tijdvak",
+          "description": "Wat de batterijen doen tussen twee tijden op de gekozen dagen, in de planmodus “Tijdvakken”. Een tijdvak dat eindigt voordat het begint, loopt over middernacht. Buiten de tijdvakken werken de batterijen als nul op de meter.",
+          "data": {
+            "name": "Naam",
+            "start": "Begin",
+            "end": "Einde",
+            "days": "Dagen",
+            "action": "Actie",
+            "power": "Vermogen",
+            "soc": "Tot laadniveau (optioneel)"
+          },
+          "data_description": {
+            "soc": "Laden tot, of ontladen tot, dit laadniveau. Leeg: de eigen grenzen van de batterijen."
+          }
+        }
+      },
+      "error": {
+        "no_days": "Kies minstens één dag."
       },
       "abort": {
         "reconfigure_successful": "Instellingen opgeslagen."
