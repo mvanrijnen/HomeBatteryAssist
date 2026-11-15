@@ -103,15 +103,17 @@ class PlanningHorizonSensor(
 
     @property
     def native_value(self) -> datetime | None:
-        """Return the end of the effective planning horizon."""
-        return self.coordinator.data.horizon.end
+        """Return the end of the planning window."""
+        return self.coordinator.data.window.end
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Expose the inputs that limit the horizon."""
+        """Expose how far ahead we can calculate and what limits it."""
         data = self.coordinator.data
         return {
-            "limited_by": data.horizon.limited_by.value,
+            "hours_ahead": round(data.window.hours, 1),
+            "days_ahead": round(data.window.hours / 24, 2),
+            "limited_by": data.window.limited_by.value,
             "max_days": self.coordinator.max_days,
             "price_forecast_end": data.price_end,
             "price_points": len(data.prices),

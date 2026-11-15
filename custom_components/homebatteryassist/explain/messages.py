@@ -15,18 +15,18 @@ DEFAULT_LANGUAGE = "en"
 
 MESSAGES: dict[str, dict[str, str]] = {
     "en": {
-        "horizon_setting": "Planning {days} days ahead (until {end}), as configured.",
-        "horizon_price": "Planning only until {end}: the price forecast does not reach further.",
-        "horizon_pv": "Planning only until {end}: the PV forecast does not reach further.",
+        "horizon_setting": "Planning {hours} hours ahead (until {end}): the configured maximum of {days} days.",
+        "horizon_price": "Planning {hours} hours ahead (until {end}): the price forecast does not reach further.",
+        "horizon_pv": "Planning {hours} hours ahead (until {end}): the PV forecast does not reach further.",
         "horizon_no_price": "No planning possible: the price forecast ({entity}) provides no upcoming prices.",
         "horizon_no_pv": "No planning possible: the selected PV forecasts provide no data.",
         "consumption_unavailable": "House consumption unknown: no valid measurement from {sensors}.",
         "consumption_restored": "House consumption is measured again.",
     },
     "nl": {
-        "horizon_setting": "Planning {days} dagen vooruit (tot {end}), zoals ingesteld.",
-        "horizon_price": "Planning alleen tot {end}: de prijsvoorspelling reikt niet verder.",
-        "horizon_pv": "Planning alleen tot {end}: de PV-voorspelling reikt niet verder.",
+        "horizon_setting": "Planning {hours} uur vooruit (tot {end}): het ingestelde maximum van {days} dagen.",
+        "horizon_price": "Planning {hours} uur vooruit (tot {end}): de prijsvoorspelling reikt niet verder.",
+        "horizon_pv": "Planning {hours} uur vooruit (tot {end}): de PV-voorspelling reikt niet verder.",
         "horizon_no_price": "Geen planning mogelijk: de prijsvoorspelling ({entity}) bevat geen komende prijzen.",
         "horizon_no_pv": "Geen planning mogelijk: de gekozen PV-voorspellingen leveren geen gegevens.",
         "consumption_unavailable": "Huisverbruik onbekend: geen geldige meting van {sensors}.",

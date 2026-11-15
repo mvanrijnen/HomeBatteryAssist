@@ -44,8 +44,10 @@ async def async_get_config_entry_diagnostics(
             "recent": data.history.records[-RECENT_RECORDS:],
         },
         "forecasts": {
-            "horizon_end": forecast.horizon.end.isoformat(),
-            "horizon_limited_by": forecast.horizon.limited_by.value,
+            "window_start": forecast.window.start.isoformat(),
+            "window_end": forecast.window.end.isoformat(),
+            "window_hours": round(forecast.window.hours, 2),
+            "window_limited_by": forecast.window.limited_by.value,
             "price_points": len(forecast.prices),
             "price_unit": forecast.price_unit,
             "price_end": forecast.price_end.isoformat() if forecast.price_end else None,

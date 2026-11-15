@@ -32,5 +32,6 @@ async def test_diagnostics(hass: HomeAssistant) -> None:
     assert diag["inputs"]["house_consumption_w"] == 750.0
     assert diag["inputs"]["sources"]["sensor.l1"]["state"] == "750"
     assert diag["history"]["interval_minutes"] == 15
-    assert diag["forecasts"]["horizon_limited_by"] == "setting"
+    assert diag["forecasts"]["window_limited_by"] == "setting"
+    assert diag["forecasts"]["window_hours"] == 48
     assert diag["decisions"][0]["key"] == "horizon_setting"

@@ -1,8 +1,14 @@
-"""Periodic collection of the price and PV forecast inputs.
+"""Periodic forecast cycle.
+
+Every cycle runs in a fixed order:
+
+1. read the forecast inputs (prices, PV) from other integrations;
+2. determine the planning window: how far ahead we can calculate;
+3. calculate everything else only within that window.
 
 Refreshes every ``FORECAST_UPDATE_INTERVAL`` and when the price sensor changes
-(new day-ahead prices). Determines the planning horizon and explains changes of
-what limits it in the decision log.
+(new day-ahead prices). Changes of what limits the window are explained in the
+decision log.
 """
 
 from __future__ import annotations
@@ -28,19 +34,20 @@ from ..const import (
 from ..explain import DecisionLog
 from ..inputs.prices import PricePoint, parse_price_forecast
 from ..inputs.solar import PV_PERIOD, async_get_pv_forecast
-from .horizon import Horizon, HorizonLimit, planning_horizon
+from .horizon import HorizonLimit, PlanningWindow, planning_horizon
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
 class ForecastData:
-    """Snapshot of the forecast inputs and the resulting planning horizon."""
+    """Result of one forecast cycle; all series are limited to ``window``."""
 
-    horizon: Horizon
+    window: PlanningWindow
     prices: list[PricePoint] = field(default_factory=list)
     price_unit: str | None = None
     pv_wh: dict[datetime, float] = field(default_factory=dict)  # per hour start
+    # How far the inputs reach (may be beyond the window).
     price_end: datetime | None = None
     pv_end: datetime | None = None
 
@@ -72,28 +79,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
 
     async def _async_update_data(self) -> ForecastData:
         now = dt_util.utcnow()
-        prices: list[PricePoint] = []
-        price_unit: str | None = None
-        pv_wh: dict[datetime, float] = {}
 
-        if self.price_entity:
-            state = self.hass.states.get(self.price_entity)
-            prices = [p for p in parse_price_forecast(state) if p.end > now]
-            price_unit = (
-                state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None
-            )
-        if self.pv_entries:
-            pv_wh = {
-                start: wh
-                for start, wh in (
-                    await async_get_pv_forecast(self.hass, self.pv_entries)
-                ).items()
-                if start + PV_PERIOD > now
-            }
-
+        # 1. Inputs
+        prices, price_unit = self._read_prices(now)
+        pv_wh = await self._async_read_pv(now)
         price_end = prices[-1].end if prices else None
         pv_end = max(pv_wh) + PV_PERIOD if pv_wh else None
-        horizon = planning_horizon(
+
+        # 2. How far ahead can we calculate?
+        window = planning_horizon(
             now,
             self.max_days,
             price_end,
@@ -101,27 +95,54 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             price_configured=self.price_entity is not None,
             pv_configured=bool(self.pv_entries),
         )
-        _LOGGER.debug(
-            "Forecasts: %d price points until %s, %d PV hours until %s -> horizon %s (%s)",
-            len(prices),
-            price_end,
-            len(pv_wh),
-            pv_end,
-            horizon.end,
-            horizon.limited_by,
-        )
-        self._explain_horizon(horizon)
-        return ForecastData(horizon, prices, price_unit, pv_wh, price_end, pv_end)
+        self._explain_window(window)
 
-    def _explain_horizon(self, horizon: Horizon) -> None:
+        # 3. Everything else only within the window.
+        prices = [p for p in prices if window.overlaps(p.start, p.end)]
+        pv_wh = {
+            start: wh
+            for start, wh in pv_wh.items()
+            if window.overlaps(start, start + PV_PERIOD)
+        }
+
+        _LOGGER.debug(
+            "Inputs: prices until %s, PV until %s -> window %s - %s (%.1f h, %s); "
+            "%d price points and %d PV hours in window",
+            price_end,
+            pv_end,
+            window.start,
+            window.end,
+            window.hours,
+            window.limited_by,
+            len(prices),
+            len(pv_wh),
+        )
+        return ForecastData(window, prices, price_unit, pv_wh, price_end, pv_end)
+
+    def _read_prices(self, now: datetime) -> tuple[list[PricePoint], str | None]:
+        if not self.price_entity:
+            return [], None
+        state = self.hass.states.get(self.price_entity)
+        prices = [p for p in parse_price_forecast(state) if p.end > now]
+        unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None
+        return prices, unit
+
+    async def _async_read_pv(self, now: datetime) -> dict[datetime, float]:
+        if not self.pv_entries:
+            return {}
+        forecast = await async_get_pv_forecast(self.hass, self.pv_entries)
+        return {start: wh for start, wh in forecast.items() if start + PV_PERIOD > now}
+
+    def _explain_window(self, window: PlanningWindow) -> None:
         """Log in the decision log when the limiting factor changes."""
-        if horizon.limited_by == self._last_limit:
+        if window.limited_by == self._last_limit:
             return
-        self._last_limit = horizon.limited_by
+        self._last_limit = window.limited_by
         self._decisions.async_log(
             "planning",
-            f"horizon_{horizon.limited_by}",
-            end=horizon.end,
+            f"horizon_{window.limited_by}",
+            end=window.end,
+            hours=round(window.hours),
             days=self.max_days,
             entity=self.price_entity or "",
         )

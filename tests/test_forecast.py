@@ -26,6 +26,7 @@ from custom_components.homebatteryassist.const import (
 )
 from custom_components.homebatteryassist.forecasts.horizon import (
     HorizonLimit,
+    PlanningWindow,
     planning_horizon,
 )
 from custom_components.homebatteryassist.inputs.prices import parse_price_forecast
@@ -125,10 +126,28 @@ def test_planning_horizon(
     limit: HorizonLimit,
 ) -> None:
     """The horizon is the minimum of the setting and the configured forecasts."""
-    horizon = planning_horizon(
+    window = planning_horizon(
         NOW, 2, price_end, pv_end, price_configured=price_cfg, pv_configured=pv_cfg
     )
-    assert (horizon.end, horizon.limited_by) == (expected, limit)
+    assert (window.start, window.end, window.limited_by) == (NOW, expected, limit)
+    assert window.is_empty == (expected == NOW)
+
+
+def test_window_slots_and_overlap() -> None:
+    """Slots are clock aligned, cut off at the end; nothing beyond the window."""
+    q = timedelta(minutes=15)
+    window = PlanningWindow(
+        NOW + timedelta(minutes=7), NOW + timedelta(minutes=40), HorizonLimit.PRICE
+    )
+    assert window.hours == pytest.approx(33 / 60)
+    assert window.slots(q) == [
+        (NOW, NOW + q),
+        (NOW + q, NOW + 2 * q),
+        (NOW + 2 * q, NOW + timedelta(minutes=40)),
+    ]
+    assert window.overlaps(NOW, NOW + q)
+    assert not window.overlaps(NOW + H, NOW + 2 * H)
+    assert PlanningWindow(NOW, NOW, HorizonLimit.NO_PRICE).slots(q) == []
 
 
 async def test_pv_forecast_is_summed(hass: HomeAssistant) -> None:
@@ -187,9 +206,11 @@ async def test_planning_horizon_sensor(
 
         state = hass.states.get(HORIZON)
         assert dt_util.parse_datetime(state.state) == NOW + 12 * H
-        assert state.attributes["pv_forecast_hours"] == 24
         assert state.attributes["max_days"] == 2
         assert state.attributes["limited_by"] == "price"
+        assert state.attributes["hours_ahead"] == 12
+        # Only data inside the window is used: 12 of the 24 PV hours.
+        assert state.attributes["pv_forecast_hours"] == 12
 
         # Tomorrow's prices arrive: now PV (24h) limits the horizon.
         hass.states.async_set(

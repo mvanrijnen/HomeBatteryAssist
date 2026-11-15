@@ -41,7 +41,9 @@ def test_render() -> None:
     assert render("de", "consumption_restored", {}) == (
         "House consumption is measured again."
     )
-    assert "16-11" in render("en", "horizon_price", {"end": end})
+    assert render("en", "horizon_price", {"end": end, "hours": 30}).startswith(
+        "Planning 30 hours ahead (until 16-11"
+    )
     assert render("en", "unknown_key", {}) == "unknown_key"
 
 
