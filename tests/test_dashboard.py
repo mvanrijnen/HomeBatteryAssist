@@ -1,9 +1,12 @@
 """Tests for the power flow sensors and the status panel's websocket command."""
 
+from datetime import timedelta
+
 from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.typing import WebSocketGenerator
 
@@ -141,3 +144,56 @@ async def test_status_websocket(
     response = await client.receive_json()
     assert not response["success"]
     assert response["error"]["code"] == "not_loaded"
+
+
+async def test_history_websocket(
+    hass: HomeAssistant, hass_ws_client: WebSocketGenerator
+) -> None:
+    """Hourly series and the weekday/weekend day profile for the charts."""
+    await hass.config.async_set_time_zone("Europe/Amsterdam")
+    entry = await _setup(hass)
+    history = entry.runtime_data.history
+    now = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+    history.records = [
+        # two 15-min records in one hour -> hourly average 300 W
+        {
+            "start": (now - timedelta(hours=2)).isoformat(),
+            "minutes": 15,
+            "avg_w": 200.0,
+            "coverage": 1.0,
+        },
+        {
+            "start": (now - timedelta(hours=2, minutes=-15)).isoformat(),
+            "minutes": 15,
+            "avg_w": 400.0,
+            "coverage": 1.0,
+        },
+        # Monday 2026-11-09 12:00 local (11:00 UTC), imported hourly record
+        {
+            "start": "2026-11-09T11:00:00+00:00",
+            "minutes": 60,
+            "avg_w": 1000.0,
+            "coverage": 1.0,
+            "source": "import",
+        },
+        # Saturday 2026-11-14 12:00 local
+        {
+            "start": "2026-11-14T11:00:00+00:00",
+            "minutes": 60,
+            "avg_w": 500.0,
+            "coverage": 0.5,
+        },
+    ]
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": f"{DOMAIN}/history", "days": 1})
+    result = (await client.receive_json())["result"]
+
+    assert result["interval_minutes"] == 15
+    assert result["imported"] == 1
+    assert result["hourly"] == [
+        [int((now - timedelta(hours=2)).timestamp() * 1000), 300.0]
+    ]
+    assert result["profile"]["weekday"][12] == 1000.0
+    assert result["profile"]["weekend"][12] == 500.0
+    assert result["profile"]["weekend"][3] is None
+    assert result["days_covered"] == round((15 + 15 + 60 + 30) / 1440, 1)

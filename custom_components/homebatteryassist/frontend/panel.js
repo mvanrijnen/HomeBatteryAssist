@@ -41,6 +41,14 @@ const TEXT = {
     noDecisions: "No decisions yet.",
     error: "Could not load the status",
     recalculate: "Recalculate",
+    consumption: "Consumption",
+    last7: "Last 7 days (average per hour)",
+    avgDay: "Average day",
+    weekday: "Weekdays",
+    weekend: "Weekend",
+    daysOfData: "{days} days of history",
+    imported: "incl. imported",
+    noHistory: "No consumption history yet.",
     recalculating: "Recalculating…",
     notLoaded: "HomeBatteryAssist is not set up yet. Add it under Settings → Devices & services → Add integration → HomeBatteryAssist.",
   },
@@ -82,6 +90,14 @@ const TEXT = {
     noDecisions: "Nog geen beslissingen.",
     error: "Status kon niet worden geladen",
     recalculate: "Herbereken",
+    consumption: "Verbruik",
+    last7: "Afgelopen 7 dagen (gemiddeld per uur)",
+    avgDay: "Gemiddelde dag",
+    weekday: "Werkdagen",
+    weekend: "Weekend",
+    daysOfData: "{days} dagen historie",
+    imported: "incl. geïmporteerd",
+    noHistory: "Nog geen verbruikshistorie.",
     recalculating: "Bezig met herberekenen…",
     notLoaded: "HomeBatteryAssist is nog niet ingesteld. Voeg hem toe via Instellingen → Apparaten & diensten → Integratie toevoegen → HomeBatteryAssist.",
   },
@@ -133,6 +149,14 @@ const STYLE = `
   li { display: grid; grid-template-columns: 90px 1fr; gap: 8px; font-size: 14px; }
   li time { color: var(--secondary-text-color); }
   .muted { color: var(--secondary-text-color); }
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+  .chart h3 { margin: 0 0 6px; font-size: 14px; font-weight: 500; }
+  .chart svg { width: 100%; height: auto; display: block; }
+  .chart .grid { stroke: var(--divider-color); stroke-width: 1; }
+  .chart .axis { fill: var(--secondary-text-color); font-size: 11px; }
+  .chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+  .legend { display: flex; gap: 16px; font-size: 13px; color: var(--secondary-text-color); margin-top: 4px; }
+  .legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 `;
 
 const esc = (value) =>
@@ -147,6 +171,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this._loading = false;
     this._pending = false;
     this._busy = false;
+    this._history = null;
+    this._historyAt = 0;
   }
 
   async _recalculate() {
@@ -159,6 +185,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       this._error = err?.message || String(err);
     }
     this._busy = false;
+    this._historyAt = 0;
     await this._load();
   }
 
@@ -192,6 +219,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
     try {
       this._status = await this._hass.callWS({ type: "homebatteryassist/status" });
       this._error = null;
+      if (Date.now() - this._historyAt > 5 * 60000) {
+        this._history = await this._hass.callWS({ type: "homebatteryassist/history", days: 7 });
+        this._historyAt = Date.now();
+      }
     } catch (err) {
       this._status = null;
       this._error = err?.code === "not_loaded" ? "not_loaded" : err?.message || String(err);
@@ -329,6 +360,86 @@ class HomeBatteryAssistPanel extends HTMLElement {
       <div class="muted">${esc(t.limit[w.limited_by] || w.limited_by)}</div></div>`;
   }
 
+  _niceMax(value) {
+    if (!value || value <= 0) return 100;
+    const step = 10 ** Math.floor(Math.log10(value));
+    for (const m of [1, 2, 2.5, 5, 10]) if (value <= m * step) return m * step;
+    return 10 * step;
+  }
+
+  _chart(series, xMin, xMax, ticks, gapLimit) {
+    const W = 600, H = 190, L = 46, R = 8, T = 8, B = 24;
+    const all = series.flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
+    const yMax = this._niceMax(Math.max(...all, 0));
+    const x = (v) => L + ((v - xMin) / (xMax - xMin || 1)) * (W - L - R);
+    const y = (v) => T + (1 - v / yMax) * (H - T - B);
+    let svg = "";
+    for (let i = 0; i <= 4; i++) {
+      const v = (yMax / 4) * i;
+      svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>`;
+      svg += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${esc(this._power(v))}</text>`;
+    }
+    for (const [v, label] of ticks) {
+      svg += `<text class="axis" x="${x(v)}" y="${H - 6}" text-anchor="middle">${esc(label)}</text>`;
+    }
+    for (const s of series) {
+      let d = "";
+      let prev = null;
+      for (const [px, py] of s.points) {
+        if (py == null) { prev = null; continue; }
+        const jump = prev === null || (gapLimit && px - prev > gapLimit);
+        d += `${jump ? "M" : "L"}${x(px).toFixed(1)},${y(py).toFixed(1)}`;
+        prev = px;
+      }
+      svg += `<path class="line" d="${d}" stroke="${s.color}"/>`;
+    }
+    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${svg}</svg>`;
+  }
+
+  _consumption(t) {
+    const h = this._history;
+    if (!h) return "";
+    if (!h.hourly.length && !h.profile.weekday.some((v) => v != null)) {
+      return `<div class="card"><h2>${esc(t.consumption)}</h2><div class="muted">${esc(t.noHistory)}</div></div>`;
+    }
+    const lang = this._hass.locale?.language || this._hass.language;
+    const primary = "var(--primary-color)";
+    const accent = "var(--accent-color, #ff9800)";
+
+    // Last 7 days: hourly points, ticks at local midnight.
+    const pts = h.hourly;
+    const xMin = pts.length ? pts[0][0] : Date.now() - 7 * 864e5;
+    const xMax = Date.now();
+    const ticks = [];
+    const day = new Date(xMin);
+    day.setHours(24, 0, 0, 0);
+    for (; day.getTime() < xMax; day.setDate(day.getDate() + 1)) {
+      ticks.push([day.getTime(), day.toLocaleDateString(lang, { weekday: "short" })]);
+    }
+    const week = this._chart([{ points: pts, color: primary }], xMin, xMax, ticks, 2 * 3600e3);
+
+    // Average day: 24 local hours, weekdays vs weekend.
+    const profilePts = (values) => values.map((v, hour) => [hour, v]);
+    const hourTicks = [0, 3, 6, 9, 12, 15, 18, 21].map((hour) => [hour, `${String(hour).padStart(2, "0")}:00`]);
+    const avg = this._chart(
+      [
+        { points: profilePts(h.profile.weekday), color: primary },
+        { points: profilePts(h.profile.weekend), color: accent },
+      ],
+      0,
+      23,
+      hourTicks,
+      null,
+    );
+    const info = t.daysOfData.replace("{days}", Math.round(h.days_covered)) + (h.imported ? ` · ${t.imported}` : "");
+    return `<div class="card"><h2>${esc(t.consumption)} · ${esc(info)}</h2><div class="charts">
+      <div class="chart"><h3>${esc(t.last7)}</h3>${week}</div>
+      <div class="chart"><h3>${esc(t.avgDay)}</h3>${avg}
+        <div class="legend"><span><i style="background:${primary}"></i>${esc(t.weekday)}</span>
+        <span><i style="background:${accent}"></i>${esc(t.weekend)}</span></div></div>
+    </div></div>`;
+  }
+
   _decisions(s, t) {
     const items = s.decisions.length
       ? `<ul>${s.decisions.map((d) => `<li><time>${this._time(d.time)}</time><span>${esc(d.message)}</span></li>`).join("")}</ul>`
@@ -345,7 +456,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
     else if (!this._status) body = "";
     else {
       const s = this._status;
-      body = [this._flows(s, t), this._batteries(s, t), this._phases(s, t), this._planning(s, t), this._decisions(s, t)].join("");
+      body = [
+        this._flows(s, t),
+        this._consumption(t),
+        this._batteries(s, t),
+        this._phases(s, t),
+        this._planning(s, t),
+        this._decisions(s, t),
+      ].join("");
     }
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar"><span class="menu"></span><span class="title">${esc(t.title)}</span>

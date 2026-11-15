@@ -7,6 +7,7 @@ entities and batteries exist, then shows their live states from ``hass.states``.
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -15,8 +16,10 @@ from homeassistant.components import websocket_api
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME
+from ..history.profile import day_profile, days_covered, hourly_series
 from ..models import HomeBatteryAssistConfigEntry
 from .batteries import BATTERY_SENSORS, TOTAL_SENSORS
 
@@ -50,6 +53,7 @@ async def async_setup_panel(hass: HomeAssistant, version: str) -> None:
     if hass.data.get(DATA_REGISTERED):
         return
     websocket_api.async_register_command(hass, websocket_status)
+    websocket_api.async_register_command(hass, websocket_history)
     if "frontend" in hass.config.components:
         from homeassistant.components import panel_custom
         from homeassistant.components.http import StaticPathConfig
@@ -121,18 +125,54 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
     }
 
 
+def _loaded_entry(hass: HomeAssistant) -> HomeBatteryAssistConfigEntry | None:
+    return next(
+        (
+            e
+            for e in hass.config_entries.async_entries(DOMAIN)
+            if e.state is ConfigEntryState.LOADED
+        ),
+        None,
+    )
+
+
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/status"})
 @callback
 def websocket_status(
     hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
 ) -> None:
     """Return the status of the (single) loaded HomeBatteryAssist entry."""
-    entries = [
-        e
-        for e in hass.config_entries.async_entries(DOMAIN)
-        if e.state is ConfigEntryState.LOADED
-    ]
-    if not entries:
+    if (entry := _loaded_entry(hass)) is None:
         connection.send_error(msg["id"], "not_loaded", f"{NAME} is not loaded")
         return
-    connection.send_result(msg["id"], status(hass, entries[0]))
+    connection.send_result(msg["id"], status(hass, entry))
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/history",
+        vol.Optional("days", default=7): vol.All(int, vol.Range(min=1, max=28)),
+    }
+)
+@callback
+def websocket_history(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """Consumption history for the dashboard: hourly series and day profile."""
+    if (entry := _loaded_entry(hass)) is None:
+        connection.send_error(msg["id"], "not_loaded", f"{NAME} is not loaded")
+        return
+    records = entry.runtime_data.history.records
+    since = dt_util.utcnow() - timedelta(days=msg["days"])
+    connection.send_result(
+        msg["id"],
+        {
+            "interval_minutes": entry.runtime_data.history.minutes,
+            "days_covered": days_covered(records),
+            "imported": sum(1 for r in records if r.get("source") == "import"),
+            "hourly": [
+                [int(t.timestamp() * 1000), v] for t, v in hourly_series(records, since)
+            ],
+            "profile": day_profile(records),
+        },
+    )
