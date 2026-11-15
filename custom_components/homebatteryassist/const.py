@@ -47,6 +47,13 @@ CONF_PV_FORECAST: Final = "pv_forecast_entries"
 # Battery plan (advice): mode and cost assumptions.
 CONF_PLAN_MODE: Final = "plan_mode"
 CONF_EXPORT_FACTOR: Final = "export_price_factor"
+CONF_EXPORT_MODE: Final = "export_price_mode"
+CONF_EXPORT_ENTITIES: Final = "export_price_entities"
+EXPORT_FACTOR: Final = "factor"  # import price x factor
+EXPORT_SENSOR: Final = "sensor"  # export price forecast from sensor(s)
+EXPORT_MARKET: Final = "market"  # bare market price (EPEX) from sensor(s)
+EXPORT_MODES: Final = (EXPORT_FACTOR, EXPORT_MARKET, EXPORT_SENSOR)
+DEFAULT_EXPORT_MODE: Final = EXPORT_FACTOR
 CONF_CYCLE_COST: Final = "cycle_cost"
 DEFAULT_EXPORT_FACTOR: Final = 1.0  # export earns the import price (net metering)
 DEFAULT_CYCLE_COST: Final = 0.02  # per kWh through the battery

@@ -126,3 +126,29 @@ def test_compare_modes_cumulative_advantage() -> None:
     # The last value equals the difference in expected saving.
     diff = plans[MODE_ARBITRAGE].saving - plans[MODE_NOM].saving
     assert abs(series[-1][1] - diff) < 0.01
+
+
+def test_export_price_per_slot() -> None:
+    """A separate export price is used for PV surplus; else import x factor."""
+    from custom_components.homebatteryassist.inputs.prices import (
+        merge_price_forecasts,
+    )
+
+    slots = _slots([0.0, 0.0])
+    pv = {T0: 1000.0, T0 + H: 1000.0}
+    prices = _prices([0.30, 0.30])
+    export = [PricePoint(T0, T0 + H, 0.10)]
+    plan = plan_batteries(
+        [_battery(soc=100.0)],
+        slots,
+        pv,
+        prices,
+        mode=MODE_NOM,
+        export_factor=0.5,
+        export_prices=export,
+    )
+    # Full battery: all PV is exported, 1 kWh at 0.10 and 1 kWh at 0.30 x 0.5.
+    assert plan.cost_without == pytest.approx(-(0.10 + 0.15))
+    assert [s.export_price for s in plan.slots] == [0.10, 0.15]
+    merged = merge_price_forecasts([[PricePoint(T0, T0 + H, 0.1)], _prices([0.5, 0.6])])
+    assert [(p.start, p.price) for p in merged] == [(T0, 0.1), (T0 + H, 0.6)]

@@ -38,6 +38,13 @@ PRICE_ATTRIBUTES = (
     "forecast",
     "data",
 )
+# Attributes with the bare market (EPEX) price, next to the all-in price.
+MARKET_ATTRIBUTES = (
+    "forecast_market",
+    "prices_market",
+    "market_prices",
+    "raw_market",
+)
 START_KEYS = (
     "start",
     "start_time",
@@ -112,7 +119,9 @@ def _raw_points(value: Any) -> list[RawPoint]:
     return points
 
 
-def parse_price_forecast(state: State | None) -> list[PricePoint]:
+def parse_price_forecast(
+    state: State | None, attributes: tuple[str, ...] = PRICE_ATTRIBUTES
+) -> list[PricePoint]:
     """Return the price forecast found in the attributes of ``state``, sorted.
 
     If several attributes cover the same start, the first one found wins
@@ -123,7 +132,7 @@ def parse_price_forecast(state: State | None) -> list[PricePoint]:
     if state is None:
         return []
     raw: dict[datetime, tuple[datetime | None, float, bool]] = {}
-    for attribute in PRICE_ATTRIBUTES:
+    for attribute in attributes:
         for start, end, price, estimated in _raw_points(
             state.attributes.get(attribute)
         ):
@@ -142,3 +151,19 @@ def parse_price_forecast(state: State | None) -> list[PricePoint]:
                 end = start + timedelta(hours=1)
         points.append(PricePoint(start, end, price, estimated))
     return points
+
+
+def merge_price_forecasts(forecasts: list[list[PricePoint]]) -> list[PricePoint]:
+    """Combine forecasts of several sensors; for overlapping periods the first wins."""
+    merged: list[PricePoint] = []
+    for points in forecasts:
+        for point in points:
+            if not any(p.start < point.end and point.start < p.end for p in merged):
+                merged.append(point)
+    return sorted(merged, key=lambda p: p.start)
+
+
+def parse_market_forecast(state: State | None) -> list[PricePoint]:
+    """Bare market prices of a sensor: its market attributes if it has them,
+    otherwise its normal price attributes (a sensor of the market price)."""
+    return parse_price_forecast(state, MARKET_ATTRIBUTES) or parse_price_forecast(state)

@@ -34,7 +34,9 @@ from homeassistant.util import dt as dt_util
 from ..const import (
     CONF_BALANCE_INTERVAL,
     CONF_CYCLE_COST,
+    CONF_EXPORT_ENTITIES,
     CONF_EXPORT_FACTOR,
+    CONF_EXPORT_MODE,
     CONF_FORECAST_INTERVAL,
     CONF_FULL_CHARGE_WINDOW,
     CONF_MAX_CURRENT,
@@ -48,18 +50,26 @@ from ..const import (
     DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
     DEFAULT_EXPORT_FACTOR,
+    DEFAULT_EXPORT_MODE,
     DEFAULT_FORECAST_INTERVAL,
     DEFAULT_FULL_CHARGE_WINDOW,
     DEFAULT_MIN_BATTERY_POWER,
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
     DOMAIN,
+    EXPORT_FACTOR,
+    EXPORT_MARKET,
 )
 from ..explain import DecisionLog
 from ..explain.plan_story import plan_story
 from ..history.consumption import ConsumptionHistory
 from ..inputs.batteries import BatteryState
-from ..inputs.prices import PricePoint, parse_price_forecast
+from ..inputs.prices import (
+    PricePoint,
+    merge_price_forecasts,
+    parse_market_forecast,
+    parse_price_forecast,
+)
 from ..inputs.solar import PV_PERIOD, async_get_pv_forecast
 from ..planning.battery_plan import (
     DEFAULT_PLAN_MODE,
@@ -187,6 +197,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             CONF_PLANNING_HORIZON, DEFAULT_PLANNING_HORIZON
         )
         self.price_entity: str | None = options.get(CONF_PRICE_FORECAST) or None
+        self.export_mode: str = options.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE)
+        self.export_entities: list[str] = list(options.get(CONF_EXPORT_ENTITIES) or [])
+        if self.export_mode == EXPORT_MARKET and not self.export_entities:
+            # The bare price from the price sensor itself (market attributes).
+            self.export_entities = [self.price_entity] if self.price_entity else []
+        if self.export_mode == EXPORT_FACTOR:
+            self.export_entities = []
         self.pv_entries: list[str] = list(options.get(CONF_PV_FORECAST) or [])
         self._last_limit: HorizonLimit | None = None
         self.phase_profile: PhaseProfile | None = None
@@ -196,6 +213,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
 
         # 1. Inputs
         prices, price_unit = self._read_prices(now)
+        export_prices = self._read_export_prices(now)
         pv_wh = await self._async_read_pv(now)
         price_end = prices[-1].end if prices else None
         pv_end = max(pv_wh) + PV_PERIOD if pv_wh else None
@@ -297,6 +315,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                     export_factor=self.export_factor,
                     cycle_cost=self.cycle_cost,
                     limits=limits,
+                    export_prices=export_prices,
                 )
             )
             if plan is not None:
@@ -381,6 +400,24 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         prices = [p for p in parse_price_forecast(state) if p.end > now]
         unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None
         return prices, unit
+
+    def _read_export_prices(self, now: datetime) -> list[PricePoint]:
+        """What exported energy earns, from the export price sensor(s); empty
+        means the import price x the export factor."""
+        if not self.export_entities:
+            return []
+        parse = (
+            parse_market_forecast
+            if self.export_mode == EXPORT_MARKET
+            else parse_price_forecast
+        )
+        return [
+            p
+            for p in merge_price_forecasts(
+                [parse(self.hass.states.get(e)) for e in self.export_entities]
+            )
+            if p.end > now
+        ]
 
     async def _async_read_pv(self, now: datetime) -> dict[datetime, float]:
         if not self.pv_entries:

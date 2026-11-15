@@ -49,7 +49,9 @@
           "min_battery_power": "Minimaal vermogen per batterij",
           "balance_interval": "Balanscontrole elke",
           "full_charge_window_days": "Volledig opladen forceren binnen",
-          "phase_margin": "Veiligheidsmarge per fase"
+          "phase_margin": "Veiligheidsmarge per fase",
+          "export_price_mode": "Terugleverprijs",
+          "export_price_entities": "Terugleverprijs-sensoren"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -58,12 +60,14 @@
           "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
           "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
-          "export_price_factor": "Deel van de prijs dat je terugkrijgt voor teruggeleverde energie (1 = salderen).",
+          "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven.",
           "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
           "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is.",
           "balance_interval": "Hoe vaak gekeken wordt of een andere batterij het moet overnemen, zodat de batterijen gelijk gevuld blijven. Daartussen blijven de gebruikte batterijen actief.",
           "full_charge_window_days": "Als een batterij niet binnen zijn interval volledig is opgeladen, wordt een volledige oplading geforceerd op het goedkoopste moment binnen zoveel dagen vóór de deadline.",
-          "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie."
+          "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie.",
+          "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of een terugleverprijsvoorspelling uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
+          "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor."
         }
       }
     },
@@ -161,6 +165,13 @@
       "options": {
         "manual": "Zelf de fasen en sensoren kiezen"
       }
+    },
+    "export_price_mode": {
+      "options": {
+        "factor": "Inkoopprijs x factor",
+        "market": "Kale marktprijs (EPEX)",
+        "sensor": "Terugleverprijs uit sensor(en)"
+      }
     }
   },
   "options": {
@@ -187,7 +198,9 @@
           "min_battery_power": "Minimaal vermogen per batterij",
           "balance_interval": "Balanscontrole elke",
           "full_charge_window_days": "Volledig opladen forceren binnen",
-          "phase_margin": "Veiligheidsmarge per fase"
+          "phase_margin": "Veiligheidsmarge per fase",
+          "export_price_mode": "Terugleverprijs",
+          "export_price_entities": "Terugleverprijs-sensoren"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -196,12 +209,14 @@
           "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
           "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
-          "export_price_factor": "Deel van de prijs dat je terugkrijgt voor teruggeleverde energie (1 = salderen).",
+          "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven.",
           "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
           "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is.",
           "balance_interval": "Hoe vaak gekeken wordt of een andere batterij het moet overnemen, zodat de batterijen gelijk gevuld blijven. Daartussen blijven de gebruikte batterijen actief.",
           "full_charge_window_days": "Als een batterij niet binnen zijn interval volledig is opgeladen, wordt een volledige oplading geforceerd op het goedkoopste moment binnen zoveel dagen vóór de deadline.",
-          "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie."
+          "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie.",
+          "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of een terugleverprijsvoorspelling uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
+          "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor."
         }
       },
       "meter": {

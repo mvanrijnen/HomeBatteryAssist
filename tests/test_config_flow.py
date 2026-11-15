@@ -73,6 +73,7 @@ async def test_three_phase_flow(hass: HomeAssistant) -> None:
         CONF_PRICE_FORECAST: "sensor.prices",
         "plan_mode": "nom",  # defaults of the battery plan
         "export_price_factor": 1.0,
+        "export_price_mode": "factor",
         "cycle_cost": 0.02,
         "min_battery_power": 300,
         "phase_margin": 10,
@@ -105,6 +106,7 @@ async def test_single_phase_flow(hass: HomeAssistant) -> None:
         "forecast_interval": 15,
         "plan_mode": "nom",  # defaults of the battery plan
         "export_price_factor": 1.0,
+        "export_price_mode": "factor",
         "cycle_cost": 0.02,
         "min_battery_power": 300,
         "phase_margin": 10,
@@ -204,6 +206,7 @@ async def test_options_flow_changes_settings(hass: HomeAssistant) -> None:
         "forecast_interval": 5,
         "plan_mode": "nom",  # defaults of the battery plan
         "export_price_factor": 1.0,
+        "export_price_mode": "factor",
         "cycle_cost": 0.02,
         "min_battery_power": 300,
         "phase_margin": 10,

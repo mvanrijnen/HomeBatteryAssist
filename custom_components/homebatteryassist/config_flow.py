@@ -66,7 +66,9 @@ from .const import (
     CONF_CAPACITY,
     CONF_CYCLE_COST,
     CONF_EFFICIENCY,
+    CONF_EXPORT_ENTITIES,
     CONF_EXPORT_FACTOR,
+    CONF_EXPORT_MODE,
     CONF_FORECAST_INTERVAL,
     CONF_FULL_CHARGE_INTERVAL,
     CONF_FULL_CHARGE_WINDOW,
@@ -98,6 +100,7 @@ from .const import (
     DEFAULT_CYCLE_COST,
     DEFAULT_EFFICIENCY,
     DEFAULT_EXPORT_FACTOR,
+    DEFAULT_EXPORT_MODE,
     DEFAULT_FORECAST_INTERVAL,
     DEFAULT_FULL_CHARGE_INTERVAL,
     DEFAULT_FULL_CHARGE_WINDOW,
@@ -112,6 +115,7 @@ from .const import (
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
     DOMAIN,
+    EXPORT_MODES,
     FORECAST_INTERVAL_OPTIONS,
     HISTORY_INTERVAL_OPTIONS,
     MAX_CURRENT_OPTIONS,
@@ -279,6 +283,19 @@ async def settings_schema(
             )
         ),
         vol.Required(
+            CONF_EXPORT_MODE,
+            default=current.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=list(EXPORT_MODES),
+                mode=SelectSelectorMode.LIST,
+                translation_key=CONF_EXPORT_MODE,
+            )
+        ),
+        vol.Optional(CONF_EXPORT_ENTITIES): EntitySelector(
+            EntitySelectorConfig(domain="sensor", multiple=True)
+        ),
+        vol.Required(
             CONF_EXPORT_FACTOR,
             default=current.get(CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR),
         ): NumberSelector(
@@ -381,6 +398,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     }
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]
+    options[CONF_EXPORT_MODE] = user_input.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE)
+    if user_input.get(CONF_EXPORT_ENTITIES):
+        options[CONF_EXPORT_ENTITIES] = list(user_input[CONF_EXPORT_ENTITIES])
     if user_input.get(CONF_PV_FORECAST):
         options[CONF_PV_FORECAST] = list(user_input[CONF_PV_FORECAST])
     return options

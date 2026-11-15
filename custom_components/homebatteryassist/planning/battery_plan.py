@@ -13,7 +13,7 @@ Both are always calculated, with the expected cost compared with no battery,
 so their returns can be compared. For arbitrage the planner chooses per slot
 the battery power that minimises the expected energy cost over the window:
 
-    cost = sum(grid import * price - grid export * price * export_factor)
+    cost = sum(grid import * price - grid export * export price)
          + cycle_cost * energy through the battery
          - value of the energy left at the end
 
@@ -62,6 +62,7 @@ class PlanSlot:
     grid_w: float  # expected grid exchange with the plan, + import / - export
     price: float | None  # price used for this slot
     limited: bool = False  # less power because of the phase limits
+    export_price: float | None = None  # what exported energy earns in this slot
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,11 +122,9 @@ def _price_at(prices: Sequence[PricePoint], when: datetime) -> float | None:
     return None
 
 
-def _grid_cost(
-    grid_w: float, hours: float, price: float, export_factor: float
-) -> float:
+def _grid_cost(grid_w: float, hours: float, price: float, export_price: float) -> float:
     kwh = grid_w * hours / 1000
-    return kwh * price if kwh >= 0 else kwh * price * export_factor
+    return kwh * price if kwh >= 0 else kwh * export_price
 
 
 def plan_batteries(
@@ -138,8 +137,13 @@ def plan_batteries(
     export_factor: float = DEFAULT_EXPORT_FACTOR,
     cycle_cost: float = DEFAULT_CYCLE_COST,
     limits: Mapping[datetime, tuple[float, float]] | None = None,
+    export_prices: Sequence[PricePoint] = (),
 ) -> BatteryPlan | None:
-    """Plan the batteries in ``mode`` over the consumption slots; None without batteries."""
+    """Plan the batteries in ``mode`` over the consumption slots; None without batteries.
+
+    ``export_prices``: what exported energy earns per period; where it is not
+    known, the import price x ``export_factor``.
+    """
     pack = _pack(states)
     if pack is None or not consumption:
         return None
@@ -154,14 +158,19 @@ def plan_batteries(
         max_c, max_d = (limits or {}).get(
             slot.start, (pack.max_charge, pack.max_discharge)
         )
+        price = _price_at(prices, slot.start)
+        export = _price_at(export_prices, slot.start)
+        if export is None and price is not None:
+            export = price * export_factor
         slots.append(
             (
                 slot,
                 hours,
                 net,
-                _price_at(prices, slot.start),
+                price,
                 max(min(max_c, pack.max_charge), 0.0),
                 max(min(max_d, pack.max_discharge), 0.0),
+                export,
             )
         )
 
@@ -169,14 +178,13 @@ def plan_batteries(
         return None
     priced = all(s[3] is not None for s in slots)
     if mode == MODE_ARBITRAGE and priced:
-        return _optimise(pack, slots, export_factor, cycle_cost, mode)
-    return _nom(pack, slots, export_factor, cycle_cost, mode, priced)
+        return _optimise(pack, slots, cycle_cost, mode)
+    return _nom(pack, slots, cycle_cost, mode, priced)
 
 
 def _nom(
     pack: _Pack,
     slots: list,
-    export_factor: float,
     cycle_cost: float,
     mode: str,
     priced: bool,
@@ -185,7 +193,7 @@ def _nom(
     stored = pack.stored
     result: list[PlanSlot] = []
     cost_with = cost_without = 0.0
-    for slot, hours, net, price, max_c, max_d in slots:
+    for slot, hours, net, price, max_c, max_d, export in slots:
         power = 0.0
         if net < 0:
             room = max(pack.ceiling - stored, 0.0)
@@ -196,9 +204,9 @@ def _nom(
             power = -min(net, max_d, available * pack.eff / hours)
             stored += power * hours / pack.eff
         if priced:
-            cost_with += _grid_cost(net + power, hours, price, export_factor)
+            cost_with += _grid_cost(net + power, hours, price, export)
             cost_with += abs(power) * hours / 1000 * cycle_cost
-            cost_without += _grid_cost(net, hours, price, export_factor)
+            cost_without += _grid_cost(net, hours, price, export)
         result.append(
             PlanSlot(
                 slot.start,
@@ -208,6 +216,7 @@ def _nom(
                 round(net + power, 1),
                 price,
                 _limited(pack, power, max_c, max_d),
+                export,
             )
         )
     if not priced:
@@ -228,7 +237,6 @@ def _nom(
 def _optimise(
     pack: _Pack,
     slots: list,
-    export_factor: float,
     cycle_cost: float,
     mode: str,
     allow_export: bool = False,
@@ -236,7 +244,7 @@ def _optimise(
     """Dynamic programming over the stored energy (backward), then forward."""
     span = max(pack.ceiling - pack.floor, 0.0)
     if span <= 0:
-        return _nom(pack, slots, export_factor, cycle_cost, mode, True)
+        return _nom(pack, slots, cycle_cost, mode, True)
     step = span / SOC_STEPS
     levels = SOC_STEPS + 1
     energy = [pack.floor + i * step for i in range(levels)]
@@ -249,7 +257,7 @@ def _optimise(
     best_next: list[list[int]] = [[0] * levels for _ in range(count)]
     future = terminal
     for t in range(count - 1, -1, -1):
-        _slot, hours, net, price, max_c, max_d = slots[t]
+        _slot, hours, net, price, max_c, max_d, export = slots[t]
         up = int(max_c * hours * pack.eff / step)
         down = int(max_d * hours / pack.eff / step)
         current = [0.0] * levels
@@ -268,7 +276,7 @@ def _optimise(
                 if not allow_export and power < 0 and power < -max(net, 0.0) - 1e-6:
                     continue
                 cost = (
-                    _grid_cost(net + power, hours, price, export_factor)
+                    _grid_cost(net + power, hours, price, export)
                     + abs(power) * hours / 1000 * cycle_cost
                     + future[j]
                 )
@@ -282,13 +290,13 @@ def _optimise(
     i = min(max(round((pack.stored - pack.floor) / step), 0), levels - 1)
     result: list[PlanSlot] = []
     cost_with = cost_without = 0.0
-    for t, (slot, hours, net, price, max_c, max_d) in enumerate(slots):
+    for t, (slot, hours, net, price, max_c, max_d, export) in enumerate(slots):
         j = best_next[t][i]
         delta = (j - i) * step
         power = delta / (hours * pack.eff) if delta >= 0 else delta * pack.eff / hours
-        cost_with += _grid_cost(net + power, hours, price, export_factor)
+        cost_with += _grid_cost(net + power, hours, price, export)
         cost_with += abs(power) * hours / 1000 * cycle_cost
-        cost_without += _grid_cost(net, hours, price, export_factor)
+        cost_without += _grid_cost(net, hours, price, export)
         result.append(
             PlanSlot(
                 slot.start,
@@ -298,6 +306,7 @@ def _optimise(
                 round(net + power, 1),
                 price,
                 _limited(pack, power, max_c, max_d),
+                export,
             )
         )
         i = j
@@ -333,7 +342,12 @@ def slot_costs(
         hours = (slot.end - slot.start).total_seconds() / 3600
         cost = abs(slot.power_w) * hours / 1000 * cycle_cost
         if slot.price is not None:
-            cost += _grid_cost(slot.grid_w, hours, slot.price, export_factor)
+            export = (
+                slot.export_price
+                if slot.export_price is not None
+                else slot.price * export_factor
+            )
+            cost += _grid_cost(slot.grid_w, hours, slot.price, export)
         costs.append(cost)
     return costs
 
