@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 from collections import Counter
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
@@ -81,7 +81,12 @@ from ..planning.battery_plan import (
     plan_batteries,
 )
 from ..planning.full_charge import FullCharge, schedule_full_charges
-from ..planning.phase_limit import PhaseDevice, max_power, phase_limit_w
+from ..planning.phase_limit import (
+    PhaseDevice,
+    cap_powers,
+    max_power,
+    phase_limit_w,
+)
 from .accuracy import KINDS, ForecastAccuracy
 from .adjustments import AdjustmentStore
 from .consumption import ForecastSlot, forecast_consumption
@@ -339,6 +344,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             prices,
             self.full_charge_window,
             now,
+            fits=self._fits_connection(states, consumption, pv_wh),
         )
         battery = _with_full_charges(battery, full_charges)
         self._explain_full_charges(full_charges)
@@ -392,6 +398,30 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             )
             for start, loads in self.phase_profile.loads(consumption, pv_wh).items()
         }
+
+    def _fits_connection(
+        self,
+        states: list[BatteryState],
+        consumption: list[ForecastSlot],
+        pv_wh: dict[datetime, float],
+    ) -> Callable[[datetime, Mapping[str, float]], bool]:
+        """Whether batteries charging together stay within the phase limits."""
+        phases = self.config_entry.data[CONF_PHASES]
+        limit = phase_limit_w(
+            self.config_entry.data[CONF_MAX_CURRENT], self.phase_margin
+        )
+        devices = [PhaseDevice.from_config(s.config, phases) for s in states]
+        profile = self.phase_profile or PhaseProfile(self.history.records, phases)
+        loads = profile.loads(consumption, pv_wh)
+        starts = sorted(loads)
+
+        def fits(when: datetime, powers: Mapping[str, float]) -> bool:
+            start = next((s for s in reversed(starts) if s <= when), None)
+            load = loads[start] if start is not None else [0.0] * phases
+            capped, _ = cap_powers(powers, devices, load, limit)
+            return all(abs(capped[k] - v) < 1 for k, v in powers.items())
+
+        return fits
 
     def summary(self) -> dict[str, Any]:
         """Short description of the latest result (action response, event)."""

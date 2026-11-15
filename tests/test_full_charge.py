@@ -70,3 +70,18 @@ def test_never_two_batteries_at_once() -> None:
     assert second.start >= first.end or second.end <= first.start
     # 01:30-02:00 is as cheap as the first block and does not overlap it.
     assert second.start == NOW + H + timedelta(minutes=30)
+
+
+def test_together_when_the_connection_allows() -> None:
+    """Full charges may overlap if that costs nothing extra (phase limits ok)."""
+    prices = _prices([0.30, 0.05, 0.10, 0.30])
+    batteries = [_battery("a"), _battery("b")]
+    first, second = schedule_full_charges(
+        batteries, {}, prices, 3, NOW, fits=lambda when, powers: True
+    )
+    assert first.start == second.start == NOW + H  # both in the cheapest block
+    # Not together when the connection cannot carry both.
+    first, second = schedule_full_charges(
+        batteries, {}, prices, 3, NOW, fits=lambda when, powers: len(powers) < 2
+    )
+    assert second.start >= first.end or second.end <= first.start

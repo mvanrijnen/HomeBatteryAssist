@@ -44,7 +44,7 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
   - **Arbitrage** (own use): charge when power is cheap, supply the house when it is expensive.
 - **Phase limits**: the plan never lets a phase exceed the main fuse (with an adjustable safety margin). The share of each phase is learned from your history.
 - **Phase protection** (virtual batteries): when a phase is overloaded, batteries on that phase take load off it within seconds.
-- **Periodic full charge** per battery (for the battery management's calibration), at the cheapest moment, never two at the same time.
+- **Periodic full charge** per battery (for the battery management's calibration), at the cheapest moment; batteries charge fully at the same time when the grid connection allows it.
 - **Distribution over several batteries**: as few batteries as possible at a sensible minimum power, kept in balance.
 - **Plain-language explanation**, e.g. *"The batteries do not discharge now, because power is not expensive enough now (€ 0.31 per kWh): they keep their energy for Mon 07:00-12:00, when power costs € 0.40 per kWh, and charge tonight at € 0.27 per kWh."*
 

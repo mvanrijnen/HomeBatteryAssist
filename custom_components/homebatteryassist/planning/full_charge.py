@@ -9,8 +9,11 @@ that period:
 - the block is as long as charging from the current state of charge to 100 %
   takes at the battery's maximum charge power;
 - its cost is the sum of the (forecast) prices over the block;
-- batteries are handled by earliest deadline, and never charge fully at the
-  same time: a later battery gets the cheapest block that does not overlap.
+- batteries are handled by earliest deadline. They may charge fully at the
+  same time when that costs nothing extra: ``fits(start, powers)`` tells
+  whether the batteries charging in a slot fit within the grid connection
+  (phase limits). Where they do not, a later battery gets the cheapest block
+  that does fit.
 
 Advice for real batteries; virtual batteries carry it out.
 """
@@ -18,7 +21,7 @@ Advice for real batteries; virtual batteries carry it out.
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -65,8 +68,14 @@ def schedule_full_charges(
     window_days: int,
     now: datetime,
     step: timedelta = timedelta(minutes=15),
+    fits: Callable[[datetime, Mapping[str, float]], bool] | None = None,
 ) -> list[FullCharge]:
-    """Plan the full charges that are due within ``window_days``."""
+    """Plan the full charges that are due within ``window_days``.
+
+    ``fits``: whether charging with these powers (battery id -> W) in the slot
+    starting at the given time stays within the grid connection; without it,
+    full charges never overlap.
+    """
     if not prices:
         return []
     horizon_end = max(p.end for p in prices)
@@ -103,6 +112,28 @@ def schedule_full_charges(
         eff = math.sqrt(config.efficiency)
         hours = missing_wh / (config.max_charge_w * eff) if config.max_charge_w else 0
         count = max(1, math.ceil(hours * 3600 / seconds))
+        power = round(
+            min(config.max_charge_w, missing_wh / eff / (count * seconds / 3600)), 1
+        )
+
+        def allowed(
+            start: datetime, end: datetime, power: float = power, own: str = config.id
+        ) -> bool:
+            overlapping = [p for p in planned if start < p.end and end > p.start]
+            if not overlapping:
+                return True
+            if fits is None:
+                return False
+            when = start
+            while when < end:
+                powers = {
+                    p.battery_id: p.power_w for p in overlapping if p.active(when)
+                }
+                if powers and not fits(when, {**powers, own: power}):
+                    return False
+                when += step
+            return True
+
         best: tuple[float, int] | None = None
         for i in range(len(slots) - count + 1):
             block = slots[i : i + count]
@@ -111,8 +142,8 @@ def schedule_full_charges(
                 break
             if block[-1][0] - start != step * (count - 1):
                 continue  # gap in the prices
-            if any(start < p.end and end > p.start for p in planned):
-                continue  # never two batteries at the same time
+            if not allowed(start, end):
+                continue  # together they would overload the connection
             cost = sum(price for _, price in block)
             if best is None or cost < best[0]:
                 best = (cost, i)
@@ -129,12 +160,7 @@ def schedule_full_charges(
                 end,
                 deadline,
                 last_full.get(config.id),
-                round(
-                    min(
-                        config.max_charge_w, missing_wh / eff / (count * seconds / 3600)
-                    ),
-                    1,
-                ),
+                power,
                 round(best[0] / count, 5),
                 round(sum(candidates) / len(candidates), 5) if candidates else None,
             )
