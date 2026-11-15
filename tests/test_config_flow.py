@@ -1,0 +1,173 @@
+"""Tests for the HomeBatteryAssist config flow."""
+
+import pytest
+from homeassistant.config_entries import SOURCE_USER
+from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import FlowResultType, InvalidData
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.homebatteryassist.const import (
+    CONF_HISTORY_INTERVAL,
+    CONF_MAX_CURRENT,
+    CONF_PHASES,
+    CONF_PLANNING_HORIZON,
+    CONF_PRICE_FORECAST,
+    DOMAIN,
+    NAME,
+)
+
+
+async def _start(hass: HomeAssistant) -> dict:
+    return await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+
+
+async def test_three_phase_flow(hass: HomeAssistant) -> None:
+    """3-phase: phases -> connection size -> three phase sensors."""
+    result = await _start(hass)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "user"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PHASES: "3"}
+    )
+    assert result["step_id"] == "max_current"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MAX_CURRENT: "35"}
+    )
+    assert result["step_id"] == "sensors"
+    assert set(result["data_schema"].schema) == {
+        "sensor_l1",
+        "sensor_l2",
+        "sensor_l3",
+        "return_l1",
+        "return_l2",
+        "return_l3",
+    }
+
+    sensors = {
+        "sensor_l1": "sensor.power_l1",
+        "sensor_l2": "sensor.power_l2",
+        "sensor_l3": "sensor.power_l3",
+    }
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], sensors)
+    assert result["step_id"] == "settings"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_HISTORY_INTERVAL: "5",
+            CONF_PLANNING_HORIZON: 3,
+            CONF_PRICE_FORECAST: "sensor.prices",
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == NAME
+    assert result["data"] == {CONF_PHASES: 3, CONF_MAX_CURRENT: 35, **sensors}
+    assert result["options"] == {
+        CONF_HISTORY_INTERVAL: 5,
+        CONF_PLANNING_HORIZON: 3,
+        CONF_PRICE_FORECAST: "sensor.prices",
+    }
+
+
+async def test_single_phase_flow(hass: HomeAssistant) -> None:
+    """1-phase: only one phase sensor is asked."""
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PHASES: "1"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MAX_CURRENT: "35"}
+    )
+    assert set(result["data_schema"].schema) == {"sensor_l1", "return_l1"}
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"sensor_l1": "sensor.power_l1"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HISTORY_INTERVAL: "15", CONF_PLANNING_HORIZON: 2}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["options"] == {CONF_HISTORY_INTERVAL: 15, CONF_PLANNING_HORIZON: 2}
+    assert result["data"] == {
+        CONF_PHASES: 1,
+        CONF_MAX_CURRENT: 35,
+        "sensor_l1": "sensor.power_l1",
+    }
+
+
+@pytest.mark.parametrize(
+    ("phases", "invalid"), [("1", "25x"), ("1", "50"), ("3", "10")]
+)
+async def test_connection_size_must_match_phases(
+    hass: HomeAssistant, phases: str, invalid: str
+) -> None:
+    """Only connection sizes valid for the phase count are accepted."""
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PHASES: phases}
+    )
+    with pytest.raises(InvalidData):
+        await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_MAX_CURRENT: invalid}
+        )
+
+
+async def test_duplicate_sensor_rejected(hass: HomeAssistant) -> None:
+    """The same sensor cannot be used for two phases."""
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PHASES: "3"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MAX_CURRENT: "25"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            "sensor_l1": "sensor.power_l1",
+            "sensor_l2": "sensor.power_l1",
+            "sensor_l3": "sensor.power_l3",
+        },
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "duplicate_sensor"}
+
+
+async def test_single_instance(hass: HomeAssistant) -> None:
+    """A second instance is rejected."""
+    MockConfigEntry(domain=DOMAIN).add_to_hass(hass)
+
+    result = await _start(hass)
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "single_instance_allowed"
+
+
+async def test_options_flow_changes_settings(hass: HomeAssistant) -> None:
+    """Settings can be changed afterwards; clearing the price sensor removes it."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_PHASES: 1, CONF_MAX_CURRENT: 35, "sensor_l1": "sensor.power_l1"},
+        options={
+            CONF_HISTORY_INTERVAL: 15,
+            CONF_PLANNING_HORIZON: 2,
+            CONF_PRICE_FORECAST: "sensor.prices",
+        },
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "init"
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_HISTORY_INTERVAL: "60", CONF_PLANNING_HORIZON: 5}
+    )
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options == {CONF_HISTORY_INTERVAL: 60, CONF_PLANNING_HORIZON: 5}

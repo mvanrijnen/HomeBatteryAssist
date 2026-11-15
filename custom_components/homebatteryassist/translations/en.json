@@ -1,0 +1,191 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Grid connection",
+        "description": "Is your home connected to the grid with 1 phase or 3 phases?",
+        "data": {
+          "phases": "Number of phases"
+        }
+      },
+      "max_current": {
+        "title": "Connection size",
+        "description": "Select the size of your grid connection (main fuse rating per phase). You can find it on your energy contract or on the main fuse in your meter cupboard.",
+        "data": {
+          "max_current_per_phase": "Connection"
+        }
+      },
+      "sensors": {
+        "title": "Phase measurements",
+        "description": "Select for each phase the sensor that measures the power (W) or current (A) on that phase, typically from your smart meter (P1). If this sensor is positive for import and negative for export, leave the return sensor empty. If your meter has separate sensors for import and export (return), select both. Note: current sensors usually cannot tell import from export.",
+        "data": {
+          "sensor_l1": "Phase L1",
+          "return_l1": "Phase L1 return (optional)",
+          "sensor_l2": "Phase L2",
+          "return_l2": "Phase L2 return (optional)",
+          "sensor_l3": "Phase L3",
+          "return_l3": "Phase L3 return (optional)"
+        }
+      },
+      "settings": {
+        "title": "Settings",
+        "description": "HomeBatteryAssist records your house consumption to predict future usage, and plans ahead using price and PV forecasts from other integrations. The system plans at most the chosen number of days ahead, and never further than the price and PV forecasts reach.",
+        "data": {
+          "history_interval": "Consumption history interval",
+          "planning_horizon_days": "Maximum planning horizon",
+          "price_forecast_entity": "Price forecast sensor",
+          "pv_forecast_entries": "PV forecast"
+        },
+        "data_description": {
+          "history_interval": "A shorter interval is more precise but stores more data.",
+          "planning_horizon_days": "How many days ahead the system may plan at most.",
+          "price_forecast_entity": "Sensor of an energy price integration (e.g. Nordpool, ENTSO-e, Frank Energie) whose attributes contain the upcoming prices.",
+          "pv_forecast_entries": "Integrations providing a solar forecast (e.g. Forecast.Solar, Solcast). Selected forecasts are added up to the total for your home."
+        }
+      }
+    },
+    "error": {
+      "duplicate_sensor": "Each phase needs its own sensor."
+    },
+    "abort": {
+      "single_instance_allowed": "HomeBatteryAssist is already configured. Only one instance is allowed."
+    }
+  },
+  "selector": {
+    "phases": {
+      "options": {
+        "1": "1 phase",
+        "3": "3 phases"
+      }
+    },
+    "history_interval": {
+      "options": {
+        "5": "5 minutes",
+        "15": "15 minutes",
+        "60": "60 minutes"
+      }
+    },
+    "phase": {
+      "options": {
+        "none": "Not bound to a phase",
+        "l1": "L1",
+        "l2": "L2",
+        "l3": "L3"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Settings",
+        "description": "HomeBatteryAssist records your house consumption to predict future usage, and plans ahead using price and PV forecasts from other integrations. The system plans at most the chosen number of days ahead, and never further than the price and PV forecasts reach.",
+        "data": {
+          "history_interval": "Consumption history interval",
+          "planning_horizon_days": "Maximum planning horizon",
+          "price_forecast_entity": "Price forecast sensor",
+          "pv_forecast_entries": "PV forecast"
+        },
+        "data_description": {
+          "history_interval": "A shorter interval is more precise but stores more data.",
+          "planning_horizon_days": "How many days ahead the system may plan at most.",
+          "price_forecast_entity": "Sensor of an energy price integration (e.g. Nordpool, ENTSO-e, Frank Energie) whose attributes contain the upcoming prices.",
+          "pv_forecast_entries": "Integrations providing a solar forecast (e.g. Forecast.Solar, Solcast). Selected forecasts are added up to the total for your home."
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "pv_source": {
+      "entry_type": "PV source",
+      "initiate_flow": {
+        "user": "Add PV source"
+      },
+      "step": {
+        "user": {
+          "title": "PV source",
+          "description": "A measurement of solar (PV) production, e.g. an inverter. Its production is added to the grid measurement to determine the actual house consumption.",
+          "data": {
+            "name": "Name",
+            "sensor": "Sensor",
+            "phase": "Phase"
+          },
+          "data_description": {
+            "sensor": "Sensor measuring the power (W) or current (A) of this device.",
+            "phase": "The phase this device is connected to, if it uses a single phase."
+          }
+        },
+        "reconfigure": {
+          "title": "PV source",
+          "description": "A measurement of solar (PV) production, e.g. an inverter. Its production is added to the grid measurement to determine the actual house consumption.",
+          "data": {
+            "name": "Name",
+            "sensor": "Sensor",
+            "phase": "Phase"
+          },
+          "data_description": {
+            "sensor": "Sensor measuring the power (W) or current (A) of this device.",
+            "phase": "The phase this device is connected to, if it uses a single phase."
+          }
+        }
+      },
+      "error": {
+        "sensor_is_phase_sensor": "This sensor is already used as a grid phase measurement.",
+        "sensor_in_use": "This sensor is already used by another device."
+      },
+      "abort": {
+        "reconfigure_successful": "Settings saved."
+      }
+    },
+    "excluded_load": {
+      "entry_type": "Excluded device",
+      "initiate_flow": {
+        "user": "Add excluded device"
+      },
+      "step": {
+        "user": {
+          "title": "Excluded device",
+          "description": "A device whose consumption is kept out of the house consumption, e.g. an EV charger, so it does not distort the consumption forecast.",
+          "data": {
+            "name": "Name",
+            "sensor": "Sensor",
+            "phase": "Phase"
+          },
+          "data_description": {
+            "sensor": "Sensor measuring the power (W) or current (A) of this device.",
+            "phase": "The phase this device is connected to, if it uses a single phase."
+          }
+        },
+        "reconfigure": {
+          "title": "Excluded device",
+          "description": "A device whose consumption is kept out of the house consumption, e.g. an EV charger, so it does not distort the consumption forecast.",
+          "data": {
+            "name": "Name",
+            "sensor": "Sensor",
+            "phase": "Phase"
+          },
+          "data_description": {
+            "sensor": "Sensor measuring the power (W) or current (A) of this device.",
+            "phase": "The phase this device is connected to, if it uses a single phase."
+          }
+        }
+      },
+      "error": {
+        "sensor_is_phase_sensor": "This sensor is already used as a grid phase measurement.",
+        "sensor_in_use": "This sensor is already used by another device."
+      },
+      "abort": {
+        "reconfigure_successful": "Settings saved."
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "house_consumption": {
+        "name": "House consumption"
+      },
+      "planning_horizon": {
+        "name": "Planning horizon"
+      }
+    }
+  }
+}

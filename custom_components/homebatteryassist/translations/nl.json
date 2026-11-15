@@ -1,0 +1,191 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Netaansluiting",
+        "description": "Heeft je woning een 1-fase of 3-fase aansluiting op het net?",
+        "data": {
+          "phases": "Aantal fases"
+        }
+      },
+      "max_current": {
+        "title": "Grootte aansluiting",
+        "description": "Kies de grootte van je netaansluiting (hoofdzekering per fase). Je vindt deze op je energiecontract of op de hoofdzekering in de meterkast.",
+        "data": {
+          "max_current_per_phase": "Aansluiting"
+        }
+      },
+      "sensors": {
+        "title": "Metingen per fase",
+        "description": "Kies per fase de sensor die het vermogen (W) of de stroom (A) op die fase meet, meestal afkomstig van je slimme meter (P1). Is deze sensor positief bij afname en negatief bij teruglevering, laat dan de terugleversensor leeg. Heeft je meter aparte sensoren voor afname en teruglevering, kies dan beide. Let op: stroomsensoren kunnen afname en teruglevering meestal niet onderscheiden.",
+        "data": {
+          "sensor_l1": "Fase L1",
+          "return_l1": "Fase L1 teruglevering (optioneel)",
+          "sensor_l2": "Fase L2",
+          "return_l2": "Fase L2 teruglevering (optioneel)",
+          "sensor_l3": "Fase L3",
+          "return_l3": "Fase L3 teruglevering (optioneel)"
+        }
+      },
+      "settings": {
+        "title": "Instellingen",
+        "description": "HomeBatteryAssist houdt je huisverbruik bij om toekomstig verbruik te voorspellen, en plant vooruit op basis van prijs- en PV-voorspellingen van andere integrations. Het systeem plant maximaal het gekozen aantal dagen vooruit, en nooit verder dan de prijs- en PV-voorspellingen reiken.",
+        "data": {
+          "history_interval": "Interval verbruikshistorie",
+          "planning_horizon_days": "Maximale planningshorizon",
+          "price_forecast_entity": "Sensor prijsvoorspelling",
+          "pv_forecast_entries": "PV-voorspelling"
+        },
+        "data_description": {
+          "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
+          "planning_horizon_days": "Hoeveel dagen het systeem maximaal vooruit mag plannen.",
+          "price_forecast_entity": "Sensor van een energieprijs-integration (bijv. Nordpool, ENTSO-e, Frank Energie) met de komende prijzen in de attributen.",
+          "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning."
+        }
+      }
+    },
+    "error": {
+      "duplicate_sensor": "Elke fase heeft een eigen sensor nodig."
+    },
+    "abort": {
+      "single_instance_allowed": "HomeBatteryAssist is al geconfigureerd. Er is maar één instantie toegestaan."
+    }
+  },
+  "selector": {
+    "phases": {
+      "options": {
+        "1": "1 fase",
+        "3": "3 fases"
+      }
+    },
+    "history_interval": {
+      "options": {
+        "5": "5 minuten",
+        "15": "15 minuten",
+        "60": "60 minuten"
+      }
+    },
+    "phase": {
+      "options": {
+        "none": "Niet gekoppeld aan een fase",
+        "l1": "L1",
+        "l2": "L2",
+        "l3": "L3"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Instellingen",
+        "description": "HomeBatteryAssist houdt je huisverbruik bij om toekomstig verbruik te voorspellen, en plant vooruit op basis van prijs- en PV-voorspellingen van andere integrations. Het systeem plant maximaal het gekozen aantal dagen vooruit, en nooit verder dan de prijs- en PV-voorspellingen reiken.",
+        "data": {
+          "history_interval": "Interval verbruikshistorie",
+          "planning_horizon_days": "Maximale planningshorizon",
+          "price_forecast_entity": "Sensor prijsvoorspelling",
+          "pv_forecast_entries": "PV-voorspelling"
+        },
+        "data_description": {
+          "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
+          "planning_horizon_days": "Hoeveel dagen het systeem maximaal vooruit mag plannen.",
+          "price_forecast_entity": "Sensor van een energieprijs-integration (bijv. Nordpool, ENTSO-e, Frank Energie) met de komende prijzen in de attributen.",
+          "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning."
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "pv_source": {
+      "entry_type": "PV-bron",
+      "initiate_flow": {
+        "user": "PV-bron toevoegen"
+      },
+      "step": {
+        "user": {
+          "title": "PV-bron",
+          "description": "Een meting van zonne-opwek (PV), bijvoorbeeld een omvormer. De opwek wordt bij de netmeting opgeteld om het werkelijke huisverbruik te bepalen.",
+          "data": {
+            "name": "Naam",
+            "sensor": "Sensor",
+            "phase": "Fase"
+          },
+          "data_description": {
+            "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
+            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt."
+          }
+        },
+        "reconfigure": {
+          "title": "PV-bron",
+          "description": "Een meting van zonne-opwek (PV), bijvoorbeeld een omvormer. De opwek wordt bij de netmeting opgeteld om het werkelijke huisverbruik te bepalen.",
+          "data": {
+            "name": "Naam",
+            "sensor": "Sensor",
+            "phase": "Fase"
+          },
+          "data_description": {
+            "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
+            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt."
+          }
+        }
+      },
+      "error": {
+        "sensor_is_phase_sensor": "Deze sensor wordt al gebruikt als netmeting van een fase.",
+        "sensor_in_use": "Deze sensor wordt al door een ander apparaat gebruikt."
+      },
+      "abort": {
+        "reconfigure_successful": "Instellingen opgeslagen."
+      }
+    },
+    "excluded_load": {
+      "entry_type": "Uitgesloten apparaat",
+      "initiate_flow": {
+        "user": "Uitgesloten apparaat toevoegen"
+      },
+      "step": {
+        "user": {
+          "title": "Uitgesloten apparaat",
+          "description": "Een apparaat waarvan het verbruik buiten het huisverbruik wordt gehouden, bijvoorbeeld een laadpaal, zodat het de verbruiksvoorspelling niet verstoort.",
+          "data": {
+            "name": "Naam",
+            "sensor": "Sensor",
+            "phase": "Fase"
+          },
+          "data_description": {
+            "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
+            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt."
+          }
+        },
+        "reconfigure": {
+          "title": "Uitgesloten apparaat",
+          "description": "Een apparaat waarvan het verbruik buiten het huisverbruik wordt gehouden, bijvoorbeeld een laadpaal, zodat het de verbruiksvoorspelling niet verstoort.",
+          "data": {
+            "name": "Naam",
+            "sensor": "Sensor",
+            "phase": "Fase"
+          },
+          "data_description": {
+            "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
+            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt."
+          }
+        }
+      },
+      "error": {
+        "sensor_is_phase_sensor": "Deze sensor wordt al gebruikt als netmeting van een fase.",
+        "sensor_in_use": "Deze sensor wordt al door een ander apparaat gebruikt."
+      },
+      "abort": {
+        "reconfigure_successful": "Instellingen opgeslagen."
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "house_consumption": {
+        "name": "Huisverbruik"
+      },
+      "planning_horizon": {
+        "name": "Planningshorizon"
+      }
+    }
+  }
+}

@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local Home Assistant dev instance
+config/
+
+.vscode/
+.idea/
+.DS_Store
+
+# Personal Claude Code notes
+CLAUDE.local.md
