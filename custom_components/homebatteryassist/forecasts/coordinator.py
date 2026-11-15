@@ -35,6 +35,7 @@ from ..const import (
     CONF_CYCLE_COST,
     CONF_EXPORT_FACTOR,
     CONF_FORECAST_INTERVAL,
+    CONF_MIN_BATTERY_POWER,
     CONF_PLAN_MODE,
     CONF_PLANNING_HORIZON,
     CONF_PRICE_FORECAST,
@@ -42,6 +43,7 @@ from ..const import (
     DEFAULT_CYCLE_COST,
     DEFAULT_EXPORT_FACTOR,
     DEFAULT_FORECAST_INTERVAL,
+    DEFAULT_MIN_BATTERY_POWER,
     DEFAULT_PLANNING_HORIZON,
     DOMAIN,
 )
@@ -65,6 +67,7 @@ from .horizon import HorizonLimit, PlanningWindow, planning_horizon
 _LOGGER = logging.getLogger(__name__)
 
 EVENT_FORECAST_UPDATED = f"{DOMAIN}_forecast_updated"
+RETRY_INTERVAL = timedelta(minutes=1)
 
 
 @dataclass(slots=True)
@@ -125,6 +128,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 )
             ),
         )
+        self._interval = self.update_interval
         self._decisions = decisions
         self.history = history
         self.adjustments = adjustments
@@ -135,6 +139,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR
         )
         self.cycle_cost: float = entry.options.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
+        self.min_battery_power: float = entry.options.get(
+            CONF_MIN_BATTERY_POWER, DEFAULT_MIN_BATTERY_POWER
+        )
         self._last_plan: str | None = None
         self._last_method: str | None = None
         self._last_corrections: dict[str, str] = {}
@@ -167,6 +174,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             pv_configured=bool(self.pv_entries),
         )
         self._explain_window(window)
+        # A configured forecast without data (e.g. its integration is still
+        # starting): retry every minute instead of waiting a whole interval.
+        self.update_interval = (
+            RETRY_INTERVAL
+            if window.limited_by in (HorizonLimit.NO_PRICE, HorizonLimit.NO_PV)
+            else self._interval
+        )
 
         # 3. Check earlier predictions; update the running accuracy.
         accuracy = self.accuracy

@@ -4,10 +4,12 @@ Every ``STEP`` the simulator lets each virtual battery act according to the
 selected plan mode, using the real measurements:
 
 - ``nom``: absorb the real surplus / cover the real shortage measured on the
-  grid right now (after the real batteries), shared between virtual batteries
-  in order;
-- ``arbitrage``: follow the battery plan of the current slot, for its share
-  of the planned capacity.
+  grid right now (after the real batteries);
+- ``arbitrage``: follow the battery plan of the current slot, for the virtual
+  batteries' share of the planned capacity.
+
+The total is spread over the virtual batteries with
+``planning.distribution.distribute`` (minimum power per battery).
 
 Within the battery's power and state-of-charge limits. The round-trip loss is
 drawn at random per step between the battery's ``loss_min`` and ``loss_max``
@@ -33,6 +35,7 @@ from ..forecasts.coordinator import ForecastCoordinator
 from ..inputs.batteries import BatteryConfig, BatteryInput
 from ..inputs.measurements import MeasurementInput
 from ..planning.battery_plan import MODE_ARBITRAGE
+from ..planning.distribution import Candidate, distribute
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -134,27 +137,41 @@ class VirtualBatterySimulator:
             self._batteries.set_virtual(config.id, now, power, soc)
 
     def _targets(self, now: datetime, hours: float):
-        """A function (config, soc) -> target power (W, + charging) per battery."""
+        """A function (config, soc) -> target power (W, + charging) per battery.
+
+        The total for the virtual batteries is spread with ``distribute``:
+        few batteries at low power, more when more power is needed.
+        """
+        virtual = self.virtual
         data = self._forecast.data
         if data is not None and data.plan_mode == MODE_ARBITRAGE and data.battery:
+            # Arbitrage: the virtual batteries' share of the planned power.
             slot = next((s for s in data.battery if s.start <= now < s.end), None)
-            capacity = sum(
-                s.config.capacity_kwh
-                for s in self._batteries.states.values()
-                if s.soc is not None
+            states = [s for s in self._batteries.states.values() if s.soc is not None]
+            capacity = sum(s.config.capacity_kwh for s in states)
+            virtual_capacity = sum(
+                s.config.capacity_kwh for s in states if s.config.virtual
             )
-            if slot is None or not capacity:
-                return lambda config, soc: 0.0
-            return lambda config, soc: slot.power_w * config.capacity_kwh / capacity
+            total = (
+                slot.power_w * virtual_capacity / capacity if slot and capacity else 0.0
+            )
+        else:
+            # NOM: the real surplus (+) / shortage (-) on the grid right now.
+            flow = self._measurements.flow
+            total = -flow.grid_w if flow is not None else 0.0
 
-        # NOM: the real surplus (+) / shortage (-) on the grid right now; each
-        # virtual battery takes what it can, the next one gets the rest.
-        flow = self._measurements.flow
-        remaining = [-flow.grid_w if flow is not None else 0.0]
-
-        def nom(config: BatteryConfig, soc: float) -> float:
-            power, _ = limit_power(config, soc, remaining[0], hours)
-            remaining[0] -= power
-            return power
-
-        return nom
+        candidates = []
+        for config in virtual:
+            state = self._batteries.states[config.id]
+            candidates.append(
+                Candidate(
+                    config.id,
+                    state.soc if state.soc is not None else config.initial_soc,
+                    config.min_soc,
+                    config.max_soc,
+                    config.max_charge_w,
+                    config.max_discharge_w,
+                )
+            )
+        shares = distribute(total, candidates, self._forecast.min_battery_power)
+        return lambda config, soc: shares.get(config.id, 0.0)

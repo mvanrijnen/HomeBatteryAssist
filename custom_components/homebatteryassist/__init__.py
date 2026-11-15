@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from homeassistant.const import Platform
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_state_change_event
@@ -77,6 +77,16 @@ async def async_setup_entry(
         lambda: batteries.states.values(),
     )
     await forecast.async_config_entry_first_refresh()
+    if not hass.is_running:
+        # Other integrations (price and PV forecasts) may still be starting:
+        # recalculate once Home Assistant has fully started.
+        @callback
+        def _started(event: Event) -> None:
+            hass.async_create_task(forecast.async_request_refresh())
+
+        entry.async_on_unload(
+            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _started)
+        )
     if forecast.price_entity:
         # New day-ahead prices arrive as a state/attribute update of the sensor.
         @callback

@@ -1008,4 +1008,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
   }
 }
 
-customElements.define("homebatteryassist-panel", HomeBatteryAssistPanel);
+// A new version of the panel may be loaded next to an old one: define once.
+if (!customElements.get("homebatteryassist-panel")) {
+  customElements.define("homebatteryassist-panel", HomeBatteryAssistPanel);
+}

@@ -38,7 +38,8 @@
           "forecast_interval": "Recalculate every",
           "plan_mode": "Battery plan mode",
           "export_price_factor": "Export compensation",
-          "cycle_cost": "Battery wear cost"
+          "cycle_cost": "Battery wear cost",
+          "min_battery_power": "Minimum power per battery"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -48,7 +49,8 @@
           "forecast_interval": "How often the forecasts are recalculated automatically.",
           "plan_mode": "How HomeBatteryAssist would control the batteries (advice only for now). Both modes are always calculated for comparison.",
           "export_price_factor": "Share of the price you get back for exported energy (1 = net metering).",
-          "cycle_cost": "Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains."
+          "cycle_cost": "Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains.",
+          "min_battery_power": "Below this power the conversion losses of a battery are high: a request is spread over as few batteries as possible, each running at least at this power, and over more batteries when more power is needed."
         }
       }
     },
@@ -148,7 +150,8 @@
           "forecast_interval": "Recalculate every",
           "plan_mode": "Battery plan mode",
           "export_price_factor": "Export compensation",
-          "cycle_cost": "Battery wear cost"
+          "cycle_cost": "Battery wear cost",
+          "min_battery_power": "Minimum power per battery"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -158,7 +161,8 @@
           "forecast_interval": "How often the forecasts are recalculated automatically.",
           "plan_mode": "How HomeBatteryAssist would control the batteries (advice only for now). Both modes are always calculated for comparison.",
           "export_price_factor": "Share of the price you get back for exported energy (1 = net metering).",
-          "cycle_cost": "Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains."
+          "cycle_cost": "Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains.",
+          "min_battery_power": "Below this power the conversion losses of a battery are high: a request is spread over as few batteries as possible, each running at least at this power, and over more batteries when more power is needed."
         }
       }
     }

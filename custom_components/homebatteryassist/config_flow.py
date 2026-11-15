@@ -72,6 +72,7 @@ from .const import (
     CONF_MAX_CURRENT,
     CONF_MAX_DISCHARGE_POWER,
     CONF_MAX_SOC,
+    CONF_MIN_BATTERY_POWER,
     CONF_MIN_SOC,
     CONF_PHASE,
     CONF_PHASES,
@@ -95,6 +96,7 @@ from .const import (
     DEFAULT_LOSS_MIN,
     DEFAULT_MAX_CURRENT,
     DEFAULT_MAX_SOC,
+    DEFAULT_MIN_BATTERY_POWER,
     DEFAULT_MIN_SOC,
     DEFAULT_PLANNING_HORIZON,
     DOMAIN,
@@ -263,6 +265,18 @@ async def settings_schema(
             NumberSelectorConfig(min=0, max=1.5, step=0.05, mode=NumberSelectorMode.BOX)
         ),
         vol.Required(
+            CONF_MIN_BATTERY_POWER,
+            default=current.get(CONF_MIN_BATTERY_POWER, DEFAULT_MIN_BATTERY_POWER),
+        ): NumberSelector(
+            NumberSelectorConfig(
+                min=0,
+                max=5000,
+                step=10,
+                unit_of_measurement="W",
+                mode=NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
             CONF_CYCLE_COST, default=current.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
         ): NumberSelector(
             NumberSelectorConfig(
@@ -308,6 +322,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
             user_input.get(CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR)
         ),
         CONF_CYCLE_COST: float(user_input.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)),
+        CONF_MIN_BATTERY_POWER: int(
+            user_input.get(CONF_MIN_BATTERY_POWER, DEFAULT_MIN_BATTERY_POWER)
+        ),
     }
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]

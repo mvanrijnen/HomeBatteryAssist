@@ -38,7 +38,8 @@
           "forecast_interval": "Herberekenen elke",
           "plan_mode": "Modus batterijplan",
           "export_price_factor": "Vergoeding teruglevering",
-          "cycle_cost": "Slijtagekosten batterij"
+          "cycle_cost": "Slijtagekosten batterij",
+          "min_battery_power": "Minimaal vermogen per batterij"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -48,7 +49,8 @@
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
           "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
           "export_price_factor": "Deel van de prijs dat je terugkrijgt voor teruggeleverde energie (1 = salderen).",
-          "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst."
+          "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
+          "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is."
         }
       }
     },
@@ -148,7 +150,8 @@
           "forecast_interval": "Herberekenen elke",
           "plan_mode": "Modus batterijplan",
           "export_price_factor": "Vergoeding teruglevering",
-          "cycle_cost": "Slijtagekosten batterij"
+          "cycle_cost": "Slijtagekosten batterij",
+          "min_battery_power": "Minimaal vermogen per batterij"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -158,7 +161,8 @@
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
           "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
           "export_price_factor": "Deel van de prijs dat je terugkrijgt voor teruggeleverde energie (1 = salderen).",
-          "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst."
+          "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
+          "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is."
         }
       }
     }

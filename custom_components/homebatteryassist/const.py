@@ -48,6 +48,9 @@ CONF_EXPORT_FACTOR: Final = "export_price_factor"
 CONF_CYCLE_COST: Final = "cycle_cost"
 DEFAULT_EXPORT_FACTOR: Final = 1.0  # export earns the import price (net metering)
 DEFAULT_CYCLE_COST: Final = 0.02  # per kWh through the battery
+# Below this power per battery conversion losses are high: use fewer batteries.
+CONF_MIN_BATTERY_POWER: Final = "min_battery_power"
+DEFAULT_MIN_BATTERY_POWER: Final = 300  # W
 
 # How often the forecasts are recalculated (minutes).
 CONF_FORECAST_INTERVAL: Final = "forecast_interval"
