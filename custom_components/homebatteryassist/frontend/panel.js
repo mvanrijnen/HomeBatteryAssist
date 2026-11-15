@@ -64,7 +64,13 @@ const TEXT = {
     batteryLine: "Battery (+ charging / − discharging)",
     gridMeasured: "Grid (+ import / − export)",
     gridExpected: "Grid expected (without battery)",
-    flowTitle: "Energy flows and expected consumption (past 24 h, next 48 h)",
+    flowTitle: "Energy flows and expected consumption",
+    navStart: "To the first measurement",
+    navBack: "Back",
+    navNow: "Now",
+    navFwd: "Forward",
+    navEnd: "To the end of the forecast",
+    spans: { 24: "1 day", 72: "3 days", 168: "7 days" },
     now: "now",
     accuracy: "Average deviation (shortest lead time): {mae} ({mape}%)",
     notVerified: "Not checked yet: measured slots are compared with the forecast as time passes.",
@@ -147,7 +153,13 @@ const TEXT = {
     batteryLine: "Batterij (+ laden / − ontladen)",
     gridMeasured: "Net (+ afname / − teruglevering)",
     gridExpected: "Net verwacht (zonder batterij)",
-    flowTitle: "Energiestromen en verwacht verbruik (afgelopen 24 uur, komende 48 uur)",
+    flowTitle: "Energiestromen en verwacht verbruik",
+    navStart: "Naar de eerste meting",
+    navBack: "Terug",
+    navNow: "Nu",
+    navFwd: "Vooruit",
+    navEnd: "Naar het einde van de voorspelling",
+    spans: { 24: "1 dag", 72: "3 dagen", 168: "7 dagen" },
     now: "nu",
     accuracy: "Gemiddelde afwijking (kortste vooruitzicht): {mae} ({mape}%)",
     notVerified: "Nog niet gecontroleerd: gemeten tijdvakken worden in de loop van de tijd met de voorspelling vergeleken.",
@@ -225,6 +237,12 @@ const STYLE = `
   .chart .axis { fill: var(--secondary-text-color); font-size: 11px; }
   .chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; }
   .chart .line.dashed { stroke-dasharray: 5 4; stroke-width: 1.5; }
+  .chart .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+  .chart .head h3 { margin: 0; }
+  .nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  .nav button { font: inherit; font-size: 12px; cursor: pointer; color: var(--primary-text-color);
+    background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 12px; padding: 2px 10px; }
+  .nav button.active { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: var(--primary-color); }
   .chart .zero { stroke: var(--secondary-text-color); stroke-width: 1; opacity: .6; }
   .chart .now { stroke: var(--secondary-text-color); stroke-width: 1; stroke-dasharray: 2 3; }
   .chart.wide { grid-column: 1 / -1; }
@@ -266,6 +284,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this._historyAt = 0;
     this._charts = {};
     this._hover = null;
+    this._flowSpan = 72; // hours in view
+    this._flowEnd = null; // ms; null = follow "now"
   }
 
   async _recalculate() {
@@ -483,14 +503,15 @@ class HomeBatteryAssistPanel extends HTMLElement {
 
   _chart(id, series, xMin, xMax, ticks, gapLimit, markers = [], xFmt = (v) => this._time(new Date(v).toISOString())) {
     // Full-width charts get a wider canvas so they are as high as the others.
-    const W = id === "forecast" ? 1232 : 600, H = 190, L = 46, R = 8, T = 8, B = 24;
+    // The full-width flow chart gets a wider and higher canvas.
+    const W = id === "forecast" ? 1232 : 600, H = id === "forecast" ? 300 : 190, L = 46, R = 8, T = 8, B = 24;
     const all = series.flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
     const yMax = this._niceMax(Math.max(...all, 0));
     const low = Math.min(...all, 0);
     const yMin = low < 0 ? -this._niceMax(-low) : 0;
     const x = (v) => L + ((v - xMin) / (xMax - xMin || 1)) * (W - L - R);
     const y = (v) => T + (1 - (v - yMin) / (yMax - yMin)) * (H - T - B);
-    let svg = "";
+    let svg = `<clipPath id="clip-${id}"><rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}"/></clipPath>`;
     const steps = 4;
     for (let i = 0; i <= steps; i++) {
       const v = yMin + ((yMax - yMin) / steps) * i;
@@ -510,7 +531,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         d += `${jump ? "M" : "L"}${x(px).toFixed(1)},${y(py).toFixed(1)}`;
         prev = px;
       }
-      svg += `<path class="line${s.dashed ? " dashed" : ""}" d="${d}" stroke="${s.color}"/>`;
+      svg += `<path class="line${s.dashed ? " dashed" : ""}" d="${d}" stroke="${s.color}" clip-path="url(#clip-${id})"/>`;
     }
     for (const [v, label] of markers) {
       svg += `<line class="now" x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H - B}"/>`;
@@ -521,6 +542,63 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt };
     return `<svg data-chart="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${svg}</svg>
       <div class="tip" data-tip="${id}" hidden></div>`;
+  }
+
+  _flowNav(t) {
+    const spans = Object.entries(t.spans)
+      .map(([h, label]) => `<button data-span="${h}" class="${Number(h) === this._flowSpan ? "active" : ""}">${esc(label)}</button>`)
+      .join("");
+    const nav = [
+      ["start", "⏮", t.navStart],
+      ["back", "◀", t.navBack],
+      ["now", t.navNow, t.navNow],
+      ["fwd", "▶", t.navFwd],
+      ["end", "⏭", t.navEnd],
+    ]
+      .map(([key, label, title]) => `<button data-nav="${key}" title="${esc(title)}">${esc(label)}</button>`)
+      .join("");
+    return `<div class="nav">${nav}<span style="width:8px"></span>${spans}</div>`;
+  }
+
+  _flowShift(key, amount = 0) {
+    const b = this._flowBounds;
+    if (!b) return;
+    const span = this._flowSpan * 3600e3;
+    const current = this._flowEnd ?? b.now + (span * 2) / 3;
+    const target = {
+      start: b.dataMin + span,
+      back: current - span / 2,
+      now: null,
+      fwd: current + span / 2,
+      end: b.dataMax,
+      wheel: current + amount,
+    }[key];
+    this._flowEnd = target === null ? null : Math.min(Math.max(target, b.dataMin + span), Math.max(b.dataMax, b.dataMin + span));
+    this._hover = null;
+    this._scheduleRender();
+  }
+
+  _bindFlowNav() {
+    for (const button of this.shadowRoot.querySelectorAll(".nav button[data-nav]")) {
+      button.addEventListener("click", () => this._flowShift(button.dataset.nav));
+    }
+    for (const button of this.shadowRoot.querySelectorAll(".nav button[data-span]")) {
+      button.addEventListener("click", () => {
+        this._flowSpan = Number(button.dataset.span);
+        this._scheduleRender();
+      });
+    }
+    const svg = this.shadowRoot.querySelector('svg[data-chart="forecast"]');
+    svg?.addEventListener(
+      "wheel",
+      (event) => {
+        const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.shiftKey ? event.deltaY : 0;
+        if (!delta) return; // plain vertical scroll keeps scrolling the page
+        event.preventDefault();
+        this._flowShift("wheel", (delta / 600) * this._flowSpan * 3600e3);
+      },
+      { passive: false },
+    );
   }
 
   _bindCharts() {
@@ -680,15 +758,30 @@ class HomeBatteryAssistPanel extends HTMLElement {
     if (!fc.length && !verified.length && !past.length) {
       forecastChart = `<div class="muted">${esc(t.noForecast)}</div>`;
     } else {
-      const fMin = now - 24 * 3600e3;
-      const fMax = now + 48 * 3600e3;
+      // Visible range: scrollable between the first measurement and the forecast end.
+      const span = this._flowSpan * 3600e3;
+      const firsts = [past[0]?.[0], verified[0]?.[0]].filter((v) => v != null);
+      const lasts = [fc.at(-1)?.[0], pvFc.at(-1)?.[0]].filter((v) => v != null);
+      const dataMin = Math.min(now - 24 * 3600e3, ...firsts);
+      const dataMax = Math.max(now + 3600e3, ...lasts.map((v) => v + 3600e3));
+      this._flowBounds = { dataMin, dataMax, now };
+      let fMax = this._flowEnd ?? now + (span * 2) / 3;
+      fMax = Math.min(Math.max(fMax, dataMin + span), Math.max(dataMax, dataMin + span));
+      const fMin = fMax - span;
       const fTicks = [];
+      const step = this._flowSpan <= 24 ? 3 : this._flowSpan <= 72 ? 12 : 24;
       const d = new Date(fMin);
-      d.setHours(d.getHours() < 12 ? 12 : 24, 0, 0, 0);
-      for (; d.getTime() < fMax; d.setHours(d.getHours() + 12)) {
-        const label = d.getHours() === 0 ? d.toLocaleDateString(lang, { weekday: "short" }) : "12:00";
+      d.setMinutes(0, 0, 0);
+      d.setHours(Math.ceil(d.getHours() / step) * step);
+      for (; d.getTime() < fMax; d.setHours(d.getHours() + step)) {
+        const midnight = d.getHours() === 0;
+        const label = midnight
+          ? d.toLocaleDateString(lang, step === 24 ? { weekday: "short", day: "numeric" } : { weekday: "short" })
+          : `${String(d.getHours()).padStart(2, "0")}:00`;
         fTicks.push([d.getTime(), label]);
       }
+      const margin = 2 * 3600e3;
+      const inView = (points) => points.filter(([ts]) => ts >= fMin - margin && ts <= fMax + margin);
       const slot = 3600e3;  // verification/forecast points are at most an hour apart
       forecastChart = this._chart(
         "forecast",
@@ -710,12 +803,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
           ...(h.has_excluded
             ? [{ points: past.map(([ts, , excluded]) => [ts, excluded || null]), color: excludedColor, label: t.excludedLine }]
             : []),
-        ],
+        ].map((series) => ({ ...series, points: inView(series.points) })),
         fMin,
         fMax,
         fTicks,
         2 * 3600e3,
-        [[now, t.now]],
+        now >= fMin && now <= fMax ? [[now, t.now]] : [],
         (v) => new Date(v).toLocaleString(lang, { weekday: "short", hour: "2-digit", minute: "2-digit" }),
       );
       this._charts.forecast.gapLimit = slot;
@@ -780,7 +873,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
 
     const info = t.daysOfData.replace("{days}", Math.round(h.days_covered)) + (h.imported ? ` · ${t.imported}` : "");
     return `<div class="card"><h2>${esc(t.consumption)} · ${esc(info)}</h2><div class="charts">
-      <div class="chart wide"><h3>${esc(t.flowTitle)}</h3>${forecastChart}${forecastLegend}
+      <div class="chart wide"><div class="head"><h3>${esc(t.flowTitle)}</h3>${this._flowNav(t)}</div>${forecastChart}${forecastLegend}
         <div class="muted">${esc(accText)}</div></div>
       <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}</div>
       <div class="chart"><h3>${esc(t.avgDay)}</h3>${avg}
@@ -862,6 +955,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this.shadowRoot.querySelector(".menu").appendChild(menu);
     this.shadowRoot.querySelector(".recalc")?.addEventListener("click", () => this._recalculate());
     this._bindCharts();
+    this._bindFlowNav();
     this._showHover();
   }
 }

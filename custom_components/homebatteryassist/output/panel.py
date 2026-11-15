@@ -198,27 +198,24 @@ def websocket_history(
                 [int(t.timestamp() * 1000), house, excluded]
                 for t, house, excluded, _, _ in hourly_series(records, since)
             ],
-            # Last 24 h measured: [time ms, house, excluded, PV, battery] (W)
+            # Measured per hour over the requested days:
+            # [time ms, house, excluded, PV, battery] (W)
             "past": [
                 [int(t.timestamp() * 1000), house, excluded, pv, battery]
-                for t, house, excluded, pv, battery in hourly_series(
-                    records, now - timedelta(hours=24)
-                )
+                for t, house, excluded, pv, battery in hourly_series(records, since)
             ],
-            # Next 48 h PV forecast (corrected), average W per hour
+            # PV forecast (corrected) within the planning window, average W per hour
             "pv_forecast": [
                 [int(t.timestamp() * 1000), wh]
                 for t, wh in sorted(forecast.data.pv_wh.items())
-                if t < now + timedelta(hours=48)
             ],
             "has_pv": bool(entry.runtime_data.measurements.pv_sensors),
             "has_battery": bool(entry.runtime_data.batteries.configs),
             "has_excluded": bool(entry.runtime_data.measurements.excluded_sensors),
-            # Next 48 h: [time ms, expected W, before adjustments W]
+            # Whole planning window: [time ms, expected W, before adjustments W]
             "forecast": [
                 [int(s.start.timestamp() * 1000), s.power_w, s.base_w]
                 for s in forecast.data.consumption
-                if s.start < now + timedelta(hours=48)
             ],
             # Last 24 h checked afterwards: [time ms, measured W, predicted W]
             # (predicted = the prediction with the shortest lead time).
@@ -229,7 +226,7 @@ def websocket_history(
                     next((r["pred"][b] for b in BUCKET_KEYS if b in r["pred"]), None),
                 ]
                 for r in forecast.accuracy.results["consumption"]
-                if r["start"] >= (now - timedelta(hours=24)).isoformat()
+                if r["start"] >= since.isoformat()
             ],
             "accuracy": {
                 kind: {
