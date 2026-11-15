@@ -10,6 +10,9 @@ const TEXT = {
     expected: "expected",
     notMeasured: "not measured",
     grid: "Grid",
+    priceNow: "Power price",
+    priceFrom: "from {time}: {price}",
+    exportPrice: "export {price}",
     ownSensors: "own sensors",
     directly: "read directly",
     viaIntegration: "via its integration",
@@ -131,6 +134,9 @@ const TEXT = {
     expected: "verwacht",
     notMeasured: "niet gemeten",
     grid: "Net",
+    priceNow: "Stroomprijs",
+    priceFrom: "vanaf {time}: {price}",
+    exportPrice: "teruglevering {price}",
     ownSensors: "eigen sensoren",
     directly: "rechtstreeks",
     viaIntegration: "via integratie",
@@ -490,6 +496,21 @@ class HomeBatteryAssistPanel extends HTMLElement {
         "</div></div>",
         `</div><div class="label meter" title="${esc(m.address || "")}">${esc(text)}</div></div>`,
       );
+    }
+    // Current and next power price (≈ = estimated), and the export price now.
+    if (s.prices) {
+      const p = s.prices;
+      const lang = this._hass.locale?.language || this._hass.language;
+      const fmt = (v, est) =>
+        v == null ? "–" : `${est ? "≈ " : ""}${new Intl.NumberFormat(lang, { style: "currency", currency: p.currency || "EUR", minimumFractionDigits: 2, maximumFractionDigits: 3 }).format(v)}`;
+      const subs = [];
+      if (p.next != null) {
+        const time = new Date(p.next_start).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+        subs.push(t.priceFrom.replace("{time}", time).replace("{price}", fmt(p.next, p.next_estimated)));
+      }
+      if (p.export_now != null) subs.push(t.exportPrice.replace("{price}", fmt(p.export_now)));
+      const cls = p.next == null ? "price" : p.next > p.now ? "price up" : "price down";
+      parts.push(this._flow(cls, "mdi:currency-eur", `${t.priceNow} /kWh`, fmt(p.now, p.now_estimated), subs.join(" · ")));
     }
     if (s.has_pv || s.has_pv_forecast) {
       const expected = s.pv_forecast_now_w == null ? "" : `${t.expected} ${this._power(s.pv_forecast_now_w)}`;

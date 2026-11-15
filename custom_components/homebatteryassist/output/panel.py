@@ -123,6 +123,40 @@ def _meter_info(hass: HomeAssistant, measurements: MeasurementInput) -> dict[str
     }
 
 
+def _prices_now(hass: HomeAssistant, data: Any) -> dict[str, Any] | None:
+    """The current and the next power price, and what export earns now."""
+    forecast = data.forecast.data
+    if not forecast.prices:
+        return None
+    now = dt_util.utcnow()
+    current = next((p for p in forecast.prices if p.start <= now < p.end), None)
+    if current is None:
+        return None
+    upcoming = next(
+        (
+            p
+            for p in forecast.prices
+            if p.start >= current.end and round(p.price, 4) != round(current.price, 4)
+        ),
+        None,
+    )
+    plan = forecast.plans.get(forecast.plan_mode)
+    slot = next(
+        (s for s in (plan.slots if plan else []) if s.start <= now < s.end), None
+    )
+    return {
+        "unit": forecast.price_unit,
+        "currency": hass.config.currency,
+        "now": current.price,
+        "now_estimated": current.estimated,
+        "until": current.end.isoformat(),
+        "next": upcoming.price if upcoming else None,
+        "next_start": upcoming.start.isoformat() if upcoming else None,
+        "next_estimated": upcoming.estimated if upcoming else False,
+        "export_now": slot.export_price if slot else None,
+    }
+
+
 def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str, Any]:
     """Everything the panel needs besides live entity states."""
     data = entry.runtime_data
@@ -167,6 +201,7 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             "hours": round(window.hours, 1),
             "limited_by": window.limited_by.value,
         },
+        "prices": _prices_now(hass, data),
         # How far each forecast reaches (ISO end or None), for the indicators.
         "reach": {
             "max_end": (

@@ -137,6 +137,7 @@ async def test_status_websocket(
     assert battery["capacity_kwh"] == 5.12
     assert "battery_soc" in battery["entities"]
     assert result["window"]["limited_by"] == "setting"
+    assert result["prices"] is None  # no price forecast configured
     assert result["reach"]["has_price"] is False
     assert result["reach"]["price_end"] is None
     assert result["reach"]["max_end"] > result["window"]["start"]
@@ -203,3 +204,34 @@ async def test_history_websocket(
     assert result["profile"]["weekend"][12] == 500.0
     assert result["profile"]["weekend"][3] is None
     assert result["days_covered"] == round((15 + 15 + 60 + 30) / 1440, 1)
+
+
+def test_prices_now(hass: HomeAssistant) -> None:
+    """Current price, the next different price and the export price now."""
+    from datetime import timedelta
+    from types import SimpleNamespace
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.homebatteryassist.inputs.prices import PricePoint
+    from custom_components.homebatteryassist.output.panel import _prices_now
+
+    hour = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+    h = timedelta(hours=1)
+    prices = [
+        PricePoint(hour, hour + h, 0.30),
+        PricePoint(hour + h, hour + 2 * h, 0.30),
+        PricePoint(hour + 2 * h, hour + 3 * h, 0.25, True),
+    ]
+    slot = SimpleNamespace(start=hour, end=hour + h, export_price=0.12)
+    forecast = SimpleNamespace(
+        prices=prices,
+        price_unit="EUR/kWh",
+        plans={"arbitrage": SimpleNamespace(slots=[slot])},
+        plan_mode="arbitrage",
+    )
+    result = _prices_now(hass, SimpleNamespace(forecast=SimpleNamespace(data=forecast)))
+    assert result["now"] == 0.30
+    assert result["next"] == 0.25 and result["next_estimated"] is True
+    assert result["next_start"] == (hour + 2 * h).isoformat()
+    assert result["export_now"] == 0.12
