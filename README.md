@@ -33,7 +33,7 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
 - **Consumption forecast** from your own history (per weekday and hour, recent days weigh more). Past consumption can be imported once from Home Assistant's statistics.
 - **Prices** from a price sensor (e.g. Nordpool, ENTSO-e, Frank Energie, DynTarNL), including estimated future prices.
 - **Export price**: import price × factor, the bare market price (EPEX), or an export price forecast from one or more sensors.
-- **PV forecast** from any integration that supports the Energy dashboard's solar forecast (e.g. Forecast.Solar, Solcast).
+- **PV forecast** from any integration that supports the Energy dashboard's solar forecast (e.g. Forecast.Solar, Solcast), corrected automatically (learned), with a fixed margin, both, or not at all.
 - **Planning window**: every forecast first determines how far ahead it can calculate, limited by your setting and by how far the price and PV forecasts reach.
 - **Accuracy**: every forecast is verified afterwards per lead time (0–1 h … 5 days+). Learned corrections are applied automatically, or set by hand.
 
@@ -41,7 +41,13 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
 
 - A **battery plan** for every mode, with the expected saving:
   - **Zero on the meter (NOM)**: charge with surplus solar power, supply the house on shortage;
-  - **Arbitrage** (own use): charge when power is cheap, supply the house when it is expensive.
+  - **Arbitrage** (own use): charge when power is cheap, supply the house when it is expensive;
+  - **Full arbitrage**: like arbitrage, but may also discharge to the grid when the export price makes that worthwhile;
+  - **Time slots**: your own slots (days, times, charge/discharge/idle, power, until a state of charge), zero on the meter outside them;
+  - **Manual**: a fixed charge or discharge power.
+- **Max. cycles per day** for arbitrage, to spare the batteries.
+- **Negative prices**: charging when import is negative, making room before a negative export price.
+- **Peak shaving** on the total grid import: the plan keeps energy in reserve for peaks, virtual batteries shave them live.
 - **Phase limits**: the plan never lets a phase exceed the main fuse (with an adjustable safety margin). The share of each phase is learned from your history.
 - **Phase protection** (virtual batteries): when a phase is overloaded, batteries on that phase take load off it within seconds.
 - **Periodic full charge** per battery (for the battery management's calibration), at the cheapest moment; batteries charge fully at the same time when the grid connection allows it.
@@ -50,7 +56,7 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
 
 ### Dashboard
 
-A dashboard in the sidebar with the energy flows (and which grid meter is used), the expected and realised return of each mode compared with no battery and with each other, the forecast chart with the plan, the batteries' state of charge, the last 7 days, the load per phase (including virtual batteries), the planning window, the forecast accuracy and the latest decisions.
+A dashboard in the sidebar with the energy flows (and which grid meter is used), the current and next power price and the export price, the expected and realised return of each mode compared with no battery and with each other, the forecast chart with the plan, the batteries' state of charge, the last 7 days, the load per phase (including virtual batteries), the planning window, the forecast accuracy and the latest decisions. The plan mode can be chosen right on the dashboard.
 
 ## Installation
 
@@ -70,9 +76,9 @@ Home Assistant 2025.6 or newer is required.
 ## Configuration
 
 - **Configure** on the integration opens a menu:
-  - **Settings**: history interval, planning horizon, forecast interval, price and PV forecast, export price, plan mode, battery wear cost, minimum power per battery, safety margin per phase, balancing and full-charge windows;
+  - **Settings**: history interval, planning horizon, forecast interval, price and PV forecast (with its correction), export price, plan mode, battery wear cost, max. cycles per day, manual power, peak limit, minimum power per battery, safety margin per phase, balancing and full-charge windows;
   - **Grid connection and meter**: the meter, phases, connection size and sensors. Your previous choices are kept: switching back to your own sensors starts from them.
-- **Add** batteries, virtual batteries, PV sources and excluded devices under the integration; each can be changed later (including its phase).
+- **Add** batteries, virtual batteries, PV sources, excluded devices and time slots under the integration; each can be changed later (including its phase).
 
 ## Working with other integrations
 
@@ -87,7 +93,7 @@ HomeBatteryAssist never controls anything, so it can run next to any battery or 
   | `homebatteryassist.import_history` | Import past consumption once from Home Assistant's statistics. |
   | `homebatteryassist.adjust_forecast` / `clear_forecast_adjustments` | Adjust the consumption forecast for a period (e.g. a party or a holiday). |
   | `homebatteryassist.set_forecast_correction` / `reset_forecast_accuracy` | Control the learned forecast corrections. |
-  | `homebatteryassist.set_plan_mode` | Choose the plan mode (NOM or arbitrage). |
+  | `homebatteryassist.set_plan_mode` | Choose the plan mode (NOM, arbitrage, full arbitrage, time slots, manual). |
 
 - **Events**: `homebatteryassist_forecast_updated` (after every forecast cycle) and `homebatteryassist_decision` (every explained decision).
 
