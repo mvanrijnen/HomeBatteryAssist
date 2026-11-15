@@ -40,6 +40,8 @@ const TEXT = {
     decisions: "Why — recent decisions",
     noDecisions: "No decisions yet.",
     error: "Could not load the status",
+    recalculate: "Recalculate",
+    recalculating: "Recalculating…",
     notLoaded: "HomeBatteryAssist is not set up yet. Add it under Settings → Devices & services → Add integration → HomeBatteryAssist.",
   },
   nl: {
@@ -79,6 +81,8 @@ const TEXT = {
     decisions: "Waarom — recente beslissingen",
     noDecisions: "Nog geen beslissingen.",
     error: "Status kon niet worden geladen",
+    recalculate: "Herbereken",
+    recalculating: "Bezig met herberekenen…",
     notLoaded: "HomeBatteryAssist is nog niet ingesteld. Voeg hem toe via Instellingen → Apparaten & diensten → Integratie toevoegen → HomeBatteryAssist.",
   },
 };
@@ -88,6 +92,12 @@ const STYLE = `
   .toolbar { display: flex; align-items: center; height: 56px; padding: 0 12px; gap: 8px;
     background: var(--app-header-background-color, var(--primary-color)); color: var(--app-header-text-color, #fff);
     font-size: 20px; }
+  .toolbar .title { flex: 1; }
+  .toolbar button { display: flex; align-items: center; gap: 6px; font: inherit; font-size: 14px; cursor: pointer;
+    color: inherit; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 18px; padding: 6px 14px; }
+  .toolbar button:disabled { opacity: .6; cursor: default; }
+  .toolbar button ha-icon { --mdc-icon-size: 18px; }
   .content { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
   .card { background: var(--card-background-color); border-radius: var(--ha-card-border-radius, 12px);
     box-shadow: var(--ha-card-box-shadow, none); border: 1px solid var(--divider-color); padding: 16px; }
@@ -136,6 +146,20 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this._error = null;
     this._loading = false;
     this._pending = false;
+    this._busy = false;
+  }
+
+  async _recalculate() {
+    if (this._busy || !this._hass) return;
+    this._busy = true;
+    this._scheduleRender();
+    try {
+      await this._hass.callService("homebatteryassist", "recalculate", {});
+    } catch (err) {
+      this._error = err?.message || String(err);
+    }
+    this._busy = false;
+    await this._load();
   }
 
   set hass(hass) {
@@ -324,12 +348,15 @@ class HomeBatteryAssistPanel extends HTMLElement {
       body = [this._flows(s, t), this._batteries(s, t), this._phases(s, t), this._planning(s, t), this._decisions(s, t)].join("");
     }
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
-      <div class="toolbar"><span class="menu"></span><span>${esc(t.title)}</span></div>
+      <div class="toolbar"><span class="menu"></span><span class="title">${esc(t.title)}</span>
+        ${this._status ? `<button class="recalc" ${this._busy ? "disabled" : ""}>
+          <ha-icon icon="mdi:refresh"></ha-icon>${esc(this._busy ? t.recalculating : t.recalculate)}</button>` : ""}</div>
       <div class="content">${body}</div>`;
     const menu = document.createElement("ha-menu-button");
     menu.hass = this._hass;
     menu.narrow = this._narrow;
     this.shadowRoot.querySelector(".menu").appendChild(menu);
+    this.shadowRoot.querySelector(".recalc")?.addEventListener("click", () => this._recalculate());
   }
 }
 
