@@ -372,6 +372,10 @@ async def settings_schema(
     return vol.Schema(schema)
 
 
+# Settings shown as a (single) select: their values are strings in the form.
+SELECT_OPTIONS = (CONF_HISTORY_INTERVAL, CONF_FORECAST_INTERVAL, CONF_BALANCE_INTERVAL)
+
+
 def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     """Convert the settings form input to stored options."""
     options: dict[str, Any] = {
@@ -713,9 +717,14 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
 
         current = self.config_entry.options
         schema = await settings_schema(self.hass, current)
+        # Select fields hold strings; stored options may be numbers.
+        suggested = {
+            key: str(value) if key in SELECT_OPTIONS and value is not None else value
+            for key, value in current.items()
+        }
         return self.async_show_form(
             step_id="settings",
-            data_schema=self.add_suggested_values_to_schema(schema, current),
+            data_schema=self.add_suggested_values_to_schema(schema, suggested),
         )
 
     async def async_step_grid(
