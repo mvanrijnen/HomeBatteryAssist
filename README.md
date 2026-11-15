@@ -1,20 +1,22 @@
 # HomeBatteryAssist
 
-A Home Assistant custom integration for monitoring and controlling home batteries.
+A Home Assistant custom integration that gives insight into your home batteries and energy flows, and forecasts what is coming.
 
-> **Status:** early development. Battery control is not available yet.
+> **Status:** early development.
 
-HomeBatteryAssist will plan and control home batteries based on your house consumption, energy price forecasts and solar (PV) forecasts. It does not make forecasts itself: it uses the price and PV forecast integrations you already have.
+HomeBatteryAssist **only reads and forecasts — it never controls your battery or any other device.** It works next to the integration that controls your battery (e.g. Omnibattery) without interfering. It does not make price or PV forecasts itself: it uses the forecast integrations you already have, and it will check its own forecasts afterwards against what really happened.
 
 ## Features (so far)
 
 - Guided setup of your grid connection: 1 or 3 phases and the connection size (1x10A up to 3x80A).
 - Per-phase grid measurement from your smart meter: one signed sensor, or separate import and return sensors. Power (W) and current (A) sensors are supported.
+- **Batteries**, linked read-only through the entities of their own integration. Batteries of **Omnibattery** and **Marstek Modbus** are recognised and linked with all values filled in; any other battery can be linked manually. Per battery: state of charge, power, status, stored/usable energy, time to full/empty, charged/discharged energy and last full charge, plus totals.
 - **PV sources** and **excluded devices** (e.g. an EV charger), each optionally bound to a phase on 3-phase connections.
-- **House consumption** sensor: grid + PV production − excluded devices.
+- **House consumption** sensor: grid + PV production − excluded devices − battery charging (+ discharging), plus grid import/export, PV power and per-phase load as % of the main fuse.
 - Consumption history per 5, 15 or 60 minutes, as the basis for consumption forecasting.
 - Price forecast from a price sensor (e.g. Nordpool, ENTSO-e, Frank Energie) and PV forecast from any integration that supports the Energy dashboard's solar forecast (e.g. Forecast.Solar, Solcast).
-- **Planning horizon** sensor: how far ahead the system can plan, limited by your setting and by how far the forecasts reach.
+- **Planning window**: every forecast first determines how far ahead it can calculate, limited by your setting and by how far the forecasts reach.
+- **Status dashboard** in the sidebar: energy flows, batteries, phase load, planning window and the latest decisions explained.
 
 ## Installation
 

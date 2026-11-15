@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-HomeBatteryAssist is a **Home Assistant custom integration** (not an add-on/Docker container), distributed via HACS, that will plan and control home batteries using house consumption history, energy price forecasts and PV forecasts. Comparable project: Omnibattery (`ffunes/Omnibattery`).
+HomeBatteryAssist is a **Home Assistant custom integration** (not an add-on/Docker container), distributed via HACS, that monitors home batteries and the energy flows of a home, and forecasts consumption, prices, PV and battery behaviour (read-only; forecasts are verified afterwards). Comparable project: Omnibattery (`ffunes/Omnibattery`).
 
 - **Read-only, by decision of the project owner: HomeBatteryAssist never controls batteries or any other device** — no commands, no state-changing service calls, no control configuration, no own connections to devices that could compete with their integrations (e.g. Marstek Venus v3 allows only one Modbus TCP client; Omnibattery must keep running). Scope: read inputs, forecast, and verify forecasts afterwards against what actually happened.
 - Domain `homebatteryassist`, display name **HomeBatteryAssist**, single config entry (`single_config_entry` in manifest).
