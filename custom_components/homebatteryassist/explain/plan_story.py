@@ -137,6 +137,27 @@ def _blocks(slots: list[PlanSlot], charging: bool) -> list[_Block]:
     return blocks
 
 
+def _merge(charges: list[_Block], discharges: list[_Block]) -> list[_Block]:
+    """Join charge blocks that have no discharging in between (one charge moment)."""
+    merged: list[_Block] = []
+    for block in charges:
+        if merged and not any(
+            merged[-1].end <= d.start < block.start for d in discharges
+        ):
+            last = merged.pop()
+            energy = last.energy_wh + block.energy_wh
+            prices = [
+                (b.price, b.energy_wh) for b in (last, block) if b.price is not None
+            ]
+            weight = sum(e for _, e in prices)
+            price = sum(p * e for p, e in prices) / weight if weight else None
+            block = _Block(
+                last.start, block.end, energy, price, last.from_grid or block.from_grid
+            )
+        merged.append(block)
+    return merged
+
+
 def _when(block: _Block, now: datetime, lang: str) -> str:
     t = TEXT[lang]
     start, end = dt_util.as_local(block.start), dt_util.as_local(block.end)
@@ -212,8 +233,8 @@ def plan_story(
         sentences.append(t["now_idle"])
 
     # 2. The next charge and what it is for.
-    charges = [b for b in _blocks(slots, True) if b.end > now]
     discharges = _blocks(slots, False)
+    charges = _merge([b for b in _blocks(slots, True) if b.end > now], discharges)
     if charges:
         block = charges[0]
         until = charges[1].start if len(charges) > 1 else slots[-1].end

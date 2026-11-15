@@ -48,3 +48,15 @@ async def test_story_idle_without_gain(hass: HomeAssistant) -> None:
     assert empty.startswith(
         "De batterijen doen nu niets: ze zijn zo leeg als ingesteld"
     )
+
+
+async def test_story_joins_charge_blocks(hass: HomeAssistant) -> None:
+    """Two charge blocks with only a pause in between are one charge moment."""
+    await hass.config.async_set_time_zone("Europe/Amsterdam")
+    plan = _plan(
+        [0.0, 2000.0, 0.0, 2000.0, -500.0, -500.0],
+        [0.30, 0.20, 0.25, 0.20, 0.45, 0.45],
+    )
+    text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
+    assert "laden we 4,0 kWh uit het net" in text
+    assert "als stroom € 0,45 per kWh kost" in text
