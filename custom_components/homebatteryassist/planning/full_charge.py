@@ -41,6 +41,8 @@ class FullCharge:
     deadline: datetime
     last_full: datetime | None
     power_w: float  # average charge power during the block
+    price: float | None = None  # average price in the block
+    avg_price: float | None = None  # average price in the period it could be in
 
     def active(self, when: datetime) -> bool:
         """True while the block is running."""
@@ -118,6 +120,7 @@ def schedule_full_charges(
             continue
         start = slots[best[1]][0]
         end = start + step * count
+        candidates = [price for when, price in slots if when + step <= latest_end]
         planned.append(
             FullCharge(
                 config.id,
@@ -132,6 +135,8 @@ def schedule_full_charges(
                     ),
                     1,
                 ),
+                round(best[0] / count, 5),
+                round(sum(candidates) / len(candidates), 5) if candidates else None,
             )
         )
     return planned

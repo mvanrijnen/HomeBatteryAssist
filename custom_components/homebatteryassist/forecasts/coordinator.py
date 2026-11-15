@@ -388,6 +388,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             return
         self._last_full_charges = key
         now = dt_util.utcnow()
+        unit = self.data.price_unit if self.data else ""
         for charge in full_charges:
             overdue = charge.deadline <= now
             self._decisions.async_log(
@@ -404,6 +405,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                     if (self.hass.config.language or "").startswith("nl")
                     else "never"
                 ),
+                price=_price(charge.price, unit),
+                avg_price=_price(charge.avg_price, unit),
             )
 
     def _explain_plan(self, data: ForecastData) -> None:
@@ -420,15 +423,33 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         if key == self._last_plan:
             return
         self._last_plan = key
+        unit = data.price_unit or ""
+        charge_price = _avg_price(plan.slots, charging=True)
+        discharge_price = _avg_price(plan.slots, charging=False)
+        if charge_price is not None and discharge_price is not None:
+            spread = discharge_price - charge_price
+            efficiency = _plan_efficiency(self.battery_states())
+            net = discharge_price * efficiency - charge_price - self.cycle_cost
+            prices = {
+                "spread": f"{spread:.3f} {unit}".strip(),
+                "net_spread": f"{net:.3f} {unit}".strip(),
+            }
+            key_name = "battery_plan_prices"
+        else:
+            prices = {}
+            key_name = "battery_plan"
         self._decisions.async_log(
             "planning",
-            "battery_plan",
+            key_name,
             mode=plan.mode,
             strategy=plan.strategy,
             saving=_money(plan.saving),
             others=others or "-",
             charge=_periods(plan.slots, charging=True),
             discharge=_periods(plan.slots, charging=False),
+            charge_price=_price(charge_price, unit),
+            discharge_price=_price(discharge_price, unit),
+            **prices,
         )
 
     def _explain_method(self, data: ForecastData) -> None:
@@ -533,3 +554,31 @@ def _with_full_charges(
             )
         result.append(slot)
     return result
+
+
+def _avg_price(
+    slots: list[PlanSlot], *, charging: bool, threshold: float = 100.0
+) -> float | None:
+    """Energy weighted average price while the plan charges / discharges."""
+    total = weight = 0.0
+    for slot in slots:
+        active = slot.power_w > threshold if charging else slot.power_w < -threshold
+        if not active or slot.price is None:
+            continue
+        energy = abs(slot.power_w) * (slot.end - slot.start).total_seconds()
+        total += slot.price * energy
+        weight += energy
+    return total / weight if weight else None
+
+
+def _price(value: float | None, unit: str | None) -> str:
+    return "-" if value is None else f"{value:.3f} {unit or ''}".strip()
+
+
+def _plan_efficiency(states: Iterable[BatteryState]) -> float:
+    """Capacity weighted round-trip efficiency of the batteries."""
+    usable = [s for s in states if s.soc is not None]
+    capacity = sum(s.config.capacity_kwh for s in usable)
+    if not capacity:
+        return 1.0
+    return sum(s.config.efficiency * s.config.capacity_kwh for s in usable) / capacity
