@@ -34,7 +34,7 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
 ### Forecasting
 
 - **Consumption forecast** from your own history (per weekday and hour, recent days weigh more). Past consumption can be imported once from Home Assistant's statistics.
-- **Prices** from a price sensor (e.g. Nordpool, ENTSO-e, Frank Energie, DynTarNL), including estimated future prices.
+- **Prices** from a price source of your choice (*price drivers*): DynTarNL (tested), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, or any sensor with prices in its attributes; optionally an extra, longer forecast after it. Estimated (forecast) prices are marked as such. New sources can be added from a template driver (`inputs/price_drivers/template.py`).
 - **Export price**: import price × factor, the bare market price (EPEX), or an export price forecast from one or more sensors.
 - **PV forecast** from any integration that supports the Energy dashboard's solar forecast (e.g. Forecast.Solar, Solcast), corrected automatically (learned), with a fixed margin, both, or not at all.
 - **Planning window**: every forecast first determines how far ahead it can calculate, limited by your setting and by how far the price and PV forecasts reach.
