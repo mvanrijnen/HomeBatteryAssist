@@ -98,6 +98,49 @@ def test_parse_mapping_and_garbage() -> None:
     assert parse_price_forecast(None) == []
 
 
+def test_parse_epoch_arrays_with_published_and_forecast() -> None:
+    """DynTarNL: [epoch ms, price, "p"/"f"] quarter-hour points incl. EPEX forecast."""
+    ms = int(NOW.timestamp() * 1000)
+    q = 15 * 60 * 1000
+    state = State(
+        "sensor.dyntarnl_e_all_in_forecast_avg",
+        "0.34",
+        {
+            "prices": [
+                [ms, 0.40233, "p"],
+                [ms + q, 0.39, "p"],
+                [ms + 2 * q, 0.31, "f"],
+                [ms + 3 * q, 0.30, "f"],
+            ],
+            # Hourly forecast list: same starts as above, so not used twice.
+            "forecast": [[ms, 0.37756]],
+            "forecast_until": "2026-11-20T15:00:00+01:00",
+        },
+    )
+    points = parse_price_forecast(state)
+    quarter = timedelta(minutes=15)
+    assert [(p.start, p.price, p.estimated) for p in points] == [
+        (NOW, 0.40233, False),
+        (NOW + quarter, 0.39, False),
+        (NOW + 2 * quarter, 0.31, True),
+        (NOW + 3 * quarter, 0.30, True),
+    ]
+    assert points[-1].end == NOW + 4 * quarter
+
+
+def test_parse_epoch_seconds_and_iso_arrays() -> None:
+    """Arrays with epoch seconds or ISO strings work too."""
+    state = State(
+        "sensor.x",
+        "1",
+        {"data": [[int(NOW.timestamp()), "0.1"], [(NOW + H).isoformat(), 0.2]]},
+    )
+    assert [(p.start, p.price) for p in parse_price_forecast(state)] == [
+        (NOW, 0.1),
+        (NOW + H, 0.2),
+    ]
+
+
 @pytest.mark.parametrize(
     ("price_end", "pv_end", "price_cfg", "pv_cfg", "expected", "limit"),
     [

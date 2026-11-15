@@ -237,6 +237,10 @@ class PlanningHorizonSensor(
             "max_days": self.coordinator.max_days,
             "price_forecast_end": data.price_end,
             "price_points": len(data.prices),
+            "price_points_estimated": sum(p.estimated for p in data.prices),
+            "published_prices_end": max(
+                (p.end for p in data.prices if not p.estimated), default=None
+            ),
             "price_unit": data.price_unit,
             "pv_forecast_end": data.pv_end,
             "pv_forecast_hours": len(data.pv_wh),

@@ -166,5 +166,6 @@ def summarise(data: ForecastData) -> dict[str, Any]:
         "hours_ahead": round(window.hours, 1),
         "limited_by": window.limited_by.value,
         "price_points": len(data.prices),
+        "price_points_estimated": sum(p.estimated for p in data.prices),
         "pv_hours": len(data.pv_wh),
     }
