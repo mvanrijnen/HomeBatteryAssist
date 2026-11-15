@@ -53,6 +53,8 @@ class ForecastData:
     # How far the inputs reach (may be beyond the window).
     price_end: datetime | None = None
     pv_end: datetime | None = None
+    # Expected PV production in the current hour (average W), if forecast.
+    pv_now_w: float | None = None
 
 
 class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
@@ -88,6 +90,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         pv_wh = await self._async_read_pv(now)
         price_end = prices[-1].end if prices else None
         pv_end = max(pv_wh) + PV_PERIOD if pv_wh else None
+        hour = now.replace(minute=0, second=0, microsecond=0)
+        pv_now_w = pv_wh.get(hour) if self.pv_entries else None
 
         # 2. How far ahead can we calculate?
         window = planning_horizon(
@@ -120,7 +124,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             len(prices),
             len(pv_wh),
         )
-        data = ForecastData(window, prices, price_unit, pv_wh, price_end, pv_end)
+        data = ForecastData(
+            window, prices, price_unit, pv_wh, price_end, pv_end, pv_now_w
+        )
         self.hass.bus.async_fire(EVENT_FORECAST_UPDATED, summarise(data))
         return data
 

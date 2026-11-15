@@ -32,6 +32,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import (
+    SOURCE_RECONFIGURE,
     ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
@@ -268,6 +269,13 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
         """Initialize the flow."""
         self._data: dict[str, Any] = {}
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change the grid connection (steps 1-3), prefilled with the current data."""
+        self._data = dict(self._get_reconfigure_entry().data)
+        return await self.async_step_user()
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -276,7 +284,11 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
             self._data[CONF_PHASES] = int(user_input[CONF_PHASES])
             return await self.async_step_max_current()
 
-        return self.async_show_form(step_id="user", data_schema=PHASES_SCHEMA)
+        suggested = {CONF_PHASES: str(self._data[CONF_PHASES])} if self._data else None
+        return self.async_show_form(
+            step_id="user",
+            data_schema=self.add_suggested_values_to_schema(PHASES_SCHEMA, suggested),
+        )
 
     async def async_step_max_current(
         self, user_input: dict[str, Any] | None = None
@@ -286,9 +298,18 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
             self._data[CONF_MAX_CURRENT] = int(user_input[CONF_MAX_CURRENT])
             return await self.async_step_sensors()
 
+        phases = self._data[CONF_PHASES]
+        current = self._data.get(CONF_MAX_CURRENT)
+        suggested = (
+            {CONF_MAX_CURRENT: str(current)}
+            if current in MAX_CURRENT_OPTIONS[phases]
+            else None
+        )
         return self.async_show_form(
             step_id="max_current",
-            data_schema=max_current_schema(self._data[CONF_PHASES]),
+            data_schema=self.add_suggested_values_to_schema(
+                max_current_schema(phases), suggested
+            ),
         )
 
     async def async_step_sensors(
@@ -303,13 +324,22 @@ class HomeBatteryAssistConfigFlow(ConfigFlow, domain=DOMAIN):
             if len(set(selected)) != len(selected):
                 errors["base"] = "duplicate_sensor"
             else:
-                self._data.update(user_input)
+                # Rebuild, so sensors of removed phases or emptied fields go away.
+                self._data = {
+                    CONF_PHASES: phases,
+                    CONF_MAX_CURRENT: self._data[CONF_MAX_CURRENT],
+                    **{key: value for key, value in user_input.items() if value},
+                }
+                if self.source == SOURCE_RECONFIGURE:
+                    return self.async_update_reload_and_abort(
+                        self._get_reconfigure_entry(), data=self._data
+                    )
                 return await self.async_step_settings()
 
         return self.async_show_form(
             step_id="sensors",
             data_schema=self.add_suggested_values_to_schema(
-                sensors_schema(phases), user_input
+                sensors_schema(phases), user_input or self._data
             ),
             errors=errors,
         )

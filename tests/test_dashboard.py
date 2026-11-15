@@ -120,6 +120,8 @@ async def test_status_websocket(
     assert result["phases"] == 3
     assert result["max_current"] == 25
     assert result["has_pv"] is True
+    assert result["has_pv_forecast"] is False
+    assert result["pv_forecast_now_w"] is None
     assert result["entities"]["house_consumption"].startswith("sensor.")
     assert set(result["entities"]) >= {
         "grid_power",

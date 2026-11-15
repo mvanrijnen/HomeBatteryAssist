@@ -171,3 +171,61 @@ async def test_options_flow_changes_settings(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options == {CONF_HISTORY_INTERVAL: 60, CONF_PLANNING_HORIZON: 5}
+
+
+async def test_reconfigure_grid_connection(hass: HomeAssistant) -> None:
+    """The grid connection can be changed; emptied return sensors are removed."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_PHASES: 3,
+            CONF_MAX_CURRENT: 25,
+            "sensor_l1": "sensor.current_l1",
+            "sensor_l2": "sensor.current_l2",
+            "sensor_l3": "sensor.current_l3",
+            "return_l1": "sensor.pv_l1",
+            "return_l2": "sensor.pv_l2",
+            "return_l3": "sensor.pv_l3",
+        },
+        options={CONF_HISTORY_INTERVAL: 15},
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    result = await entry.start_reconfigure_flow(hass)
+    assert result["step_id"] == "user"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PHASES: "3"}
+    )
+    assert result["step_id"] == "max_current"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MAX_CURRENT: "25"}
+    )
+    assert result["step_id"] == "sensors"
+    suggested = {
+        str(key): key.description["suggested_value"]
+        for key in result["data_schema"].schema
+        if key.description and "suggested_value" in key.description
+    }
+    assert suggested["return_l2"] == "sensor.pv_l2"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            "sensor_l1": "sensor.power_l1",
+            "sensor_l2": "sensor.power_l2",
+            "sensor_l3": "sensor.power_l3",
+        },
+    )
+    await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    assert dict(entry.data) == {
+        CONF_PHASES: 3,
+        CONF_MAX_CURRENT: 25,
+        "sensor_l1": "sensor.power_l1",
+        "sensor_l2": "sensor.power_l2",
+        "sensor_l3": "sensor.power_l3",
+    }
+    assert entry.options == {CONF_HISTORY_INTERVAL: 15}  # settings untouched

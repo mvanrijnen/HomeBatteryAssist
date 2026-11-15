@@ -252,6 +252,8 @@ async def test_planning_horizon_sensor(
         assert state.attributes["max_days"] == 2
         assert state.attributes["limited_by"] == "price"
         assert state.attributes["hours_ahead"] == 12
+        # Expected PV in the current hour, for the dashboard.
+        assert entry.runtime_data.forecast.data.pv_now_w == 100.0
         # Only data inside the window is used: 12 of the 24 PV hours.
         assert state.attributes["pv_forecast_hours"] == 12
 

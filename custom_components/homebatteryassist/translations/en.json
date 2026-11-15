@@ -48,7 +48,8 @@
       "duplicate_sensor": "Each phase needs its own sensor."
     },
     "abort": {
-      "single_instance_allowed": "HomeBatteryAssist is already configured. Only one instance is allowed."
+      "single_instance_allowed": "HomeBatteryAssist is already configured. Only one instance is allowed.",
+      "reconfigure_successful": "The grid connection has been changed."
     }
   },
   "selector": {

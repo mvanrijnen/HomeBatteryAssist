@@ -48,7 +48,8 @@
       "duplicate_sensor": "Elke fase heeft een eigen sensor nodig."
     },
     "abort": {
-      "single_instance_allowed": "HomeBatteryAssist is al geconfigureerd. Er is maar één instantie toegestaan."
+      "single_instance_allowed": "HomeBatteryAssist is al geconfigureerd. Er is maar één instantie toegestaan.",
+      "reconfigure_successful": "De netaansluiting is gewijzigd."
     }
   },
   "selector": {

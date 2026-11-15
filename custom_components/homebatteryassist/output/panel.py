@@ -89,6 +89,8 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
         "phases": len(data.measurements.grid_phases),
         "max_current": data.measurements.max_current,
         "has_pv": bool(data.measurements.pv_sensors),
+        "has_pv_forecast": bool(data.forecast.pv_entries),
+        "pv_forecast_now_w": data.forecast.data.pv_now_w,
         "has_excluded": bool(data.measurements.excluded_sensors),
         "entities": _entity_ids(registry, entry.entry_id, MAIN_KEYS),
         "batteries": [

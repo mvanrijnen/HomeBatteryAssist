@@ -7,6 +7,8 @@ const TEXT = {
     title: "HomeBatteryAssist",
     flows: "Now",
     pv: "Solar",
+    expected: "expected",
+    notMeasured: "not measured",
     grid: "Grid",
     importing: "Importing",
     exporting: "Exporting",
@@ -44,6 +46,8 @@ const TEXT = {
     title: "HomeBatteryAssist",
     flows: "Nu",
     pv: "Zon",
+    expected: "verwacht",
+    notMeasured: "niet gemeten",
     grid: "Net",
     importing: "Afname",
     exporting: "Teruglevering",
@@ -219,7 +223,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const e = s.entities;
     const grid = this._num(e.grid_power);
     const parts = [];
-    if (s.has_pv) parts.push(this._flow("pv", "mdi:solar-power", t.pv, this._power(this._num(e.pv_power))));
+    if (s.has_pv || s.has_pv_forecast) {
+      const expected = s.pv_forecast_now_w == null ? "" : `${t.expected} ${this._power(s.pv_forecast_now_w)}`;
+      const value = s.has_pv ? this._power(this._num(e.pv_power)) : "–";
+      const sub = [s.has_pv ? "" : t.notMeasured, expected].filter(Boolean).join(" · ");
+      parts.push(this._flow("pv", "mdi:solar-power", t.pv, value, sub));
+    }
     parts.push(
       this._flow(
         grid !== null && grid < 0 ? "export" : "import",
