@@ -170,3 +170,37 @@ async def test_shelly_3em_found_in_config_entries(hass: HomeAssistant) -> None:
         "192.0.2.10": "SPEM-003CEBEU",
         "192.0.2.11": "SHEM-3",
     }
+
+
+def test_iammeter_phases() -> None:
+    """Iammeter local API (as documented): Data (1 phase) or Datas (3 phases)."""
+    from custom_components.homebatteryassist.inputs.direct import iammeter_phases
+
+    assert iammeter_phases({"Data": [230.1, 1.2, 250.0, 1000.0, 20.0]}) == (250.0,)
+    assert iammeter_phases(
+        {"Datas": [[230, 1, 100, 1, 1], [231, 2, -400, 1, 1], [229, 0, 0, 1, 1]]}
+    ) == (100.0, -400.0, 0.0)
+    assert iammeter_phases({}) is None
+
+
+async def test_homewizard_kwh_meters_found(hass: HomeAssistant) -> None:
+    """HomeWizard kWh meters (1/3 phase) can be read directly; sockets cannot."""
+    from homeassistant.helpers import device_registry as dr
+
+    from custom_components.homebatteryassist.inputs.direct import find_direct_meters
+
+    for address, model in (
+        ("192.0.2.21", "SDM230-wifi"),
+        ("192.0.2.30", "HWE-KWH3"),
+        ("192.0.2.112", "HWE-SKT"),
+    ):
+        entry = MockConfigEntry(domain="homewizard", data={"ip_address": address})
+        entry.add_to_hass(hass)
+        dr.async_get(hass).async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={("homewizard", address)},
+            name="kWh Meter",
+            model_id=model,
+        )
+    found = {(c.address, c.phases) for c in find_direct_meters(hass)}
+    assert found == {("192.0.2.21", 1), ("192.0.2.30", 3)}

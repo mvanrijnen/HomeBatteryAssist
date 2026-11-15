@@ -291,6 +291,9 @@ async def test_settings_step_lists_pv_forecasts(hass: HomeAssistant) -> None:
             DOMAIN, context={"source": SOURCE_USER}
         )
         result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {"source": "manual"}
+        )
+        result = await hass.config_entries.flow.async_configure(
             result["flow_id"], {CONF_PHASES: "1"}
         )
         result = await hass.config_entries.flow.async_configure(

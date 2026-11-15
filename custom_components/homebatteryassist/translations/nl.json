@@ -8,6 +8,14 @@
           "source": "Meter"
         }
       },
+      "direct": {
+        "title": "Meter rechtstreeks uitlezen",
+        "description": "Kies het type meter en vul het IP-adres in. HomeBatteryAssist leest hem ongeveer elke seconde uit, alleen lezen; er verandert niets aan de meter. Vul bij een SMA Home Manager / Energy Meter het adres in waarvandaan hij uitzendt.",
+        "data": {
+          "meter_source": "Type meter",
+          "meter_address": "IP-adres"
+        }
+      },
       "user": {
         "title": "Netaansluiting",
         "description": "Heeft je woning een 1-fase of 3-fase aansluiting op het net?",
@@ -163,7 +171,8 @@
     },
     "meter": {
       "options": {
-        "manual": "Zelf de fasen en sensoren kiezen"
+        "manual": "Zelf de fasen en sensoren kiezen",
+        "direct_manual": "Een meter rechtstreeks uitlezen op een IP-adres dat je zelf opgeeft"
       }
     },
     "export_price_mode": {
@@ -171,6 +180,15 @@
         "factor": "Inkoopprijs x factor",
         "market": "Kale marktprijs (EPEX)",
         "sensor": "Terugleverprijs uit sensor(en)"
+      }
+    },
+    "meter_source": {
+      "options": {
+        "homewizard": "HomeWizard P1- of kWh-meter (lokale API)",
+        "speedwire": "SMA Home Manager / Energy Meter (Speedwire)",
+        "shelly": "Shelly Pro 3EM / 3EM",
+        "shelly_em": "Shelly EM / Pro EM (1 fase)",
+        "iammeter": "Iammeter WEM3080 / WEM3080T"
       }
     }
   },
@@ -224,6 +242,14 @@
         "description": "Deze netmeters zijn gevonden. Een meter die rechtstreeks wordt uitgelezen geeft ongeveer elke seconde een waarde (alleen lezen, er verandert niets aan de meter); een meter van een andere integratie gebruikt zijn sensoren. Of kies zelf de fasen en sensoren. HomeBatteryAssist leest de meter alleen uit.",
         "data": {
           "source": "Meter"
+        }
+      },
+      "direct": {
+        "title": "Meter rechtstreeks uitlezen",
+        "description": "Kies het type meter en vul het IP-adres in. HomeBatteryAssist leest hem ongeveer elke seconde uit, alleen lezen; er verandert niets aan de meter. Vul bij een SMA Home Manager / Energy Meter het adres in waarvandaan hij uitzendt.",
+        "data": {
+          "meter_source": "Type meter",
+          "meter_address": "IP-adres"
         }
       },
       "user": {

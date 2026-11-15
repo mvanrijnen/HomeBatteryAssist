@@ -3,9 +3,15 @@
 Next to grid sensors of other integrations, the grid power per phase can be
 read straight from a meter that allows this without disturbing anyone:
 
-- ``homewizard``: a HomeWizard P1 meter's local API v1 (``GET /api/v1/data``,
-  a read-only endpoint any number of clients may poll); the address is taken
-  from the HomeWizard integration's config entry;
+- ``homewizard``: a HomeWizard P1 meter's or kWh meter's (1- or 3-phase)
+  local API v1 (``GET /api/v1/data``, a read-only endpoint any number of
+  clients may poll); the address is taken from the HomeWizard integration's
+  config entry;
+- ``shelly_em``: a Shelly EM (1 phase; Gen1 ``/status``, Gen2+ Pro EM
+  ``/rpc/EM1.GetStatus?id=0``), channel 1;
+- ``iammeter``: an Iammeter WEM3080 (1 phase) or WEM3080T (3 phases) local
+  API (``GET /monitorjson``). Shelly EM and Iammeter follow their API
+  documentation and are not yet verified on a device;
 - ``shelly``: a Shelly 3-phase energy meter's local HTTP API (Gen2+ Pro 3EM /
   3EM-63: ``GET /rpc/EM.GetStatus?id=0``; Gen1 3EM: ``GET /status``), also
   read-only; the address comes from the Shelly integration's config entry.
@@ -26,10 +32,12 @@ import logging
 import socket
 import struct
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
@@ -42,7 +50,34 @@ SOURCE_SENSORS = "sensors"
 SOURCE_HOMEWIZARD = "homewizard"
 SOURCE_SPEEDWIRE = "speedwire"
 SOURCE_SHELLY = "shelly"
-DIRECT_SOURCES = (SOURCE_HOMEWIZARD, SOURCE_SPEEDWIRE, SOURCE_SHELLY)
+SOURCE_SHELLY_EM = "shelly_em"
+SOURCE_IAMMETER = "iammeter"
+DIRECT_SOURCES = (
+    SOURCE_HOMEWIZARD,
+    SOURCE_SPEEDWIRE,
+    SOURCE_SHELLY,
+    SOURCE_SHELLY_EM,
+    SOURCE_IAMMETER,
+)
+SOURCE_NAMES = {
+    SOURCE_HOMEWIZARD: "HomeWizard",
+    SOURCE_SPEEDWIRE: "SMA Home Manager / Energy Meter",
+    SOURCE_SHELLY: "Shelly 3EM",
+    SOURCE_SHELLY_EM: "Shelly EM",
+    SOURCE_IAMMETER: "Iammeter",
+}
+
+# HomeWizard meters (product type = device model id) -> phases (None: depends
+# on the smart meter). Energy sockets and water meters are no grid meters.
+HOMEWIZARD_METERS: dict[str, int | None] = {
+    "HWE-P1": None,
+    "HWE-KWH1": 1,
+    "SDM230-wifi": 1,
+    "HWE-KWH3": 3,
+    "SDM630-wifi": 3,
+}
+# Shelly 1-phase energy meters: model id prefix
+SHELLY_EM_MODELS = ("SHEM", "SPEM-002", "S3EM-002")
 
 # Shelly models with a 3-phase energy meter: model id prefix -> generation
 SHELLY_3EM_MODELS = {"SHEM-3": 1, "SPEM-003": 2, "S3EM-003": 3}
@@ -211,6 +246,60 @@ def homewizard_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
     return tuple(float(v) for v in values)
 
 
+class ShellyEmMeter(PollingMeter):
+    """Polls a Shelly EM (1 phase, channel 1) every second (Gen1 or Gen2+)."""
+
+    label = SOURCE_SHELLY_EM
+
+    def __init__(self, hass: HomeAssistant, address: str) -> None:
+        """Initialize."""
+        super().__init__(hass, address)
+        self._gen1: bool | None = None
+
+    async def _async_read(self) -> tuple[float, ...] | None:
+        session = async_get_clientsession(self.hass)
+        if self._gen1 is not True:
+            async with asyncio.timeout(3):
+                response = await session.get(
+                    f"http://{self.address}/rpc/EM1.GetStatus?id=0"
+                )
+            if response.status != 404:
+                response.raise_for_status()
+                self._gen1 = False
+                data = await response.json(content_type=None)
+                power = data.get("act_power")
+                return None if power is None else (float(power),)
+            self._gen1 = True
+        async with asyncio.timeout(3):
+            response = await session.get(f"http://{self.address}/status")
+            response.raise_for_status()
+            phases = shelly_gen1_phases(await response.json(content_type=None), count=1)
+        return phases
+
+
+class IammeterMeter(PollingMeter):
+    """Polls an Iammeter WEM3080 / WEM3080T every second."""
+
+    label = SOURCE_IAMMETER
+
+    async def _async_read(self) -> tuple[float, ...] | None:
+        session = async_get_clientsession(self.hass)
+        async with asyncio.timeout(3):
+            response = await session.get(f"http://{self.address}/monitorjson")
+            response.raise_for_status()
+            return iammeter_phases(await response.json(content_type=None))
+
+
+def iammeter_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
+    """Signed power per phase: WEM3080T ``Datas`` (per phase [V, A, W, ...]),
+    WEM3080 ``Data`` ([V, A, W, ...])."""
+    if isinstance(rows := data.get("Datas"), list) and len(rows) >= 3:
+        return tuple(float(row[2]) for row in rows[:3])
+    if isinstance(row := data.get("Data"), list) and len(row) >= 3:
+        return (float(row[2]),)
+    return None
+
+
 def shelly_gen2_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
     """Signed power per phase from ``EM.GetStatus`` (+ consumption / - return)."""
     values = [data.get(f"{p}_act_power") for p in "abc"]
@@ -219,12 +308,73 @@ def shelly_gen2_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
     return tuple(float(v) for v in values)
 
 
-def shelly_gen1_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
-    """Signed power per phase from a Gen1 3EM ``/status`` (``emeters``)."""
+def shelly_gen1_phases(
+    data: dict[str, Any], count: int = 3
+) -> tuple[float, ...] | None:
+    """Signed power per phase from a Gen1 3EM / EM ``/status`` (``emeters``)."""
     meters = data.get("emeters") or []
-    if len(meters) < 3 or not all(m.get("is_valid", True) for m in meters[:3]):
+    if len(meters) < count or not all(m.get("is_valid", True) for m in meters[:count]):
         return None
-    return tuple(float(m["power"]) for m in meters[:3])
+    return tuple(float(m["power"]) for m in meters[:count])
+
+
+@dataclass(frozen=True, slots=True)
+class DirectCandidate:
+    """A meter that can be read directly, found in another integration."""
+
+    source: str
+    address: str
+    name: str
+    phases: int | None  # None: ask (or take it from the meter's sensors)
+
+
+def find_direct_meters(hass: HomeAssistant) -> list[DirectCandidate]:
+    """Meters of other integrations that can also be read directly.
+
+    Only reads config entries and the device registry; nothing is sent.
+    """
+    devices = dr.async_get(hass)
+    found: list[DirectCandidate] = []
+    for entry in hass.config_entries.async_entries(SOURCE_HOMEWIZARD):
+        address = entry.data.get("ip_address")
+        for device in dr.async_entries_for_config_entry(devices, entry.entry_id):
+            if (
+                address
+                and device.model_id in HOMEWIZARD_METERS
+                and not device.via_device_id  # e.g. the gas meter of a P1
+            ):
+                found.append(
+                    DirectCandidate(
+                        SOURCE_HOMEWIZARD,
+                        address,
+                        f"HomeWizard {device.name_by_user or device.name or device.model}",
+                        HOMEWIZARD_METERS[device.model_id],
+                    )
+                )
+                break
+    for host, model in shelly_3em_hosts(hass).items():
+        found.append(DirectCandidate(SOURCE_SHELLY, host, f"Shelly 3EM ({model})", 3))
+    for entry in hass.config_entries.async_entries("shelly"):
+        model = str(entry.data.get("model", ""))
+        if (
+            entry.data.get("host")
+            and any(
+                model == prefix
+                or model.startswith(f"{prefix}-")
+                or model.startswith(prefix)
+                for prefix in SHELLY_EM_MODELS
+            )
+            and not any(model.startswith(p) for p in SHELLY_3EM_MODELS)
+        ):
+            found.append(
+                DirectCandidate(
+                    SOURCE_SHELLY_EM, entry.data["host"], f"Shelly EM ({model})", 1
+                )
+            )
+    for entry in hass.config_entries.async_entries(SOURCE_IAMMETER):
+        if host := entry.data.get("host"):
+            found.append(DirectCandidate(SOURCE_IAMMETER, host, "Iammeter", None))
+    return found
 
 
 def shelly_3em_hosts(hass: HomeAssistant) -> dict[str, str]:
@@ -325,4 +475,8 @@ def create_meter(hass: HomeAssistant, source: str, address: str) -> DirectMeter:
         return HomeWizardP1(hass, address)
     if source == SOURCE_SHELLY:
         return ShellyMeter(hass, address)
+    if source == SOURCE_SHELLY_EM:
+        return ShellyEmMeter(hass, address)
+    if source == SOURCE_IAMMETER:
+        return IammeterMeter(hass, address)
     return SpeedwireMeter(hass, address)

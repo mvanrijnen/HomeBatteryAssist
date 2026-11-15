@@ -8,6 +8,14 @@
           "source": "Meter"
         }
       },
+      "direct": {
+        "title": "Meter read directly",
+        "description": "Choose the type of meter and enter its IP address. HomeBatteryAssist reads it about every second, read-only; nothing on the meter changes. For an SMA Home Manager / Energy Meter enter the address it sends from.",
+        "data": {
+          "meter_source": "Type of meter",
+          "meter_address": "IP address"
+        }
+      },
       "user": {
         "title": "Grid connection",
         "description": "Is your home connected to the grid with 1 phase or 3 phases?",
@@ -163,7 +171,8 @@
     },
     "meter": {
       "options": {
-        "manual": "Choose the phases and sensors yourself"
+        "manual": "Choose the phases and sensors yourself",
+        "direct_manual": "Read a meter directly at an IP address you enter"
       }
     },
     "export_price_mode": {
@@ -171,6 +180,15 @@
         "factor": "Import price x factor",
         "market": "Bare market price (EPEX)",
         "sensor": "Export price from sensor(s)"
+      }
+    },
+    "meter_source": {
+      "options": {
+        "homewizard": "HomeWizard P1 or kWh meter (local API)",
+        "speedwire": "SMA Home Manager / Energy Meter (Speedwire)",
+        "shelly": "Shelly Pro 3EM / 3EM",
+        "shelly_em": "Shelly EM / Pro EM (1 phase)",
+        "iammeter": "Iammeter WEM3080 / WEM3080T"
       }
     }
   },
@@ -224,6 +242,14 @@
         "description": "These grid meters were found. A meter read directly gives a value about every second (read-only, nothing on the meter changes); a meter of another integration uses its sensors. Or choose the phases and sensors yourself. HomeBatteryAssist only reads the meter.",
         "data": {
           "source": "Meter"
+        }
+      },
+      "direct": {
+        "title": "Meter read directly",
+        "description": "Choose the type of meter and enter its IP address. HomeBatteryAssist reads it about every second, read-only; nothing on the meter changes. For an SMA Home Manager / Energy Meter enter the address it sends from.",
+        "data": {
+          "meter_source": "Type of meter",
+          "meter_address": "IP address"
         }
       },
       "user": {

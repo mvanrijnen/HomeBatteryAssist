@@ -17,9 +17,18 @@ from custom_components.homebatteryassist.const import (
 )
 
 
-async def _start(hass: HomeAssistant) -> dict:
+async def _init(hass: HomeAssistant) -> dict:
     return await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": SOURCE_USER}
+    )
+
+
+async def _start(hass: HomeAssistant) -> dict:
+    """Start the setup and choose your own sensors in the meter step."""
+    result = await _init(hass)
+    assert result["step_id"] == "meter"
+    return await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"source": "manual"}
     )
 
 
@@ -162,7 +171,7 @@ async def test_single_instance(hass: HomeAssistant) -> None:
     """A second instance is rejected."""
     MockConfigEntry(domain=DOMAIN).add_to_hass(hass)
 
-    result = await _start(hass)
+    result = await _init(hass)
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "single_instance_allowed"
 
@@ -239,6 +248,10 @@ async def test_reconfigure_grid_connection(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
 
     result = await entry.start_reconfigure_flow(hass)
+    assert result["step_id"] == "meter"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"source": "manual"}
+    )
     assert result["step_id"] == "user"
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {CONF_PHASES: "3"}
@@ -313,11 +326,12 @@ async def test_detected_meter_fills_in_sensors(hass: HomeAssistant) -> None:
     """A HomeWizard P1 meter is offered; kWh meters are not grid meters."""
     _homewizard(hass, "HWE-P1_abc", 3, marker=True)
     _homewizard(hass, "HWE-KWH1_def", 1, marker=False)
-    result = await _start(hass)
+    result = await _init(hass)
     assert result["step_id"] == "meter"
     options = result["data_schema"].schema["source"].config["options"]
     assert [o["value"] for o in options][-1] == "manual"
-    assert len(options) == 2  # the P1 meter + manual
+    # the P1 meter (via its sensors), a direct meter by address, manual
+    assert [o["value"] for o in options][1:] == ["direct_manual", "manual"]
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {"source": options[0]["value"]}
     )
@@ -341,7 +355,7 @@ async def test_detected_meter_fills_in_sensors(hass: HomeAssistant) -> None:
 async def test_detected_meter_manual_choice(hass: HomeAssistant) -> None:
     """Separate sensors stay possible next to a detected meter."""
     _homewizard(hass, "HWE-P1_abc", 3, marker=True)
-    result = await _start(hass)
+    result = await _init(hass)
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {"source": "manual"}
     )
@@ -375,7 +389,7 @@ async def test_options_flow_changes_grid_meter(hass: HomeAssistant) -> None:
     assert result["step_id"] == "meter"
     options = result["data_schema"].schema["source"].config["options"]
     values = [o["value"] for o in options]
-    assert values[-1] == "manual" and len(values) == 2  # P1 sensors + manual
+    assert values[1:] == ["direct_manual", "manual"]  # P1 sensors first
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {"source": values[0]}
     )
@@ -460,3 +474,46 @@ async def _direct_meter_keeps_own_sensors(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
+
+
+async def test_direct_meter_by_address(hass: HomeAssistant) -> None:
+    """A meter not in Home Assistant can be read directly at an address."""
+    from unittest.mock import AsyncMock, patch
+
+    with patch(
+        "custom_components.homebatteryassist.inputs.direct.IammeterMeter.async_start",
+        AsyncMock(),
+    ):
+        await _direct_meter_by_address(hass)
+    (entry,) = hass.config_entries.async_entries(DOMAIN)
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+
+async def _direct_meter_by_address(hass: HomeAssistant) -> None:
+    result = await _init(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"source": "direct_manual"}
+    )
+    assert result["step_id"] == "direct"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {"meter_source": "iammeter", "meter_address": " 192.0.2.50 "},
+    )
+    assert result["step_id"] == "user"  # Iammeter: 1 or 3 phases, so ask
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PHASES: "3"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MAX_CURRENT: "25"}
+    )
+    assert result["step_id"] == "settings"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HISTORY_INTERVAL: "15", CONF_PLANNING_HORIZON: 2}
+    )
+    assert result["data"] == {
+        CONF_PHASES: 3,
+        CONF_MAX_CURRENT: 25,
+        "meter_source": "iammeter",
+        "meter_address": "192.0.2.50",
+    }

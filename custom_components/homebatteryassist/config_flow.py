@@ -30,6 +30,7 @@ A sensor can only be used once: as grid sensor or by one subentry.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any
 
 import voluptuous as vol
@@ -138,11 +139,13 @@ from .const import (
     phase_sensor_keys,
 )
 from .inputs.direct import (
+    DIRECT_SOURCES,
     SOURCE_HOMEWIZARD,
-    SOURCE_SHELLY,
+    SOURCE_NAMES,
     SOURCE_SPEEDWIRE,
+    DirectCandidate,
     discover_speedwire,
-    shelly_3em_hosts,
+    find_direct_meters,
 )
 from .inputs.meters import MeterCandidate, find_meter_candidates
 from .inputs.profiles import BatteryCandidate, find_battery_candidates
@@ -416,41 +419,35 @@ def _direct_key(source: str | None, address: str | None) -> str:
     return f"direct:{source}:{address}"
 
 
+DIRECT_MANUAL = "direct_manual"
+
+
 def _direct_options(
     meters: list[MeterCandidate],
     speedwire: dict[str, int],
-    shelly: dict[str, str],
-) -> dict[str, tuple[str, str, int | None]]:
-    """Meters that can be read directly: key -> (source, address, phases)."""
-    options: dict[str, tuple[str, str, int | None]] = {}
-    for meter in meters:
-        if meter.profile.direct and meter.address:
-            key = _direct_key(meter.profile.direct, meter.address)
-            options[key] = (meter.profile.direct, meter.address, meter.phases)
-    for address in sorted(shelly):
-        options[_direct_key(SOURCE_SHELLY, address)] = (SOURCE_SHELLY, address, None)
+    direct: list[DirectCandidate],
+) -> dict[str, DirectCandidate]:
+    """Meters that can be read directly, by option key."""
+    options: dict[str, DirectCandidate] = {}
+    phases_of = {m.address: m.phases for m in meters if m.address}
+    for candidate in direct:
+        if candidate.phases is None and candidate.address in phases_of:
+            candidate = replace(candidate, phases=phases_of[candidate.address])
+        options[_direct_key(candidate.source, candidate.address)] = candidate
     for address in sorted(speedwire):
-        options[_direct_key(SOURCE_SPEEDWIRE, address)] = (
-            SOURCE_SPEEDWIRE,
-            address,
-            None,
+        options[_direct_key(SOURCE_SPEEDWIRE, address)] = DirectCandidate(
+            SOURCE_SPEEDWIRE, address, SOURCE_NAMES[SOURCE_SPEEDWIRE], None
         )
     return options
 
 
-def _direct_label(key: str, dutch: bool) -> str:
-    _, source, address = key.split(":", 2)
-    name = {
-        SOURCE_HOMEWIZARD: "HomeWizard P1",
-        SOURCE_SPEEDWIRE: "SMA Home Manager / Energy Meter",
-        SOURCE_SHELLY: "Shelly 3EM",
-    }.get(source, source)
+def _direct_label(candidate: DirectCandidate, dutch: bool) -> str:
     how = (
         "rechtstreeks, elke seconde, alleen lezen"
         if dutch
         else "read directly, every second, read-only"
     )
-    return f"{name} {address} ({how})"
+    return f"{candidate.name} {candidate.address} ({how})"
 
 
 class _GridSteps:
@@ -466,7 +463,7 @@ class _GridSteps:
     def _init_grid(self) -> None:
         self._data = {}
         self._meters: dict[str, MeterCandidate] = {}
-        self._direct: dict[str, tuple[str, str, int | None]] = {}
+        self._direct: dict[str, DirectCandidate] = {}
         self._meter_offered = False
         self._from_meter = False
 
@@ -485,10 +482,11 @@ class _GridSteps:
             found = find_meter_candidates(self.hass)
             self._meters = {c.device_id: c for c in found}
             self._direct = _direct_options(
-                found, await discover_speedwire(self.hass), shelly_3em_hosts(self.hass)
+                found,
+                await discover_speedwire(self.hass),
+                find_direct_meters(self.hass),
             )
-            if self._meters or self._direct:
-                return await self.async_step_meter()
+            return await self.async_step_meter()
         if user_input is not None:
             self._data[CONF_PHASES] = int(user_input[CONF_PHASES])
             return await self.async_step_max_current()
@@ -505,26 +503,12 @@ class _GridSteps:
         """Step 0: a grid meter found in another integration, or manual."""
         if user_input is not None:
             choice = user_input[CONF_SOURCE]
+            if choice == DIRECT_MANUAL:
+                return await self.async_step_direct()
             if direct := self._direct.get(choice):
-                source, address, phases = direct
-                self._from_meter = True
-                # Keep the grid sensors (unused meanwhile): choosing your own
-                # sensors again later starts from them.
-                self._data = {
-                    **{
-                        k: v
-                        for k, v in self._data.items()
-                        if k in (CONF_MAX_CURRENT, CONF_PHASES)
-                        or k in CONF_PHASE_SENSORS
-                        or k in CONF_PHASE_RETURN_SENSORS
-                    },
-                    CONF_METER_SOURCE: source,
-                    CONF_METER_ADDRESS: address,
-                }
-                if phases:
-                    self._data[CONF_PHASES] = phases
-                    return await self.async_step_max_current()
-                return await self._async_ask_phases()
+                return await self.async_step_meter_choice(
+                    direct.source, direct.address, direct.phases
+                )
             meter = self._meters.get(choice)
             if meter is None:
                 self._from_meter = False
@@ -537,7 +521,9 @@ class _GridSteps:
             }
             return await self.async_step_max_current()
 
-        default = next(iter(self._direct), None) or next(iter(self._meters))
+        default = next(iter(self._direct), None) or next(
+            iter(self._meters), SOURCE_MANUAL
+        )
         if self._data:  # reconfigure: keep what is used now
             current = _direct_key(
                 self._data.get(CONF_METER_SOURCE), self._data.get(CONF_METER_ADDRESS)
@@ -566,13 +552,16 @@ class _GridSteps:
                             options=[
                                 *(
                                     SelectOptionDict(
-                                        value=key, label=_direct_label(key, dutch)
+                                        value=key, label=_direct_label(c, dutch)
                                     )
-                                    for key in self._direct
+                                    for key, c in self._direct.items()
                                 ),
                                 *(
                                     SelectOptionDict(value=c.device_id, label=c.label)
                                     for c in self._meters.values()
+                                ),
+                                SelectOptionDict(
+                                    value=DIRECT_MANUAL, label=DIRECT_MANUAL
                                 ),
                                 SelectOptionDict(
                                     value=SOURCE_MANUAL, label=SOURCE_MANUAL
@@ -585,6 +574,58 @@ class _GridSteps:
                 }
             ),
         )
+
+    async def async_step_direct(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """A meter read directly at an address you enter (e.g. not in Home Assistant)."""
+        if user_input is not None:
+            return await self.async_step_meter_choice(
+                user_input[CONF_METER_SOURCE], user_input[CONF_METER_ADDRESS].strip()
+            )
+        suggested = {
+            CONF_METER_SOURCE: self._data.get(CONF_METER_SOURCE, SOURCE_HOMEWIZARD),
+            CONF_METER_ADDRESS: self._data.get(CONF_METER_ADDRESS, ""),
+        }
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_METER_SOURCE): SelectSelector(
+                    SelectSelectorConfig(
+                        options=list(DIRECT_SOURCES),
+                        mode=SelectSelectorMode.LIST,
+                        translation_key=CONF_METER_SOURCE,
+                    )
+                ),
+                vol.Required(CONF_METER_ADDRESS): TextSelector(),
+            }
+        )
+        return self.async_show_form(
+            step_id="direct",
+            data_schema=self.add_suggested_values_to_schema(schema, suggested),
+        )
+
+    async def async_step_meter_choice(
+        self, source: str, address: str, phases: int | None = None
+    ) -> ConfigFlowResult:
+        """Use a directly read meter; ask the phases if the meter can't tell."""
+        self._from_meter = True
+        # Keep the grid sensors (unused meanwhile): choosing your own sensors
+        # again later starts from them.
+        self._data = {
+            **{
+                k: v
+                for k, v in self._data.items()
+                if k in (CONF_MAX_CURRENT, CONF_PHASES)
+                or k in CONF_PHASE_SENSORS
+                or k in CONF_PHASE_RETURN_SENSORS
+            },
+            CONF_METER_SOURCE: source,
+            CONF_METER_ADDRESS: address,
+        }
+        if phases:
+            self._data[CONF_PHASES] = phases
+            return await self.async_step_max_current()
+        return await self._async_ask_phases()
 
     async def _async_ask_phases(self) -> ConfigFlowResult:
         """The phases of a directly read meter that measures all three."""

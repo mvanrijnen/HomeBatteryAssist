@@ -21,7 +21,7 @@ from homeassistant.util import dt as dt_util
 from ..const import DOMAIN, NAME, NOMINAL_VOLTAGE
 from ..forecasts.accuracy import BUCKET_KEYS, KINDS
 from ..history.profile import day_profile, days_covered, hourly_series
-from ..inputs.direct import SOURCE_HOMEWIZARD, SOURCE_SHELLY, SOURCE_SPEEDWIRE
+from ..inputs.direct import SOURCE_NAMES, find_direct_meters
 from ..inputs.measurements import MeasurementInput
 from ..inputs.meters import find_meter_candidates
 from ..models import HomeBatteryAssistConfigEntry
@@ -97,13 +97,17 @@ def _iso(value: Any) -> str | None:
 def _meter_info(hass: HomeAssistant, measurements: MeasurementInput) -> dict[str, Any]:
     """Which grid meter is used: brand/type, how it is read, its address."""
     if measurements.direct is not None:
-        names = {
-            SOURCE_HOMEWIZARD: "HomeWizard P1",
-            SOURCE_SPEEDWIRE: "SMA Home Manager / Energy Meter",
-            SOURCE_SHELLY: "Shelly 3EM",
-        }
+        name = next(
+            (
+                c.name
+                for c in find_direct_meters(hass)
+                if c.source == measurements.source
+                and c.address == measurements.direct.address
+            ),
+            SOURCE_NAMES.get(measurements.source, measurements.source),
+        )
         return {
-            "name": names.get(measurements.source, measurements.source),
+            "name": name,
             "direct": True,
             "address": measurements.direct.address,
         }
