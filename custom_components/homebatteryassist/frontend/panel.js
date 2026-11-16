@@ -53,6 +53,8 @@ const TEXT = {
     allPhases: "all phases",
     withVirtual: "with virtual batteries",
     phaseLimit: "limit {a} A (fuse with {m}% margin)",
+    fromGrid: "from the grid",
+    toGrid: "to the grid",
     relief: "phase protection: batteries take {w} off",
     limitedNow: "batteries held back by the limit",
     peakNow: "peak shaving: {w} taken off (limit {l})",
@@ -222,6 +224,8 @@ const TEXT = {
     allPhases: "alle fasen",
     withVirtual: "met virtuele batterijen",
     phaseLimit: "grens {a} A (zekering met {m}% marge)",
+    fromGrid: "van het net",
+    toGrid: "naar het net",
     relief: "fasebeveiliging: batterijen nemen {w} over",
     limitedNow: "batterijen teruggeschroefd door de grens",
     peakNow: "piekafvlakking: {w} opgevangen (grens {l})",
@@ -382,6 +386,8 @@ const STYLE = `
   .status.discharging { background: var(--warning-color, #f4b400); color: #000; }
   .bar { position: relative; height: 18px; border-radius: 9px; background: var(--divider-color); overflow: hidden; }
   .bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--primary-color); }
+  .bar .fill.export { background: var(--success-color, #43a047); }
+  .bar .mark.zero { left: calc(50% - 1px); opacity: .7; }
   .bar .fill.warn { background: var(--warning-color, #f4b400); }
   .bar .fill.alert { background: var(--error-color, #db4437); }
   .bar .mark { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--primary-text-color); opacity: .5; }
@@ -806,8 +812,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         withVirtual = `<span class="${wcls}">${esc(t.withVirtual)}: <b>${amps.toFixed(1)} A</b></span>`;
       }
       rows.push(`<div class="phase"><span>L${i}</span>
-        <div class="bar"><div class="fill ${cls}" style="width:${Math.min(load ?? 0, 100)}%"></div>
-          <div class="text">${load === null ? "–" : `${Math.round(load)}%`}</div></div>
+        ${this._phaseBar(load, power, cls, t)}
         <span class="muted"><b>${this._power(power)}</b> · ${current == null ? "–" : `${current} A`} / ${s.max_current} A</span>
         ${who.length || withVirtual || this._protectNote(s, i, t) ? `<div class="who">${who.join("")}${withVirtual}${this._protectNote(s, i, t)}</div>` : ""}</div>`);
     }
@@ -823,6 +828,18 @@ class HomeBatteryAssistPanel extends HTMLElement {
     rows.push(peak);
     const limit = s.phase_limit_a ? ` <small class="muted">· ${esc(t.phaseLimit.replace("{a}", s.phase_limit_a).replace("{m}", s.phase_margin ?? 10))}</small>` : "";
     return `<div class="card"><h2>${esc(t.phases)} · ${s.phases}x${s.max_current}A${limit}</h2><div class="phases">${rows.join("")}</div></div>`;
+  }
+
+  _phaseBar(load, power, cls, t) {
+    // Zero in the middle: export (to the grid) fills to the left in green,
+    // import (from the grid) to the right in blue; each half is the fuse.
+    const half = Math.min(load ?? 0, 100) / 2;
+    const exporting = power !== null && power < 0;
+    const style = exporting ? `left:${50 - half}%;width:${half}%` : `left:50%;width:${half}%`;
+    const dir = power === null || Math.abs(power) < 1 ? "" : ` ${exporting ? t.toGrid : t.fromGrid}`;
+    return `<div class="bar center"><div class="fill ${cls || (exporting ? "export" : "")}" style="${style}"></div>
+      <div class="mark zero"></div>
+      <div class="text">${load === null ? "–" : `${dir && exporting ? "← " : ""}${Math.round(load)}%${dir}${dir && !exporting ? " →" : ""}`}</div></div>`;
   }
 
   _protectNote(s, i, t) {
