@@ -462,11 +462,11 @@ const STYLE = `
   .chart .cursor { stroke: var(--secondary-text-color); stroke-width: 1; }
   .tip { position: absolute; top: 28px; pointer-events: none; z-index: 2; min-width: 120px;
     background: var(--card-background-color); color: var(--primary-text-color);
-    border: 1px solid var(--divider-color); border-radius: 8px; padding: 6px 8px; font-size: 12px;
+    border: 1px solid var(--divider-color); border-radius: 8px; padding: 8px 10px; font-size: 14px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
   .tip .t { font-weight: 500; margin-bottom: 2px; }
   .tip .r { display: flex; justify-content: space-between; gap: 12px; }
-  .tip i { display: inline-block; width: 8px; height: 8px; border-radius: 4px; margin-right: 6px; }
+  .tip i { display: inline-block; width: 10px; height: 10px; border-radius: 5px; margin-right: 6px; }
   .reach { display: grid; gap: 8px; margin-top: 12px; }
   .acc { width: 100%; border-collapse: collapse; font-size: 13px; }
   .acc th, .acc td { padding: 6px 4px; text-align: right; border-bottom: 1px solid var(--divider-color); }
