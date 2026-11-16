@@ -1,8 +1,9 @@
 """Battery profiles: recognise batteries that other integrations already expose.
 
-A profile maps the translation keys of another integration's entities to the
-fields of a battery subentry, so a battery can be linked with all values filled
-in. This only reads the entity registry and states; it never talks to the
+Each reader (``readers/``) has a profile that maps the translation keys of its
+integration's entities to the fields of a battery subentry, so a battery can be
+linked with all values filled in; a recognised battery type (``marstek/...``)
+fills in what the integration does not tell. This only reads the entity registry and states; it never talks to the
 battery itself, so it cannot interfere with the integration that owns it.
 
 Only add profiles whose entity keys were verified against a real installation.
@@ -30,59 +31,13 @@ from ....const import (
     CONF_POWER_SIGN,
     CONF_SOC_SENSOR,
     PHASE_IDS,
-    SIGN_DISCHARGING_POSITIVE,
 )
 from ...units import parse_float
+from .base import BatteryModel, BatteryProfile
+from .readers import READERS
 
-
-@dataclass(frozen=True, slots=True)
-class BatteryProfile:
-    """How a battery of another integration is exposed in Home Assistant."""
-
-    platform: str  # integration domain that creates the entities
-    label: str
-    soc: str  # translation key of the state of charge sensor
-    power: str  # translation key of the (AC) power sensor
-    power_sign: str
-    # Optional translation keys (domain, key) whose state gives a starting value
-    capacity: tuple[str, str] | None = None  # kWh
-    max_charge: tuple[str, str] | None = None  # W
-    max_discharge: tuple[str, str] | None = None  # W
-    min_soc: tuple[str, str] | None = None  # %
-    max_soc: tuple[str, str] | None = None  # %
-    efficiency: tuple[str, str] | None = None  # %
-    phase: tuple[str, str] | None = None  # select with options l1/l2/l3
-
-
-PROFILES: tuple[BatteryProfile, ...] = (
-    # Omnibattery (ffunes/Omnibattery), verified with a Marstek Venus E v3.
-    # ac_power is the grid side of the battery: + discharging / - charging.
-    BatteryProfile(
-        platform="omnibattery",
-        label="Omnibattery",
-        soc="battery_soc",
-        power="ac_power",
-        power_sign=SIGN_DISCHARGING_POSITIVE,
-        capacity=("sensor", "battery_total_energy"),
-        max_charge=("number", "max_charge_power"),
-        max_discharge=("number", "max_discharge_power"),
-        min_soc=("number", "discharging_cutoff_capacity"),
-        max_soc=("number", "charging_cutoff_capacity"),
-        efficiency=("sensor", "round_trip_efficiency_total"),
-        phase=("select", "battery_phase"),
-    ),
-    # Marstek Modbus (ViperRNMC/marstek_venus_modbus), keys verified.
-    BatteryProfile(
-        platform="marstek_modbus",
-        label="Marstek Modbus",
-        soc="battery_soc",
-        power="ac_power",
-        power_sign=SIGN_DISCHARGING_POSITIVE,
-        capacity=("sensor", "battery_rated_capacity"),
-        max_charge=("number", "max_charge_power"),
-        max_discharge=("number", "max_discharge_power"),
-        efficiency=("sensor", "round_trip_efficiency_total"),
-    ),
+PROFILES: tuple[BatteryProfile, ...] = tuple(
+    r.profile for r in READERS if r.profile is not None
 )
 
 
@@ -95,12 +50,19 @@ class BatteryCandidate:
     model: str | None
     profile: BatteryProfile
     data: dict[str, Any]
+    battery_model: BatteryModel | None = None  # recognised battery type
 
     @property
     def label(self) -> str:
         """Shown in the selection list, e.g. "Marstek Venus 1 - Venus E v3 (Omnibattery)"."""
         model = f" - {self.model}" if self.model else ""
         return f"{self.name}{model} ({self.profile.label})"
+
+
+def _model_for(model: str | None) -> BatteryModel | None:
+    from . import model_for  # the registry imports this module's neighbours
+
+    return model_for(model)
 
 
 def _value(hass: HomeAssistant, entity_id: str | None) -> Any:
@@ -134,13 +96,16 @@ def find_battery_candidates(
                 continue
             device = devices.async_get(device_id)
             name = (device.name_by_user or device.name) if device else soc
+            model = device.model if device else None
+            battery_model = _model_for(model)
             candidates.append(
                 BatteryCandidate(
                     device_id,
                     name or soc,
-                    device.model if device else None,
+                    model,
                     profile,
-                    _suggest(hass, profile, keyed, name, soc, power),
+                    _suggest(hass, profile, keyed, name, soc, power, battery_model),
+                    battery_model,
                 )
             )
     return candidates
@@ -153,6 +118,7 @@ def _suggest(
     name: str | None,
     soc: str,
     power: str,
+    battery_model: BatteryModel | None = None,
 ) -> dict[str, Any]:
     data: dict[str, Any] = {
         CONF_NAME: name or soc,
@@ -170,6 +136,15 @@ def _suggest(
     ):
         if ref and (value := parse_float(_value(hass, keyed.get(ref)))) is not None:
             data[field] = round(value, 2) if field == CONF_CAPACITY else round(value)
+    # What the integration does not tell, the recognised battery type may know.
+    if battery_model is not None:
+        for field, value in (
+            (CONF_CAPACITY, battery_model.capacity_kwh),
+            (CONF_MAX_CHARGE_POWER, battery_model.max_charge_w),
+            (CONF_MAX_DISCHARGE_POWER, battery_model.max_discharge_w),
+        ):
+            if field not in data and value is not None:
+                data[field] = value if field == CONF_CAPACITY else round(value)
     if profile.phase:
         phase = str(_value(hass, keyed.get(profile.phase)) or "").lower()
         if phase in PHASE_IDS:

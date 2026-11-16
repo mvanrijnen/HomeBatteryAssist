@@ -6,18 +6,37 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.homebatteryassist.engine.devices.batteries import (
-    DRIVERS,
-    driver_for,
+    MODELS,
+    READERS,
+    model_for,
+    reader_for,
     telemetry,
 )
+from custom_components.homebatteryassist.engine.devices.batteries.marstek.venus_e_v3 import (
+    MarstekVenusEV3,
+)
 from custom_components.homebatteryassist.engine.devices.batteries.template import (
-    TemplateBatteryDriver,
+    ExampleHome10,
+    TemplateBatteryReader,
 )
 from custom_components.homebatteryassist.engine.measure.batteries import BatteryConfig
 
 
 def test_template_not_registered() -> None:
-    assert not any(isinstance(d, TemplateBatteryDriver) for d in DRIVERS)
+    assert not any(isinstance(r, TemplateBatteryReader) for r in READERS)
+    assert not any(isinstance(m, ExampleHome10) for m in MODELS)
+
+
+def test_models_inherit_brand_and_range() -> None:
+    """Brand -> type range -> type: a type inherits what it does not set."""
+    venus = model_for("Venus E v3")
+    assert isinstance(venus, MarstekVenusEV3)
+    assert (venus.brand, venus.range, venus.type) == ("Marstek", "Venus", "Venus E v3")
+    assert venus.name == "Marstek Venus E v3"
+    assert venus.capacity_kwh == 5.12
+    assert model_for("venus e v3") is venus  # case-insensitive
+    assert model_for("Unknown 9000") is None
+    assert model_for(None) is None
 
 
 async def test_marstek_modbus_telemetry(hass: HomeAssistant) -> None:
@@ -64,7 +83,7 @@ async def test_marstek_modbus_telemetry(hass: HomeAssistant) -> None:
         full_charge_interval_days=0,
         phase="l3",
     )
-    assert driver_for(hass, config).key == "marstek_modbus"
+    assert reader_for(hass, config).key == "marstek_modbus"
     details = telemetry(hass, config).as_dict()
     assert details["temperature_c"] == 21.5
     assert details["cycles"] == 9

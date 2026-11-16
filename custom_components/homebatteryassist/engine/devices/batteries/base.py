@@ -1,22 +1,25 @@
-"""The contract of a battery driver: read a battery the same way, whatever brand.
+"""Battery drivers: what a battery *is* (model) and how it is *read* (reader).
 
-A battery is linked to HomeBatteryAssist through the entities of its own
-integration (state of charge and power sensors in the battery sub-entry). A
-battery driver knows one such integration and adds:
+Two building blocks:
 
-- ``find(hass)``: batteries of the integration that are not linked yet, with
-  suggested sub-entry values (see ``inputs.profiles``);
-- ``telemetry(hass, config)``: extra live details (temperature, voltages,
-  cycles, energy today, efficiency) read from the entities on the battery's
-  device — nothing is sent to the battery;
-- write methods (``async_set_power``, ``async_release``): how the battery
-  *would* be controlled. They are part of the driver model so control can be
-  added later, but **HomeBatteryAssist never calls them** while it is
-  read-only. ``can_write`` says whether a driver implements them.
+- ``BatteryModel`` — a battery type, organised by inheritance as brand → type
+  range → type (e.g. ``marstek/__init__.py`` → ``marstek/venus.py`` →
+  ``marstek/venus_e_v3.py``). A type knows its specifications: capacity,
+  power, usable part, rated cycles, warranty. They are used as starting
+  values when a battery is linked and the reader cannot read them.
+- ``BatteryReader`` — how batteries are read through another integration's
+  entities (``readers/``, e.g. Omnibattery or Marstek Modbus). A reader
+  recognises the batteries of its integration (``profile``), adds live details
+  (``telemetry``) and describes how a battery *would* be controlled (write
+  methods). **HomeBatteryAssist never calls the write methods** while it is
+  read-only; ``can_write`` says whether a reader implements them.
 
-Add a driver: copy ``template.py``, fill it in and add it to ``DRIVERS`` in
-``__init__.py``. Mark it ``verified`` only after testing on a real
-installation (reading); writing stays untested until control is enabled.
+One battery type can be read through several integrations (a Marstek Venus E
+v3 through Omnibattery or through Marstek Modbus): the model and the reader
+are chosen separately.
+
+Readers only use Home Assistant's states and registries; they never open a
+connection to the battery that could compete with its own integration.
 """
 
 from __future__ import annotations
@@ -59,13 +62,64 @@ class BatteryTelemetry:
         return {k: v for k, v in values.items() if v is not None}
 
 
-class BatteryDriver:
-    """A kind of battery (one integration that exposes batteries)."""
+class BatteryModel:
+    """A battery type. Subclass per brand, type range and type; set only what
+    is known for sure (None = unknown)."""
+
+    brand: str = ""
+    range: str = ""  # type range, e.g. "Venus"
+    type: str = ""  # e.g. "Venus E v3"
+    # Device model names (as integrations report them) that are this type,
+    # compared case-insensitively.
+    models: tuple[str, ...] = ()
+    capacity_kwh: float | None = None
+    max_charge_w: float | None = None
+    max_discharge_w: float | None = None
+    usable_pct: float | None = None  # usable part of the capacity per cycle
+    rated_cycles: int | None = None
+    warranty_years: int | None = None
+
+    @property
+    def name(self) -> str:
+        """Brand and type, e.g. "Marstek Venus E v3"."""
+        return " ".join(p for p in (self.brand, self.type or self.range) if p)
+
+    def matches(self, model: str | None) -> bool:
+        """Whether a device with this model name is this type."""
+        if not model:
+            return False
+        lowered = model.strip().lower()
+        return any(lowered == m.lower() for m in self.models)
+
+
+@dataclass(frozen=True, slots=True)
+class BatteryProfile:
+    """How a reader's integration exposes a battery in Home Assistant: the
+    translation keys of its entities, mapped to the battery subentry fields."""
+
+    platform: str  # integration domain that creates the entities
+    label: str
+    soc: str  # translation key of the state of charge sensor
+    power: str  # translation key of the (AC) power sensor
+    power_sign: str
+    # Optional translation keys (domain, key) whose state gives a starting value
+    capacity: tuple[str, str] | None = None  # kWh
+    max_charge: tuple[str, str] | None = None  # W
+    max_discharge: tuple[str, str] | None = None  # W
+    min_soc: tuple[str, str] | None = None  # %
+    max_soc: tuple[str, str] | None = None  # %
+    efficiency: tuple[str, str] | None = None  # %
+    phase: tuple[str, str] | None = None  # select with options l1/l2/l3
+
+
+class BatteryReader:
+    """Reads batteries through one integration (its entities)."""
 
     key: str = ""  # the integration domain (platform of its entities)
     name: str = ""
     verified: bool = False  # reading tested on a real installation
     can_write: bool = False  # write methods implemented (never used yet)
+    profile: BatteryProfile | None = None  # recognising its batteries
 
     def telemetry(self, hass: HomeAssistant, config: BatteryConfig) -> BatteryTelemetry:
         """Extra live details of the battery (default: none)."""
