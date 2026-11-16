@@ -30,8 +30,8 @@ The sensors have a fixed meaning and can be used by other integrations and add-o
   logger:
     logs:
       custom_components.homebatteryassist: info               # decisions
-      custom_components.homebatteryassist.engine.forecasts: debug    # forecast details
-      custom_components.homebatteryassist.engine.meters.direct: debug # directly read meters
+      custom_components.homebatteryassist.engine.forecast: debug    # forecast details
+      custom_components.homebatteryassist.engine.devices.meters.direct: debug # directly read meters
       custom_components.homebatteryassist.engine.user_modules: debug  # own modules
   ```
 

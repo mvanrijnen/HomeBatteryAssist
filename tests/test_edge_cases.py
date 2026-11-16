@@ -7,19 +7,19 @@ from types import SimpleNamespace
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from custom_components.homebatteryassist.engine.forecasts.consumption import (
+from custom_components.homebatteryassist.engine.forecast.consumption import (
     forecast_consumption,
 )
-from custom_components.homebatteryassist.engine.forecasts.horizon import (
+from custom_components.homebatteryassist.engine.forecast.horizon import (
     HorizonLimit,
     PlanningWindow,
 )
-from custom_components.homebatteryassist.engine.inputs.prices import PricePoint
 from custom_components.homebatteryassist.engine.planning.battery_plan import (
     MODE_ARBITRAGE,
     MODE_NOM,
     plan_batteries,
 )
+from custom_components.homebatteryassist.engine.sources.prices.points import PricePoint
 
 from .test_battery_plan import _battery
 
@@ -150,7 +150,9 @@ async def test_direct_meter_goes_stale(hass: HomeAssistant, freezer) -> None:
     measurement becomes unknown instead of keeping the last value."""
     from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-    from custom_components.homebatteryassist.engine.meters.direct import DirectMeter
+    from custom_components.homebatteryassist.engine.devices.meters.direct import (
+        DirectMeter,
+    )
 
     freezer.move_to(DST_END)
     meter = DirectMeter(hass, "192.0.2.1")

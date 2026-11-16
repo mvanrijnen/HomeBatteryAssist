@@ -36,10 +36,10 @@ Everything stays **advice**: no module controls a battery or any other device.
 
    | Kind | Template and built-in modules |
    |---|---|
-   | Planner | `engine/modules/planners/template.py` (charge in the cheapest hours); `nom.py`, `arbitrage.py` |
-   | Consumption forecaster | `engine/modules/forecasters/template.py` (average of the last day); `profile.py`, `recent.py` |
-   | Tariff | `engine/modules/tariffs/template.py` (a dynamic contract from the market price — fill in your own numbers); `source.py` |
-   | PV forecast source | `engine/modules/pv_forecasts/template.py` (a sensor with a `wh_hours` attribute); `energy.py` |
+   | Planner | `engine/planning/planners/template.py` (charge in the cheapest hours); `nom.py`, `arbitrage.py` |
+   | Consumption forecaster | `engine/forecast/forecasters/template.py` (average of the last day); `profile.py`, `recent.py` |
+   | Tariff | `engine/sources/tariffs/template.py` (a dynamic contract from the market price — fill in your own numbers); `source.py` |
+   | PV forecast source | `engine/sources/pv_forecasts/template.py` (a sensor with a `wh_hours` attribute); `energy.py` |
 
 3. Give the class its own `key` and `name`. In a copied built-in module, change the relative imports (`from .base import ...`) into absolute ones (`from custom_components.homebatteryassist.<package>.base import ...`), as in the templates.
 4. Reload HomeBatteryAssist (Settings → Devices & services → HomeBatteryAssist → ⋮ → Reload). Your module appears in the settings as `custom_<key>`.
@@ -53,7 +53,7 @@ A file whose name starts with `_` is ignored; a file that does not load is skipp
 
 Each kind has a `base.py` in its package with the full interface and documentation. In short:
 
-### Planner — `engine/modules/planners/base.py`
+### Planner — `engine/planning/planners/base.py`
 
 ```python
 class Planner:
@@ -65,7 +65,7 @@ class Planner:
 
 `data.slots` (per slot: `start`, `end`, `hours`, `house_w`, `pv_w`, `net_w`, `price`, `export_price`, `max_charge_w`, `max_discharge_w`), `data.battery` (all batteries as one: `capacity_wh`, `stored_wh`, `floor_wh`, `ceiling_wh`, `efficiency`), `data.rules` (your plan rules), `data.cycle_cost`, `data.peak_w`, `data.priced`. Return the requested power per slot in W (+ charging, − discharging). Runs outside the event loop; no I/O.
 
-### Consumption forecaster — `engine/modules/forecasters/base.py`
+### Consumption forecaster — `engine/forecast/forecasters/base.py`
 
 ```python
 class Forecaster:
@@ -79,7 +79,7 @@ class Forecaster:
 
 `data.history` (the consumption records: `start`, `minutes`, `avg_w`, `coverage`, optionally `pv_w`, `excluded_w`, `battery_w`, `vacation`), `data.slots` (start, end), `data.now`, `data.interval`. Return the expected consumption per slot in W, or None where you have no idea. Quick, no I/O.
 
-### Tariff — `engine/modules/tariffs/base.py`
+### Tariff — `engine/sources/tariffs/base.py`
 
 ```python
 class Tariff:
@@ -92,7 +92,7 @@ class Tariff:
 
 `data.slots` (per period: `price` from the source, `market` (EPEX, with `needs_market` and when the source offers it), `export` by the export settings, `estimated`). Return the import and export price per period (None = keep the source's). Quick, no I/O.
 
-### PV forecast source — `engine/modules/pv_forecasts/base.py`
+### PV forecast source — `engine/sources/pv_forecasts/base.py`
 
 ```python
 class PvForecastSource:

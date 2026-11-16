@@ -18,7 +18,7 @@ from custom_components.homebatteryassist.const import (
     SUBENTRY_EXCLUDED_LOAD,
     SUBENTRY_PV_SOURCE,
 )
-from custom_components.homebatteryassist.engine.inputs.units import state_to_watts
+from custom_components.homebatteryassist.engine.units import state_to_watts
 
 SENSOR = "sensor.homebatteryassist_house_consumption"
 

@@ -31,7 +31,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.util import dt as dt_util
 
 from .const import CONF_PLAN_MODE, DOMAIN, HISTORY_RETENTION
-from .engine.forecasts.accuracy import ALL_BUCKETS, BUCKET_KEYS, KINDS, MODES
+from .engine.evaluation.accuracy import ALL_BUCKETS, BUCKET_KEYS, KINDS, MODES
 from .engine.history.importer import async_import_history
 from .engine.planning.battery_plan import PLAN_MODES
 

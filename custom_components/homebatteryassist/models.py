@@ -7,12 +7,12 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 
-from .engine.batteries.monitor import BatteryInput
+from .engine.coordinator import ForecastCoordinator
+from .engine.evaluation.plan_check import PlanVerification
 from .engine.explain import DecisionLog
-from .engine.forecasts.coordinator import ForecastCoordinator
 from .engine.history import ConsumptionHistory
-from .engine.inputs.measurements import MeasurementInput
-from .engine.planning.verification import PlanVerification
+from .engine.measure.batteries import BatteryInput
+from .engine.measure.measurements import MeasurementInput
 
 
 @dataclass(slots=True)

@@ -5,11 +5,11 @@ from datetime import datetime, timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from custom_components.homebatteryassist.engine.planning.battery_plan import PlanSlot
-from custom_components.homebatteryassist.engine.planning.verification import (
+from custom_components.homebatteryassist.engine.evaluation.plan_check import (
     PlanVerification,
     slot_saving,
 )
+from custom_components.homebatteryassist.engine.planning.battery_plan import PlanSlot
 
 T0 = datetime(2026, 11, 16, 1, 0, tzinfo=dt_util.UTC)
 Q = timedelta(minutes=15)

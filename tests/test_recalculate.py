@@ -19,7 +19,7 @@ from custom_components.homebatteryassist.const import (
     CONF_PRICE_FORECAST,
     DOMAIN,
 )
-from custom_components.homebatteryassist.engine.forecasts.coordinator import (
+from custom_components.homebatteryassist.engine.coordinator import (
     EVENT_FORECAST_UPDATED,
 )
 

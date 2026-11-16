@@ -6,25 +6,25 @@ from pathlib import Path
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from custom_components.homebatteryassist.engine.forecasts.consumption import (
+from custom_components.homebatteryassist.engine.forecast.consumption import (
     forecast_consumption,
     raw_forecast,
 )
-from custom_components.homebatteryassist.engine.forecasts.horizon import (
-    HorizonLimit,
-    PlanningWindow,
-)
-from custom_components.homebatteryassist.engine.inputs.prices import PricePoint
-from custom_components.homebatteryassist.engine.modules.forecasters import (
+from custom_components.homebatteryassist.engine.forecast.forecasters import (
     BUILTIN as FORECASTERS,
 )
-from custom_components.homebatteryassist.engine.modules.forecasters import (
+from custom_components.homebatteryassist.engine.forecast.forecasters import (
     Forecaster,
     ForecasterInput,
     ForecasterResult,
     load_forecasters_from,
 )
-from custom_components.homebatteryassist.engine.modules.pv_forecasts import (
+from custom_components.homebatteryassist.engine.forecast.horizon import (
+    HorizonLimit,
+    PlanningWindow,
+)
+from custom_components.homebatteryassist.engine.sources.prices.points import PricePoint
+from custom_components.homebatteryassist.engine.sources.pv_forecasts import (
     PvForecastOption,
     PvForecastSource,
     async_find_pv_forecasts,
@@ -32,10 +32,10 @@ from custom_components.homebatteryassist.engine.modules.pv_forecasts import (
     load_pv_sources_from,
     split_choice,
 )
-from custom_components.homebatteryassist.engine.modules.tariffs import (
+from custom_components.homebatteryassist.engine.sources.tariffs import (
     BUILTIN as TARIFFS,
 )
-from custom_components.homebatteryassist.engine.modules.tariffs import (
+from custom_components.homebatteryassist.engine.sources.tariffs import (
     Tariff,
     TariffInput,
     TariffResult,
@@ -107,7 +107,7 @@ def test_forecaster_drives_consumption() -> None:
 
 def test_load_own_forecasters(tmp_path: Path) -> None:
     """The template loads as an own forecaster."""
-    template = PACKAGE / "engine/modules/forecasters/template.py"
+    template = PACKAGE / "engine/forecast/forecasters/template.py"
     (tmp_path / "mine.py").write_text(
         template.read_text(encoding="utf-8"), encoding="utf-8"
     )
@@ -153,7 +153,7 @@ def test_tariff_final_check() -> None:
 
 def test_own_tariff_with_market_prices(tmp_path: Path) -> None:
     """The template tariff builds prices from the market price."""
-    template = PACKAGE / "engine/modules/tariffs/template.py"
+    template = PACKAGE / "engine/sources/tariffs/template.py"
     (tmp_path / "contract.py").write_text(
         template.read_text(encoding="utf-8"), encoding="utf-8"
     )
@@ -202,7 +202,7 @@ async def test_pv_sources(hass: HomeAssistant) -> None:
 
 def test_load_own_pv_sources(tmp_path: Path) -> None:
     """The template loads as an own PV forecast source."""
-    template = PACKAGE / "engine/modules/pv_forecasts/template.py"
+    template = PACKAGE / "engine/sources/pv_forecasts/template.py"
     (tmp_path / "sensor.py").write_text(
         template.read_text(encoding="utf-8"), encoding="utf-8"
     )

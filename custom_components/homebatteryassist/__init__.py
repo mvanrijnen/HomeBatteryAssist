@@ -30,21 +30,21 @@ from .const import (
     DEFAULT_HISTORY_INTERVAL,
     DOMAIN,
 )
-from .engine.batteries.monitor import ACTIVITY_THRESHOLD_W, BatteryInput, activity_of
-from .engine.batteries.virtual import VirtualBatterySimulator
+from .engine.coordinator import ForecastCoordinator
+from .engine.devices.batteries.virtual import VirtualBatterySimulator
+from .engine.evaluation.accuracy import ForecastAccuracy
+from .engine.evaluation.plan_check import PlanVerification
 from .engine.explain import DecisionLog
 from .engine.explain.notify import Notifier
-from .engine.forecasts.accuracy import ForecastAccuracy
-from .engine.forecasts.adjustments import AdjustmentStore
-from .engine.forecasts.coordinator import ForecastCoordinator
+from .engine.forecast.adjustments import AdjustmentStore
+from .engine.forecast.forecasters import async_load_user_forecasters
 from .engine.history import ConsumptionHistory
-from .engine.inputs.measurements import MeasurementInput
-from .engine.modules.forecasters import async_load_user_forecasters
-from .engine.modules.planners import async_load_user_planners
-from .engine.modules.pv_forecasts import async_load_user_pv_sources
-from .engine.modules.tariffs import async_load_user_tariffs
+from .engine.measure.batteries import ACTIVITY_THRESHOLD_W, BatteryInput, activity_of
+from .engine.measure.measurements import MeasurementInput
 from .engine.planning.battery_plan import MODE_NOM
-from .engine.planning.verification import PlanVerification
+from .engine.planning.planners import async_load_user_planners
+from .engine.sources.pv_forecasts import async_load_user_pv_sources
+from .engine.sources.tariffs import async_load_user_tariffs
 from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
 from .output.panel import async_setup_panel
 from .services import async_setup_services

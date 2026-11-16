@@ -22,8 +22,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME
-from ..engine.forecasts.coordinator import ForecastCoordinator
-from ..engine.inputs.measurements import MeasurementInput, PowerFlow
+from ..engine.coordinator import ForecastCoordinator
+from ..engine.measure.measurements import MeasurementInput, PowerFlow
 from ..models import HomeBatteryAssistConfigEntry
 from .batteries import (
     BATTERY_SENSORS,

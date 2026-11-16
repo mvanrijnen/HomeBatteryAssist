@@ -6,10 +6,9 @@ from types import SimpleNamespace
 import pytest
 from homeassistant.util import dt as dt_util
 
-from custom_components.homebatteryassist.engine.forecasts.consumption import (
+from custom_components.homebatteryassist.engine.forecast.consumption import (
     ForecastSlot,
 )
-from custom_components.homebatteryassist.engine.inputs.prices import PricePoint
 from custom_components.homebatteryassist.engine.planning.battery_plan import (
     MODE_ARBITRAGE,
     MODE_NOM,
@@ -17,6 +16,7 @@ from custom_components.homebatteryassist.engine.planning.battery_plan import (
     plan_batteries,
     reach_times,
 )
+from custom_components.homebatteryassist.engine.sources.prices.points import PricePoint
 
 T0 = datetime(2026, 11, 16, 0, 0, tzinfo=dt_util.UTC)
 H = timedelta(hours=1)
@@ -136,7 +136,7 @@ def test_compare_modes_cumulative_advantage() -> None:
 
 def test_export_price_per_slot() -> None:
     """A separate export price is used for PV surplus; else import x factor."""
-    from custom_components.homebatteryassist.engine.inputs.prices import (
+    from custom_components.homebatteryassist.engine.sources.prices.points import (
         merge_price_forecasts,
     )
 
@@ -216,7 +216,9 @@ def test_charges_at_negative_import_price() -> None:
 def test_makes_room_before_negative_export_price() -> None:
     """Full battery and PV surplus at a negative export price: it discharges
     beforehand, so the surplus can be stored instead of exported at a loss."""
-    from custom_components.homebatteryassist.engine.inputs.prices import PricePoint
+    from custom_components.homebatteryassist.engine.sources.prices.points import (
+        PricePoint,
+    )
 
     slots = _slots([500.0, 500.0, 500.0, 500.0])
     pv = {T0 + 3 * H: 3000.0}  # 2.5 kW surplus in the last hour

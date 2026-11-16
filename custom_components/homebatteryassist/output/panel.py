@@ -19,18 +19,19 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME, NOMINAL_VOLTAGE
-from ..engine.batteries import telemetry as battery_telemetry
-from ..engine.forecasts.accuracy import BUCKET_KEYS, KINDS
+from ..engine.devices.batteries import telemetry as battery_telemetry
+from ..engine.devices.meters.direct import SOURCE_NAMES, find_direct_meters
+from ..engine.devices.meters.ha_meters import find_meter_candidates
+from ..engine.evaluation.accuracy import BUCKET_KEYS, KINDS
+from ..engine.evaluation.plan_check import slot_saving
+from ..engine.forecast.forecasters import BUILTIN as FORECASTERS
 from ..engine.history.profile import (
     day_profile,
     days_covered,
     hourly_series,
     week_profiles,
 )
-from ..engine.inputs.measurements import MeasurementInput
-from ..engine.meters.direct import SOURCE_NAMES, find_direct_meters
-from ..engine.meters.ha_meters import find_meter_candidates
-from ..engine.modules.forecasters import BUILTIN as FORECASTERS
+from ..engine.measure.measurements import MeasurementInput
 from ..engine.planning.battery_plan import (
     ARBITRAGE_MODES,
     MODE_ARBITRAGE,
@@ -39,7 +40,6 @@ from ..engine.planning.battery_plan import (
     reach_times,
 )
 from ..engine.planning.phase_limit import phase_limit_w
-from ..engine.planning.verification import slot_saving
 from ..models import HomeBatteryAssistConfigEntry
 from .batteries import BATTERY_SENSORS, TOTAL_SENSORS
 

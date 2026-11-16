@@ -17,7 +17,7 @@ from custom_components.homebatteryassist.const import (
     CONF_PLANNING_HORIZON,
     DOMAIN,
 )
-from custom_components.homebatteryassist.engine.forecasts.accuracy import (
+from custom_components.homebatteryassist.engine.evaluation.accuracy import (
     MIN_SAMPLES,
     ForecastAccuracy,
     bucket_for,

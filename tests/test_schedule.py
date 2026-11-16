@@ -5,10 +5,9 @@ from datetime import datetime, timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from custom_components.homebatteryassist.engine.forecasts.consumption import (
+from custom_components.homebatteryassist.engine.forecast.consumption import (
     ForecastSlot,
 )
-from custom_components.homebatteryassist.engine.inputs.prices import PricePoint
 from custom_components.homebatteryassist.engine.planning.battery_plan import (
     MODE_MANUAL,
     MODE_TIME_SLOTS,
@@ -19,6 +18,7 @@ from custom_components.homebatteryassist.engine.planning.schedule import (
     TimeSlot,
     slot_target,
 )
+from custom_components.homebatteryassist.engine.sources.prices.points import PricePoint
 
 from .test_battery_plan import _battery
 
