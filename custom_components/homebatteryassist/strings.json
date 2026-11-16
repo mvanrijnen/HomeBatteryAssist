@@ -199,7 +199,7 @@
     },
     "phase": {
       "options": {
-        "none": "Not bound to a phase",
+        "none": "All phases (3-phase, spread evenly)",
         "l1": "L1",
         "l2": "L2",
         "l3": "L3"
@@ -544,11 +544,15 @@
           "data": {
             "name": "Name",
             "sensor": "Sensor",
-            "phase": "Phase"
+            "phase": "Phase",
+            "phase_sensor_l1": "Power L1 (optional, 3-phase)",
+            "phase_sensor_l2": "Power L2 (optional, 3-phase)",
+            "phase_sensor_l3": "Power L3 (optional, 3-phase)"
           },
           "data_description": {
             "sensor": "Sensor measuring the power (W) or current (A) of this device.",
-            "phase": "The phase this device is connected to, if it uses a single phase."
+            "phase": "The phase this device is connected to, if it uses a single phase.",
+            "phase_sensor_l1": "For a 3-phase device: a sensor per phase gives the exact split over the phases. Leave empty to spread the total evenly (phase 'all phases') or to use the phase chosen above."
           }
         },
         "reconfigure": {
@@ -557,11 +561,15 @@
           "data": {
             "name": "Name",
             "sensor": "Sensor",
-            "phase": "Phase"
+            "phase": "Phase",
+            "phase_sensor_l1": "Power L1 (optional, 3-phase)",
+            "phase_sensor_l2": "Power L2 (optional, 3-phase)",
+            "phase_sensor_l3": "Power L3 (optional, 3-phase)"
           },
           "data_description": {
             "sensor": "Sensor measuring the power (W) or current (A) of this device.",
-            "phase": "The phase this device is connected to, if it uses a single phase."
+            "phase": "The phase this device is connected to, if it uses a single phase.",
+            "phase_sensor_l1": "For a 3-phase device: a sensor per phase gives the exact split over the phases. Leave empty to spread the total evenly (phase 'all phases') or to use the phase chosen above."
           }
         }
       },
@@ -585,11 +593,15 @@
           "data": {
             "name": "Name",
             "sensor": "Sensor",
-            "phase": "Phase"
+            "phase": "Phase",
+            "phase_sensor_l1": "Power L1 (optional, 3-phase)",
+            "phase_sensor_l2": "Power L2 (optional, 3-phase)",
+            "phase_sensor_l3": "Power L3 (optional, 3-phase)"
           },
           "data_description": {
             "sensor": "Sensor measuring the power (W) or current (A) of this device.",
-            "phase": "The phase this device is connected to, if it uses a single phase."
+            "phase": "The phase this device is connected to, if it uses a single phase.",
+            "phase_sensor_l1": "For a 3-phase device: a sensor per phase gives the exact split over the phases. Leave empty to spread the total evenly (phase 'all phases') or to use the phase chosen above."
           }
         },
         "reconfigure": {
@@ -598,11 +610,15 @@
           "data": {
             "name": "Name",
             "sensor": "Sensor",
-            "phase": "Phase"
+            "phase": "Phase",
+            "phase_sensor_l1": "Power L1 (optional, 3-phase)",
+            "phase_sensor_l2": "Power L2 (optional, 3-phase)",
+            "phase_sensor_l3": "Power L3 (optional, 3-phase)"
           },
           "data_description": {
             "sensor": "Sensor measuring the power (W) or current (A) of this device.",
-            "phase": "The phase this device is connected to, if it uses a single phase."
+            "phase": "The phase this device is connected to, if it uses a single phase.",
+            "phase_sensor_l1": "For a 3-phase device: a sensor per phase gives the exact split over the phases. Leave empty to spread the total evenly (phase 'all phases') or to use the phase chosen above."
           }
         }
       },

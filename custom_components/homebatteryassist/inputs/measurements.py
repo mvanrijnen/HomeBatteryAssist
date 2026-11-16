@@ -37,6 +37,7 @@ from homeassistant.helpers.event import (
 from homeassistant.util import dt as dt_util
 
 from ..const import (
+    CONF_DEVICE_PHASE_SENSORS,
     CONF_MAX_CURRENT,
     CONF_METER_ADDRESS,
     CONF_METER_SOURCE,
@@ -131,8 +132,15 @@ class MeasurementInput:
         self._unsub_direct: CALLBACK_TYPE | None = None
         self.pv_sources = _subentry_devices(entry, SUBENTRY_PV_SOURCE)
         self.excluded_loads = _subentry_devices(entry, SUBENTRY_EXCLUDED_LOAD)
-        self.pv_sensors = [sensor for sensor, _ in self.pv_sources]
-        self.excluded_sensors = [sensor for sensor, _ in self.excluded_loads]
+        self.pv_sensors = [sensor for sensor, _, _ in self.pv_sources]
+        self.excluded_sensors = [sensor for sensor, _, _ in self.excluded_loads]
+        # per-phase sensors also trigger a recalculation
+        self._phase_device_sensors = [
+            s
+            for _, _, sensors in (*self.pv_sources, *self.excluded_loads)
+            for s in sensors
+            if s
+        ]
         self.batteries = battery_configs(entry)
 
         self.power: float | None = None
@@ -148,7 +156,13 @@ class MeasurementInput:
         """All sensors the calculation depends on."""
         grid = [e for pair in self.grid_phases for e in pair if e is not None]
         batteries = [b.power_sensor for b in self.batteries]
-        return [*grid, *self.pv_sensors, *self.excluded_sensors, *batteries]
+        return [
+            *grid,
+            *self.pv_sensors,
+            *self.excluded_sensors,
+            *self._phase_device_sensors,
+            *batteries,
+        ]
 
     @callback
     def async_start(self) -> None:
@@ -262,12 +276,25 @@ class MeasurementInput:
             for i in range(count) if index is None else (index,):
                 target[i] += value / (count if index is None else 1)
 
-        for sensor, phase in self.pv_sources:
-            value = abs(self._watts(sensor) or 0.0)
-            add(phase_pv, phase, value)
-            add(phase_house, phase, value)
-        for sensor, phase in self.excluded_loads:
-            add(phase_house, phase, -abs(self._watts(sensor) or 0.0))
+        def per_phase(
+            sensor: str, phase: str, sensors: tuple[str | None, ...]
+        ) -> list[tuple[str, float]]:
+            """(phase, W) parts of a device: measured per phase, or its total."""
+            if count > 1 and any(sensors):
+                return [
+                    (f"l{i + 1}", abs(self._watts(s) or 0.0))
+                    for i, s in enumerate(sensors[:count])
+                    if s
+                ]
+            return [(phase, abs(self._watts(sensor) or 0.0))]
+
+        for sensor, phase, sensors in self.pv_sources:
+            for part, value in per_phase(sensor, phase, sensors):
+                add(phase_pv, part, value)
+                add(phase_house, part, value)
+        for sensor, phase, sensors in self.excluded_loads:
+            for part, value in per_phase(sensor, phase, sensors):
+                add(phase_house, part, -value)
         for b in self.batteries:
             add(phase_house, b.phase, -(battery_power(self.hass, b) or 0.0))
         return PowerFlow(
@@ -320,10 +347,20 @@ class MeasurementInput:
             self._was_available = available
 
 
-def _subentry_devices(entry: ConfigEntry, subentry_type: str) -> list[tuple[str, str]]:
-    """(sensor, phase) of every subentry of the type."""
+def _subentry_devices(
+    entry: ConfigEntry, subentry_type: str
+) -> list[tuple[str, str, tuple[str | None, ...]]]:
+    """(sensor, phase, per-phase sensors) of every subentry of the type.
+
+    A device on one phase has ``phase`` l1-l3; a 3-phase device has phase
+    "none" (spread evenly) or, more precisely, a sensor per phase.
+    """
     return [
-        (subentry.data[CONF_SENSOR], subentry.data.get(CONF_PHASE, PHASE_NONE))
+        (
+            subentry.data[CONF_SENSOR],
+            subentry.data.get(CONF_PHASE, PHASE_NONE),
+            tuple(subentry.data.get(key) or None for key in CONF_DEVICE_PHASE_SENSORS),
+        )
         for subentry in entry.subentries.values()
         if subentry.subentry_type == subentry_type
     ]

@@ -56,7 +56,14 @@ async def test_add_device_three_phase(hass: HomeAssistant, kind: str) -> None:
         (entry.entry_id, kind), context={"source": SOURCE_USER}
     )
     assert result["type"] is FlowResultType.FORM
-    assert set(result["data_schema"].schema) == {CONF_NAME, CONF_SENSOR, CONF_PHASE}
+    assert set(result["data_schema"].schema) == {
+        CONF_NAME,
+        CONF_SENSOR,
+        CONF_PHASE,
+        "phase_sensor_l1",
+        "phase_sensor_l2",
+        "phase_sensor_l3",
+    }
 
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"],

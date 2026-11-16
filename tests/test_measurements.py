@@ -121,3 +121,51 @@ async def test_separate_return_sensor_and_floor(hass: HomeAssistant) -> None:
     _set(hass, "sensor.ev", "900")
     await hass.async_block_till_done()
     assert float(hass.states.get(SENSOR).state) == 0.0
+
+
+async def test_pv_per_phase_and_single_phase(hass: HomeAssistant) -> None:
+    """A 3-phase PV inverter measured per phase; a 1-phase one on L2."""
+    three = ConfigSubentryData(
+        data={
+            CONF_NAME: "Roof",
+            CONF_SENSOR: "sensor.pv",
+            CONF_PHASE: "none",
+            "phase_sensor_l1": "sensor.pv_l1",
+            "phase_sensor_l2": "sensor.pv_l2",
+            "phase_sensor_l3": "sensor.pv_l3",
+        },
+        subentry_type=SUBENTRY_PV_SOURCE,
+        title="Roof",
+        unique_id="sensor.pv",
+    )
+    one = ConfigSubentryData(
+        data={CONF_NAME: "Shed", CONF_SENSOR: "sensor.shed", CONF_PHASE: "l2"},
+        subentry_type=SUBENTRY_PV_SOURCE,
+        title="Shed",
+        unique_id="sensor.shed",
+    )
+    entry = await _setup(
+        hass,
+        {
+            CONF_PHASES: 3,
+            "sensor_l1": "sensor.l1",
+            "sensor_l2": "sensor.l2",
+            "sensor_l3": "sensor.l3",
+        },
+        [three, one],
+    )
+    for entity, value in (
+        ("sensor.l1", "0"),
+        ("sensor.l2", "0"),
+        ("sensor.l3", "0"),
+        ("sensor.pv", "1500"),
+        ("sensor.pv_l1", "1000"),
+        ("sensor.pv_l2", "300"),
+        ("sensor.pv_l3", "200"),
+        ("sensor.shed", "400"),
+    ):
+        _set(hass, entity, value)
+    await hass.async_block_till_done()
+    flow = entry.runtime_data.measurements.flow
+    assert flow.pv_w == 1900.0  # totals of both sources
+    assert flow.phase_pv_w == (1000.0, 700.0, 200.0)

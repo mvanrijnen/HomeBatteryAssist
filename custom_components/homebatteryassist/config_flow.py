@@ -70,6 +70,7 @@ from .const import (
     CONF_CAPACITY,
     CONF_CHARGE_HYSTERESIS,
     CONF_CYCLE_COST,
+    CONF_DEVICE_PHASE_SENSORS,
     CONF_EFFICIENCY,
     CONF_EXPORT_ENTITIES,
     CONF_EXPORT_FACTOR,
@@ -247,7 +248,7 @@ def grid_sensors(data: Mapping[str, Any]) -> set[str]:
     return {data[key] for key in keys if data.get(key)}
 
 
-SUBENTRY_SENSOR_KEYS = (CONF_SENSOR, *BATTERY_SENSOR_KEYS)
+SUBENTRY_SENSOR_KEYS = (CONF_SENSOR, *CONF_DEVICE_PHASE_SENSORS, *BATTERY_SENSOR_KEYS)
 
 
 def sensor_conflict(
@@ -1146,7 +1147,19 @@ class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):
                 CONF_SENSOR: user_input[CONF_SENSOR],
                 CONF_PHASE: user_input.get(CONF_PHASE, PHASE_NONE),
             }
+            phase_sensors = {
+                key: user_input[key]
+                for key in CONF_DEVICE_PHASE_SENSORS
+                if user_input.get(key)
+            }
+            if phase_sensors:
+                # Measured per phase: a 3-phase device, not bound to one phase.
+                data.update(phase_sensors)
+                data[CONF_PHASE] = PHASE_NONE
             errors = self._validate_sensor(entry, data[CONF_SENSOR], current)
+            for key, sensor in phase_sensors.items():
+                if not errors and (error := sensor_conflict(entry, sensor, current)):
+                    errors = {key: error}
             if not errors:
                 if current is None:
                     return self.async_create_entry(
@@ -1166,6 +1179,8 @@ class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):
         }
         if three_phase:
             schema[vol.Required(CONF_PHASE, default=PHASE_NONE)] = phase_selector()
+            for key in CONF_DEVICE_PHASE_SENSORS:
+                schema[vol.Optional(key)] = PHASE_SENSOR_SELECTOR
         suggested = user_input or (dict(current.data) if current else None)
         return self.async_show_form(
             step_id=step_id,

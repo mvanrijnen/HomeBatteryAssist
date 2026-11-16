@@ -130,6 +130,12 @@ SUBENTRY_PV_SOURCE: Final = "pv_source"
 SUBENTRY_EXCLUDED_LOAD: Final = "excluded_load"
 CONF_SENSOR: Final = "sensor"
 CONF_PHASE: Final = "phase"
+# Optional per-phase sensors of a 3-phase device (PV inverter, EV charger)
+CONF_DEVICE_PHASE_SENSORS: Final = (
+    "phase_sensor_l1",
+    "phase_sensor_l2",
+    "phase_sensor_l3",
+)
 PHASE_NONE: Final = "none"
 PHASE_IDS: Final = ("l1", "l2", "l3")
 

@@ -199,7 +199,7 @@
     },
     "phase": {
       "options": {
-        "none": "Niet gekoppeld aan een fase",
+        "none": "Alle fasen (3-fase, gelijk verdeeld)",
         "l1": "L1",
         "l2": "L2",
         "l3": "L3"
@@ -544,11 +544,15 @@
           "data": {
             "name": "Naam",
             "sensor": "Sensor",
-            "phase": "Fase"
+            "phase": "Fase",
+            "phase_sensor_l1": "Vermogen L1 (optioneel, 3-fase)",
+            "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
+            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)"
           },
           "data_description": {
             "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
-            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt."
+            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt.",
+            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken."
           }
         },
         "reconfigure": {
@@ -557,11 +561,15 @@
           "data": {
             "name": "Naam",
             "sensor": "Sensor",
-            "phase": "Fase"
+            "phase": "Fase",
+            "phase_sensor_l1": "Vermogen L1 (optioneel, 3-fase)",
+            "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
+            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)"
           },
           "data_description": {
             "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
-            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt."
+            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt.",
+            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken."
           }
         }
       },
@@ -585,11 +593,15 @@
           "data": {
             "name": "Naam",
             "sensor": "Sensor",
-            "phase": "Fase"
+            "phase": "Fase",
+            "phase_sensor_l1": "Vermogen L1 (optioneel, 3-fase)",
+            "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
+            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)"
           },
           "data_description": {
             "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
-            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt."
+            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt.",
+            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken."
           }
         },
         "reconfigure": {
@@ -598,11 +610,15 @@
           "data": {
             "name": "Naam",
             "sensor": "Sensor",
-            "phase": "Fase"
+            "phase": "Fase",
+            "phase_sensor_l1": "Vermogen L1 (optioneel, 3-fase)",
+            "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
+            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)"
           },
           "data_description": {
             "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
-            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt."
+            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt.",
+            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken."
           }
         }
       },
