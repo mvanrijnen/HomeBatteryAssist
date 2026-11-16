@@ -20,10 +20,10 @@ from custom_components.homebatteryassist.const import (
     CONF_PHASES,
     DOMAIN,
 )
-from custom_components.homebatteryassist.engine.devices.meters.direct import (
+from custom_components.homebatteryassist.engine.devices.meters.homewizard import (
     homewizard_phases,
 )
-from custom_components.homebatteryassist.engine.devices.meters.speedwire import decode
+from custom_components.homebatteryassist.engine.devices.meters.sma import decode
 
 
 def _telegram(serial: int, values: dict[int, int]) -> bytes:
@@ -91,7 +91,7 @@ async def test_measurements_from_homewizard_api(
     )
     entry.add_to_hass(hass)
     with patch(
-        "custom_components.homebatteryassist.engine.devices.meters.direct.read_homewizard",
+        "custom_components.homebatteryassist.engine.devices.meters.homewizard.read_homewizard",
         fake_read,
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -128,7 +128,7 @@ async def test_measurements_from_homewizard_api(
             raise TimeoutError
 
         with patch(
-            "custom_components.homebatteryassist.engine.devices.meters.direct.read_homewizard",
+            "custom_components.homebatteryassist.engine.devices.meters.homewizard.read_homewizard",
             failing,
         ):
             for _ in range(12):
@@ -144,7 +144,7 @@ async def test_measurements_from_homewizard_api(
 
 def test_shelly_phases() -> None:
     """Shelly 3EM: Gen2+ EM.GetStatus and Gen1 /status (as documented)."""
-    from custom_components.homebatteryassist.engine.devices.meters.direct import (
+    from custom_components.homebatteryassist.engine.devices.meters.shelly import (
         shelly_gen1_phases,
         shelly_gen2_phases,
     )
@@ -159,7 +159,7 @@ def test_shelly_phases() -> None:
 
 
 async def test_shelly_3em_found_in_config_entries(hass: HomeAssistant) -> None:
-    from custom_components.homebatteryassist.engine.devices.meters.direct import (
+    from custom_components.homebatteryassist.engine.devices.meters.shelly import (
         shelly_3em_hosts,
     )
 
@@ -179,7 +179,7 @@ async def test_shelly_3em_found_in_config_entries(hass: HomeAssistant) -> None:
 
 def test_iammeter_phases() -> None:
     """Iammeter local API (as documented): Data (1 phase) or Datas (3 phases)."""
-    from custom_components.homebatteryassist.engine.devices.meters.direct import (
+    from custom_components.homebatteryassist.engine.devices.meters.iammeter import (
         iammeter_phases,
     )
 
