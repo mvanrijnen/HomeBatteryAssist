@@ -36,6 +36,7 @@ PRICE_ATTRIBUTES = (
     "today",
     "tomorrow",
     "forecast",
+    "forecasts",
     "data",
 )
 # Attributes with the bare market (EPEX) price, next to the all-in price.
@@ -55,7 +56,14 @@ START_KEYS = (
     "datetime",
 )
 END_KEYS = ("end", "end_time", "ends_at", "endsAt", "till", "until", "to")
-PRICE_KEYS = ("price", "value", "total", "electricity_price", "price_per_kwh")
+PRICE_KEYS = (
+    "price",
+    "value",
+    "total",
+    "electricity_price",
+    "price_per_kwh",
+    "per_kwh",
+)
 ESTIMATED_FLAGS = {"f", "forecast", "estimate", "estimated", "predicted"}
 EPOCH_MS_THRESHOLD = 10**11  # larger numbers are milliseconds
 

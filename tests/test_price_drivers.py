@@ -159,3 +159,37 @@ def test_epexpredictor_parse() -> None:
     )
     assert [p.price for p in data.points] == [0.1218, 0.1189]
     assert data.points[0].end == data.points[1].start
+
+
+async def test_pvpc_and_amber_formats(hass: HomeAssistant) -> None:
+    """PVPC hourly attributes and Amber's forecasts list."""
+    from homeassistant.core import State
+
+    from custom_components.homebatteryassist.inputs.price_drivers.regional import (
+        pvpc_points,
+    )
+    from custom_components.homebatteryassist.inputs.prices import (
+        parse_price_forecast,
+    )
+
+    points = pvpc_points(
+        {"price_00h": 0.10, "price_01h": 0.12, "price_next_day_00h": 0.09, "x": 1}
+    )
+    assert [p.price for p in points] == [0.10, 0.12, 0.09]
+    assert points[2].start - points[0].start == timedelta(days=1)
+    start = dt_util.start_of_local_day()
+    amber = State(
+        "sensor.amber_general_price",
+        "0.3",
+        {
+            "forecasts": [
+                {
+                    "start_time": start.isoformat(),
+                    "end_time": (start + timedelta(minutes=30)).isoformat(),
+                    "per_kwh": 0.31,
+                }
+            ]
+        },
+    )
+    (point,) = parse_price_forecast(amber)
+    assert point.price == 0.31 and point.end - point.start == timedelta(minutes=30)

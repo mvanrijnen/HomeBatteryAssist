@@ -19,12 +19,14 @@ from .base import (
 )
 from .dyntarnl import DynTarNLDriver
 from .forecasts import FORECAST_DRIVERS
+from .regional import REGIONAL_DRIVERS
 from .sensors import SENSOR_DRIVERS
 
 DRIVERS: tuple[PriceDriver, ...] = (
     DynTarNLDriver(),
     *ACTION_DRIVERS,
     *SENSOR_DRIVERS,
+    *REGIONAL_DRIVERS,
     *FORECAST_DRIVERS,
 )
 
