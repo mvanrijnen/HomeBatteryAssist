@@ -1143,6 +1143,12 @@
     },
     "import_direct_meter": {
       "message": "De netmeter wordt rechtstreeks uitgelezen, dus Home Assistant heeft daar geen geschiedenis van. Kies een sensor met het huisverbruik om over te nemen (source_entity)."
+    },
+    "manual_one_kind": {
+      "message": "Een handmatige correctie stel je per soort in (verbruik, pv of prijs): één waarde past niet bij hun verschillende eenheden."
+    },
+    "pv_factor_range": {
+      "message": "De PV-correctie is een factor tussen 0,5 en 1,5."
     }
   }
 }

@@ -170,7 +170,14 @@ async def async_setup_entry(
         return None
 
     batteries.expected_until = _expected_until
-    await forecast.async_config_entry_first_refresh()
+    try:
+        await forecast.async_config_entry_first_refresh()
+    except Exception:
+        # Setup fails (and is retried): stop what already runs, so a retry
+        # does not leave a second battery monitor writing the same stores.
+        await batteries.async_stop()
+        await forecast.async_shutdown()
+        raise
     if not hass.is_running:
         # Other integrations (price and PV forecasts) may still be starting:
         # recalculate once Home Assistant has fully started.
@@ -230,6 +237,9 @@ async def async_setup_entry(
 
     @callback
     def _check_plan(now: datetime) -> None:
+        # A new slot: entities showing "the slot now" move on with it.
+        if forecast.data is not None:
+            forecast.async_update_listeners()
         plan_check.settle(now, _battery_totals, forecast.cycle_cost)
         if forecast.data is not None:
             plan_check.record_plan(

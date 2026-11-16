@@ -298,7 +298,12 @@ def phase_selector() -> SelectSelector:
 
 
 def _price_source_selector(
-    hass: HomeAssistant, first: str, key: str, *, forecasts: bool = True
+    hass: HomeAssistant,
+    first: str,
+    key: str,
+    *,
+    forecasts: bool = True,
+    keep: str | None = None,
 ) -> SelectSelector:
     """The price sources found by the price drivers, after ``first``.
 
@@ -318,6 +323,10 @@ def _price_source_selector(
                 value=source.key, label=f"{source.title}{suffix}{untested}"
             )
         )
+    if keep and keep not in {o["value"] for o in options}:
+        # The chosen source is not available right now (e.g. its integration is
+        # starting): keep it, so saving other settings does not drop it.
+        options.append(SelectOptionDict(value=keep, label=keep))
     return SelectSelector(
         SelectSelectorConfig(
             options=options, mode=SelectSelectorMode.DROPDOWN, translation_key=key
@@ -484,12 +493,21 @@ async def _flat_settings_schema(
             CONF_PRICE_SOURCE,
             default=current.get(CONF_PRICE_SOURCE, PRICE_SOURCE_SENSOR),
         ): _price_source_selector(
-            hass, PRICE_SOURCE_SENSOR, CONF_PRICE_SOURCE, forecasts=False
+            hass,
+            PRICE_SOURCE_SENSOR,
+            CONF_PRICE_SOURCE,
+            forecasts=False,
+            keep=current.get(CONF_PRICE_SOURCE),
         ),
         vol.Required(
             CONF_PRICE_EXTENSION,
             default=current.get(CONF_PRICE_EXTENSION, PRICE_EXTENSION_NONE),
-        ): _price_source_selector(hass, PRICE_EXTENSION_NONE, CONF_PRICE_EXTENSION),
+        ): _price_source_selector(
+            hass,
+            PRICE_EXTENSION_NONE,
+            CONF_PRICE_EXTENSION,
+            keep=current.get(CONF_PRICE_EXTENSION),
+        ),
         vol.Optional(CONF_PRICE_FORECAST): EntitySelector(
             EntitySelectorConfig(domain="sensor")
         ),

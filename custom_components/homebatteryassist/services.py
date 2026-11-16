@@ -270,6 +270,16 @@ def async_setup_services(hass: HomeAssistant) -> None:
             else None
         )
         kinds = KINDS if call.data[ATTR_KIND] == KIND_ALL else (call.data[ATTR_KIND],)
+        value = call.data.get(ATTR_VALUE)
+        if mode == "manual" and len(kinds) > 1:
+            # One value cannot fit three units (W, factor, price).
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="manual_one_kind"
+            )
+        if mode == "manual" and kinds == ("pv",) and not 0.5 <= value <= 1.5:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN, translation_key="pv_factor_range"
+            )
         for kind in kinds:
             forecast.accuracy.set_mode(
                 kind, mode, call.data.get(ATTR_VALUE), call.data[ATTR_BUCKET], until
@@ -279,7 +289,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
                 f"correction_mode_{mode}",
                 kind=kind,
                 value=call.data.get(ATTR_VALUE, ""),
-                until=until or "-",
+                until="@until_set" if until else "@until_none",
+                time=until or "",
             )
         await forecast.async_refresh()
         return (

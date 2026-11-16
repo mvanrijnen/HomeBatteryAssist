@@ -597,8 +597,13 @@ class HomeBatteryAssistPanel extends HTMLElement {
       this._status = await this._hass.callWS({ type: "homebatteryassist/status" });
       this._error = null;
       if (Date.now() - this._historyAt > 5 * 60000) {
-        this._history = await this._hass.callWS({ type: "homebatteryassist/history", days: 7 });
+        // A failing history call only costs the charts, not the whole panel.
         this._historyAt = Date.now();
+        try {
+          this._history = await this._hass.callWS({ type: "homebatteryassist/history", days: 7 });
+        } catch (err) {
+          console.warn("HomeBatteryAssist: history not available", err);
+        }
       }
     } catch (err) {
       this._status = null;
@@ -1571,7 +1576,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
             const b = k.lead_times[lead];
             if (!b || !b.samples) return "<td>–</td>";
             const c = corr(kind, b);
-            return `<td title="${b.samples} · bias ${fmt(kind, b.bias)}${b.mape != null ? ` · ${b.mape}%` : ""}">${esc(fmt(kind, b.mae))}${c ? `<small>${esc(c)}</small>` : ""}</td>`;
+            return `<td title="${esc(`${b.samples} · bias ${fmt(kind, b.bias)}${b.mape != null ? ` · ${b.mape}%` : ""}`)}">${esc(fmt(kind, b.mae))}${c ? `<small>${esc(c)}</small>` : ""}</td>`;
           })
           .join("");
         return `<tr><td>${esc(t.accKinds[kind])}<small>${esc(t.accModes[k.mode] || k.mode)}</small></td>${cells}</tr>`;
