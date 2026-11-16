@@ -140,6 +140,10 @@ SUBENTRY_EXCLUDED_LOAD: Final = "excluded_load"
 CONF_SENSOR: Final = "sensor"
 CONF_PHASE: Final = "phase"
 CONF_PV_DRIVER: Final = "pv_driver"  # "sensor" or a meter driver key
+# An external meter on a battery's line (+ = into the battery, charging)
+CONF_BATTERY_METER: Final = "battery_meter"  # "none" or a meter driver key
+CONF_BATTERY_METER_ADDRESS: Final = "battery_meter_address"
+BATTERY_METER_NONE: Final = "none"
 CONF_PV_ADDRESS: Final = "pv_address"  # address of a directly read PV meter
 PV_DRIVER_SENSOR: Final = "sensor"
 # Optional per-phase sensors of a 3-phase device (PV inverter, EV charger)

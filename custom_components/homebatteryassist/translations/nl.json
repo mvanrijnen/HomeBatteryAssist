@@ -383,6 +383,11 @@
       "options": {
         "source": "Zoals de prijsbron en de terugleverinstellingen ze geven"
       }
+    },
+    "battery_meter": {
+      "options": {
+        "none": "Geen externe meter"
+      }
     }
   },
   "options": {
@@ -733,7 +738,9 @@
             "round_trip_efficiency": "Rendement laden en ontladen",
             "full_charge_interval_days": "Volledig opladen elke",
             "phase": "Fase",
-            "temperature_sensor": "Temperatuursensor (optioneel)"
+            "temperature_sensor": "Temperatuursensor (optioneel)",
+            "battery_meter": "Batterijmeter (optioneel)",
+            "battery_meter_address": "Adres van de batterijmeter"
           },
           "data_description": {
             "soc_sensor": "Sensor met de vulling in %.",
@@ -745,7 +752,9 @@
             "round_trip_efficiency": "Deel van de geladen energie dat bij ontladen weer terugkomt.",
             "full_charge_interval_days": "Minstens elke zoveel dagen tot 100% laden (balanceren van de cellen). 0 = nooit.",
             "phase": "De fase waarop de batterij is aangesloten, als hij één fase gebruikt.",
-            "temperature_sensor": "Temperatuur van de batterij; bij warmte rekenen de plannen met minder vermogen (zie de temperatuurinstellingen)."
+            "temperature_sensor": "Temperatuur van de batterij; bij warmte rekenen de plannen met minder vermogen (zie de temperatuurinstellingen).",
+            "battery_meter": "Een direct uit te lezen meter op de lijn van de batterij, bijvoorbeeld een kWh-meter. Het vermogen daarvan (+ de batterij in = laden) wordt dan gebruikt in plaats van de vermogenssensor; voor batterijen waarvan de integratie het eigen vermogen niet geeft, of als controle.",
+            "battery_meter_address": "IP-adres of hostnaam van die meter."
           }
         },
         "battery": {
@@ -764,7 +773,9 @@
             "round_trip_efficiency": "Rendement laden en ontladen",
             "full_charge_interval_days": "Volledig opladen elke",
             "phase": "Fase",
-            "temperature_sensor": "Temperatuursensor (optioneel)"
+            "temperature_sensor": "Temperatuursensor (optioneel)",
+            "battery_meter": "Batterijmeter (optioneel)",
+            "battery_meter_address": "Adres van de batterijmeter"
           },
           "data_description": {
             "soc_sensor": "Sensor met de vulling in %.",
@@ -776,7 +787,9 @@
             "round_trip_efficiency": "Deel van de geladen energie dat bij ontladen weer terugkomt.",
             "full_charge_interval_days": "Minstens elke zoveel dagen tot 100% laden (balanceren van de cellen). 0 = nooit.",
             "phase": "De fase waarop de batterij is aangesloten, als hij één fase gebruikt.",
-            "temperature_sensor": "Temperatuur van de batterij; bij warmte rekenen de plannen met minder vermogen (zie de temperatuurinstellingen)."
+            "temperature_sensor": "Temperatuur van de batterij; bij warmte rekenen de plannen met minder vermogen (zie de temperatuurinstellingen).",
+            "battery_meter": "Een direct uit te lezen meter op de lijn van de batterij, bijvoorbeeld een kWh-meter. Het vermogen daarvan (+ de batterij in = laden) wordt dan gebruikt in plaats van de vermogenssensor; voor batterijen waarvan de integratie het eigen vermogen niet geeft, of als controle.",
+            "battery_meter_address": "IP-adres of hostnaam van die meter."
           }
         }
       },

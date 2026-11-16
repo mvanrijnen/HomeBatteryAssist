@@ -25,6 +25,8 @@ A battery driver has two parts (`base.py`):
    A type only sets what it knows for sure: capacity, charge/discharge power, usable part, rated cycles, warranty, and the model names integrations report for it (`models`). When a battery is linked, these are starting values for what its integration does not tell. Add a new type to `MODELS` in `__init__.py`.
 2. **Reader** — how the battery is *read*, one per integration in `integrations/`: its `profile` recognises the batteries of that integration (state of charge and power sensor, starting values) and `telemetry` adds live details (temperature, voltages, cell voltages, cycles, energy today, efficiency). A reader also says whether it **serves as the battery's meter** (`is_meter`): whether its integration gives the battery's own power. Omnibattery and Marstek Modbus do (`ac_power`); a battery whose integration does not, needs an external meter. Add a new reader to `READERS` in `integrations/__init__.py`.
 
+**Battery meter:** a battery can also get an external meter (setting *Battery meter* in the battery's form, with its address): its power (+ into the battery = charging) is then used instead of the power sensor — for a battery whose integration does not serve as its meter, or as a check. If the meter has no value for a moment, the power sensor counts again.
+
 One battery type can be read through several integrations; the model and the reader are chosen separately. `template.py` shows both. The **virtual battery** (`virtual.py`) is a simulated device that follows the plan.
 
 ## Meters — `engine/devices/meters/`
@@ -38,7 +40,7 @@ One file per brand, sharing `direct_reading.py` (reading about once a second; a 
 | `shelly.py` | Shelly Pro 3EM / 3EM / EM / Pro EM, local API | from the API documentation |
 | `iammeter.py` | Iammeter WEM3080 / WEM3080T, local API | from the API documentation |
 
-`discovery.py` finds these meters in Home Assistant and creates the right reader; `__init__.py` lists them (`DRIVERS`). Meters can also be read through the sensors of their own integration (`via_ha_integration.py`, HomeWizard P1 recognised). `template.py` is an example of a new meter. The same drivers serve the grid connection and PV sources (a kWh meter on the inverter's line).
+`discovery.py` finds these meters in Home Assistant and creates the right reader; `__init__.py` lists them (`DRIVERS`). Meters can also be read through the sensors of their own integration (`via_ha_integration.py`, HomeWizard P1 recognised). `template.py` is an example of a new meter. The same drivers serve every role: the grid connection, a PV source (a kWh meter on the inverter's line) and a battery (a kWh meter on the battery's line, see below). The role is a setting; the folder follows brand and type.
 
 ## Supported now
 

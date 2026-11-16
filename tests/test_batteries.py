@@ -491,3 +491,57 @@ async def test_activity_explained(
         "Since 14:15 Venus has been charging with power from the grid. "
         "That matches the plan."
     )
+
+
+async def test_battery_meter(hass: HomeAssistant) -> None:
+    """An external meter on the battery's line gives the battery's power
+    (+ into the battery = charging) instead of its power sensor."""
+    from unittest.mock import patch
+
+    from custom_components.homebatteryassist.const import (
+        CONF_BATTERY_METER,
+        CONF_BATTERY_METER_ADDRESS,
+    )
+    from custom_components.homebatteryassist.engine.measure.battery_monitor import (
+        battery_power,
+    )
+
+    async def read(_hass, _address):
+        return {"active_power_l1_w": 750.0}  # 750 W into the battery
+
+    with patch(
+        "custom_components.homebatteryassist.engine.devices.meters.homewizard.read_homewizard",
+        read,
+    ):
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            data=GRID,
+            options={CONF_HISTORY_INTERVAL: 15},
+            subentries_data=[
+                ConfigSubentryData(
+                    data={
+                        **BATTERY_INPUT,
+                        CONF_PHASE: "none",
+                        CONF_BATTERY_METER: "homewizard",
+                        CONF_BATTERY_METER_ADDRESS: "192.0.2.50",
+                    },
+                    subentry_type=SUBENTRY_BATTERY,
+                    title="Venus",
+                    unique_id="sensor.marstek_power",
+                )
+            ],
+        )
+        entry.add_to_hass(hass)
+        _set(hass, "sensor.marstek_soc", "50", "%")
+        _set(hass, "sensor.marstek_power", "-100", "W")  # sensor says otherwise
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+        (config,) = entry.runtime_data.batteries.configs
+        assert config.meter_driver == "homewizard"
+        assert battery_power(hass, config) == 750.0
+        state = entry.runtime_data.batteries.states[config.id]
+        assert state.power_w == 750.0
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+    # Without the meter the power sensor counts again.
+    assert battery_power(hass, config) == 100.0

@@ -20,6 +20,8 @@ New meters are added as [drivers](drivers.md).
 
 Batteries are linked **read-only** through the entities of their own integration. Batteries of **Omnibattery** and **Marstek Modbus** are recognised and filled in, and their *battery driver* adds temperature, voltages, cell voltages, cycles, energy of today and measured efficiency; any other battery can be linked manually.
 
+Optionally a battery gets an **external meter** on its line (e.g. a HomeWizard kWh meter, read directly): its power is then used instead of the power sensor — see [Drivers](drivers.md).
+
 Per battery: state of charge, power, status, stored/usable energy, time to full/empty, charged/discharged energy, last full charge and realised return, plus totals over all batteries.
 
 What a battery does by its own control (charging, supplying, stopping) is explained as periods in *Why*, compared with the plan — see [Planning](planning.md#explanation).

@@ -64,7 +64,7 @@ from ..devices.meters.discovery import (
 )
 from ..explain import DecisionLog
 from ..units import state_to_watts
-from .battery_monitor import battery_configs, battery_power
+from .battery_monitor import battery_configs, battery_meter, battery_power
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -188,6 +188,12 @@ class MeasurementInput:
         if self.direct is not None:
             self._unsub_direct = self.direct.async_add_listener(self._update)
         self._unsub_pv = [m.async_add_listener(self._update) for m, _ in self.pv_meters]
+        # Batteries read by an external meter: update with its values too.
+        self._unsub_pv += [
+            meter.async_add_listener(self._update)
+            for b in self.batteries
+            if (meter := battery_meter(self.hass, b)) is not None
+        ]
         self._update(dt_util.utcnow())
 
     async def async_start_meter(self) -> None:

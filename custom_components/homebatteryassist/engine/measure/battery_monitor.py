@@ -34,6 +34,9 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from ...const import (
+    BATTERY_METER_NONE,
+    CONF_BATTERY_METER,
+    CONF_BATTERY_METER_ADDRESS,
     CONF_CAPACITY,
     CONF_EFFICIENCY,
     CONF_FULL_CHARGE_INTERVAL,
@@ -140,6 +143,10 @@ class BatteryConfig:
     initial_soc: float = DEFAULT_INITIAL_SOC
     loss_min: float = 0.0  # virtual: round-trip loss range (fraction)
     loss_max: float = 0.0
+    # External meter on the battery's line (driver key, address): its power
+    # (+ into the battery = charging) is used instead of the power sensor.
+    meter_driver: str = ""
+    meter_address: str = ""
 
     @classmethod
     def from_subentry(cls, subentry: ConfigSubentry) -> BatteryConfig:
@@ -174,6 +181,14 @@ class BatteryConfig:
             initial_soc=float(data.get(CONF_INITIAL_SOC, DEFAULT_INITIAL_SOC)),
             loss_min=loss_min if virtual else 0.0,
             loss_max=loss_max if virtual else 0.0,
+            meter_driver=(
+                ""
+                if virtual
+                or data.get(CONF_BATTERY_METER, BATTERY_METER_NONE)
+                == BATTERY_METER_NONE
+                else data[CONF_BATTERY_METER]
+            ),
+            meter_address="" if virtual else data.get(CONF_BATTERY_METER_ADDRESS, ""),
         )
 
 
@@ -268,8 +283,23 @@ def _soc(state: State | None) -> float | None:
     return value
 
 
+METERS_KEY = f"{DOMAIN}_battery_meters"  # hass.data: battery id -> DirectMeter
+
+
+def battery_meter(hass: HomeAssistant, config: BatteryConfig) -> Any:
+    """The running external meter of a battery, if it has one."""
+    return hass.data.get(METERS_KEY, {}).get(config.id)
+
+
 def battery_power(hass: HomeAssistant, config: BatteryConfig) -> float | None:
-    """Battery power in W, + charging / - discharging, or None if unknown."""
+    """Battery power in W, + charging / - discharging, or None if unknown.
+
+    From the battery's external meter when it has a value (+ into the battery),
+    otherwise from the battery's power sensor.
+    """
+    meter = battery_meter(hass, config)
+    if meter is not None and meter.available and meter.phase_w:
+        return round(sum(meter.phase_w), 1)
     watts = state_to_watts(hass.states.get(config.power_sensor))
     if watts is None:
         return None
@@ -358,7 +388,8 @@ class BatteryInput:
         self._pending: dict[str, tuple[str, datetime, CALLBACK_TYPE]] = {}
         # battery id -> start of the current period with the counters then
         self._began: dict[str, tuple[datetime, float, float]] = {}
-        self._startup: dict[str, CALLBACK_TYPE] = {}  # the one message after start-up
+        self._startup: dict[str, CALLBACK_TYPE] = {}
+        self._meter_unsubs: list[CALLBACK_TYPE] = []  # the one message after start-up
         # When the current activity is expected to end and why
         # (``empty``/``full``/``pv_end``/``pv_covers``), if known.
         self.expected_until: Callable[[str, str], tuple[datetime, str] | None] = (
@@ -389,6 +420,7 @@ class BatteryInput:
                 stats.pop("value_since", None)
                 stats.pop("value_kwh", None)
                 stats["value_basis"] = VALUE_BASIS
+        await self._async_start_meters()
         entity_ids = [
             e
             for c in self.configs
@@ -421,6 +453,7 @@ class BatteryInput:
         for cancel in self._startup.values():
             cancel()
         self._startup.clear()
+        await self._async_stop_meters()
         # Count the energy up to now (else the last stretch before a reload or
         # restart is lost).
         now = dt_util.utcnow()
@@ -428,6 +461,37 @@ class BatteryInput:
             if not config.virtual:
                 self._count_energy(config.id, now, self.states[config.id].power_w)
         await self._store.async_save(self._data())
+
+    async def _async_start_meters(self) -> None:
+        """Start the external meters of the batteries that have one."""
+        from ..devices.meters import get_driver  # devices: a lower layer
+
+        meters = self.hass.data.setdefault(METERS_KEY, {})
+        for config in self.configs:
+            if config.virtual or not config.meter_driver or not config.meter_address:
+                continue
+            driver = get_driver(config.meter_driver)
+            if driver is None:
+                _LOGGER.warning(
+                    "Unknown meter %s for battery %s", config.meter_driver, config.name
+                )
+                continue
+            meter = driver.create(self.hass, config.meter_address)
+            meters[config.id] = meter
+            self._meter_unsubs.append(
+                meter.async_add_listener(lambda when, c=config: self._update(c, when))
+            )
+            await meter.async_start()
+
+    async def _async_stop_meters(self) -> None:
+        meters = self.hass.data.get(METERS_KEY, {})
+        for unsub in self._meter_unsubs:
+            unsub()
+        self._meter_unsubs.clear()
+        for config in self.configs:
+            if (meter := meters.pop(config.id, None)) is not None:
+                meter.cancel_stale()
+                await meter.async_stop()
 
     @callback
     def async_add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:

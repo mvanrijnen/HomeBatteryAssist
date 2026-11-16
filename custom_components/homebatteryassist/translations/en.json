@@ -383,6 +383,11 @@
       "options": {
         "source": "As the price source and export settings give them"
       }
+    },
+    "battery_meter": {
+      "options": {
+        "none": "No external meter"
+      }
     }
   },
   "options": {
@@ -733,7 +738,9 @@
             "round_trip_efficiency": "Round-trip efficiency",
             "full_charge_interval_days": "Full charge every",
             "phase": "Phase",
-            "temperature_sensor": "Temperature sensor (optional)"
+            "temperature_sensor": "Temperature sensor (optional)",
+            "battery_meter": "Battery meter (optional)",
+            "battery_meter_address": "Address of the battery meter"
           },
           "data_description": {
             "soc_sensor": "Sensor with the state of charge in %.",
@@ -745,7 +752,9 @@
             "round_trip_efficiency": "Share of charged energy that comes back out when discharging.",
             "full_charge_interval_days": "Charge to 100% at least every this many days (cell balancing). 0 = never.",
             "phase": "The phase the battery is connected to, if it uses a single phase.",
-            "temperature_sensor": "Battery temperature; when warm the plans use less power (see the temperature settings)."
+            "temperature_sensor": "Battery temperature; when warm the plans use less power (see the temperature settings).",
+            "battery_meter": "A meter on the battery's line that can be read directly, e.g. a kWh meter. Its power (+ into the battery = charging) is then used instead of the power sensor; for batteries whose integration does not give their own power, or as a check.",
+            "battery_meter_address": "IP address or host name of that meter."
           }
         },
         "battery": {
@@ -764,7 +773,9 @@
             "round_trip_efficiency": "Round-trip efficiency",
             "full_charge_interval_days": "Full charge every",
             "phase": "Phase",
-            "temperature_sensor": "Temperature sensor (optional)"
+            "temperature_sensor": "Temperature sensor (optional)",
+            "battery_meter": "Battery meter (optional)",
+            "battery_meter_address": "Address of the battery meter"
           },
           "data_description": {
             "soc_sensor": "Sensor with the state of charge in %.",
@@ -776,7 +787,9 @@
             "round_trip_efficiency": "Share of charged energy that comes back out when discharging.",
             "full_charge_interval_days": "Charge to 100% at least every this many days (cell balancing). 0 = never.",
             "phase": "The phase the battery is connected to, if it uses a single phase.",
-            "temperature_sensor": "Battery temperature; when warm the plans use less power (see the temperature settings)."
+            "temperature_sensor": "Battery temperature; when warm the plans use less power (see the temperature settings).",
+            "battery_meter": "A meter on the battery's line that can be read directly, e.g. a kWh meter. Its power (+ into the battery = charging) is then used instead of the power sensor; for batteries whose integration does not give their own power, or as a check.",
+            "battery_meter_address": "IP address or host name of that meter."
           }
         }
       },

@@ -65,8 +65,11 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     BALANCE_INTERVAL_OPTIONS,
+    BATTERY_METER_NONE,
     BATTERY_SENSOR_KEYS,
     CONF_BALANCE_INTERVAL,
+    CONF_BATTERY_METER,
+    CONF_BATTERY_METER_ADDRESS,
     CONF_CAPACITY,
     CONF_CHARGE_HYSTERESIS,
     CONF_CONSUMPTION_FORECASTER,
@@ -1429,6 +1432,24 @@ def battery_schema(three_phase: bool) -> vol.Schema:
                 domain="sensor", device_class=SensorDeviceClass.TEMPERATURE
             )
         ),
+        # Optional external meter on the battery's line (read directly).
+        vol.Required(CONF_BATTERY_METER, default=BATTERY_METER_NONE): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    SelectOptionDict(
+                        value=BATTERY_METER_NONE, label=BATTERY_METER_NONE
+                    ),
+                    *(
+                        SelectOptionDict(value=d.key, label=d.name)
+                        for d in METER_DRIVERS
+                        if d.pv_capable
+                    ),
+                ],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_BATTERY_METER,
+            )
+        ),
+        vol.Optional(CONF_BATTERY_METER_ADDRESS): TextSelector(),
     }
     if three_phase:
         schema[vol.Required(CONF_PHASE, default=PHASE_NONE)] = phase_selector()
@@ -1510,6 +1531,12 @@ class BatterySubentryFlow(ConfigSubentryFlow):
                 errors[CONF_POWER_SENSOR] = "sensor_in_use"
             if user_input[CONF_MIN_SOC] >= user_input[CONF_MAX_SOC]:
                 errors[CONF_MAX_SOC] = "soc_range"
+            if (
+                user_input.get(CONF_BATTERY_METER, BATTERY_METER_NONE)
+                != BATTERY_METER_NONE
+                and not (user_input.get(CONF_BATTERY_METER_ADDRESS) or "").strip()
+            ):
+                errors[CONF_BATTERY_METER_ADDRESS] = "address_required"
             if not errors:
                 return self._async_finish(self._battery_data(user_input), current)
 
