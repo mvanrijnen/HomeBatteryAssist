@@ -107,7 +107,7 @@ HomeBatteryAssist never controls anything, so it can run next to any battery or 
 
 ## Why did it do that? Logging
 
-- **Last decision** sensor: a short explanation in your language of the latest decision or notable change; the `recent` attribute holds the last 10. The dashboard shows them too.
+- **Last decision** sensor: a short explanation in your language of the latest decision or notable change; the `recent` attribute holds the last 10. The dashboard shows them too. Besides the plan (advice), it explains what each real battery does by its own control — starting to charge, supply or stopping, once that lasts 5 minutes — and whether that matches the plan.
 - **Diagnostics**: Settings → Devices & services → HomeBatteryAssist → ⋮ → *Download diagnostics* gives the configuration and the state of each module, useful when reporting an issue.
 - **Technical logging** per module, e.g. in `configuration.yaml`:
 

@@ -26,6 +26,7 @@ from homeassistant.core import (
     callback,
 )
 from homeassistant.helpers.event import (
+    async_call_later,
     async_track_state_change_event,
     async_track_utc_time_change,
 )
@@ -73,6 +74,31 @@ _LOGGER = logging.getLogger(__name__)
 STORAGE_VERSION = 1
 SOC_LOG_RETENTION = timedelta(days=7)
 SAVE_DELAY = 60  # seconds
+# A real battery's activity (charging / discharging / idle) is explained once
+# it has lasted this long, so short swings are not logged.
+ACTIVITY_SETTLE = timedelta(minutes=5)
+ACTIVITY_THRESHOLD_W = 50.0  # |power| above this counts as charging/discharging
+
+
+def activity_of(power_w: float) -> str:
+    """``charging`` / ``discharging`` / ``idle`` for a power (+ charging)."""
+    if power_w > ACTIVITY_THRESHOLD_W:
+        return "charging"
+    if power_w < -ACTIVITY_THRESHOLD_W:
+        return "discharging"
+    return "idle"
+
+
+def plan_comparison(actual: str, planned_w: float | None) -> str:
+    """How a battery's activity compares with the plan right now: ``same``,
+    ``charge`` / ``discharge`` / ``idle`` (what the plan said instead) or
+    ``none`` (no plan)."""
+    if planned_w is None:
+        return "none"
+    planned = activity_of(planned_w)
+    if planned == actual:
+        return "same"
+    return {"charging": "charge", "discharging": "discharge"}.get(planned, "idle")
 
 
 class BatteryStatus(StrEnum):
@@ -314,6 +340,11 @@ class BatteryInput:
         # Measured grid power right now, W (+ import / - export), real
         # batteries included, virtual batteries not.
         self.grid_now: Callable[[], float | None] = lambda: None
+        # Planned power of all batteries right now, W (+ charging), if any.
+        self.planned_now: Callable[[], float | None] = lambda: None
+        # battery id -> explained activity, and a pending change with its timer
+        self._activity: dict[str, str] = {}
+        self._pending: dict[str, tuple[str, CALLBACK_TYPE]] = {}
         # battery id -> [[ISO time, state of charge %], ...] every quarter, 7 days
         self.soc_log: dict[str, list[list[Any]]] = {}
 
@@ -363,6 +394,9 @@ class BatteryInput:
         if self._unsub_log is not None:
             self._unsub_log()
             self._unsub_log = None
+        for _activity, cancel in self._pending.values():
+            cancel()
+        self._pending.clear()
         await self._store.async_save(self._data())
 
     @callback
@@ -417,6 +451,8 @@ class BatteryInput:
                 "battery", "battery_full_charge", name=config.name
             )
         self._explain_availability(config, state.available)
+        if not config.virtual:
+            self._follow_activity(config, state.power_w)
 
         self._store.async_delay_save(self._data, SAVE_DELAY)
         for listener in list(self._listeners):
@@ -467,6 +503,44 @@ class BatteryInput:
             else:
                 grid += self.states[config.id].power_w or 0.0
         return grid
+
+    def _follow_activity(self, config: BatteryConfig, power: float | None) -> None:
+        """Explain what a real battery does (its own control), once a change
+        has lasted ``ACTIVITY_SETTLE``; not the first state after start-up."""
+        if power is None:
+            return
+        activity = activity_of(power)
+        if config.id not in self._activity:
+            self._activity[config.id] = activity
+            return
+        pending = self._pending.get(config.id)
+        if pending is not None and pending[0] == activity:
+            return
+        if pending is not None:
+            pending[1]()
+            del self._pending[config.id]
+        if activity == self._activity[config.id]:
+            return
+
+        @callback
+        def _settled(_now: datetime) -> None:
+            self._pending.pop(config.id, None)
+            self._activity[config.id] = activity
+            power_w = self.states[config.id].power_w or 0.0
+            planned = self.planned_now()
+            self._decisions.async_log(
+                "battery",
+                f"battery_{activity}",
+                name=config.name,
+                power=f"{abs(power_w):.0f} W",
+                plan=plan_comparison(activity, planned),
+                planned=f"{abs(planned or 0.0):.0f} W",
+            )
+
+        self._pending[config.id] = (
+            activity,
+            async_call_later(self.hass, ACTIVITY_SETTLE, _settled),
+        )
 
     def _explain_availability(self, config: BatteryConfig, available: bool) -> None:
         """Explain losing / regaining a battery (not the first state at start-up)."""

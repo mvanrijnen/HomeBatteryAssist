@@ -16,7 +16,10 @@ from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 from custom_components.homebatteryassist.const import (
     CONF_CAPACITY,
@@ -390,4 +393,56 @@ async def test_no_battery_no_totals(hass: HomeAssistant) -> None:
             "sensor", DOMAIN, f"{entry.entry_id}_batteries_soc"
         )
         is None
+    )
+
+
+async def test_activity_explained(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """What a real battery does by itself is explained once it lasts, next to
+    what the plan said; short swings are not."""
+    freezer.move_to(NOW)
+    entry = await _entry(hass)
+    batteries = entry.runtime_data.batteries
+    batteries.planned_now = lambda: 0.0
+    decisions = entry.runtime_data.decisions
+    _set(hass, "sensor.marstek_soc", "50", "%")
+    _set(hass, "sensor.marstek_power", "0", "W")  # first state: not explained
+    await hass.async_block_till_done()
+    before = decisions.latest
+
+    # A short swing (2 minutes) is not explained.
+    _set(hass, "sensor.marstek_power", "800", "W")  # discharging
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(minutes=2))
+    async_fire_time_changed(hass)
+    _set(hass, "sensor.marstek_power", "0", "W")
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(minutes=6))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert decisions.latest == before
+
+    # Lasting discharging, while the plan said idle.
+    _set(hass, "sensor.marstek_power", "500", "W")
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(minutes=6))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert decisions.latest["key"] == "battery_discharging"
+    assert decisions.latest["message"] == (
+        "Venus is supplying the house with 500 W. The plan said: neither charge "
+        "nor supply now. The battery follows its own control; "
+        "HomeBatteryAssist only advises."
+    )
+
+    # Charging as planned.
+    batteries.planned_now = lambda: 1000.0
+    _set(hass, "sensor.marstek_power", "-1200", "W")
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(minutes=6))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert decisions.latest["message"] == (
+        "Venus is charging at 1200 W. That matches the plan."
     )

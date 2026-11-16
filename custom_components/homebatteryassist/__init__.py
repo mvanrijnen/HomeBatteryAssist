@@ -117,6 +117,14 @@ async def async_setup_entry(
 
     batteries.price_now = _price_now
     batteries.export_price_now = _export_price_now
+
+    def _planned_now() -> float | None:
+        data, now = forecast.data, dt_util.utcnow()
+        if data is None:
+            return None
+        return next((s.power_w for s in data.battery if s.start <= now < s.end), None)
+
+    batteries.planned_now = _planned_now
     await forecast.async_config_entry_first_refresh()
     if not hass.is_running:
         # Other integrations (price and PV forecasts) may still be starting:
