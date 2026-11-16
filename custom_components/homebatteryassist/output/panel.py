@@ -21,6 +21,7 @@ from homeassistant.util import dt as dt_util
 from ..const import DOMAIN, NAME, NOMINAL_VOLTAGE
 from ..forecasts.accuracy import BUCKET_KEYS, KINDS
 from ..history.profile import day_profile, days_covered, hourly_series
+from ..inputs.battery_drivers import telemetry as battery_telemetry
 from ..inputs.direct import SOURCE_NAMES, find_direct_meters
 from ..inputs.measurements import MeasurementInput
 from ..inputs.meters import find_meter_candidates
@@ -221,6 +222,8 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
                 "max_charge_w": config.max_charge_w,
                 "max_discharge_w": config.max_discharge_w,
                 "phase": config.phase,
+                # Extra details from the battery's driver (temperature, cells, ...)
+                "details": battery_telemetry(hass, config).as_dict(),
                 "entities": _entity_ids(
                     registry, config.id, (d.key for d in BATTERY_SENSORS)
                 ),

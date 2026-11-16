@@ -34,6 +34,17 @@ const TEXT = {
     emptyAt: "Empty at",
     phases: "Grid connection",
     phase: "Phase",
+    detail: {
+      temperature_c: ["Temperature", "°C", 1],
+      voltage_v: ["Voltage", "V", 1],
+      cell_min_v: ["Cell min.", "V", 3],
+      cell_max_v: ["Cell max.", "V", 3],
+      cell_delta_v: ["Cell difference", "V", 3],
+      cycles: ["Cycles", "", 0],
+      charged_today_kwh: ["Charged today", "kWh", 2],
+      discharged_today_kwh: ["Discharged today", "kWh", 2],
+      efficiency_pct: ["Efficiency (measured)", "%", 1],
+    },
     allPhases: "all phases",
     withVirtual: "with virtual batteries",
     phaseLimit: "limit {a} A (fuse with {m}% margin)",
@@ -174,6 +185,17 @@ const TEXT = {
     emptyAt: "Leeg om",
     phases: "Netaansluiting",
     phase: "Fase",
+    detail: {
+      temperature_c: ["Temperatuur", "°C", 1],
+      voltage_v: ["Spanning", "V", 1],
+      cell_min_v: ["Cel min.", "V", 3],
+      cell_max_v: ["Cel max.", "V", 3],
+      cell_delta_v: ["Celverschil", "V", 3],
+      cycles: ["Cycli", "", 0],
+      charged_today_kwh: ["Geladen vandaag", "kWh", 2],
+      discharged_today_kwh: ["Ontladen vandaag", "kWh", 2],
+      efficiency_pct: ["Rendement (gemeten)", "%", 1],
+    },
     allPhases: "alle fasen",
     withVirtual: "met virtuele batterijen",
     phaseLimit: "grens {a} A (zekering met {m}% marge)",
@@ -686,6 +708,15 @@ class HomeBatteryAssistPanel extends HTMLElement {
       ${this._status?.phases === 3 ? `<div class="row"><span>${esc(t.phase)}</span><b>${esc(b.phase && b.phase !== "none" ? b.phase.toUpperCase() : t.allPhases)}</b></div>` : ""}
       <div class="row"><span>${esc(status === "discharging" ? t.discharging : t.charging)}</span><b>${this._power(power === null ? null : Math.abs(power))}</b></div>
       ${target ? `<div class="row"><span>${esc(status === "charging" ? t.fullAt : t.emptyAt)}</span><b>${this._time(target)}</b></div>` : ""}
+      ${Object.entries(b.details || {})
+        .filter(([k]) => t.detail[k])
+        .map(([k, v]) => {
+          const [label, unit, digits] = t.detail[k];
+          const lang = this._hass.locale?.language || this._hass.language;
+          const text = Number(v).toLocaleString(lang, { maximumFractionDigits: digits, minimumFractionDigits: digits });
+          return `<div class="row"><span>${esc(label)}</span><b>${esc(text)}${unit ? ` ${unit}` : ""}</b></div>`;
+        })
+        .join("")}
     </div>`;
   }
 

@@ -98,6 +98,7 @@ from ..explain import DecisionLog
 from ..explain.plan_story import plan_story
 from ..history.consumption import ConsumptionHistory
 from ..inputs.batteries import BatteryState
+from ..inputs.battery_drivers import telemetry as battery_telemetry
 from ..inputs.price_drivers import (
     ROLE_EXPORT,
     ROLE_IMPORT,
@@ -525,6 +526,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             celsius = float(temp.state) if temp else None
         except ValueError:
             celsius = None
+        if celsius is None:
+            # No own sensor: the battery's driver may know the temperature.
+            celsius = battery_telemetry(self.hass, state.config).temperature_c
         t = self.temperature
         if celsius is None or celsius <= t["limit"] or t["band"] <= 0:
             return state
