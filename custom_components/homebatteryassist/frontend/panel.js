@@ -290,12 +290,13 @@ const STYLE = `
   .card { background: var(--card-background-color); border-radius: var(--ha-card-border-radius, 12px);
     box-shadow: var(--ha-card-box-shadow, none); border: 1px solid var(--divider-color); padding: 16px; }
   h2 { margin: 0 0 12px; font-size: 16px; font-weight: 500; color: var(--secondary-text-color); }
-  .flows { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .flows { display: flex; flex-wrap: wrap; gap: 10px; }
+  .flows > .flow { flex: 1 1 0; min-width: 112px; }
   .flow { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 10px;
     background: var(--secondary-background-color); }
   .flow ha-icon { --mdc-icon-size: 28px; color: var(--state-icon-color, var(--primary-color)); }
-  .flow .value { font-size: 24px; font-weight: 500; }
-  .flow .label { color: var(--secondary-text-color); font-size: 13px; }
+  .flow .value { font-size: 22px; font-weight: 500; white-space: nowrap; }
+  .flow .label { color: var(--secondary-text-color); font-size: 12px; }
   .flow .value small { font-size: 60%; font-weight: 400; margin-left: 2px; }
   .pv ha-icon { color: var(--warning-color, #f4b400); }
   .export .value { color: var(--success-color, #43a047); }
