@@ -142,6 +142,9 @@ async def test_status_websocket(
     assert result["reach"]["price_end"] is None
     assert result["reach"]["max_end"] > result["window"]["start"]
     assert result["decisions"][0]["message"]
+    assert result["planner"]["key"] == "nom"
+    assert result["planner"]["builtin"] is True
+    assert result["planner"]["fallback"] is False
 
     await hass.config_entries.async_unload(entry.entry_id)
     await client.send_json_auto_id({"type": f"{DOMAIN}/status"})

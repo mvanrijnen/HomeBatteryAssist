@@ -231,6 +231,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         # Own planner modules (key custom_<key>), next to the built-in modes.
         self.planners: dict[str, Planner] = dict(planners or {})
         self._failed_planners: set[str] = set()
+        self.plan_fallback = False  # the chosen own planner failed or is gone
         self.export_factor: float = entry.options.get(
             CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR
         )
@@ -521,7 +522,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             if plan is not None:
                 plans[mode] = plan
         selected = plans.get(self.plan_mode)
-        if selected is None and self.plan_mode not in PLAN_MODES:
+        self.plan_fallback = selected is None and self.plan_mode not in PLAN_MODES
+        if self.plan_fallback:
             # The chosen own planner is gone or failed: zero on the meter.
             selected = plans.get(MODE_NOM)
         battery = selected.slots if selected else []

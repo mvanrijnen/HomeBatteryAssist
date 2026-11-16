@@ -111,6 +111,11 @@ const TEXT = {
     batteryExpected: "Battery plan",
     planModes: { nom: "NOM", arbitrage: "arbitrage", arbitrage_full: "full arbitrage", time_slots: "time slots", manual: "manual" },
     planInfo: "Battery plan ({mode}, advice): expected saving {saving}",
+    plannerActive: "Active planner:",
+    plannerBuiltin: "built-in",
+    plannerOwn: "own module",
+    plannerSaving: "expected saving {saving} until {until} compared with no battery",
+    plannerFallback: "This planner failed or is missing: zero on the meter is used instead (see Why).",
     planOther: "{mode}: {saving}",
     socExpected: "Expected state of charge",
     socTitle: "State of charge of the batteries",
@@ -292,6 +297,11 @@ const TEXT = {
     batteryExpected: "Batterijplan",
     planModes: { nom: "NOM", arbitrage: "arbitrage", arbitrage_full: "arbitrage volledig", time_slots: "tijdvakken", manual: "handmatig" },
     planInfo: "Batterijplan ({mode}, advies): verwachte besparing {saving}",
+    plannerActive: "Actieve planningsmodule:",
+    plannerBuiltin: "ingebouwd",
+    plannerOwn: "eigen module",
+    plannerSaving: "verwachte besparing {saving} tot {until} t.o.v. geen batterij",
+    plannerFallback: "Deze module gaf een fout of ontbreekt: nul op de meter wordt gebruikt (zie Waarom).",
     planOther: "{mode}: {saving}",
     socExpected: "Verwachte vulling",
     socTitle: "Vulling batterijen",
@@ -431,6 +441,8 @@ const STYLE = `
   ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
   li { display: grid; grid-template-columns: 90px 1fr; gap: 8px; font-size: 14px; }
   li time { color: var(--secondary-text-color); }
+  .card.planner { padding: 10px 16px; font-size: 15px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+  .alert-text { flex-basis: 100%; color: var(--error-color, #db4437); font-size: 13px; }
   ul.decisions { gap: 0; }
   ul.decisions li { padding: 8px 0; border-bottom: 1px solid var(--divider-color); line-height: 1.45; }
   ul.decisions li:last-child { border-bottom: none; }
@@ -1569,6 +1581,21 @@ class HomeBatteryAssistPanel extends HTMLElement {
     }`;
   }
 
+  _planner(s, t) {
+    const p = s.planner;
+    if (!p) return "";
+    const name = t.planModes[p.key] || p.name || p.key;
+    const kind = p.builtin ? t.plannerBuiltin : t.plannerOwn;
+    const unit = this._history?.price_unit?.split("/")[0] || "";
+    const saving =
+      p.saving == null
+        ? ""
+        : ` · ${t.plannerSaving.replace("{saving}", `${p.saving.toFixed(2)} ${unit}`.trim()).replace("{until}", this._time(p.until))}`;
+    const warn = p.fallback ? `<div class="alert-text">${esc(t.plannerFallback)}</div>` : "";
+    return `<div class="card planner"><span class="muted">${esc(t.plannerActive)}</span>
+      <b>${esc(name.charAt(0).toUpperCase() + name.slice(1))}</b> <small class="muted">(${esc(kind)})</small>${esc(saving)}${warn}</div>`;
+  }
+
   _decisions(s, t) {
     const items = s.decisions.length
       ? `<ul class="decisions">${s.decisions.map((d) => `<li><time>${this._time(d.time)}</time><div>${this._message(d.message)}</div></li>`).join("")}</ul>`
@@ -1586,7 +1613,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     else {
       const s = this._status;
       const tabs = {
-        overview: () => [this._flows(s, t), this._phases(s, t), this._decisions(s, t)],
+        overview: () => [this._planner(s, t), this._flows(s, t), this._phases(s, t), this._decisions(s, t)],
         forecast: () => [this._consumption(t), this._planning(s, t)],
         value: () => [this._compare(s, t), this._planCheck(s, t)],
         batteries: () => [this._batteries(s, t)],

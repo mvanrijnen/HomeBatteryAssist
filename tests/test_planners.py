@@ -173,5 +173,6 @@ async def test_failing_own_planner_falls_back(hass) -> None:
     assert forecast.plan_mode == "custom_broken"
     assert "custom_broken" not in forecast.data.plans
     assert forecast.data.battery  # zero on the meter instead
+    assert forecast.plan_fallback is True
     keys = [d["key"] for d in data.decisions.entries]
     assert "planner_failed" in keys

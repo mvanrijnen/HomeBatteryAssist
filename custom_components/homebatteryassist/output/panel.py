@@ -128,6 +128,19 @@ def _expected_reach(data: Any, battery_id: str) -> dict[str, str | None]:
     return result
 
 
+def _planner_info(forecast: Any) -> dict[str, Any]:
+    plan = forecast.data.plans.get(forecast.plan_mode)
+    return {
+        "key": forecast.plan_mode,
+        "name": forecast.planner_name(forecast.plan_mode),
+        "builtin": forecast.plan_mode not in forecast.planners,
+        "fallback": forecast.plan_fallback,
+        "saving": round(plan.saving, 2) if plan and plan.saving is not None else None,
+        "until": forecast.data.window.end.isoformat(),
+        "own": len(forecast.planners),
+    }
+
+
 def _meter_info(hass: HomeAssistant, measurements: MeasurementInput) -> dict[str, Any]:
     """Which grid meter is used: brand/type, how it is read, its address."""
     if measurements.direct is not None:
@@ -282,6 +295,8 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             "has_price": data.forecast.price_configured,
             "has_pv_forecast": bool(data.forecast.pv_entries),
         },
+        # The active planner module (built-in mode or own planner).
+        "planner": _planner_info(data.forecast),
         "decisions": [
             {"time": d["time"], "category": d["category"], "message": d["message"]}
             for d in reversed(data.decisions.entries[-RECENT_DECISIONS:])
