@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
 
-from ...measure.batteries import BatteryConfig
+from ...measure.battery_monitor import BatteryConfig
 from .base import BatteryModel, BatteryReader, BatteryTelemetry, platform_of
 from .marstek.venus_e_v3 import MarstekVenusEV3
 from .readers import READERS

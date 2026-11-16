@@ -23,8 +23,8 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .base import ROLE_IMPORT, PriceData, PriceDriver, PriceSource
-from .points import PricePoint
-from .sensors import SensorAttributeDriver
+from .price_points import PricePoint
+from .sensor_attributes import SensorAttributeDriver
 
 PVPC_KEY = re.compile(r"^price_(next_day_)?(\d{2})h$")
 

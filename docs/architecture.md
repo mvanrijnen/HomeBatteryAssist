@@ -34,26 +34,32 @@ custom_components/homebatteryassist/
 └── engine/
     ├── coordinator.py     one cycle through the layers
     ├── units.py           unit conversion
-    ├── user_modules.py    loading own modules from /config
+    ├── own_modules.py     loading own modules from /config
     ├── devices/           1  drivers
-    │   ├── batteries/     base.py, template.py, virtual.py (simulation),
-    │   │                  marstek/ (brand → venus.py → venus_e_v3.py),
-    │   │                  readers/ (omnibattery.py, marstek_modbus.py), profiles.py
+    │   ├── batteries/     base.py, template.py, virtual.py (simulation), recognition.py,
+    │   │                  marstek/ (__init__.py brand → venus.py → venus_e_v3.py),
+    │   │                  readers/ (entity_reader.py, omnibattery.py, marstek_modbus.py)
     │   └── meters/        base.py, template.py, homewizard.py, sma.py, shelly.py,
-    │                      iammeter.py, connection.py, direct.py, ha_meters.py
+    │                      iammeter.py, direct_reading.py, discovery.py,
+    │                      via_ha_integration.py
     ├── sources/           2  modules
-    │   ├── prices/        one file per kind of price source; in_development/
-    │   ├── pv_forecasts/  base.py, template.py, energy.py
-    │   └── tariffs/       base.py, template.py, source.py
-    ├── measure/           3  measurements.py, batteries.py
-    ├── history/           4  consumption.py, importer.py, profile.py
-    ├── forecast/          5  horizon.py, consumption.py, adjustments.py, phases.py,
-    │                         forecasters/ (base.py, template.py, profile.py, recent.py)
+    │   ├── prices/        base.py, template.py, price_points.py, dyntarnl.py,
+    │   │                  ha_price_actions.py, sensor_attributes.py, regional.py,
+    │   │                  price_forecasts.py, in_development/ (tibber.py)
+    │   ├── pv_forecasts/  base.py, template.py, solar_forecast_integrations.py,
+    │   │                  energy_dashboard_platform.py
+    │   └── tariffs/       base.py, template.py, as_price_source.py
+    ├── measure/           3  house_measurement.py, battery_monitor.py
+    ├── history/           4  consumption_history.py, history_import.py, chart_series.py
+    ├── forecast/          5  planning_window.py, consumption_forecast.py,
+    │                         user_adjustments.py, phase_shares.py,
+    │                         forecasters/ (base.py, template.py, weekday_hour_profile.py,
+    │                                       same_time_last_weeks.py)
     ├── planning/          6  battery_plan.py (final check), full_charge.py, phase_limit.py,
-    │                         distribution.py, schedule.py,
-    │                         planners/ (base.py, template.py, nom.py, arbitrage.py)
-    ├── evaluation/        7  accuracy.py, plan_check.py
-    └── explain/           8  messages.py, plan_story.py, decision_log.py, notify.py
+    │                         battery_distribution.py, time_slots.py,
+    │                         planners/ (base.py, template.py, zero_on_meter.py, arbitrage.py)
+    ├── evaluation/        7  forecast_accuracy.py, plan_check.py
+    └── explain/           8  messages.py, plan_story.py, decision_log.py, notifications.py
 ```
 
 ## Batteries: model and reader
@@ -67,4 +73,4 @@ So one battery type can be read through several integrations. The **virtual batt
 
 ## Meters
 
-One file per brand (`homewizard.py`, `sma.py`, `shelly.py`, `iammeter.py`), sharing `connection.py` (reading about once a second, a value going stale). Meters can also be read through their own Home Assistant integration (`ha_meters.py`).
+One file per brand (`homewizard.py`, `sma.py`, `shelly.py`, `iammeter.py`), sharing `direct_reading.py` (reading about once a second, a value going stale). Meters can also be read through their own Home Assistant integration (`via_ha_integration.py`).

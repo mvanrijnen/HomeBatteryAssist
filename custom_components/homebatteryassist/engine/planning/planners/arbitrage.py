@@ -36,7 +36,7 @@ from datetime import date
 from homeassistant.util import dt as dt_util
 
 from .base import Planner, PlannerInput, PlannerResult, grid_cost, may_discharge
-from .nom import follow
+from .zero_on_meter import follow
 
 SOC_STEPS = 100  # resolution of the stored energy (1 % of the usable range)
 CYCLE_SEARCH_STEPS = 6  # bisection steps for the cycle limit

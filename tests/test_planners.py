@@ -5,7 +5,7 @@ from pathlib import Path
 
 from homeassistant.util import dt as dt_util
 
-from custom_components.homebatteryassist.engine.forecast.consumption import (
+from custom_components.homebatteryassist.engine.forecast.consumption_forecast import (
     ForecastSlot,
 )
 from custom_components.homebatteryassist.engine.planning.battery_plan import (
@@ -19,7 +19,9 @@ from custom_components.homebatteryassist.engine.planning.planners import (
     PlannerResult,
     load_planners_from,
 )
-from custom_components.homebatteryassist.engine.sources.prices.points import PricePoint
+from custom_components.homebatteryassist.engine.sources.prices.price_points import (
+    PricePoint,
+)
 
 from .test_battery_plan import _battery
 

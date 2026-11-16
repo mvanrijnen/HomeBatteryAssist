@@ -15,10 +15,10 @@ from pathlib import Path
 
 from homeassistant.core import HomeAssistant
 
-from ...user_modules import CUSTOM_PREFIX, async_load_modules, load_modules_from
+from ...own_modules import CUSTOM_PREFIX, async_load_modules, load_modules_from
 from .arbitrage import ArbitrageFullPlanner, ArbitragePlanner
 from .base import Planner, PlannerBattery, PlannerInput, PlannerResult, PlannerSlot
-from .nom import ManualPlanner, NomPlanner, TimeSlotsPlanner
+from .zero_on_meter import ManualPlanner, NomPlanner, TimeSlotsPlanner
 
 BUILTIN: dict[str, Planner] = {
     p.key: p

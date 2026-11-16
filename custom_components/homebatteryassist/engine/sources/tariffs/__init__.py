@@ -14,10 +14,10 @@ from pathlib import Path
 
 from homeassistant.core import HomeAssistant
 
-from ...user_modules import async_load_modules, load_modules_from
-from ..prices.points import PricePoint
+from ...own_modules import async_load_modules, load_modules_from
+from ..prices.price_points import PricePoint
+from .as_price_source import SourceTariff
 from .base import MAX_PRICE, Tariff, TariffInput, TariffResult, TariffSlot
-from .source import SourceTariff
 
 DEFAULT_TARIFF = "source"
 BUILTIN: dict[str, Tariff] = {t.key: t for t in (SourceTariff(),)}

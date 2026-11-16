@@ -27,8 +27,8 @@ from datetime import datetime, timedelta
 
 from homeassistant.util import dt as dt_util
 
-from ..measure.batteries import BatteryState
-from ..sources.prices.points import PricePoint
+from ..measure.battery_monitor import BatteryState
+from ..sources.prices.price_points import PricePoint
 
 DEFAULT_WINDOW_DAYS = 3
 

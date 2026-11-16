@@ -9,7 +9,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .connection import SOURCE_IAMMETER, DirectCandidate, PollingMeter
+from .direct_reading import SOURCE_IAMMETER, DirectCandidate, PollingMeter
 
 
 class IammeterMeter(PollingMeter):

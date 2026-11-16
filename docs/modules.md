@@ -38,10 +38,10 @@ Everything stays **advice**: no module controls a battery or any other device.
 
    | Kind | Template and built-in modules |
    |---|---|
-   | Planner | `engine/planning/planners/template.py` (charge in the cheapest hours); `nom.py`, `arbitrage.py` |
-   | Consumption forecaster | `engine/forecast/forecasters/template.py` (average of the last day); `profile.py`, `recent.py` |
-   | Tariff | `engine/sources/tariffs/template.py` (a dynamic contract from the market price — fill in your own numbers); `source.py` |
-   | PV forecast source | `engine/sources/pv_forecasts/template.py` (a sensor with a `wh_hours` attribute); `energy.py` |
+   | Planner | `engine/planning/planners/template.py` (charge in the cheapest hours); `zero_on_meter.py`, `arbitrage.py` |
+   | Consumption forecaster | `engine/forecast/forecasters/template.py` (average of the last day); `weekday_hour_profile.py`, `same_time_last_weeks.py` |
+   | Tariff | `engine/sources/tariffs/template.py` (a dynamic contract from the market price — fill in your own numbers); `as_price_source.py` |
+   | PV forecast source | `engine/sources/pv_forecasts/template.py` (a sensor with a `wh_hours` attribute); `solar_forecast_integrations.py` |
 
 3. Give the class its own `key` and `name`. In a copied built-in module, change the relative imports (`from .base import ...`) into absolute ones (`from custom_components.homebatteryassist.<package>.base import ...`), as in the templates.
 4. Reload HomeBatteryAssist (Settings → Devices & services → HomeBatteryAssist → ⋮ → Reload). Your module appears in the settings as `custom_<key>`.

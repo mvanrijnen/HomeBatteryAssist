@@ -19,7 +19,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from .base import ROLE_IMPORT, ROLE_MARKET, PriceData, PriceDriver, PriceSource
-from .points import (
+from .price_points import (
     MARKET_ATTRIBUTES,
     merge_price_forecasts,
     parse_price_forecast,

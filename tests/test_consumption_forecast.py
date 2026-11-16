@@ -17,17 +17,17 @@ from custom_components.homebatteryassist.const import (
     CONF_PLANNING_HORIZON,
     DOMAIN,
 )
-from custom_components.homebatteryassist.engine.forecast.adjustments import (
-    Adjustment,
-    apply_adjustments,
-)
-from custom_components.homebatteryassist.engine.forecast.consumption import (
+from custom_components.homebatteryassist.engine.forecast.consumption_forecast import (
     ConsumptionProfile,
     forecast_consumption,
 )
-from custom_components.homebatteryassist.engine.forecast.horizon import (
+from custom_components.homebatteryassist.engine.forecast.planning_window import (
     HorizonLimit,
     PlanningWindow,
+)
+from custom_components.homebatteryassist.engine.forecast.user_adjustments import (
+    Adjustment,
+    apply_adjustments,
 )
 
 UTC = dt_util.UTC

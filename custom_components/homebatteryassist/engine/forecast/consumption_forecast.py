@@ -20,8 +20,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from ..history.consumption import ConsumptionRecord
-from .adjustments import Adjustment, apply_adjustments
+from ..history.consumption_history import ConsumptionRecord
 from .forecasters import (
     BUILTIN,
     DEFAULT_FORECASTER,
@@ -29,13 +28,14 @@ from .forecasters import (
     ForecasterInput,
     ForecasterResult,
 )
-from .forecasters.profile import (
+from .forecasters.weekday_hour_profile import (
     HALF_LIFE,
     METHODS,
     MIN_DAYS,
     ConsumptionProfile,
 )
-from .horizon import PlanningWindow
+from .planning_window import PlanningWindow
+from .user_adjustments import Adjustment, apply_adjustments
 
 __all__ = [
     "HALF_LIFE",

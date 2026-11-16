@@ -12,7 +12,12 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .connection import SOURCE_SHELLY, SOURCE_SHELLY_EM, DirectCandidate, PollingMeter
+from .direct_reading import (
+    SOURCE_SHELLY,
+    SOURCE_SHELLY_EM,
+    DirectCandidate,
+    PollingMeter,
+)
 
 # Shelly 1-phase energy meters: model id prefix
 SHELLY_EM_MODELS = ("SHEM", "SPEM-002", "S3EM-002")

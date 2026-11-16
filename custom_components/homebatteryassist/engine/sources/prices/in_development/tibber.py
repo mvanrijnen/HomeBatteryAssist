@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
 
-from ..actions import ActionDriver, _days, points_from
 from ..base import PriceData
+from ..ha_price_actions import ActionDriver, _days, points_from
 
 
 class TibberDriver(ActionDriver):

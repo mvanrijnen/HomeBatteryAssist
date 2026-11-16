@@ -17,9 +17,9 @@ from pathlib import Path
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from ...user_modules import async_load_modules, load_modules_from
+from ...own_modules import async_load_modules, load_modules_from
 from .base import MAX_WH, PvForecastOption, PvForecastSource
-from .energy import EnergyPlatformSource
+from .solar_forecast_integrations import EnergyPlatformSource
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -23,7 +23,7 @@ from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME
 from ..engine.coordinator import ForecastCoordinator
-from ..engine.measure.measurements import MeasurementInput, PowerFlow
+from ..engine.measure.house_measurement import MeasurementInput, PowerFlow
 from ..models import HomeBatteryAssistConfigEntry
 from .batteries import (
     BATTERY_SENSORS,

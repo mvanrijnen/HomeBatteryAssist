@@ -16,7 +16,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .base import ROLE_IMPORT, ROLE_MARKET, PriceData, PriceDriver, PriceSource
-from .points import parse_price_forecast
+from .price_points import parse_price_forecast
 
 
 class SensorAttributeDriver(PriceDriver):

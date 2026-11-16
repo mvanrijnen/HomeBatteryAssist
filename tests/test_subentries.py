@@ -189,7 +189,7 @@ async def test_pv_source_read_directly(hass: HomeAssistant) -> None:
     )
     assert result["errors"] == {"pv_address": "address_required"}
     with patch(
-        "custom_components.homebatteryassist.engine.devices.meters.direct.HomeWizardP1.async_start",
+        "custom_components.homebatteryassist.engine.devices.meters.discovery.HomeWizardP1.async_start",
         AsyncMock(),
     ):
         result = await hass.config_entries.subentries.async_configure(

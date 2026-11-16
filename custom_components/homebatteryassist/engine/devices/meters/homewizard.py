@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .connection import SOURCE_HOMEWIZARD, DirectCandidate, PollingMeter
+from .direct_reading import SOURCE_HOMEWIZARD, DirectCandidate, PollingMeter
 
 # HomeWizard meters (product type = device model id) -> phases (None: depends
 # on the smart meter). Energy sockets and water meters are no grid meters.

@@ -489,7 +489,7 @@ async def test_direct_meter_keeps_own_sensors(
     no_speedwire_discovery.return_value = {"192.0.2.199": 1900000001}
     # No network in tests: the meter does not really listen.
     with patch(
-        "custom_components.homebatteryassist.engine.devices.meters.direct.SpeedwireMeter.async_start",
+        "custom_components.homebatteryassist.engine.devices.meters.discovery.SpeedwireMeter.async_start",
         AsyncMock(),
     ):
         await _direct_meter_keeps_own_sensors(hass)
@@ -556,7 +556,7 @@ async def test_direct_meter_by_address(hass: HomeAssistant) -> None:
     from unittest.mock import AsyncMock, patch
 
     with patch(
-        "custom_components.homebatteryassist.engine.devices.meters.direct.IammeterMeter.async_start",
+        "custom_components.homebatteryassist.engine.devices.meters.discovery.IammeterMeter.async_start",
         AsyncMock(),
     ):
         await _direct_meter_by_address(hass)

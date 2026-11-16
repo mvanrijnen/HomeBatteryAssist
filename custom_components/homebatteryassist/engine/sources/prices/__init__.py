@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
 
-from .actions import ACTION_DRIVERS
 from .base import (
     ROLE_EXPORT,
     ROLE_IMPORT,
@@ -18,9 +17,10 @@ from .base import (
     PriceSource,
 )
 from .dyntarnl import DynTarNLDriver
-from .forecasts import FORECAST_DRIVERS
+from .ha_price_actions import ACTION_DRIVERS
+from .price_forecasts import FORECAST_DRIVERS
 from .regional import REGIONAL_DRIVERS
-from .sensors import SENSOR_DRIVERS
+from .sensor_attributes import SENSOR_DRIVERS
 
 DRIVERS: tuple[PriceDriver, ...] = (
     DynTarNLDriver(),

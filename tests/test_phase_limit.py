@@ -9,11 +9,13 @@ from homeassistant.util import dt as dt_util
 from custom_components.homebatteryassist.engine.devices.batteries.virtual import (
     VirtualBatterySimulator,
 )
-from custom_components.homebatteryassist.engine.forecast.consumption import (
+from custom_components.homebatteryassist.engine.forecast.consumption_forecast import (
     ForecastSlot,
 )
-from custom_components.homebatteryassist.engine.forecast.phases import PhaseProfile
-from custom_components.homebatteryassist.engine.history.consumption import (
+from custom_components.homebatteryassist.engine.forecast.phase_shares import (
+    PhaseProfile,
+)
+from custom_components.homebatteryassist.engine.history.consumption_history import (
     ConsumptionHistory,
 )
 from custom_components.homebatteryassist.engine.planning.battery_plan import (
@@ -26,7 +28,9 @@ from custom_components.homebatteryassist.engine.planning.phase_limit import (
     max_power,
     phase_limit_w,
 )
-from custom_components.homebatteryassist.engine.sources.prices.points import PricePoint
+from custom_components.homebatteryassist.engine.sources.prices.price_points import (
+    PricePoint,
+)
 
 T0 = datetime(2026, 11, 16, 0, 0, tzinfo=dt_util.UTC)
 H = timedelta(hours=1)

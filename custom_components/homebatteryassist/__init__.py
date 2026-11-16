@@ -32,15 +32,19 @@ from .const import (
 )
 from .engine.coordinator import ForecastCoordinator
 from .engine.devices.batteries.virtual import VirtualBatterySimulator
-from .engine.evaluation.accuracy import ForecastAccuracy
+from .engine.evaluation.forecast_accuracy import ForecastAccuracy
 from .engine.evaluation.plan_check import PlanVerification
 from .engine.explain import DecisionLog
-from .engine.explain.notify import Notifier
-from .engine.forecast.adjustments import AdjustmentStore
+from .engine.explain.notifications import Notifier
 from .engine.forecast.forecasters import async_load_user_forecasters
+from .engine.forecast.user_adjustments import AdjustmentStore
 from .engine.history import ConsumptionHistory
-from .engine.measure.batteries import ACTIVITY_THRESHOLD_W, BatteryInput, activity_of
-from .engine.measure.measurements import MeasurementInput
+from .engine.measure.battery_monitor import (
+    ACTIVITY_THRESHOLD_W,
+    BatteryInput,
+    activity_of,
+)
+from .engine.measure.house_measurement import MeasurementInput
 from .engine.planning.battery_plan import MODE_NOM
 from .engine.planning.planners import async_load_user_planners
 from .engine.sources.pv_forecasts import async_load_user_pv_sources

@@ -225,7 +225,7 @@ def test_prices_now(hass: HomeAssistant) -> None:
 
     from homeassistant.util import dt as dt_util
 
-    from custom_components.homebatteryassist.engine.sources.prices.points import (
+    from custom_components.homebatteryassist.engine.sources.prices.price_points import (
         PricePoint,
     )
     from custom_components.homebatteryassist.output.panel import _prices_now

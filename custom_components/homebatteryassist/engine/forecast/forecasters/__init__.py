@@ -12,10 +12,10 @@ from pathlib import Path
 
 from homeassistant.core import HomeAssistant
 
-from ...user_modules import async_load_modules, load_modules_from
+from ...own_modules import async_load_modules, load_modules_from
 from .base import Forecaster, ForecasterInput, ForecasterResult
-from .profile import ProfileForecaster
-from .recent import LastWeeksForecaster
+from .same_time_last_weeks import LastWeeksForecaster
+from .weekday_hour_profile import ProfileForecaster
 
 DEFAULT_FORECASTER = "profile"
 BUILTIN: dict[str, Forecaster] = {

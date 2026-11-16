@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 from homeassistant.util import dt as dt_util
 
-from .consumption import ConsumptionRecord
+from .consumption_history import ConsumptionRecord
 
 WEEKEND = (5, 6)  # Saturday, Sunday
 

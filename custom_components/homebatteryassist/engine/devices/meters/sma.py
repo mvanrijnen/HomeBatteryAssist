@@ -35,7 +35,7 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
 
-from .connection import SOURCE_SPEEDWIRE, DirectMeter
+from .direct_reading import SOURCE_SPEEDWIRE, DirectMeter
 
 _LOGGER = logging.getLogger(__name__)
 

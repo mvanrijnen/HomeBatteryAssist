@@ -98,11 +98,10 @@ from ..const import (
     SUBENTRY_TIME_SLOT,
 )
 from .devices.batteries import telemetry as battery_telemetry
-from .evaluation.accuracy import FORECASTER_KIND, KINDS, ForecastAccuracy
+from .evaluation.forecast_accuracy import FORECASTER_KIND, KINDS, ForecastAccuracy
 from .explain import DecisionLog
 from .explain.plan_story import plan_story
-from .forecast.adjustments import AdjustmentStore
-from .forecast.consumption import (
+from .forecast.consumption_forecast import (
     METHODS,
     ForecastSlot,
     forecast_consumption,
@@ -110,10 +109,11 @@ from .forecast.consumption import (
 )
 from .forecast.forecasters import BUILTIN as FORECASTERS
 from .forecast.forecasters import DEFAULT_FORECASTER, Forecaster
-from .forecast.horizon import HorizonLimit, PlanningWindow, planning_horizon
-from .forecast.phases import PhaseProfile
-from .history.consumption import ConsumptionHistory
-from .measure.batteries import BatteryState
+from .forecast.phase_shares import PhaseProfile
+from .forecast.planning_window import HorizonLimit, PlanningWindow, planning_horizon
+from .forecast.user_adjustments import AdjustmentStore
+from .history.consumption_history import ConsumptionHistory
+from .measure.battery_monitor import BatteryState
 from .planning.battery_plan import (
     DEFAULT_PLAN_MODE,
     MODE_MANUAL,
@@ -133,7 +133,7 @@ from .planning.phase_limit import (
     phase_limit_w,
 )
 from .planning.planners import BUILTIN, Planner
-from .planning.schedule import WEEKDAYS, Target, TimeSlot, slot_target
+from .planning.time_slots import WEEKDAYS, Target, TimeSlot, slot_target
 from .sources.prices import (
     ROLE_EXPORT,
     ROLE_IMPORT,
@@ -141,7 +141,7 @@ from .sources.prices import (
     PriceData,
     split_key,
 )
-from .sources.prices.points import (
+from .sources.prices.price_points import (
     MARKET_ATTRIBUTES,
     PricePoint,
     calibrate,
@@ -150,10 +150,10 @@ from .sources.prices.points import (
     parse_price_forecast,
 )
 from .sources.pv_forecasts import PvForecastSource, async_read_pv_forecasts
-from .sources.pv_forecasts.solar_platform import PV_PERIOD
+from .sources.pv_forecasts.energy_dashboard_platform import PV_PERIOD
 from .sources.tariffs import BUILTIN as TARIFFS
 from .sources.tariffs import DEFAULT_TARIFF, Tariff, apply_tariff
-from .sources.tariffs.source import SourceTariff
+from .sources.tariffs.as_price_source import SourceTariff
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from ...measure.batteries import BatteryConfig
+from ...measure.battery_monitor import BatteryConfig
 
 
 @dataclass(slots=True)

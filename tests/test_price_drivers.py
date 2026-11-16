@@ -14,7 +14,7 @@ from custom_components.homebatteryassist.engine.sources.prices import (
     find_sources,
     split_key,
 )
-from custom_components.homebatteryassist.engine.sources.prices.actions import (
+from custom_components.homebatteryassist.engine.sources.prices.ha_price_actions import (
     EnergyZeroDriver,
     points_from,
 )
@@ -115,7 +115,7 @@ async def test_action_driver(hass: HomeAssistant) -> None:
 
 def test_calibrate_forecast_to_real_prices() -> None:
     """A bare forecast is lifted to the level of the real (all-in) prices."""
-    from custom_components.homebatteryassist.engine.sources.prices.points import (
+    from custom_components.homebatteryassist.engine.sources.prices.price_points import (
         PricePoint,
         calibrate,
     )
@@ -144,7 +144,7 @@ async def test_forecast_only_sources(hass: HomeAssistant) -> None:
 
 
 def test_epexpredictor_parse() -> None:
-    from custom_components.homebatteryassist.engine.sources.prices.forecasts import (
+    from custom_components.homebatteryassist.engine.sources.prices.price_forecasts import (
         EpexPredictorDriver,
     )
 
@@ -165,7 +165,7 @@ async def test_pvpc_and_amber_formats(hass: HomeAssistant) -> None:
     """PVPC hourly attributes and Amber's forecasts list."""
     from homeassistant.core import State
 
-    from custom_components.homebatteryassist.engine.sources.prices.points import (
+    from custom_components.homebatteryassist.engine.sources.prices.price_points import (
         parse_price_forecast,
     )
     from custom_components.homebatteryassist.engine.sources.prices.regional import (

@@ -11,9 +11,9 @@ from typing import ClassVar
 from homeassistant.core import HomeAssistant
 
 from .....const import SIGN_DISCHARGING_POSITIVE
-from ....measure.batteries import BatteryConfig
+from ....measure.battery_monitor import BatteryConfig
 from ..base import BatteryProfile, device_entities
-from .entities import EntityReader
+from .entity_reader import EntityReader
 
 
 class MarstekModbusReader(EntityReader):

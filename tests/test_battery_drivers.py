@@ -19,7 +19,9 @@ from custom_components.homebatteryassist.engine.devices.batteries.template impor
     ExampleHome10,
     TemplateBatteryReader,
 )
-from custom_components.homebatteryassist.engine.measure.batteries import BatteryConfig
+from custom_components.homebatteryassist.engine.measure.battery_monitor import (
+    BatteryConfig,
+)
 
 
 def test_template_not_registered() -> None:

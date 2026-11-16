@@ -24,7 +24,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.util import dt as dt_util
 
 from ...const import DOMAIN, NOMINAL_VOLTAGE, SIGN_DISCHARGING_POSITIVE
-from .consumption import ConsumptionHistory, ConsumptionRecord
+from .consumption_history import ConsumptionHistory, ConsumptionRecord
 
 _LOGGER = logging.getLogger(__name__)
 

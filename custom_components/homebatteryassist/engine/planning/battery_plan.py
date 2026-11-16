@@ -26,9 +26,9 @@ from datetime import date, datetime
 
 from homeassistant.util import dt as dt_util
 
-from ..forecast.consumption import ForecastSlot
-from ..measure.batteries import BatteryState
-from ..sources.prices.points import PricePoint
+from ..forecast.consumption_forecast import ForecastSlot
+from ..measure.battery_monitor import BatteryState
+from ..sources.prices.price_points import PricePoint
 from .planners import (
     BUILTIN,
     Planner,
@@ -38,7 +38,7 @@ from .planners import (
 )
 from .planners import PlannerSlot as _InSlot
 from .planners.base import grid_cost, may_discharge
-from .schedule import Target
+from .time_slots import Target
 
 DEFAULT_EXPORT_FACTOR = 1.0  # export earns the import price (net metering)
 DEFAULT_CYCLE_COST = 0.02  # per kWh through the battery (wear)

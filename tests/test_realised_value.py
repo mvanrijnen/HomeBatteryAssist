@@ -2,7 +2,9 @@
 
 import pytest
 
-from custom_components.homebatteryassist.engine.measure.batteries import realised_value
+from custom_components.homebatteryassist.engine.measure.battery_monitor import (
+    realised_value,
+)
 
 PRICE = 0.30
 EXPORT = 0.05

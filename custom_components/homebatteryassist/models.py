@@ -11,8 +11,8 @@ from .engine.coordinator import ForecastCoordinator
 from .engine.evaluation.plan_check import PlanVerification
 from .engine.explain import DecisionLog
 from .engine.history import ConsumptionHistory
-from .engine.measure.batteries import BatteryInput
-from .engine.measure.measurements import MeasurementInput
+from .engine.measure.battery_monitor import BatteryInput
+from .engine.measure.house_measurement import MeasurementInput
 
 
 @dataclass(slots=True)

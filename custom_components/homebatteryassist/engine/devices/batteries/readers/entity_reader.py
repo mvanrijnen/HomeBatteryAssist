@@ -8,7 +8,7 @@ from typing import ClassVar
 
 from homeassistant.core import HomeAssistant
 
-from ....measure.batteries import BatteryConfig
+from ....measure.battery_monitor import BatteryConfig
 from ....units import parse_float
 from ..base import BatteryReader, BatteryTelemetry, device_entities
 

@@ -56,7 +56,7 @@ from ...const import (
     phase_sensor_keys,
 )
 from ..devices.meters import get_driver as get_meter_driver
-from ..devices.meters.direct import (
+from ..devices.meters.discovery import (
     DIRECT_SOURCES,
     SOURCE_SENSORS,
     DirectMeter,
@@ -64,7 +64,7 @@ from ..devices.meters.direct import (
 )
 from ..explain import DecisionLog
 from ..units import state_to_watts
-from .batteries import battery_configs, battery_power
+from .battery_monitor import battery_configs, battery_power
 
 _LOGGER = logging.getLogger(__name__)
 

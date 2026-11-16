@@ -42,7 +42,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from ...const import DOMAIN
-from ..history.consumption import ConsumptionRecord
+from ..history.consumption_history import ConsumptionRecord
 
 _LOGGER = logging.getLogger(__name__)
 

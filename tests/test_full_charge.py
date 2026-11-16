@@ -9,7 +9,9 @@ from custom_components.homebatteryassist.engine.planning.full_charge import (
     full_charge_due,
     schedule_full_charges,
 )
-from custom_components.homebatteryassist.engine.sources.prices.points import PricePoint
+from custom_components.homebatteryassist.engine.sources.prices.price_points import (
+    PricePoint,
+)
 
 NOW = datetime(2026, 11, 16, 0, 0, tzinfo=dt_util.UTC)
 H = timedelta(hours=1)

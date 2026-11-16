@@ -3,6 +3,6 @@
 - ``consumption``: house consumption, time-weighted average per interval
 """
 
-from .consumption import ConsumptionHistory, ConsumptionRecord
+from .consumption_history import ConsumptionHistory, ConsumptionRecord
 
 __all__ = ["ConsumptionHistory", "ConsumptionRecord"]

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
 
-from .connection import (
+from .direct_reading import (
     DIRECT_SOURCES,
     SOURCE_HOMEWIZARD,
     SOURCE_IAMMETER,

@@ -26,11 +26,11 @@ from custom_components.homebatteryassist.const import (
     SUBENTRY_BATTERY,
     SUBENTRY_PV_SOURCE,
 )
-from custom_components.homebatteryassist.engine.history.consumption import (
+from custom_components.homebatteryassist.engine.history.consumption_history import (
     ConsumptionHistory,
     ConsumptionRecord,
 )
-from custom_components.homebatteryassist.engine.history.importer import (
+from custom_components.homebatteryassist.engine.history.history_import import (
     SOURCE_IMPORT,
     Term,
     combine,
@@ -41,7 +41,7 @@ from custom_components.homebatteryassist.engine.history.importer import (
 NOW = datetime(2026, 11, 15, 18, 2, tzinfo=dt_util.UTC)
 H = timedelta(hours=1)
 M5 = timedelta(minutes=5)
-FETCH = "custom_components.homebatteryassist.engine.history.importer._async_fetch"
+FETCH = "custom_components.homebatteryassist.engine.history.history_import._async_fetch"
 
 
 def test_combine_formula() -> None:

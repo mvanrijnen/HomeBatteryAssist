@@ -182,9 +182,12 @@ from .const import (
     phase_return_sensor_keys,
     phase_sensor_keys,
 )
-from .engine.devices.batteries.profiles import BatteryCandidate, find_battery_candidates
+from .engine.devices.batteries.recognition import (
+    BatteryCandidate,
+    find_battery_candidates,
+)
 from .engine.devices.meters import DRIVERS as METER_DRIVERS
-from .engine.devices.meters.direct import (
+from .engine.devices.meters.discovery import (
     DIRECT_SOURCES,
     SOURCE_HOMEWIZARD,
     SOURCE_NAMES,
@@ -193,9 +196,12 @@ from .engine.devices.meters.direct import (
     discover_speedwire,
     find_direct_meters,
 )
-from .engine.devices.meters.ha_meters import MeterCandidate, find_meter_candidates
-from .engine.explain.notify import KINDS as NOTIFY_KINDS
-from .engine.explain.notify import PERSISTENT
+from .engine.devices.meters.via_ha_integration import (
+    MeterCandidate,
+    find_meter_candidates,
+)
+from .engine.explain.notifications import KINDS as NOTIFY_KINDS
+from .engine.explain.notifications import PERSISTENT
 from .engine.forecast.forecasters import BUILTIN as FORECASTERS
 from .engine.forecast.forecasters import (
     DEFAULT_FORECASTER,
@@ -203,7 +209,7 @@ from .engine.forecast.forecasters import (
 )
 from .engine.planning.battery_plan import DEFAULT_PLAN_MODE, PLAN_MODES
 from .engine.planning.planners import async_load_user_planners
-from .engine.planning.schedule import ACTION_CHARGE, ACTIONS, WEEKDAYS
+from .engine.planning.time_slots import ACTION_CHARGE, ACTIONS, WEEKDAYS
 from .engine.sources.prices import find_sources, get_driver
 from .engine.sources.pv_forecasts import (
     async_find_pv_forecasts,

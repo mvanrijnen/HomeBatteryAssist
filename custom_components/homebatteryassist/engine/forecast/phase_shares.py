@@ -20,8 +20,8 @@ from datetime import datetime
 
 from homeassistant.util import dt as dt_util
 
-from ..history.consumption import ConsumptionRecord
-from .consumption import ForecastSlot
+from ..history.consumption_history import ConsumptionRecord
+from .consumption_forecast import ForecastSlot
 
 
 def _shares(totals: Sequence[float]) -> list[float] | None:

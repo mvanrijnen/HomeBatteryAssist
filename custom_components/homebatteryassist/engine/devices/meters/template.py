@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .base import MeterDriver
-from .direct import DirectCandidate, DirectMeter, PollingMeter
+from .discovery import DirectCandidate, DirectMeter, PollingMeter
 
 
 class TemplateMeter(PollingMeter):

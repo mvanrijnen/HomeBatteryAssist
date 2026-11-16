@@ -194,7 +194,7 @@ async def test_homewizard_kwh_meters_found(hass: HomeAssistant) -> None:
     """HomeWizard kWh meters (1/3 phase) can be read directly; sockets cannot."""
     from homeassistant.helpers import device_registry as dr
 
-    from custom_components.homebatteryassist.engine.devices.meters.direct import (
+    from custom_components.homebatteryassist.engine.devices.meters.discovery import (
         find_direct_meters,
     )
 

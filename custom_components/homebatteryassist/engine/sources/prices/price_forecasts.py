@@ -28,9 +28,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import dt as dt_util
 
-from .actions import points_from
 from .base import ROLE_MARKET, PriceData, PriceDriver, PriceSource
-from .sensors import SensorAttributeDriver
+from .ha_price_actions import points_from
+from .sensor_attributes import SensorAttributeDriver
 
 _LOGGER = logging.getLogger(__name__)
 

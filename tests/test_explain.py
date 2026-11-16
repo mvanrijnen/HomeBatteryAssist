@@ -151,7 +151,7 @@ async def test_notifications(hass: HomeAssistant) -> None:
     from homeassistant.core import ServiceCall
 
     from custom_components.homebatteryassist.engine.explain import DecisionLog
-    from custom_components.homebatteryassist.engine.explain.notify import (
+    from custom_components.homebatteryassist.engine.explain.notifications import (
         Notifier,
         kind_of,
     )

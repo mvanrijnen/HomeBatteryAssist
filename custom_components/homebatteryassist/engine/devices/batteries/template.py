@@ -29,9 +29,9 @@ from typing import ClassVar
 from homeassistant.core import HomeAssistant
 
 from ....const import SIGN_CHARGING_POSITIVE
-from ...measure.batteries import BatteryConfig
+from ...measure.battery_monitor import BatteryConfig
 from .base import BatteryModel, BatteryProfile
-from .readers.entities import EntityReader
+from .readers.entity_reader import EntityReader
 
 # -- 1. Model: brand -> type range -> type (normally three files) -------------
 

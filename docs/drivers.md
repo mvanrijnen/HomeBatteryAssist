@@ -29,7 +29,7 @@ One battery type can be read through several integrations; the model and the rea
 
 ## Meters — `engine/devices/meters/`
 
-One file per brand, sharing `connection.py` (reading about once a second; a value older than 10 s counts as unknown):
+One file per brand, sharing `direct_reading.py` (reading about once a second; a value older than 10 s counts as unknown):
 
 | File | Meters | Status |
 |---|---|---|
@@ -38,7 +38,7 @@ One file per brand, sharing `connection.py` (reading about once a second; a valu
 | `shelly.py` | Shelly Pro 3EM / 3EM / EM / Pro EM, local API | from the API documentation |
 | `iammeter.py` | Iammeter WEM3080 / WEM3080T, local API | from the API documentation |
 
-`direct.py` finds these meters in Home Assistant and creates the right reader; `__init__.py` lists them (`DRIVERS`). Meters can also be read through the sensors of their own integration (`ha_meters.py`, HomeWizard P1 recognised). `template.py` is an example of a new meter. The same drivers serve the grid connection and PV sources (a kWh meter on the inverter's line).
+`discovery.py` finds these meters in Home Assistant and creates the right reader; `__init__.py` lists them (`DRIVERS`). Meters can also be read through the sensors of their own integration (`via_ha_integration.py`, HomeWizard P1 recognised). `template.py` is an example of a new meter. The same drivers serve the grid connection and PV sources (a kWh meter on the inverter's line).
 
 ## Supported now
 

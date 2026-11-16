@@ -12,7 +12,10 @@ from datetime import datetime
 from homeassistant.core import HomeAssistant
 
 from .base import PvForecastOption, PvForecastSource
-from .solar_platform import async_get_pv_forecast, async_solar_forecast_entries
+from .energy_dashboard_platform import (
+    async_get_pv_forecast,
+    async_solar_forecast_entries,
+)
 
 
 class EnergyPlatformSource(PvForecastSource):
