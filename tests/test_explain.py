@@ -22,7 +22,12 @@ from custom_components.homebatteryassist.explain.decision_log import (
     EVENT_DECISION,
     MAX_ENTRIES,
 )
-from custom_components.homebatteryassist.explain.messages import MESSAGES, render
+from custom_components.homebatteryassist.explain.messages import (
+    KIND_NAMES,
+    MESSAGES,
+    TERMS,
+    render,
+)
 
 
 def test_all_languages_have_all_messages() -> None:
@@ -30,6 +35,33 @@ def test_all_languages_have_all_messages() -> None:
     keys = set(MESSAGES["en"])
     for language, messages in MESSAGES.items():
         assert set(messages) == keys, language
+
+
+def test_all_languages_have_all_terms() -> None:
+    """Phrases filled into messages and forecast kind names exist in every language."""
+    for table in (TERMS, KIND_NAMES):
+        keys = {lang: set(texts) for lang, texts in table.items()}
+        assert keys["nl"] == keys["en"]
+
+
+def test_render_terms() -> None:
+    """A "@term" parameter is replaced by the phrase, filled from the others."""
+    text = render(
+        "nl",
+        "battery_charging",
+        {
+            "name": "Venus",
+            "since": "13:00",
+            "extra": "@src_pv",
+            "until": "@until_full",
+            "time": "15:30",
+            "plan": "@plan_same",
+        },
+    )
+    assert text == (
+        "Venus laadt sinds 13:00 met zonnestroom die anders naar het net zou gaan, "
+        "naar verwachting tot ongeveer 15:30, dan is hij vol. Dat klopt met het plan."
+    )
 
 
 def test_render() -> None:
