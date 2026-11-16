@@ -129,6 +129,7 @@ const TEXT = {
     socTitle: "State of charge of the batteries",
     priceTitle: "Electricity price",
     priceAxis: "Price per kWh (right axis)",
+    priceAverage: "Average price (shown period)",
     exportAxis: "Export earns per kWh (right axis)",
     priceImport: "Price (published)",
     priceImportFc: "Price (forecast)",
@@ -323,6 +324,7 @@ const TEXT = {
     socTitle: "Vulling batterijen",
     priceTitle: "Stroomprijs",
     priceAxis: "Prijs per kWh (rechter as)",
+    priceAverage: "Gemiddelde prijs (getoonde periode)",
     exportAxis: "Teruglevering per kWh (rechter as)",
     priceImport: "Prijs (gepubliceerd)",
     priceImportFc: "Prijs (voorspeld)",
@@ -474,6 +476,7 @@ const STYLE = `
   .chart .axis { fill: var(--secondary-text-color); font-size: 11px; }
   .chart .line { fill: none; stroke-width: 1.4; stroke-linejoin: round; }
   .chart .line.dashed { stroke-dasharray: 4 3; stroke-width: 1.2; }
+  .chart .line.thin { stroke-width: 0.8; stroke-dasharray: 1 3; opacity: 0.8; }
   .chart .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
   .chart .head h3 { margin: 0; }
   .nav { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -1008,7 +1011,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         d += `${jump ? "M" : "L"}${x(px).toFixed(1)},${sy(py).toFixed(1)}`;
         prev = px;
       }
-      svg += `<path class="line${s.dashed ? " dashed" : ""}" d="${d}" stroke="${s.color}" clip-path="url(#clip-${id})"/>`;
+      svg += `<path class="line${s.thin ? " thin" : s.dashed ? " dashed" : ""}" d="${d}" stroke="${s.color}" clip-path="url(#clip-${id})"/>`;
     }
     for (const [v, label] of markers) {
       svg += `<line class="now" x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H - B}"/>`;
@@ -1397,6 +1400,25 @@ class HomeBatteryAssistPanel extends HTMLElement {
             ? [{ points: past.map(([ts, , excluded]) => [ts, excluded || null]), color: excludedColor, label: t.excludedLine }]
             : []),
           ...priceSeries,
+          ...(() => {
+            // Average price per kWh over the visible part (thin line).
+            let sum = 0;
+            let time = 0;
+            for (const row of priceRows) {
+              const from = Math.max(row[0], fMin);
+              const to = Math.min(row[1], fMax);
+              if (to > from && row[2] != null) {
+                sum += row[2] * (to - from);
+                time += to - from;
+              }
+            }
+            if (!time) return [];
+            const avg = sum / time;
+            const points = [];
+            for (let ts = fMin; ts < fMax; ts += 1800e3) points.push([ts, avg]);
+            points.push([fMax, avg]);
+            return [{ points, color: priceColor, thin: true, label: t.priceAverage, axis: "right", fmt: priceFmt, axisFmt }];
+          })(),
         ].map((series) => ({ ...series, points: inView(series.points) })),
         fMin,
         fMax,

@@ -650,7 +650,8 @@
         "address_required": "Vul het IP-adres van de meter in."
       },
       "abort": {
-        "reconfigure_successful": "Instellingen opgeslagen."
+        "reconfigure_successful": "Instellingen opgeslagen.",
+        "already_configured": "Dit apparaat is al toegevoegd."
       }
     },
     "excluded_load": {
@@ -699,7 +700,8 @@
         "sensor_in_use": "Deze sensor wordt al door een ander apparaat gebruikt."
       },
       "abort": {
-        "reconfigure_successful": "Instellingen opgeslagen."
+        "reconfigure_successful": "Instellingen opgeslagen.",
+        "already_configured": "Dit apparaat is al toegevoegd."
       }
     },
     "battery": {
@@ -784,7 +786,8 @@
         "soc_range": "De maximale vulling moet hoger zijn dan de minimale."
       },
       "abort": {
-        "reconfigure_successful": "Instellingen opgeslagen."
+        "reconfigure_successful": "Instellingen opgeslagen.",
+        "already_configured": "Dit apparaat is al toegevoegd."
       }
     },
     "virtual_battery": {
@@ -843,7 +846,8 @@
         "loss_range": "Het maximale verlies moet minstens het minimale zijn."
       },
       "abort": {
-        "reconfigure_successful": "Instellingen opgeslagen."
+        "reconfigure_successful": "Instellingen opgeslagen.",
+        "already_configured": "Dit apparaat is al toegevoegd."
       }
     },
     "time_slot": {
@@ -889,7 +893,8 @@
         "no_days": "Kies minstens één dag."
       },
       "abort": {
-        "reconfigure_successful": "Instellingen opgeslagen."
+        "reconfigure_successful": "Instellingen opgeslagen.",
+        "already_configured": "Dit apparaat is al toegevoegd."
       }
     }
   },

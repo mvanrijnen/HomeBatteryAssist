@@ -421,6 +421,12 @@ class BatteryInput:
         for cancel in self._startup.values():
             cancel()
         self._startup.clear()
+        # Count the energy up to now (else the last stretch before a reload or
+        # restart is lost).
+        now = dt_util.utcnow()
+        for config in self.configs:
+            if not config.virtual:
+                self._count_energy(config.id, now, self.states[config.id].power_w)
         await self._store.async_save(self._data())
 
     @callback

@@ -650,7 +650,8 @@
         "address_required": "Enter the meter's IP address."
       },
       "abort": {
-        "reconfigure_successful": "Settings saved."
+        "reconfigure_successful": "Settings saved.",
+        "already_configured": "This device is already added."
       }
     },
     "excluded_load": {
@@ -699,7 +700,8 @@
         "sensor_in_use": "This sensor is already used by another device."
       },
       "abort": {
-        "reconfigure_successful": "Settings saved."
+        "reconfigure_successful": "Settings saved.",
+        "already_configured": "This device is already added."
       }
     },
     "battery": {
@@ -784,7 +786,8 @@
         "soc_range": "The maximum state of charge must be higher than the minimum."
       },
       "abort": {
-        "reconfigure_successful": "Settings saved."
+        "reconfigure_successful": "Settings saved.",
+        "already_configured": "This device is already added."
       }
     },
     "virtual_battery": {
@@ -843,7 +846,8 @@
         "loss_range": "The maximum loss must be at least the minimum."
       },
       "abort": {
-        "reconfigure_successful": "Settings saved."
+        "reconfigure_successful": "Settings saved.",
+        "already_configured": "This device is already added."
       }
     },
     "time_slot": {
@@ -889,7 +893,8 @@
         "no_days": "Choose at least one day."
       },
       "abort": {
-        "reconfigure_successful": "Settings saved."
+        "reconfigure_successful": "Settings saved.",
+        "already_configured": "This device is already added."
       }
     }
   },
