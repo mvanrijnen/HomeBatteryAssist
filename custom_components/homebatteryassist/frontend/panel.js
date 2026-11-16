@@ -109,6 +109,7 @@ const TEXT = {
     vsMode: "{mode} vs {other}",
     modeNames: { nom: "Zero on the meter", arbitrage: "Arbitrage", arbitrage_full: "Full arbitrage", time_slots: "Time slots", manual: "Manual" },
     compareTitle: "Return compared",
+    tabs: { overview: "Overview", forecast: "Forecast", value: "Return", batteries: "Batteries & phases", check: "Accuracy" },
     compareShow: "Return overview ▾",
     compareHide: "Hide overview ▴",
     realizedShort: "realised so far",
@@ -267,6 +268,7 @@ const TEXT = {
     vsMode: "{mode} t.o.v. {other}",
     modeNames: { nom: "Nul op de meter", arbitrage: "Arbitrage", arbitrage_full: "Arbitrage volledig", time_slots: "Tijdvakken", manual: "Handmatig" },
     compareTitle: "Rendement vergeleken",
+    tabs: { overview: "Overzicht", forecast: "Voorspelling", value: "Rendement", batteries: "Batterijen & fasen", check: "Nauwkeurigheid" },
     compareShow: "Rendement overzicht ▾",
     compareHide: "Overzicht verbergen ▴",
     realizedShort: "tot nu gerealiseerd",
@@ -333,6 +335,10 @@ const STYLE = `
   .toolbar button:disabled { opacity: .6; cursor: default; }
   .toolbar button ha-icon { --mdc-icon-size: 18px; }
   .content { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+  .tabs { display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; border-bottom: 1px solid var(--divider-color); }
+  .tabs button { font: inherit; font-size: 14px; cursor: pointer; background: none; border: none; white-space: nowrap;
+    color: var(--secondary-text-color); padding: 10px 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tabs button.active { color: var(--primary-color); border-bottom-color: var(--primary-color); font-weight: 500; }
   .card { background: var(--card-background-color); border-radius: var(--ha-card-border-radius, 12px);
     box-shadow: var(--ha-card-box-shadow, none); border: 1px solid var(--divider-color); padding: 16px; }
   h2 { margin: 0 0 12px; font-size: 16px; font-weight: 500; color: var(--secondary-text-color); }
@@ -440,6 +446,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this._history = null;
     this._historyAt = 0;
     this._charts = {};
+    try {
+      this._tab = localStorage.getItem("homebatteryassist-tab") || "overview";
+    } catch (err) {
+      this._tab = "overview";
+    }
     this._hover = null;
     this._flowSpan = 72; // hours in view
     this._flowEnd = null; // ms; null = follow "now"
@@ -677,13 +688,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
           `<button data-mode="${esc(m)}" class="${m === value.mode ? "active" : ""}" ${this._modeBusy ? "disabled" : ""}>${esc(name(m))}</button>`,
       )
       .join("");
-    const open = this._showCompare;
+    const open = true;
     const selected = value.by_mode[value.mode];
     const summary = `${name(value.mode)} ${t.vsNone}: ${signed(selected)} · ${t.realizedShort}: ${signed(value.realized)}`;
     return `<div class="card"><div class="chart"><div class="head"><h2>${esc(t.compareTitle)}</h2>
       <div class="nav"><span class="muted">${esc(this._modeBusy ? t.modeSwitching : t.modeLabel)}:</span>${buttons}</div></div></div>
-      <div class="head"><span>${esc(summary)}</span>
-        <button class="toggle" data-toggle="compare">${esc(open ? t.compareHide : t.compareShow)}</button></div>
+      <div class="head"><span>${esc(summary)}</span></div>
       ${open ? `<table class="compare">${rows.join("")}</table>
       <div class="muted">${esc(t.compareNote.replace("{date}", date))}</div>` : ""}</div>`;
   }
@@ -1392,17 +1402,18 @@ class HomeBatteryAssistPanel extends HTMLElement {
     else if (!this._status) body = "";
     else {
       const s = this._status;
-      body = [
-        this._flows(s, t),
-        this._compare(s, t),
-        this._planCheck(s, t),
-        this._consumption(t),
-        this._batteries(s, t),
-        this._phases(s, t),
-        this._planning(s, t),
-        this._accuracy(t),
-        this._decisions(s, t),
-      ].join("");
+      const tabs = {
+        overview: () => [this._flows(s, t), this._decisions(s, t)],
+        forecast: () => [this._consumption(t), this._planning(s, t)],
+        value: () => [this._compare(s, t), this._planCheck(s, t)],
+        batteries: () => [this._batteries(s, t), this._phases(s, t)],
+        check: () => [this._accuracy(t)],
+      };
+      const tab = tabs[this._tab] ? this._tab : "overview";
+      const bar = Object.keys(tabs)
+        .map((k) => `<button data-tab="${k}" class="${k === tab ? "active" : ""}">${esc(t.tabs[k])}</button>`)
+        .join("");
+      body = `<div class="tabs">${bar}</div>${tabs[tab]().join("")}`;
     }
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar"><span class="menu"></span><span class="title">${esc(t.title)}</span>
@@ -1417,6 +1428,18 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this.shadowRoot
       .querySelectorAll("button[data-mode]")
       .forEach((button) => button.addEventListener("click", () => this._setMode(button.dataset.mode)));
+    this.shadowRoot.querySelectorAll("button[data-tab]").forEach((button) =>
+      button.addEventListener("click", () => {
+        this._tab = button.dataset.tab;
+        this._hover = null;
+        try {
+          localStorage.setItem("homebatteryassist-tab", this._tab);
+        } catch (err) {
+          // no storage: the tab is not remembered
+        }
+        this._render();
+      }),
+    );
     this.shadowRoot.querySelector('button[data-toggle="compare"]')?.addEventListener("click", () => {
       this._showCompare = !this._showCompare;
       this._render();

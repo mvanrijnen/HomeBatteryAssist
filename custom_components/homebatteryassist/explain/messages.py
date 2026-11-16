@@ -36,11 +36,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "correction_consumption": "The consumption forecast is now corrected by {correction} ({mode}, {samples} comparisons), because it deviated systematically.",
         "correction_pv": "The PV forecast is now corrected by {correction} ({mode}, {samples} comparisons): measured production differed systematically from the forecast.",
         "correction_price": "Forecast (estimated) prices are now corrected by {correction} ({mode}, {samples} comparisons) compared with the prices published later.",
-        "correction_none": "The {kind} forecast is no longer corrected ({mode}).",
-        "correction_mode_learned": "The {kind} forecast is corrected from its running accuracy again.",
-        "correction_mode_off": "Correction of the {kind} forecast switched off (until {until}); accuracy is still measured.",
-        "correction_mode_manual": "Manual correction of the {kind} forecast: {value} (until {until}).",
-        "accuracy_reset": "What was learned about the {kind} forecast has been reset.",
+        "correction_none": "The {kind} is no longer corrected ({mode}).",
+        "correction_mode_learned": "The {kind} is corrected from its running accuracy again.",
+        "correction_mode_off": "Correction of the {kind} switched off (until {until}); accuracy is still measured.",
+        "correction_mode_manual": "Manual correction of the {kind}: {value} (until {until}).",
+        "accuracy_reset": "What was learned about the {kind} has been reset.",
         "battery_plan": "Battery plan ({mode}): expected saving {saving} in the planning window (other modes: {others}). Charge: {charge}. Discharge: {discharge}. Advice only, nothing is controlled.",
         "battery_plan_prices": "Battery plan ({mode}): expected saving {saving} in the planning window (other modes: {others}). Charge: {charge} at avg. {charge_price}. Discharge: {discharge} at avg. {discharge_price}. Price difference {spread}, {net_spread} after losses and wear. Advice only, nothing is controlled.",
         "plan_mode_set": "Battery plan mode set to {mode}.",
@@ -78,11 +78,11 @@ MESSAGES: dict[str, dict[str, str]] = {
         "correction_consumption": "De verbruiksvoorspelling wordt nu gecorrigeerd met {correction} ({mode}, {samples} vergelijkingen), omdat hij systematisch afweek.",
         "correction_pv": "De PV-voorspelling wordt nu gecorrigeerd met {correction} ({mode}, {samples} vergelijkingen): de gemeten opwek week systematisch af van de voorspelling.",
         "correction_price": "Voorspelde prijzen worden nu gecorrigeerd met {correction} ({mode}, {samples} vergelijkingen) ten opzichte van de later gepubliceerde prijzen.",
-        "correction_none": "De {kind}-voorspelling wordt niet meer gecorrigeerd ({mode}).",
-        "correction_mode_learned": "De {kind}-voorspelling wordt weer gecorrigeerd op basis van de meelopende nauwkeurigheid.",
-        "correction_mode_off": "Correctie van de {kind}-voorspelling uitgeschakeld (tot {until}); de nauwkeurigheid wordt wel gemeten.",
-        "correction_mode_manual": "Handmatige correctie van de {kind}-voorspelling: {value} (tot {until}).",
-        "accuracy_reset": "Wat geleerd was over de {kind}-voorspelling is gewist.",
+        "correction_none": "De {kind} wordt niet meer gecorrigeerd ({mode}).",
+        "correction_mode_learned": "De {kind} wordt weer gecorrigeerd op basis van de meelopende nauwkeurigheid.",
+        "correction_mode_off": "Correctie van de {kind} uitgeschakeld (tot {until}); de nauwkeurigheid wordt wel gemeten.",
+        "correction_mode_manual": "Handmatige correctie van de {kind}: {value} (tot {until}).",
+        "accuracy_reset": "Wat geleerd was over de {kind} is gewist.",
         "battery_plan": "Batterijplan ({mode}): verwachte besparing {saving} in het planningsvenster (andere modi: {others}). Laden: {charge}. Ontladen: {discharge}. Alleen advies, er wordt niets aangestuurd.",
         "battery_plan_prices": "Batterijplan ({mode}): verwachte besparing {saving} in het planningsvenster (andere modi: {others}). Laden: {charge} tegen gem. {charge_price}. Ontladen: {discharge} tegen gem. {discharge_price}. Prijsverschil {spread}, {net_spread} na verlies en slijtage. Alleen advies, er wordt niets aangestuurd.",
         "plan_mode_set": "Modus batterijplan ingesteld op {mode}.",
@@ -107,6 +107,20 @@ def _format(value: Any) -> str:
     return str(value)
 
 
+KIND_NAMES: dict[str, dict[str, str]] = {
+    "en": {
+        "consumption": "consumption forecast",
+        "pv": "solar forecast",
+        "price": "price forecast",
+    },
+    "nl": {
+        "consumption": "verbruiksvoorspelling",
+        "pv": "zonnevoorspelling",
+        "price": "prijsvoorspelling",
+    },
+}
+
+
 def render(language: str | None, key: str, params: dict[str, Any]) -> str:
     """Return the explanation for ``key`` in ``language`` (fallback English)."""
     lang = (language or DEFAULT_LANGUAGE).split("-")[0].lower()
@@ -114,6 +128,10 @@ def render(language: str | None, key: str, params: dict[str, Any]) -> str:
     template = templates.get(key) or MESSAGES[DEFAULT_LANGUAGE].get(key)
     if template is None:
         return key
+    if "kind" in params:
+        # Forecast kinds by name in the user's language.
+        names = KIND_NAMES.get(lang, KIND_NAMES[DEFAULT_LANGUAGE])
+        params = {**params, "kind": names.get(params["kind"], params["kind"])}
     try:
         return template.format(**{k: _format(v) for k, v in params.items()})
     except (KeyError, IndexError):
