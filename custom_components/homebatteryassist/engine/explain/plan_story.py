@@ -19,6 +19,7 @@ from homeassistant.util import dt as dt_util
 from ..planning.battery_plan import BatteryPlan, PlanSlot
 
 ACTIVE_W = 100.0  # below this a battery counts as idle
+SMALL_GAIN = 0.05  # below this a charge "brings next to nothing"
 HOLD = timedelta(hours=6)  # stored this long before use: explain why
 
 DAYS = {
@@ -43,6 +44,7 @@ TEXT = {
         "uses_many": "verspreid over {n} momenten van {first} tot {last}, het meest {main}",
         "hold": "Tot {first} blijft die energie in de batterij en komt de stroom van het net: stroom kost tussendoor hooguit {gap_price}, en is later duurder (tot {max_price}).",
         "full_charge": "Daarmee wordt {names} ook helemaal vol geladen, zoals gepland.",
+        "next_grid_small": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use}, als stroom gemiddeld {use_price} kost. Na verlies en slijtage levert dat vrijwel niets op (ongeveer {gain}).",
         "next_pv": "{when} laden we {energy} met zonnestroom, om die te gebruiken {use}.",
         "no_charge": "In de komende {hours} uur is laden niet nodig of levert het niets op.",
         "phase_limited": "Daarbij laden we soms langzamer dan kan, zodat de hoofdzekering ({amps} A per fase) niet overbelast raakt.",
@@ -85,6 +87,7 @@ TEXT = {
         "uses_many": "spread over {n} moments from {first} to {last}, most {main}",
         "hold": "Until {first} that energy stays in the battery and the house runs on the grid: power costs at most {gap_price} in between, and is more expensive later (up to {max_price}).",
         "full_charge": "This also charges {names} completely, as planned.",
+        "next_grid_small": "{when} we charge {energy} from the grid at {price}, to use it {use}, when power costs {use_price} on average. After losses and wear that brings next to nothing (about {gain}).",
         "next_pv": "{when} we charge {energy} with solar power, to use it {use}.",
         "no_charge": "In the next {hours} hours charging is not needed or brings nothing.",
         "phase_limited": "At times we charge slower than possible, so the main fuse ({amps} A per phase) is not overloaded.",
@@ -388,7 +391,9 @@ def plan_story(
     # 2. The next charge and what it is for.
     if charges:
         block = charges[0]
-        until = charges[1].start if len(charges) > 1 else slots[-1].end
+        # The energy is used until the next charge from the grid (charging
+        # with solar power in between does not replace it).
+        until = next((c.start for c in charges[1:] if c.from_grid), slots[-1].end)
         uses = [d for d in discharges if block.end <= d.start < until]
 
         def span(d: _Block) -> str:
@@ -413,17 +418,21 @@ def plan_story(
                 else None
             )
             if use_price is not None:
-                gain = (
-                    block.energy_wh
+                # What is really used of it (kWh delivered), what that took
+                # from the grid, and the wear on both.
+                used = (
+                    min(sum(d.energy_wh for d in uses), block.energy_wh * efficiency)
                     / 1000
-                    * (
-                        use_price * efficiency
-                        - block.price
-                        - cycle_cost * (1 + efficiency)
-                    )
                 )
+                charged = used / efficiency if efficiency else used
+                gain = (
+                    used * use_price
+                    - charged * block.price
+                    - cycle_cost * (charged + used)
+                )
+                key = "next_grid" if gain >= SMALL_GAIN else "next_grid_small"
                 sentences.append(
-                    t["next_grid"].format(
+                    t[key].format(
                         when=_when(block, now, lang),
                         energy=_kwh(block.energy_wh, lang),
                         price=per_kwh(block.price),

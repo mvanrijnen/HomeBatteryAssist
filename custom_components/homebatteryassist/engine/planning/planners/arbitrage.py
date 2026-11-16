@@ -41,6 +41,7 @@ from .zero_on_meter import follow
 SOC_STEPS = 100  # resolution of the stored energy (1 % of the usable range)
 CYCLE_SEARCH_STEPS = 6  # bisection steps for the cycle limit
 PEAK_PENALTY = 5.0  # extra cost per kWh imported above the peak limit
+MIN_GAIN_PER_KWH = 0.01  # a cycle must bring at least this per kWh discharged
 
 
 def _cycles_per_day(data: PlannerInput, powers: list[float]) -> dict[date, float]:
@@ -66,7 +67,9 @@ def _optimise(
     eff = battery.efficiency
     span = max(battery.ceiling_wh - battery.floor_wh, 0.0)
     slots = data.slots
-    extra = penalty + rules.min_margin  # per kWh discharged, steering only
+    # Per kWh discharged, steering only: the user's minimum margin on top of
+    # a built-in floor, so a cycle that brings next to nothing is not done.
+    extra = penalty + rules.min_margin + MIN_GAIN_PER_KWH
     step = span / SOC_STEPS
     levels = SOC_STEPS + 1
     count = len(slots)
