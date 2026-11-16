@@ -38,8 +38,10 @@ custom_components/homebatteryassist/
     ├── own_modules.py     loading own modules from /config
     ├── devices/           1  drivers
     │   ├── batteries/     base.py, template.py, virtual.py (simulation), recognition.py,
-    │   │                  integrations/ (entity_reader.py, omnibattery.py, marstek_modbus.py),
-    │   │                  direct/ (base.py, modbus.py, http.py, mqtt.py — prepared, not used),
+    │   │                  integrations/ (entity_reader.py, omnibattery_integration.py,
+    │   │                  marstek_modbus_integration.py),
+    │   │                  direct/ (base.py, modbus_driver.py, http_driver.py, mqtt_driver.py
+    │   │                  — prepared, not used),
     │   │                  one folder per brand: models (brand → range → type) + direct driver:
     │   │                  marstek/, anker/, huawei/, zendure/, sessy/, indevolt/, hoymiles/
     │   ├── transports/    modbus_tcp.py (own small Modbus TCP client)
@@ -71,7 +73,7 @@ custom_components/homebatteryassist/
 A battery driver has two parts:
 
 - a **model** — what the battery *is* — organised by inheritance as **brand → type range → type**: `marstek/__init__.py` (Marstek) → `marstek/venus.py` (Venus) → `marstek/venus_e_v3.py` (Venus E v3). A type inherits from its range and brand and only sets its own specifications (capacity, power, usable part, rated cycles, warranty);
-- a **reader** — how the battery is *read* — one per integration that exposes batteries (`integrations/omnibattery.py`, `integrations/marstek_modbus.py`).
+- a **reader** — how the battery is *read* — one per integration that exposes batteries (`integrations/omnibattery_integration.py`, `integrations/marstek_modbus_integration.py`).
 
 So one battery type can be read through several integrations. The **virtual battery** (`virtual.py`) is a simulated device that follows the plan.
 

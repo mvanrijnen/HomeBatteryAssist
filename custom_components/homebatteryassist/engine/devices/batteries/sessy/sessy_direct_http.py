@@ -40,7 +40,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from ..base import BatteryTelemetry
 from ..direct.base import DirectReading
-from ..direct.http import HttpBatteryDriver
+from ..direct.http_driver import HttpBatteryDriver
 from .sessy import Sessy
 
 POWER_STATUS = "/api/v1/power/status"

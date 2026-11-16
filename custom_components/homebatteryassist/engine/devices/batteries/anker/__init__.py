@@ -1,6 +1,6 @@
 """Brand: Anker SOLIX. Ranges and types inherit from it
 (``solarbank.py`` → ``solarbank_*.py``).
-Read directly over Modbus TCP: ``modbus.py`` (prepared, not used)."""
+Read directly over Modbus TCP: ``solarbank_direct_modbus.py`` (prepared, not used)."""
 
 from __future__ import annotations
 

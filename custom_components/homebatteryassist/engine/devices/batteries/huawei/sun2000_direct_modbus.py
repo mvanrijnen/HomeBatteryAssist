@@ -33,7 +33,7 @@ import asyncio
 from typing import ClassVar
 
 from ..direct.base import DirectReading
-from ..direct.modbus import ModbusBatteryDriver, Point
+from ..direct.modbus_driver import ModbusBatteryDriver, Point
 from .luna2000_e1 import HuaweiLuna2000E1
 
 REG_INVERTER_MODEL = 30000  # string, 15 registers ("SUN2000...")

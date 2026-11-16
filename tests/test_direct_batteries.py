@@ -7,11 +7,11 @@ from custom_components.homebatteryassist.engine.devices.batteries import (
     DIRECT_DRIVERS,
     model_for,
 )
-from custom_components.homebatteryassist.engine.devices.batteries.direct.modbus import (
+from custom_components.homebatteryassist.engine.devices.batteries.direct.modbus_driver import (
     Point,
     blocks,
 )
-from custom_components.homebatteryassist.engine.devices.batteries.hoymiles.mqtt import (
+from custom_components.homebatteryassist.engine.devices.batteries.hoymiles.smiles_direct_mqtt import (
     HoymilesMqttDriver,
 )
 

@@ -1,6 +1,6 @@
 """Brand: Indevolt. Ranges and types inherit from it (``flex.py`` →
 ``flex_*.py`` / ``solidflex_3600.py``; ``bk.py`` → ``bk1600.py``). Read
-directly over the local HTTP API: ``http.py`` (prepared, not used).
+directly over the local HTTP API: ``flex_direct_http.py`` (prepared, not used).
 
 A type is recognised by its model code (data point 1); one code names a
 family, the exact variant (AC / Hybrid / Pro / Eco) is not readable locally.

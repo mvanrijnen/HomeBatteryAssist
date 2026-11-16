@@ -9,7 +9,7 @@ from __future__ import annotations
 from homeassistant.core import HomeAssistant
 
 from ...measure.battery_monitor import BatteryConfig
-from .anker.modbus import AnkerModbusDriver
+from .anker.solarbank_direct_modbus import AnkerModbusDriver
 from .anker.solarbank_e5000_pro import AnkerSolarbankE5000Pro
 from .anker.solarbank_max import AnkerSolarbankMax
 from .anker.solarbank_max_ac import AnkerSolarbankMaxAc
@@ -20,36 +20,36 @@ from .direct.base import DirectBatteryDriver
 from .hoymiles.hibattery_1920_ac import HoymilesHiBattery1920Ac
 from .hoymiles.hibattery_4020_ac import HoymilesHiBattery4020Ac
 from .hoymiles.hibattery_4020_x import HoymilesHiBattery4020X
-from .hoymiles.mqtt import HoymilesMqttDriver
 from .hoymiles.ms_a2 import HoymilesMsA2
+from .hoymiles.smiles_direct_mqtt import HoymilesMqttDriver
 from .huawei.luna2000_e1 import HuaweiLuna2000E1
-from .huawei.modbus import HuaweiModbusDriver
+from .huawei.sun2000_direct_modbus import HuaweiModbusDriver
 from .indevolt.bk1600 import IndevoltBk1600
 from .indevolt.flex_1200 import IndevoltFlex1200
 from .indevolt.flex_2000 import IndevoltFlex2000
 from .indevolt.flex_3000 import IndevoltFlex3000
-from .indevolt.http import IndevoltHttpDriver
+from .indevolt.flex_direct_http import IndevoltHttpDriver
 from .indevolt.solidflex_3600 import IndevoltSolidFlex3600
 from .integrations import READERS
-from .marstek.modbus import (
+from .marstek.venus_a import MarstekVenusA
+from .marstek.venus_d import MarstekVenusD
+from .marstek.venus_direct_modbus import (
     MarstekVenusAModbus,
     MarstekVenusDModbus,
     MarstekVenusEV2Modbus,
     MarstekVenusEV3Modbus,
 )
-from .marstek.venus_a import MarstekVenusA
-from .marstek.venus_d import MarstekVenusD
 from .marstek.venus_e_v2 import MarstekVenusEV2
 from .marstek.venus_e_v3 import MarstekVenusEV3
-from .sessy.http import SessyHttpDriver
 from .sessy.sessy import Sessy
-from .zendure.http import ZendureHttpDriver
+from .sessy.sessy_direct_http import SessyHttpDriver
 from .zendure.solarflow_800 import ZendureSolarFlow800
 from .zendure.solarflow_800_plus import ZendureSolarFlow800Plus
 from .zendure.solarflow_800_pro import ZendureSolarFlow800Pro
 from .zendure.solarflow_1600_ac_plus import ZendureSolarFlow1600AcPlus
 from .zendure.solarflow_2400_ac_plus import ZendureSolarFlow2400AcPlus
 from .zendure.solarflow_2400_pro import ZendureSolarFlow2400Pro
+from .zendure.solarflow_direct_http import ZendureHttpDriver
 
 MODELS: tuple[BatteryModel, ...] = (
     MarstekVenusEV3(),

@@ -6,13 +6,13 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.homebatteryassist.engine.devices.batteries.direct.modbus import (
+from custom_components.homebatteryassist.engine.devices.batteries.direct.modbus_driver import (
     blocks,
 )
 from custom_components.homebatteryassist.engine.devices.batteries.huawei import (
     modbus as huawei,
 )
-from custom_components.homebatteryassist.engine.devices.batteries.huawei.modbus import (
+from custom_components.homebatteryassist.engine.devices.batteries.huawei.sun2000_direct_modbus import (
     HuaweiModbusDriver,
 )
 

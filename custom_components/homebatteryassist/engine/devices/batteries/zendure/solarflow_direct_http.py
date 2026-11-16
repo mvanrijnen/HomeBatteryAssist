@@ -40,7 +40,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from ..base import BatteryModel, BatteryTelemetry
 from ..direct.base import DirectReading
-from ..direct.http import HttpBatteryDriver
+from ..direct.http_driver import HttpBatteryDriver
 from .solarflow_800 import ZendureSolarFlow800
 from .solarflow_800_plus import ZendureSolarFlow800Plus
 from .solarflow_800_pro import ZendureSolarFlow800Pro

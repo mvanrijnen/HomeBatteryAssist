@@ -25,7 +25,7 @@ from typing import Any
 
 from ..base import BatteryTelemetry
 from ..direct.base import DirectReading
-from ..direct.mqtt import MqttBatteryDriver
+from ..direct.mqtt_driver import MqttBatteryDriver
 from .hibattery_1920_ac import HoymilesHiBattery1920Ac
 from .hibattery_4020_ac import HoymilesHiBattery4020Ac
 from .hibattery_4020_x import HoymilesHiBattery4020X

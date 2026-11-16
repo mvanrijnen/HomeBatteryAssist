@@ -2,15 +2,15 @@
 
 ``DIRECT_DRIVERS`` lists them for documentation and tests only; nothing in
 HomeBatteryAssist offers or starts them. Brand drivers live with their brand
-(e.g. ``marstek/modbus.py``) and subclass the generic drivers here.
+(e.g. ``marstek/venus_direct_modbus.py``) and subclass the generic drivers here.
 """
 
 from __future__ import annotations
 
 from .base import DirectBatteryDriver, DirectReading
-from .http import HttpBatteryDriver
-from .modbus import ModbusBatteryDriver, Point
-from .mqtt import MqttBatteryDriver
+from .http_driver import HttpBatteryDriver
+from .modbus_driver import ModbusBatteryDriver, Point
+from .mqtt_driver import MqttBatteryDriver
 
 __all__ = [
     "DirectBatteryDriver",

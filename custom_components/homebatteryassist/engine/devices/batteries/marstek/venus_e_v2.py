@@ -2,7 +2,7 @@
 
 Only the power ceiling of the hardware is set (2500 W charge and discharge);
 the capacity is read from the battery (register 32105) when read directly.
-Direct driver: ``modbus.py`` (prepared, not used).
+Direct driver: ``venus_direct_modbus.py`` (prepared, not used).
 """
 
 from __future__ import annotations

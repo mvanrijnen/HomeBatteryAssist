@@ -8,11 +8,11 @@ from homeassistant.core import HomeAssistant
 from custom_components.homebatteryassist.engine.devices.batteries.anker import (
     modbus as anker,
 )
-from custom_components.homebatteryassist.engine.devices.batteries.anker.modbus import (
+from custom_components.homebatteryassist.engine.devices.batteries.anker.solarbank_direct_modbus import (
     AnkerModbusDriver,
     product_code,
 )
-from custom_components.homebatteryassist.engine.devices.batteries.direct.modbus import (
+from custom_components.homebatteryassist.engine.devices.batteries.direct.modbus_driver import (
     blocks,
 )
 

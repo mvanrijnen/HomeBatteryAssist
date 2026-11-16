@@ -38,7 +38,7 @@ from typing import Any, ClassVar, Literal
 
 from ...transports.modbus_tcp import FC_READ_INPUT
 from ..direct.base import DirectReading
-from ..direct.modbus import ModbusBatteryDriver, Point
+from ..direct.modbus_driver import ModbusBatteryDriver, Point
 from .solarbank_e5000_pro import AnkerSolarbankE5000Pro
 from .solarbank_max import AnkerSolarbankMax
 from .solarbank_max_ac import AnkerSolarbankMaxAc

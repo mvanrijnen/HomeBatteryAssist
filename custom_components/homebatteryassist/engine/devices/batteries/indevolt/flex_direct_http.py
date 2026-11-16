@@ -50,7 +50,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from ..base import BatteryModel, BatteryTelemetry
 from ..direct.base import DirectReading
-from ..direct.http import HttpBatteryDriver
+from ..direct.http_driver import HttpBatteryDriver
 from .bk1600 import IndevoltBk1600
 from .flex_1200 import IndevoltFlex1200
 from .flex_2000 import IndevoltFlex2000

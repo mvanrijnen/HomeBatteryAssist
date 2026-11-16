@@ -5,13 +5,13 @@ from __future__ import annotations
 import pytest
 from homeassistant.core import HomeAssistant
 
-from custom_components.homebatteryassist.engine.devices.batteries.direct.modbus import (
+from custom_components.homebatteryassist.engine.devices.batteries.direct.modbus_driver import (
     blocks,
 )
 from custom_components.homebatteryassist.engine.devices.batteries.marstek import (
     modbus as marstek,
 )
-from custom_components.homebatteryassist.engine.devices.batteries.marstek.modbus import (
+from custom_components.homebatteryassist.engine.devices.batteries.marstek.venus_direct_modbus import (
     MarstekVenusAModbus,
     MarstekVenusDModbus,
     MarstekVenusEV2Modbus,

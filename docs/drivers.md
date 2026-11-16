@@ -33,17 +33,17 @@ One battery type can be read through several integrations; the model and the rea
 
 Next to the readers (which go through another integration), every brand can have a **direct driver**: HomeBatteryAssist's own connection to the battery, for the day it controls batteries itself instead of e.g. Omnibattery. They are **disabled** (`enabled = False`): never offered, never connecting, and their write methods are never called. Many batteries allow only one connection, which today belongs to another integration.
 
-Generic bases in `direct/` (a brand only adds its specifics): `modbus.py` (a register map as data, read in blocks that never cross undefined registers; own small Modbus TCP client in `engine/devices/transports/modbus_tcp.py`), `http.py` (local JSON API) and `mqtt.py` (through Home Assistant's MQTT integration).
+Generic bases in `direct/` (a brand only adds its specifics): `modbus_driver.py` (a register map as data, read in blocks that never cross undefined registers; own small Modbus TCP client in `engine/devices/transports/modbus_tcp.py`), `http_driver.py` (local JSON API) and `mqtt_driver.py` (through Home Assistant's MQTT integration).
 
 | Brand | Driver | Types (models) | Connection |
 |---|---|---|---|
-| Marstek | `marstek/modbus.py` | Venus E v2, Venus E v3, Venus A, Venus D | Modbus TCP |
-| Anker | `anker/modbus.py` | SOLIX Solarbank Max AC, XE AC, E5000 Pro, Max, XE | Modbus TCP |
-| Huawei | `huawei/modbus.py` | LUNA2000 (through the SUN2000 inverter) | Modbus TCP |
-| Zendure | `zendure/http.py` | SolarFlow 800, 800 Plus, 800 Pro, 1600 AC+, 2400 AC+, 2400 Pro | local HTTP |
-| Sessy | `sessy/http.py` | Sessy home battery | local HTTP |
-| Indevolt | `indevolt/http.py` | SolidFlex/PowerFlex 1200, 2000, 3000, SolidFlex 3600, BK1600 | local HTTP |
-| Hoymiles | `hoymiles/mqtt.py` | MS-A2, HiBattery 1920 AC, 4020 X, 4020 AC | MQTT |
+| Marstek | `marstek/venus_direct_modbus.py` | Venus E v2, Venus E v3, Venus A, Venus D | Modbus TCP |
+| Anker | `anker/solarbank_direct_modbus.py` | SOLIX Solarbank Max AC, XE AC, E5000 Pro, Max, XE | Modbus TCP |
+| Huawei | `huawei/sun2000_direct_modbus.py` | LUNA2000 (through the SUN2000 inverter) | Modbus TCP |
+| Zendure | `zendure/solarflow_direct_http.py` | SolarFlow 800, 800 Plus, 800 Pro, 1600 AC+, 2400 AC+, 2400 Pro | local HTTP |
+| Sessy | `sessy/sessy_direct_http.py` | Sessy home battery | local HTTP |
+| Indevolt | `indevolt/flex_direct_http.py` | SolidFlex/PowerFlex 1200, 2000, 3000, SolidFlex 3600, BK1600 | local HTTP |
+| Hoymiles | `hoymiles/smiles_direct_mqtt.py` | MS-A2, HiBattery 1920 AC, 4020 X, 4020 AC | MQTT |
 
 None is verified on a device yet. The device facts (registers, endpoints, scales, signs, control sequences) were taken from Omnibattery's drivers (GPL-3.0) and, where available, the vendors' own documentation — facts only; the code is HomeBatteryAssist's own. Each driver also states how it must be controlled (`refresh_s`, `min_interval_s`, `deadband_w`, `idle_is_release`, limits), which the control layer enforces — see [Architecture](architecture.md#control-layer-built-not-active).
 

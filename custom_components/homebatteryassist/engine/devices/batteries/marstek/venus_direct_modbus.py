@@ -75,7 +75,7 @@ from typing import Any, ClassVar
 
 from ...transports.modbus_tcp import ModbusError, decode
 from ..direct.base import DirectBatteryDriver, DirectReading
-from ..direct.modbus import ModbusBatteryDriver, Point, blocks
+from ..direct.modbus_driver import ModbusBatteryDriver, Point, blocks
 from .venus_a import MarstekVenusA
 from .venus_d import MarstekVenusD
 from .venus_e_v2 import MarstekVenusEV2

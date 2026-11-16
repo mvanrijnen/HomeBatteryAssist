@@ -1,7 +1,7 @@
 """Type: Marstek Venus A (with DC PV inputs, up to several battery packs).
 
 Only the power ceiling of the hardware is set (1500 W charge and discharge).
-Direct driver: ``modbus.py`` (prepared, not used).
+Direct driver: ``venus_direct_modbus.py`` (prepared, not used).
 """
 
 from __future__ import annotations

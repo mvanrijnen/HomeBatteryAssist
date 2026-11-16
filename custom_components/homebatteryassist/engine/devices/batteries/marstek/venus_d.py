@@ -1,7 +1,7 @@
 """Type: Marstek Venus D (with DC PV inputs, up to several battery packs).
 
 Power ceiling 2500 W with EMS firmware 149 or later; older firmware allows
-only 2200 W, which the direct driver (``modbus.py``) takes into account.
+only 2200 W, which the direct driver (``venus_direct_modbus.py``) takes into account.
 """
 
 from __future__ import annotations

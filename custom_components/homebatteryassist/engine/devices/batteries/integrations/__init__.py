@@ -7,8 +7,8 @@ a real installation.
 from __future__ import annotations
 
 from ..base import BatteryReader
-from .marstek_modbus import MarstekModbusReader
-from .omnibattery import OmnibatteryReader
+from .marstek_modbus_integration import MarstekModbusReader
+from .omnibattery_integration import OmnibatteryReader
 
 READERS: tuple[BatteryReader, ...] = (OmnibatteryReader(), MarstekModbusReader())
 

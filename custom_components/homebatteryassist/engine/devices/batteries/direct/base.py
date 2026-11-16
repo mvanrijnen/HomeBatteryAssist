@@ -14,11 +14,11 @@ Shape, per kind of connection:
 - ``DirectBatteryDriver`` — the common contract: ``async_open`` /
   ``async_read`` (a ``DirectReading``) / ``async_close``, and the (never
   called) ``async_set_power`` / ``async_release``;
-- ``modbus.py`` — ``ModbusBatteryDriver``: a register map as data, read in
+- ``modbus_driver.py`` — ``ModbusBatteryDriver``: a register map as data, read in
   blocks, decoded; a brand only adds its registers and control sequence;
-- ``http.py`` — ``HttpBatteryDriver``: a local JSON API through Home
+- ``http_driver.py`` — ``HttpBatteryDriver``: a local JSON API through Home
   Assistant's shared session;
-- ``mqtt.py`` — ``MqttBatteryDriver``: topics through Home Assistant's own
+- ``mqtt_driver.py`` — ``MqttBatteryDriver``: topics through Home Assistant's own
   MQTT integration (never a second broker connection).
 
 Conventions: power in W, + charging / - discharging (whatever the device
