@@ -637,16 +637,6 @@ class HomeBatteryAssistPanel extends HTMLElement {
       );
     }
     if (s.has_excluded) parts.push(this._flow("excluded", "mdi:ev-station", t.excluded, this._power(this._num(e.excluded_power))));
-    const value = this._history?.value;
-    if (value && s.batteries.length) {
-      const date = (iso) =>
-        iso ? new Date(iso).toLocaleString(this._hass.locale?.language || this._hass.language, { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" }) : "–";
-      const money = (v) =>
-        v == null ? "–" : new Intl.NumberFormat(this._hass.locale?.language || this._hass.language, { style: "currency", currency: value.currency || "EUR" }).format(v);
-      parts.push(this._flow("value", "mdi:cash-check", t.realized, money(value.realized), value.since ? t.since.replace("{date}", date(value.since)) : t.notYet));
-      const until = t.until.replace("{date}", date(value.until));
-      parts.push(this._flow("value", "mdi:cash-clock", t.expectedReturn, money(value.expected), `${t.vsNoBattery} · ${until}`));
-    }
     return `<div class="card"><h2>${esc(t.flows)}</h2><div class="flows">${parts.join("")}</div></div>`;
   }
 
