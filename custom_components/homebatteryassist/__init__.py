@@ -280,6 +280,7 @@ async def async_unload_entry(
         await data.history.async_stop()
         await data.decisions.async_save()
         await data.forecast.accuracy.async_save()
+        await data.forecast.async_save_price_log()
         await data.plan_check.async_save()
     return unloaded
 

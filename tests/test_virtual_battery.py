@@ -83,6 +83,7 @@ async def test_add_virtual_battery(hass: HomeAssistant) -> None:
         result["flow_id"], VIRTUAL
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()  # the entry reloads with the battery
 
 
 async def test_virtual_battery_follows_nom(

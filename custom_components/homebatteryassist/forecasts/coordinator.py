@@ -347,6 +347,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         if self._price_store is not None:
             self._price_store.async_delay_save(lambda: {"prices": self.price_log}, 60)
 
+    async def async_save_price_log(self) -> None:
+        """Write the price log now (on unload, before a reload reads it)."""
+        if self._price_store is not None:
+            await self._price_store.async_save({"prices": self.price_log})
+
     def price_series(self, now: datetime) -> list[list[Any]]:
         """Prices for the chart: published ones from the log before the plan
         window, then the window's prices (published or forecast).

@@ -117,6 +117,7 @@ async def test_add_battery_manually(hass: HomeAssistant) -> None:
         result["flow_id"], BATTERY_INPUT
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()  # the entry reloads with the battery
     (subentry,) = entry.subentries.values()
     assert subentry.title == "Venus"
     assert subentry.data[CONF_CAPACITY] == 5.12
