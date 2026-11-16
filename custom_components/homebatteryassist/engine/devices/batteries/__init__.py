@@ -10,12 +10,20 @@ from homeassistant.core import HomeAssistant
 
 from ...measure.battery_monitor import BatteryConfig
 from .base import BatteryModel, BatteryReader, BatteryTelemetry, platform_of
+from .anker.modbus import AnkerModbusDriver
+from .anker.solarbank_e5000_pro import AnkerSolarbankE5000Pro
+from .anker.solarbank_max import AnkerSolarbankMax
+from .anker.solarbank_max_ac import AnkerSolarbankMaxAc
+from .anker.solarbank_xe import AnkerSolarbankXe
+from .anker.solarbank_xe_ac import AnkerSolarbankXeAc
 from .direct.base import DirectBatteryDriver
 from .hoymiles.hibattery_1920_ac import HoymilesHiBattery1920Ac
 from .hoymiles.hibattery_4020_ac import HoymilesHiBattery4020Ac
 from .hoymiles.hibattery_4020_x import HoymilesHiBattery4020X
 from .hoymiles.mqtt import HoymilesMqttDriver
 from .hoymiles.ms_a2 import HoymilesMsA2
+from .huawei.luna2000_e1 import HuaweiLuna2000E1
+from .huawei.modbus import HuaweiModbusDriver
 from .integrations import READERS
 from .marstek.modbus import (
     MarstekVenusAModbus,
@@ -33,6 +41,12 @@ MODELS: tuple[BatteryModel, ...] = (
     MarstekVenusEV2(),
     MarstekVenusA(),
     MarstekVenusD(),
+    AnkerSolarbankMaxAc(),
+    AnkerSolarbankXeAc(),
+    AnkerSolarbankE5000Pro(),
+    AnkerSolarbankMax(),
+    AnkerSolarbankXe(),
+    HuaweiLuna2000E1(),
     HoymilesMsA2(),
     HoymilesHiBattery1920Ac(),
     HoymilesHiBattery4020X(),
@@ -47,6 +61,8 @@ DIRECT_DRIVERS: tuple[type[DirectBatteryDriver], ...] = (
     MarstekVenusEV3Modbus,
     MarstekVenusAModbus,
     MarstekVenusDModbus,
+    AnkerModbusDriver,
+    HuaweiModbusDriver,
 )
 
 __all__ = [
