@@ -203,6 +203,14 @@ async def test_history_websocket(
     assert result["profile"]["weekday"][12] == 1000.0
     assert result["profile"]["weekend"][12] == 500.0
     assert result["profile"]["weekend"][3] is None
+    # The same per calendar week (Monday-Sunday), oldest first.
+    weeks = {w["start"]: w for w in result["profile_weeks"]}
+    week = weeks["2026-11-09"]
+    assert week["end"] == "2026-11-15"
+    assert week["weekday"][12] == 1000.0
+    assert week["weekend"][12] == 500.0
+    assert week["days"] == round(90 / 1440, 1)
+    assert [w["start"] for w in result["profile_weeks"]] == sorted(weeks)
     assert result["days_covered"] == round((15 + 15 + 60 + 30) / 1440, 1)
 
 

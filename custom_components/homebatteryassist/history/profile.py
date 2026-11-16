@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from homeassistant.util import dt as dt_util
 
@@ -77,6 +77,33 @@ def day_profile(
         kind: [round(s / w, 1) if w else None for s, w in hours]
         for kind, hours in sums.items()
     }
+
+
+def week_profiles(
+    records: Iterable[ConsumptionRecord],
+) -> list[dict[str, object]]:
+    """The average day per local calendar week (Monday-Sunday), oldest first:
+    ``start``/``end`` (dates), ``days`` (measured days) and weekday/weekend
+    profiles as in ``day_profile``."""
+    weeks: dict[str, list[ConsumptionRecord]] = {}
+    for record in records:
+        start, _avg, weight = _weighted(record)
+        if weight <= 0:
+            continue
+        local = dt_util.as_local(start).date()
+        monday = local - timedelta(days=local.weekday())
+        weeks.setdefault(monday.isoformat(), []).append(record)
+    return [
+        {
+            "start": monday,
+            "end": (
+                datetime.fromisoformat(monday).date() + timedelta(days=6)
+            ).isoformat(),
+            "days": days_covered(group),
+            **day_profile(group),
+        }
+        for monday, group in sorted(weeks.items())
+    ]
 
 
 def days_covered(records: Iterable[ConsumptionRecord]) -> float:

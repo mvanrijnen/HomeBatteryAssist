@@ -75,10 +75,15 @@ const TEXT = {
     consumption: "Consumption",
     last7: "Last 7 days (average per hour)",
     avgDay: "Average day",
+    allHistory: "All history",
+    weekOf: "Week {week} ({from} – {to})",
+    olderWeek: "Previous week",
+    newerWeek: "Next week",
+    allAverage: "dashed: average of all history",
     last7Info:
       "What the house itself used, averaged per hour: grid import + solar production − excluded devices − battery charging (+ battery discharging). Excluded devices (e.g. an EV charger) are not in the house line and are not forecast. Hover over the line for the exact hour and value.",
     avgDayInfo:
-      "The same house consumption, averaged per hour of the day over all history (up to 28 days), for weekdays (Mon–Fri) and the weekend separately. This is the typical day pattern; the consumption forecast uses it per weekday, with recent days counting more.",
+      "The same house consumption, averaged per hour of the day over all history (up to 28 days), for weekdays (Mon–Fri) and the weekend separately. This is the typical day pattern; the consumption forecast uses it per weekday, with recent days counting more. Use ◀ ▶ to see a single week next to the overall average (dashed) and spot changes.",
     weekday: "Weekdays",
     weekend: "Weekend",
     daysOfData: "{days} days of history",
@@ -239,10 +244,15 @@ const TEXT = {
     consumption: "Verbruik",
     last7: "Afgelopen 7 dagen (gemiddeld per uur)",
     avgDay: "Gemiddelde dag",
+    allHistory: "Alle geschiedenis",
+    weekOf: "Week {week} ({from} – {to})",
+    olderWeek: "Vorige week",
+    newerWeek: "Volgende week",
+    allAverage: "gestippeld: gemiddelde van alle geschiedenis",
     last7Info:
       "Wat het huis zelf verbruikte, gemiddeld per uur: afname van het net + zonne-opwek − uitgesloten apparaten − laden van de batterij (+ ontladen). Uitgesloten apparaten (bijv. een laadpaal) zitten niet in de huislijn en worden niet voorspeld. Wijs de lijn aan voor het precieze uur en de waarde.",
     avgDayInfo:
-      "Hetzelfde huisverbruik, gemiddeld per uur van de dag over alle geschiedenis (tot 28 dagen), apart voor werkdagen (ma–vr) en het weekend. Zo zie je het vaste dagpatroon; de verbruiksvoorspelling gebruikt dit per weekdag, waarbij recente dagen zwaarder tellen.",
+      "Hetzelfde huisverbruik, gemiddeld per uur van de dag over alle geschiedenis (tot 28 dagen), apart voor werkdagen (ma–vr) en het weekend. Zo zie je het vaste dagpatroon; de verbruiksvoorspelling gebruikt dit per weekdag, waarbij recente dagen zwaarder tellen. Met ◀ ▶ blader je per week; het gemiddelde van alle geschiedenis staat dan gestippeld ernaast, zodat je veranderingen ziet.",
     weekday: "Werkdagen",
     weekend: "Weekend",
     daysOfData: "{days} dagen historie",
@@ -415,6 +425,7 @@ const STYLE = `
     background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 12px; padding: 2px 10px; }
   button.toggle { font: inherit; font-size: 13px; cursor: pointer; color: var(--primary-color);
     background: none; border: 1px solid var(--primary-color); border-radius: 12px; padding: 2px 12px; }
+  .nav button:disabled { opacity: 0.4; cursor: default; }
   .nav button.active { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: var(--primary-color); }
   .chart .zero { stroke: var(--secondary-text-color); stroke-width: 1; opacity: .6; }
   .chart .now { stroke: var(--secondary-text-color); stroke-width: 1; stroke-dasharray: 2 3; }
@@ -464,6 +475,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this._hover = null;
     this._flowSpan = 72; // hours in view
     this._flowEnd = null; // ms; null = follow "now"
+    this._dayWeek = null; // index in profile_weeks; null = all history
   }
 
   async _setMode(mode) {
@@ -945,6 +957,31 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return `<div class="nav">${nav}<span style="width:8px"></span>${spans}</div>`;
   }
 
+  _dayNav(t, weeks, lang) {
+    if (!weeks.length) return "";
+    const i = this._dayWeek;
+    let label = t.allHistory;
+    if (i !== null) {
+      const w = weeks[i];
+      const from = new Date(`${w.start}T12:00:00`);
+      const to = new Date(`${w.end}T12:00:00`);
+      // ISO week number of the Monday.
+      const thursday = new Date(from);
+      thursday.setDate(from.getDate() + 3);
+      const jan4 = new Date(thursday.getFullYear(), 0, 4);
+      const week = 1 + Math.round(((thursday - jan4) / 864e5 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
+      const fmt = (d) => d.toLocaleDateString(lang, { day: "numeric", month: "short" });
+      label = t.weekOf.replace("{week}", week).replace("{from}", fmt(from)).replace("{to}", fmt(to));
+    }
+    const older = i === null ? weeks.length - 1 : i - 1;
+    const newer = i === null ? null : i + 1 < weeks.length ? i + 1 : null;
+    return `<div class="nav">
+      <button data-day="${older}" title="${esc(t.olderWeek)}" ${older < 0 ? "disabled" : ""}>◀</button>
+      <button data-day="all" class="${i === null ? "active" : ""}">${esc(label)}</button>
+      <button data-day="${newer === null ? "all" : newer}" title="${esc(t.newerWeek)}" ${i === null ? "disabled" : ""}>▶</button>
+    </div>`;
+  }
+
   _flowShift(key, amount = 0) {
     const b = this._flowBounds;
     if (!b) return;
@@ -964,6 +1001,13 @@ class HomeBatteryAssistPanel extends HTMLElement {
   }
 
   _bindFlowNav() {
+    for (const button of this.shadowRoot.querySelectorAll(".nav button[data-day]")) {
+      button.addEventListener("click", () => {
+        this._dayWeek = button.dataset.day === "all" ? null : Number(button.dataset.day);
+        this._hover = null;
+        this._scheduleRender();
+      });
+    }
     for (const button of this.shadowRoot.querySelectorAll(".nav button[data-nav]")) {
       button.addEventListener("click", () => this._flowShift(button.dataset.nav));
     }
@@ -1105,12 +1149,23 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const profilePts = (values) => values.map((v, hour) => [hour, v]);
     const hourTicks = [0, 3, 6, 9, 12, 15, 18, 21].map((hour) => [hour, `${String(hour).padStart(2, "0")}:00`]);
     const two = (n) => String(n).padStart(2, "0");
+    const weeks = h.profile_weeks || [];
+    if (this._dayWeek !== null && this._dayWeek >= weeks.length) this._dayWeek = null;
+    const shown = this._dayWeek === null ? null : weeks[this._dayWeek];
+    const daySeries = shown
+      ? [
+          { points: profilePts(h.profile.weekday), color: primary, dashed: true, label: `${t.weekday} · ${t.allHistory}` },
+          { points: profilePts(h.profile.weekend), color: accent, dashed: true, label: `${t.weekend} · ${t.allHistory}` },
+          { points: profilePts(shown.weekday), color: primary, label: t.weekday },
+          { points: profilePts(shown.weekend), color: accent, label: t.weekend },
+        ]
+      : [
+          { points: profilePts(h.profile.weekday), color: primary, label: t.weekday },
+          { points: profilePts(h.profile.weekend), color: accent, label: t.weekend },
+        ];
     const avg = this._chart(
       "day",
-      [
-        { points: profilePts(h.profile.weekday), color: primary, label: t.weekday },
-        { points: profilePts(h.profile.weekend), color: accent, label: t.weekend },
-      ],
+      daySeries,
       0,
       23,
       hourTicks,
@@ -1343,9 +1398,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
         ${h.battery_forecast?.length ? `<div class="muted">${esc(this._planText(h, t))} · ${esc(t.batteryNote)}</div>` : ""}</div>
       ${socChart ? `<div class="chart wide"><h3>${esc(t.socTitle)}</h3>${socChart}</div>` : ""}
       <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}<div class="muted small">${esc(t.last7Info)}</div></div>
-      <div class="chart"><h3>${esc(t.avgDay)}</h3>${avg}
+      <div class="chart"><div class="head"><h3>${esc(t.avgDay)}</h3>${this._dayNav(t, weeks, lang)}</div>${avg}
         <div class="legend"><span><i style="background:${primary}"></i>${esc(t.weekday)}</span>
-        <span><i style="background:${accent}"></i>${esc(t.weekend)}</span></div>
+        <span><i style="background:${accent}"></i>${esc(t.weekend)}</span>${shown ? `<span>${esc(t.allAverage)}</span>` : ""}</div>
         <div class="muted small">${esc(t.avgDayInfo)}</div></div>
     </div></div>`;
   }

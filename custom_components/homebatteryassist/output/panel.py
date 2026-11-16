@@ -20,7 +20,7 @@ from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME, NOMINAL_VOLTAGE
 from ..forecasts.accuracy import BUCKET_KEYS, KINDS
-from ..history.profile import day_profile, days_covered, hourly_series
+from ..history.profile import day_profile, days_covered, hourly_series, week_profiles
 from ..inputs.battery_drivers import telemetry as battery_telemetry
 from ..inputs.direct import SOURCE_NAMES, find_direct_meters
 from ..inputs.measurements import MeasurementInput
@@ -488,5 +488,6 @@ def websocket_history(
             # The plan afterwards, per day: planned saving vs realised value.
             "plan_check": entry.runtime_data.plan_check.days(7),
             "profile": day_profile(records),
+            "profile_weeks": week_profiles(records),
         },
     )
