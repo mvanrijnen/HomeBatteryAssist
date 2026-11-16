@@ -83,9 +83,11 @@ HomeBatteryAssist does not control batteries. The control layer (`engine/control
 - **always release** control to the battery's own logic on stop, reload, restart and every error;
 - a **watchdog**: without a new command for 2 minutes, control is released;
 - **refresh** the last command for batteries that drop out of external control otherwise;
-- **throttle**: a minimum time between commands and a deadband (idle and direction changes are never held back);
+- **throttle**: at least 5 s between commands for every battery (a driver may ask for longer) and a deadband (idle and direction changes are never held back);
 - **idle = release** for batteries where 0 W is not idle (e.g. a Huawei inverter keeps limiting PV);
 - the **limits** of the device and of the caller are always enforced.
+
+A test (`tests/test_read_only.py`) fails as soon as code outside the drivers and this layer calls a write method, creates a controller, enables a direct driver or calls a Home Assistant action that changes a device.
 
 Each [direct driver](drivers.md#direct-battery-drivers--prepared-not-used) states its own control needs; the controller enforces them.
 

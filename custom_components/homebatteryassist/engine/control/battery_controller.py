@@ -14,7 +14,8 @@ the safety is there before anything is ever controlled:
   control loop stopped), control is released.
 - **Refresh**: the last command is repeated every ``driver.refresh_s`` for
   batteries that drop out of external control otherwise.
-- **Throttle**: at most one new command every ``driver.min_interval_s`` and
+- **Throttle**: at most one new command every ``MIN_INTERVAL_S`` (for every
+  battery; a driver may ask for longer with ``driver.min_interval_s``) and
   only when it differs by ``driver.deadband_w`` (slowly ramping batteries,
   write wear); going idle or changing direction is never held back.
 - **Idle = release** for batteries where 0 W is not idle
@@ -39,6 +40,9 @@ from ..devices.batteries.direct.base import DirectBatteryDriver
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_WATCHDOG = timedelta(minutes=2)
+# For every battery: at least this long between new commands (a driver may
+# ask for longer, never shorter). Idle and direction changes are not held back.
+MIN_INTERVAL_S = 5.0
 IDLE_W = 1.0  # below this a command means "idle"
 
 
@@ -99,7 +103,10 @@ def decide(
     sent_direction = (state.sent_w > IDLE_W) - (state.sent_w < -IDLE_W)
     if change >= 0.5 and (
         direction != sent_direction  # idle / direction change: never held back
-        or (since >= driver.min_interval_s and change >= max(driver.deadband_w, 0.5))
+        or (
+            since >= max(driver.min_interval_s, MIN_INTERVAL_S)
+            and change >= max(driver.deadband_w, 0.5)
+        )
     ):
         return Action("send", target, "change")
     if driver.refresh_s and since >= driver.refresh_s:

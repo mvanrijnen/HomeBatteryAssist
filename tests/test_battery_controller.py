@@ -108,3 +108,18 @@ async def test_stop_and_switch_off_release() -> None:
 def test_decide_without_target() -> None:
     """Nothing to do when idle and not in control."""
     assert decide(ControlState(), FakeDriver(), T0, timedelta(minutes=2)) is None
+
+
+async def test_general_minimum_interval() -> None:
+    """Every battery gets at least the general time between commands."""
+    from custom_components.homebatteryassist.engine.control.battery_controller import (
+        MIN_INTERVAL_S,
+    )
+
+    driver = FakeDriver()  # asks for no interval itself
+    controller = BatteryController(driver, enabled=True)
+    await controller.async_command(1000, T0)
+    await controller.async_command(1600, T0 + S)  # too soon
+    assert driver.calls == [("set", 1000)]
+    await controller.async_command(1600, T0 + (MIN_INTERVAL_S + 1) * S)
+    assert driver.calls[-1] == ("set", 1600)
