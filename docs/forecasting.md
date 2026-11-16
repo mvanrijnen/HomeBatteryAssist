@@ -16,6 +16,16 @@ The house consumption per slot is predicted by a **consumption forecaster** [mod
 
 All forecasters run every cycle; the *Accuracy* tab compares them, so you can choose the one that fits your house. Consumption during a **vacation** (setting) is not learned from. You can **adjust** the forecast for a period (e.g. a party) with the action `adjust_forecast`.
 
+### Outdoor temperature (optional)
+
+A profile follows a sudden cold spell only after days. Houses that heat or cool with electricity (heat pump, electric heating, airco) can let the forecast follow the **weather forecast**:
+
+1. Choose a **weather entity** with a forecast (Buienradar, Met.no, OpenWeatherMap, …) in the settings section *Weather and outdoor temperature*. This turns the temperature step on.
+2. Optional: an **outdoor temperature sensor** — more accurate than the weather entity's current temperature, and its history in Home Assistant is used to learn right away instead of after a week.
+3. Optional: add the heat pump or airco as a **heating/cooling** device (with its power sensor). It stays part of the house consumption, but is measured apart, which gives a cleaner signal.
+
+Every history interval stores the outdoor temperature. From whole days, HomeBatteryAssist learns how many W the consumption (or the heating/cooling device) rises per degree colder than 16 °C (heating) and per degree warmer than 22 °C (cooling); at least 7 days with temperature are needed, and days that hardly differ teach nothing. Per slot it then adds *W per degree × (forecast degrees − the usual degrees at that hour in the last week)*: only the difference with the weather the profile already contains. The step comes after the forecaster and before the correction, so the accuracy check covers it. A forecaster [module](modules.md) that handles temperature itself sets `uses_temperature = True` and gets the forecast per slot in `temperatures`. The decision log tells what was learned.
+
 ## Prices
 
 From a price source of your choice (*price [drivers](drivers.md)*): DynTarNL (tested), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, or any sensor with prices in its attributes; optionally an extra, longer forecast after it. Estimated (forecast) prices are marked as such.

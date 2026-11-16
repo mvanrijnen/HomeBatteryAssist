@@ -34,6 +34,8 @@ class ConsumptionRecord(TypedDict):
     phase_house_w: NotRequired[list[float]]  # average house consumption per phase
     phase_pv_w: NotRequired[list[float]]  # average PV production per phase
     vacation: NotRequired[bool]  # measured in vacation mode: not learned from
+    heating_w: NotRequired[float]  # average power of heating/cooling (part of house)
+    temp_c: NotRequired[float]  # average outdoor temperature (°C)
 
 
 def _valid(record: object) -> bool:
@@ -78,6 +80,12 @@ class ConsumptionHistory:
         self._last_battery: float | None = None
         self._energy_ws = 0.0
         self._excluded_ws = 0.0
+        self._heating_ws = 0.0
+        self._heating_s = 0.0
+        self._temp_cs = 0.0
+        self._temp_s = 0.0
+        self._last_heating: float | None = None
+        self._last_temp: float | None = None
         self._pv_ws = 0.0
         self._pv_s = 0.0
         self._battery_ws = 0.0
@@ -139,6 +147,8 @@ class ConsumptionHistory:
         pv: float | None = None,
         battery: float | None = None,
         phases: tuple[tuple[float, ...], tuple[float, ...]] | None = None,
+        heating: float | None = None,
+        temperature: float | None = None,
     ) -> None:
         """Register new values (W): house consumption and excluded devices.
 
@@ -157,6 +167,8 @@ class ConsumptionHistory:
         self._last_pv = pv
         self._last_battery = battery
         self._last_phases = phases if phases and phases[0] else None
+        self._last_heating = heating
+        self._last_temp = temperature
 
     @callback
     def close_interval(self, when: datetime) -> ConsumptionRecord | None:
@@ -208,6 +220,10 @@ class ConsumptionHistory:
                 record["battery_w"] = round(self._battery_ws / self._battery_s, 1)
             if self.vacation:
                 record["vacation"] = True
+            if self._heating_s > 0:
+                record["heating_w"] = round(self._heating_ws / self._heating_s, 1)
+            if self._temp_s > 0:
+                record["temp_c"] = round(self._temp_cs / self._temp_s, 1)
             if self._phase_s > 0:
                 record["phase_house_w"] = [
                     round(v / self._phase_s, 1) for v in self._phase_house_ws
@@ -222,6 +238,10 @@ class ConsumptionHistory:
 
         self._energy_ws = 0.0
         self._excluded_ws = 0.0
+        self._heating_ws = 0.0
+        self._heating_s = 0.0
+        self._temp_cs = 0.0
+        self._temp_s = 0.0
         self._pv_ws = 0.0
         self._pv_s = 0.0
         self._battery_ws = 0.0
@@ -241,6 +261,12 @@ class ConsumptionHistory:
             if self._last_pv is not None:
                 self._pv_ws += self._last_pv * seconds
                 self._pv_s += seconds
+            if self._last_heating is not None:
+                self._heating_ws += self._last_heating * seconds
+                self._heating_s += seconds
+            if self._last_temp is not None:
+                self._temp_cs += self._last_temp * seconds
+                self._temp_s += seconds
             if self._last_battery is not None:
                 self._battery_ws += self._last_battery * seconds
                 self._battery_s += seconds

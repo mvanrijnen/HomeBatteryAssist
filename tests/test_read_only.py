@@ -24,11 +24,13 @@ FORBIDDEN = re.compile(
     r"async_set_power\(|async_release\(|BatteryController\(|"
     r"\.enabled\s*=\s*True|write_registers?\(|mqtt\.async_publish"
 )
-# Home Assistant actions that are allowed: notifications and reading prices.
+# Home Assistant actions that are allowed: notifications, reading prices and
+# reading the weather forecast.
 ALLOWED_ACTION_FILES = (
     "engine/explain/notifications.py",
     "engine/sources/prices/ha_price_actions.py",
     "engine/sources/prices/template.py",
+    "engine/sources/weather/ha_weather_entity.py",  # weather.get_forecasts
 )
 
 

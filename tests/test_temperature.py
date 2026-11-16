@@ -1,0 +1,234 @@
+"""Tests for the optional outdoor temperature in the consumption forecast."""
+
+from datetime import datetime, timedelta
+
+from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
+
+from custom_components.homebatteryassist.config_flow import (
+    HomeBatteryAssistConfigFlow,
+)
+from custom_components.homebatteryassist.const import SUBENTRY_HEATING_COOLING
+from custom_components.homebatteryassist.engine.forecast.consumption_forecast import (
+    raw_forecast,
+)
+from custom_components.homebatteryassist.engine.forecast.forecasters import (
+    Forecaster,
+    ForecasterResult,
+)
+from custom_components.homebatteryassist.engine.forecast.planning_window import (
+    HorizonLimit,
+    PlanningWindow,
+)
+from custom_components.homebatteryassist.engine.forecast.temperature_effect import (
+    TemperatureModel,
+    fit_temperature,
+    slot_temperatures,
+)
+from custom_components.homebatteryassist.engine.history.consumption_history import (
+    ConsumptionHistory,
+)
+from custom_components.homebatteryassist.engine.history.temperature_import import (
+    fill_temperatures,
+)
+from custom_components.homebatteryassist.engine.sources.weather.ha_weather_entity import (
+    parse_forecast,
+)
+
+UTC = dt_util.UTC
+H = timedelta(hours=1)
+NOW = datetime(2026, 11, 20, 0, 0, tzinfo=UTC)
+
+
+def _records(days: int, temp_of_day, power_of_temp, key: str = "avg_w") -> list:
+    """Hourly records: each day one temperature, consumption from it."""
+    records = []
+    start = NOW - timedelta(days=days)
+    for h in range(days * 24):
+        when = start + h * H
+        temp = temp_of_day(h // 24)
+        record = {
+            "start": when.isoformat(),
+            "minutes": 60,
+            "avg_w": 300.0,
+            "coverage": 1.0,
+            "temp_c": temp,
+        }
+        record[key] = power_of_temp(temp) + (300.0 if key == "avg_w" else 0.0)
+        if key != "avg_w":
+            record["avg_w"] = 300.0 + record[key]
+        records.append(record)
+    return records
+
+
+def test_learns_heating_per_degree(hass: HomeAssistant) -> None:
+    """50 W per degree below 16 °C is learned from the days."""
+    records = _records(14, lambda d: 4.0 + d, lambda t: 50.0 * max(16.0 - t, 0.0))
+    model = fit_temperature(records, NOW)
+    assert model is not None and model.days >= 12  # whole local days
+    assert abs(model.heat_w_per_deg - 50.0) < 0.5
+    assert model.cool_w_per_deg == 0.0
+    assert model.target == "avg_w"
+
+
+def test_heating_meter_is_used(hass: HomeAssistant) -> None:
+    """With a heating/cooling meter, that power is fitted."""
+    records = _records(
+        10, lambda d: 2.0 + d, lambda t: 80.0 * max(16.0 - t, 0.0), key="heating_w"
+    )
+    model = fit_temperature(records, NOW)
+    assert model is not None and model.target == "heating_w"
+    assert abs(model.heat_w_per_deg - 80.0) < 0.5
+
+
+def test_not_enough_or_no_spread(hass: HomeAssistant) -> None:
+    """Too few days, or the same weather every day: nothing learned."""
+    few = _records(5, lambda d: 4.0 + d, lambda t: 50.0 * max(16.0 - t, 0.0))
+    assert fit_temperature(few, NOW) is None
+    flat = _records(10, lambda d: 10.0, lambda t: 50.0 * max(16.0 - t, 0.0))
+    model = fit_temperature(flat, NOW)
+    assert model is not None and not model.active
+    assert fit_temperature([], NOW) is None
+
+
+def test_effect_is_difference_with_recent_weather(hass: HomeAssistant) -> None:
+    """Only the difference with what the profile already contains is added."""
+    model = TemperatureModel(50.0, 0.0, 14, "avg_w", {12: 6.0}, {12: 0.0})
+    noon = dt_util.as_utc(dt_util.as_local(NOW).replace(hour=12))
+    assert model.effect(noon, 10.0) == 0.0  # 6 degrees, as usual
+    assert model.effect(noon, 4.0) == 300.0  # 6 degrees colder than usual
+    assert model.effect(noon, None) == 0.0
+
+
+class _Flat(Forecaster):
+    key = "flat"
+    name = "Flat"
+
+    def forecast(self, data):
+        return ForecasterResult([500.0] * len(data.slots))
+
+
+class _OwnTemperature(_Flat):
+    key = "own_temperature"
+    uses_temperature = True
+
+
+def test_step_in_raw_forecast(hass: HomeAssistant) -> None:
+    """The step is added after the forecaster, unless it does that itself."""
+    window = PlanningWindow(NOW, NOW + 2 * H, HorizonLimit.PRICE)
+    model = TemperatureModel(100.0, 0.0, 14, "avg_w", {}, {})
+    temps = [6.0, None]  # 10 degrees below 16 °C; unknown
+    out = raw_forecast(
+        _Flat(), [], window, H, NOW, temperatures=temps, temperature=model
+    )
+    assert [v for _, _, v, _ in out] == [1500.0, 500.0]
+    own = raw_forecast(
+        _OwnTemperature(), [], window, H, NOW, temperatures=temps, temperature=model
+    )
+    assert [v for _, _, v, _ in own] == [500.0, 500.0]
+    off = raw_forecast(_Flat(), [], window, H, NOW)
+    assert [v for _, _, v, _ in off] == [500.0, 500.0]
+
+
+def test_parse_weather_forecast() -> None:
+    """Hourly and daily forecasts, °F converted, nonsense dropped."""
+    hourly = parse_forecast(
+        [
+            {"datetime": "2026-11-20T10:00:00+00:00", "temperature": 5.5},
+            {"datetime": "2026-11-20T11:00:00+00:00", "temperature": "x"},
+            {"datetime": "2026-11-20T12:00:00+00:00", "temperature": 500},
+        ],
+        "hourly",
+        "°C",
+    )
+    assert hourly == {datetime(2026, 11, 20, 10, tzinfo=UTC): 5.5}
+    daily = parse_forecast(
+        [{"datetime": "2026-11-20T00:00:00+00:00", "temperature": 41.0}],
+        "daily",
+        "°F",
+    )
+    assert len(daily) == 24 and abs(daily[NOW] - 5.0) < 0.01
+    slots = [(NOW, NOW + H / 4), (NOW + 30 * H, NOW + 30 * H + H / 4)]
+    assert slot_temperatures(slots, daily) == [daily[NOW], None]
+
+
+async def test_history_records_heating_and_temperature(hass: HomeAssistant) -> None:
+    """Heating power and outdoor temperature are averaged per interval."""
+    history = ConsumptionHistory(hass, "test", 15)
+    history.add_sample(NOW, 1000.0, heating=400.0, temperature=4.0)
+    history.add_sample(NOW + timedelta(minutes=5), 1000.0, heating=100.0)
+    record = history.close_interval(NOW + timedelta(minutes=15))
+    assert record is not None
+    assert record["heating_w"] == 200.0  # 5 min 400 W, 10 min 100 W
+    assert record["temp_c"] == 4.0  # only known for 5 minutes
+
+
+async def test_fill_temperatures(hass: HomeAssistant) -> None:
+    """Past records get the mean of their hour; known ones are kept."""
+    history = ConsumptionHistory(hass, "test", 15)
+    history.records = [
+        {"start": NOW.isoformat(), "minutes": 15, "avg_w": 1.0, "coverage": 1.0},
+        {
+            "start": (NOW + H / 4).isoformat(),
+            "minutes": 15,
+            "avg_w": 1.0,
+            "coverage": 1.0,
+            "temp_c": 9.0,
+        },
+    ]
+    assert fill_temperatures(history, {NOW: 3.0}) == 1
+    assert history.records[0]["temp_c"] == 3.0
+    assert history.records[1]["temp_c"] == 9.0
+
+
+def test_heating_cooling_subentry_offered(hass: HomeAssistant) -> None:
+    """Heating/cooling can be added as a device."""
+    types = HomeBatteryAssistConfigFlow.async_get_supported_subentry_types(None)
+    assert SUBENTRY_HEATING_COOLING in types
+
+
+async def test_cycle_with_weather_and_battery(hass: HomeAssistant) -> None:
+    """A full forecast cycle with weather set up (and a battery, whose
+    temperature derating shares the coordinator) runs without errors."""
+    from homeassistant.config_entries import ConfigSubentryData
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.homebatteryassist.const import (
+        CONF_OUTDOOR_TEMPERATURE,
+        CONF_WEATHER_ENTITY,
+        DOMAIN,
+        SUBENTRY_BATTERY,
+    )
+
+    from .test_batteries import BATTERY_INPUT, GRID
+
+    hass.states.async_set("weather.home", "cloudy", {"temperature": 3.0})
+    hass.states.async_set("sensor.outside", "2.5", {"unit_of_measurement": "°C"})
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=GRID,
+        options={
+            "history_interval": 15,
+            CONF_WEATHER_ENTITY: "weather.home",
+            CONF_OUTDOOR_TEMPERATURE: "sensor.outside",
+        },
+        subentries_data=[
+            ConfigSubentryData(
+                data={**BATTERY_INPUT, "phase": "none"},
+                subentry_type=SUBENTRY_BATTERY,
+                title="Venus",
+                unique_id="sensor.marstek_power",
+            )
+        ],
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    forecast = entry.runtime_data.forecast
+    await forecast.async_refresh()
+    await hass.async_block_till_done()
+    assert forecast.last_update_success
+    assert forecast.outdoor_temperature() == 2.5
+    keys = [d["key"] for d in entry.runtime_data.decisions.entries]
+    assert "temperature_no_forecast" in keys  # no weather service in tests
+    await hass.config_entries.async_unload(entry.entry_id)

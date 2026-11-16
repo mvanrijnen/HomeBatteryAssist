@@ -13,8 +13,8 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
 
 ## What it does
 
-- **Measures** the grid connection per phase (meters read directly, e.g. HomeWizard P1 or SMA Home Manager, or your own sensors), your batteries (read-only, through their own integration), PV and excluded devices such as an EV charger, and from that the house consumption. *Virtual batteries* show what a (bigger) battery would bring. → [Measuring](docs/measuring.md)
-- **Forecasts** the house consumption from your own history, and takes prices and the PV forecast from your integrations — assuming **no net metering** (as in the Netherlands from 2027). Every forecast is checked afterwards and corrected where it is consistently off. → [Forecasting](docs/forecasting.md)
+- **Measures** the grid connection per phase (meters read directly, e.g. HomeWizard P1 or SMA Home Manager, or your own sensors), your batteries (read-only, through their own integration), PV, excluded devices such as an EV charger and (optionally) heating/cooling, and from that the house consumption. *Virtual batteries* show what a (bigger) battery would bring. → [Measuring](docs/measuring.md)
+- **Forecasts** the house consumption from your own history, optionally following the weather forecast for electric heating or cooling, and takes prices and the PV forecast from your integrations — assuming **no net metering** (as in the Netherlands from 2027). Every forecast is checked afterwards and corrected where it is consistently off. → [Forecasting](docs/forecasting.md)
 - **Plans** what the batteries could best do — zero on the meter, arbitrage, time slots, manual or your own planner — within the batteries' and the grid connection's limits, with a periodic full charge, and compares every plan with no battery. Advice only. → [Planning](docs/planning.md)
 - **Explains** every plan and every change in plain language, as periods: what happens until when, and why — also what your real battery does by its own control. → [Planning: explanation](docs/planning.md#explanation)
 - **Shows** it all on a dashboard in the sidebar. → [Dashboard](docs/dashboard.md)
@@ -38,10 +38,10 @@ Home Assistant 2025.6 or newer is required.
 ## Configuration
 
 - **Configure** on the integration opens a menu:
-  - **Settings**: the main fields on top (history interval, planning horizon, forecast interval, price source, extra price forecast, plan mode, consumption forecaster, tariff, PV forecast), the rest in collapsible sections: export price, solar forecast correction, planning, limits and reserve, full charge, notifications and temperature. Empty fields show their default value;
+  - **Settings**: the main fields on top (history interval, planning horizon, forecast interval, price source, extra price forecast, plan mode, consumption forecaster, tariff, PV forecast), the rest in collapsible sections: export price, solar forecast correction, planning, limits and reserve, full charge, notifications, temperature and weather. Empty fields show their default value;
   - **Back to default settings**: every setting back to its default; where the prices and PV forecast come from is kept;
   - **Grid connection and meter**: the meter, phases, connection size and sensors.
-- **Add** batteries, virtual batteries, PV sources, excluded devices and time slots under the integration; each can be changed later (including its phase).
+- **Add** batteries, virtual batteries, PV sources, excluded devices, heating/cooling and time slots under the integration; each can be changed later (including its phase).
 
 ## Documentation
 

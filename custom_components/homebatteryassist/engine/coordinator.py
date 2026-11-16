@@ -27,7 +27,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT
+from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -53,6 +53,7 @@ from ..const import (
     CONF_MIN_DISCHARGE_PRICE,
     CONF_MIN_MARGIN,
     CONF_NOM_TARGET,
+    CONF_OUTDOOR_TEMPERATURE,
     CONF_PEAK_INCLUDE_EXCLUDED,
     CONF_PEAK_LIMIT,
     CONF_PHASE_MARGIN,
@@ -73,6 +74,7 @@ from ..const import (
     CONF_TEMP_DISCHARGE,
     CONF_TEMP_LIMIT,
     CONF_TEMP_MIN_POWER,
+    CONF_WEATHER_ENTITY,
     DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
     DEFAULT_EXPORT_FACTOR,
@@ -111,6 +113,11 @@ from .forecast.forecasters import BUILTIN as FORECASTERS
 from .forecast.forecasters import DEFAULT_FORECASTER, Forecaster
 from .forecast.phase_shares import PhaseProfile
 from .forecast.planning_window import HorizonLimit, PlanningWindow, planning_horizon
+from .forecast.temperature_effect import (
+    TemperatureModel,
+    fit_temperature,
+    slot_temperatures,
+)
 from .forecast.user_adjustments import AdjustmentStore
 from .history.consumption_history import ConsumptionHistory
 from .measure.battery_monitor import BatteryState
@@ -154,6 +161,7 @@ from .sources.pv_forecasts.energy_dashboard_platform import PV_PERIOD
 from .sources.tariffs import BUILTIN as TARIFFS
 from .sources.tariffs import DEFAULT_TARIFF, Tariff, apply_tariff
 from .sources.tariffs.as_price_source import SourceTariff
+from .sources.weather import WeatherEntitySource, valid_temperature
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -340,6 +348,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             CONF_PLANNING_HORIZON, DEFAULT_PLANNING_HORIZON
         )
         self.price_entity: str | None = options.get(CONF_PRICE_FORECAST) or None
+        # Optional: outdoor temperature (now and forecast) for the forecast.
+        weather = options.get(CONF_WEATHER_ENTITY) or None
+        self.weather: WeatherEntitySource | None = (
+            WeatherEntitySource(weather) if weather else None
+        )
+        self.outdoor_sensor: str | None = options.get(CONF_OUTDOOR_TEMPERATURE) or None
+        self.temperature_model: TemperatureModel | None = None
+        self.temperatures: list[float | None] | None = None  # per slot
+        self._last_temperature: str | None = None
         # Price driver ("<driver>:<source>") or the price sensor field.
         self.price_source: str = options.get(CONF_PRICE_SOURCE, PRICE_SOURCE_SENSOR)
         if self.price_source != PRICE_SOURCE_SENSOR:
@@ -523,6 +540,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.adjustments.prune(now)
         step = timedelta(minutes=self.history.minutes)
+        await self._async_read_temperature(window, step, now)
         chosen = self.forecasters.get(self.forecaster_key) or FORECASTERS.get(
             self.forecaster_key
         )
@@ -535,6 +553,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 now,
                 lambda value, start: accuracy.correct("consumption", value, start, now),
                 chosen,
+                self.temperatures,
+                self.temperature_model,
             )
             self.forecaster_fallback = chosen is None
         except Exception:  # an own forecaster module may fail in any way
@@ -548,6 +568,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 self.adjustments.items,
                 now,
                 lambda value, start: accuracy.correct("consumption", value, start, now),
+                temperatures=self.temperatures,
+                temperature=self.temperature_model,
             )
         # 6. Battery plans (advice) for every mode, off the event loop, within
         # the phase limits of the grid connection.
@@ -656,7 +678,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         records = self.history.records
         for key, forecaster in (*FORECASTERS.items(), *self.forecasters.items()):
             try:
-                slots = raw_forecast(forecaster, records, window, step, now)
+                slots = raw_forecast(
+                    forecaster,
+                    records,
+                    window,
+                    step,
+                    now,
+                    temperatures=self.temperatures,
+                    temperature=self.temperature_model,
+                )
             except Exception:
                 _LOGGER.exception("Consumption forecaster %s failed", key)
                 self._forecaster_failed(key)
@@ -1042,6 +1072,69 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             return
         self._last_plan = key
         self._decisions.async_log("planning", "battery_plan_story", text=text)
+
+    def outdoor_temperature(self) -> float | None:
+        """The outdoor temperature now (°C): the sensor, else the weather
+        entity; None when neither is set up or known."""
+        if self.outdoor_sensor:
+            state = self.hass.states.get(self.outdoor_sensor)
+            if state is not None:
+                value = valid_temperature(state.state)
+                unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
+                if value is not None and unit == UnitOfTemperature.FAHRENHEIT:
+                    value = valid_temperature((value - 32) / 1.8)
+                if value is not None:
+                    return value
+        return self.weather.temperature_now(self.hass) if self.weather else None
+
+    async def _async_read_temperature(
+        self, window: PlanningWindow, step: timedelta, now: datetime
+    ) -> None:
+        """Learn the temperature effect and read the forecast per slot
+        (only when a weather entity is set up)."""
+        if self.weather is None:
+            self.temperature_model = self.temperatures = None
+            return
+        self.temperature_model = fit_temperature(self.history.records, now)
+        try:
+            hourly = await self.weather.async_forecast(self.hass)
+        except Exception:  # a weather integration may fail in any way
+            _LOGGER.exception("Weather forecast of %s failed", self.weather.entity_id)
+            hourly = {}
+        self.temperatures = (
+            slot_temperatures(list(window.slots(step)), hourly) if hourly else None
+        )
+        self._explain_temperature(bool(hourly))
+
+    def _explain_temperature(self, has_forecast: bool) -> None:
+        """Tell what was learned about the outdoor temperature (when it changes
+        noticeably)."""
+        model = self.temperature_model
+        if not has_forecast:
+            key, params = "temperature_no_forecast", {}
+        elif model is None:
+            key, params = "temperature_learning", {}
+        elif not model.active:
+            key, params = "temperature_no_effect", {"days": model.days}
+        else:
+            heat, cool = model.heat_w_per_deg > 0, model.cool_w_per_deg > 0
+            key, params = (
+                "temperature_effect"
+                if heat and cool
+                else "temperature_effect_heat"
+                if heat
+                else "temperature_effect_cool",
+                {
+                    "heat": round(model.heat_w_per_deg / 10) * 10,
+                    "cool": round(model.cool_w_per_deg / 10) * 10,
+                    "days": model.days,
+                },
+            )
+        gist = f"{key}|{params.get('heat')}|{params.get('cool')}"
+        if gist == self._last_temperature:
+            return
+        self._last_temperature = gist
+        self._decisions.async_log("forecast", key, **params)
 
     def _explain_method(self, data: ForecastData) -> None:
         """Explain on which history the consumption forecast is based."""

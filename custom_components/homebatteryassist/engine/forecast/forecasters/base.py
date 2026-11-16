@@ -24,13 +24,19 @@ class ForecasterInput:
     dicts with ``start`` (ISO, UTC), ``minutes``, ``avg_w`` (house, W),
     ``coverage`` (0-1, measured part), optional ``pv_w``, ``excluded_w``,
     ``battery_w``, ``vacation`` (True: not the usual consumption) and
-    ``source`` ("import" for imported history).
+    ``source`` ("import" for imported history), and optionally
+    ``heating_w`` (heating/cooling, part of ``avg_w``) and ``temp_c``
+    (outdoor temperature).
+
+    ``temperatures``: the forecast outdoor temperature per slot (°C, None =
+    unknown), or None when no weather is set up.
     """
 
     now: datetime
     slots: list[tuple[datetime, datetime]]
     history: Sequence[Mapping[str, Any]]
     interval: timedelta
+    temperatures: Sequence[float | None] | None = None
 
 
 @dataclass(slots=True)
@@ -52,6 +58,9 @@ class Forecaster:
     key: str = ""
     name: str = ""
     description: str = ""
+    # True: the forecaster takes the temperature into account itself, so
+    # HomeBatteryAssist does not add its temperature step on top.
+    uses_temperature: bool = False
 
     def forecast(self, data: ForecasterInput) -> ForecasterResult | list[float | None]:
         """Expected consumption per slot of ``data.slots``, in W."""

@@ -187,6 +187,18 @@
               "notify_targets": "Notify-diensten (bijv. de companion-app) en/of een melding in Home Assistant zelf.",
               "notify_kinds": "Welke beslissingen worden verstuurd."
             }
+          },
+          "weather": {
+            "name": "Weer en buitentemperatuur (optioneel)",
+            "description": "Voor huizen die elektrisch verwarmen of koelen: de verbruiksvoorspelling volgt de weersverwachting. Voeg een apparaat voor verwarming/koeling toe voor een zuiverder signaal.",
+            "data": {
+              "weather_entity": "Weer-entiteit",
+              "outdoor_temperature_sensor": "Sensor buitentemperatuur"
+            },
+            "data_description": {
+              "weather_entity": "Een weer-entiteit met een verwachting (bijv. Buienradar, Met.no). Zet de temperatuurstap in de verbruiksvoorspelling aan.",
+              "outdoor_temperature_sensor": "Optioneel, nauwkeuriger dan de huidige temperatuur van de weer-entiteit; de geschiedenis ervan wordt gebruikt om meteen te leren."
+            }
           }
         }
       }
@@ -544,6 +556,18 @@
             "data_description": {
               "notify_targets": "Notify-diensten (bijv. de companion-app) en/of een melding in Home Assistant zelf.",
               "notify_kinds": "Welke beslissingen worden verstuurd."
+            }
+          },
+          "weather": {
+            "name": "Weer en buitentemperatuur (optioneel)",
+            "description": "Voor huizen die elektrisch verwarmen of koelen: de verbruiksvoorspelling volgt de weersverwachting. Voeg een apparaat voor verwarming/koeling toe voor een zuiverder signaal.",
+            "data": {
+              "weather_entity": "Weer-entiteit",
+              "outdoor_temperature_sensor": "Sensor buitentemperatuur"
+            },
+            "data_description": {
+              "weather_entity": "Een weer-entiteit met een verwachting (bijv. Buienradar, Met.no). Zet de temperatuurstap in de verbruiksvoorspelling aan.",
+              "outdoor_temperature_sensor": "Optioneel, nauwkeuriger dan de huidige temperatuur van de weer-entiteit; de geschiedenis ervan wordt gebruikt om meteen te leren."
             }
           }
         }
@@ -904,6 +928,56 @@
       },
       "error": {
         "no_days": "Kies minstens één dag."
+      },
+      "abort": {
+        "reconfigure_successful": "Instellingen opgeslagen.",
+        "already_configured": "Dit apparaat is al toegevoegd."
+      }
+    },
+    "heating_cooling": {
+      "entry_type": "Verwarming/koeling",
+      "initiate_flow": {
+        "user": "Verwarming/koeling toevoegen"
+      },
+      "step": {
+        "user": {
+          "title": "Verwarming/koeling",
+          "description": "Een warmtepomp, elektrische verwarming of airco. Het verbruik blijft deel van het huisverbruik, maar wordt apart gemeten zodat de voorspelling de buitentemperatuur kan volgen (stel een weer-entiteit in bij de instellingen).",
+          "data": {
+            "name": "Naam",
+            "sensor": "Sensor",
+            "phase": "Fase",
+            "phase_sensor_l1": "Vermogen L1 (optioneel, 3-fase)",
+            "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
+            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)"
+          },
+          "data_description": {
+            "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
+            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt.",
+            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken."
+          }
+        },
+        "reconfigure": {
+          "title": "Verwarming/koeling",
+          "description": "Een warmtepomp, elektrische verwarming of airco. Het verbruik blijft deel van het huisverbruik, maar wordt apart gemeten zodat de voorspelling de buitentemperatuur kan volgen (stel een weer-entiteit in bij de instellingen).",
+          "data": {
+            "name": "Naam",
+            "sensor": "Sensor",
+            "phase": "Fase",
+            "phase_sensor_l1": "Vermogen L1 (optioneel, 3-fase)",
+            "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
+            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)"
+          },
+          "data_description": {
+            "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
+            "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt.",
+            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken."
+          }
+        }
+      },
+      "error": {
+        "sensor_is_phase_sensor": "Deze sensor wordt al gebruikt als netmeting van een fase.",
+        "sensor_in_use": "Deze sensor wordt al door een ander apparaat gebruikt."
       },
       "abort": {
         "reconfigure_successful": "Instellingen opgeslagen.",

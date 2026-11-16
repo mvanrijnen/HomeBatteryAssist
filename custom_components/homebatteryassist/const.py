@@ -43,6 +43,9 @@ DEFAULT_PLANNING_HORIZON: Final = 2
 # - config entries of integrations offering a solar forecast to the Energy
 #   dashboard (Forecast.Solar, Solcast, Open-Meteo Solar Forecast, ...)
 CONF_PRICE_FORECAST: Final = "price_forecast_entity"
+# Optional: outdoor temperature for the consumption forecast.
+CONF_WEATHER_ENTITY: Final = "weather_entity"  # weather.* with a forecast
+CONF_OUTDOOR_TEMPERATURE: Final = "outdoor_temperature_sensor"  # sensor, °C/°F
 CONF_PV_FORECAST: Final = "pv_forecast_entries"
 # Battery plan (advice): mode and cost assumptions.
 CONF_PLAN_MODE: Final = "plan_mode"
@@ -137,6 +140,8 @@ CONF_PHASE_RETURN_SENSORS: Final = ("return_l1", "return_l2", "return_l3")
 # - a device excluded from house consumption, e.g. an EV charger (subtracted)
 SUBENTRY_PV_SOURCE: Final = "pv_source"
 SUBENTRY_EXCLUDED_LOAD: Final = "excluded_load"
+# Heating/cooling (heat pump, airco): part of the house, measured apart.
+SUBENTRY_HEATING_COOLING: Final = "heating_cooling"
 CONF_SENSOR: Final = "sensor"
 CONF_PHASE: Final = "phase"
 CONF_PV_DRIVER: Final = "pv_driver"  # "sensor" or a meter driver key

@@ -87,6 +87,23 @@ async def async_get_config_entry_diagnostics(
             "planner_fallback": data.forecast.plan_fallback,
             "consumption_forecaster": data.forecast.forecaster_key,
             "forecaster_fallback": data.forecast.forecaster_fallback,
+            "weather_entity": (
+                data.forecast.weather.entity_id if data.forecast.weather else None
+            ),
+            "outdoor_temperature": data.forecast.outdoor_temperature(),
+            "temperature_model": (
+                {
+                    "heat_w_per_deg": data.forecast.temperature_model.heat_w_per_deg,
+                    "cool_w_per_deg": data.forecast.temperature_model.cool_w_per_deg,
+                    "days": data.forecast.temperature_model.days,
+                    "target": data.forecast.temperature_model.target,
+                }
+                if data.forecast.temperature_model
+                else None
+            ),
+            "temperature_forecast_slots": sum(
+                t is not None for t in data.forecast.temperatures or []
+            ),
             "tariff": data.forecast.tariff_key,
             "tariff_fallback": data.forecast.tariff_fallback,
             "own": {

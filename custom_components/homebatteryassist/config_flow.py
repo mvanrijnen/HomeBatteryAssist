@@ -104,6 +104,7 @@ from .const import (
     CONF_NOM_TARGET,
     CONF_NOTIFY_KINDS,
     CONF_NOTIFY_TARGETS,
+    CONF_OUTDOOR_TEMPERATURE,
     CONF_PEAK_INCLUDE_EXCLUDED,
     CONF_PEAK_LIMIT,
     CONF_PHASE,
@@ -136,6 +137,7 @@ from .const import (
     CONF_TEMP_MIN_POWER,
     CONF_TEMPERATURE_SENSOR,
     CONF_VACATION,
+    CONF_WEATHER_ENTITY,
     DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
     DEFAULT_EFFICIENCY,
@@ -179,6 +181,7 @@ from .const import (
     SOURCE_MANUAL,
     SUBENTRY_BATTERY,
     SUBENTRY_EXCLUDED_LOAD,
+    SUBENTRY_HEATING_COOLING,
     SUBENTRY_PV_SOURCE,
     SUBENTRY_TIME_SLOT,
     SUBENTRY_VIRTUAL_BATTERY,
@@ -370,6 +373,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
     ),
     "full_charge": ("full_charge_window_days", "full_charge_day", "full_charge_solar"),
     "notifications": ("notify_targets", "notify_kinds"),
+    "weather": ("weather_entity", "outdoor_temperature_sensor"),
     "temperature": (
         "temperature_limit",
         "temperature_band",
@@ -407,6 +411,8 @@ KEEP_ON_RESET = (
     CONF_PRICE_FORECAST,
     CONF_PV_FORECAST,
     CONF_EXPORT_ENTITIES,
+    CONF_WEATHER_ENTITY,
+    CONF_OUTDOOR_TEMPERATURE,
 )
 
 
@@ -519,6 +525,12 @@ async def _flat_settings_schema(
         ),
         vol.Optional(CONF_PRICE_FORECAST): EntitySelector(
             EntitySelectorConfig(domain="sensor")
+        ),
+        vol.Optional(CONF_WEATHER_ENTITY): EntitySelector(
+            EntitySelectorConfig(domain="weather")
+        ),
+        vol.Optional(CONF_OUTDOOR_TEMPERATURE): EntitySelector(
+            EntitySelectorConfig(domain="sensor", device_class="temperature")
         ),
         vol.Required(
             CONF_PLAN_MODE, default=current.get(CONF_PLAN_MODE, DEFAULT_PLAN_MODE)
@@ -800,6 +812,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     }
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]
+    for key in (CONF_WEATHER_ENTITY, CONF_OUTDOOR_TEMPERATURE):
+        if user_input.get(key):
+            options[key] = user_input[key]
     options[CONF_PRICE_SOURCE] = user_input.get(CONF_PRICE_SOURCE, PRICE_SOURCE_SENSOR)
     options[CONF_PRICE_EXTENSION] = user_input.get(
         CONF_PRICE_EXTENSION, PRICE_EXTENSION_NONE
@@ -1168,6 +1183,7 @@ class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
         return {
             SUBENTRY_PV_SOURCE: PvSourceSubentryFlow,
             SUBENTRY_EXCLUDED_LOAD: ExcludedLoadSubentryFlow,
+            SUBENTRY_HEATING_COOLING: HeatingCoolingSubentryFlow,
             SUBENTRY_BATTERY: BatterySubentryFlow,
             SUBENTRY_VIRTUAL_BATTERY: VirtualBatterySubentryFlow,
             SUBENTRY_TIME_SLOT: TimeSlotSubentryFlow,
@@ -1364,6 +1380,11 @@ class PvSourceSubentryFlow(_MeasuredDeviceSubentryFlow):
 
 class ExcludedLoadSubentryFlow(_MeasuredDeviceSubentryFlow):
     """Add or change a device excluded from house consumption."""
+
+
+class HeatingCoolingSubentryFlow(_MeasuredDeviceSubentryFlow):
+    """Add or change a heating/cooling device (part of the house consumption,
+    measured apart so the forecast can follow the outdoor temperature)."""
 
 
 def _number(

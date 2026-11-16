@@ -10,6 +10,7 @@ This file only wires the modules of a config entry together.
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
@@ -39,6 +40,7 @@ from .engine.explain.notifications import Notifier
 from .engine.forecast.forecasters import async_load_user_forecasters
 from .engine.forecast.user_adjustments import AdjustmentStore
 from .engine.history import ConsumptionHistory
+from .engine.history.temperature_import import async_import_temperatures
 from .engine.measure.battery_monitor import (
     ACTIVITY_THRESHOLD_W,
     BatteryInput,
@@ -55,6 +57,8 @@ from .services import async_setup_services
 
 PLATFORMS: list[Platform] = [Platform.BUTTON, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -203,6 +207,17 @@ async def async_setup_entry(
         )
 
     await history.async_start()
+    if forecast.outdoor_sensor:
+        # Past records get their outdoor temperature from the statistics.
+        async def _fill_temperatures() -> None:
+            try:
+                await async_import_temperatures(hass, history, forecast.outdoor_sensor)
+            except Exception:  # the recorder may be unavailable
+                _LOGGER.exception("Filling in past outdoor temperatures failed")
+
+        entry.async_create_background_task(
+            hass, _fill_temperatures(), f"{DOMAIN} outdoor temperatures"
+        )
 
     measurements = MeasurementInput(hass, entry, decisions)
 
@@ -218,6 +233,8 @@ async def async_setup_entry(
             else None,
             flow.battery_w if flow and measurements.batteries else None,
             (flow.phase_house_w, flow.phase_pv_w) if flow else None,
+            flow.heating_w if flow and measurements.heating_sensors else None,
+            forecast.outdoor_temperature(),
         )
 
     measurements.async_add_listener(_record)

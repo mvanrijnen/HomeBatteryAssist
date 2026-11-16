@@ -187,6 +187,18 @@
               "notify_targets": "Notify services (e.g. the companion app) and/or a notification in Home Assistant itself.",
               "notify_kinds": "Which decisions to send."
             }
+          },
+          "weather": {
+            "name": "Weather and outdoor temperature (optional)",
+            "description": "For houses that heat or cool with electricity: the consumption forecast follows the weather forecast. Add a heating/cooling device for a cleaner signal.",
+            "data": {
+              "weather_entity": "Weather entity",
+              "outdoor_temperature_sensor": "Outdoor temperature sensor"
+            },
+            "data_description": {
+              "weather_entity": "A weather entity with a forecast (e.g. Buienradar, Met.no). Turns the temperature step in the consumption forecast on.",
+              "outdoor_temperature_sensor": "Optional, more accurate than the weather entity's current temperature; its history is used to learn right away."
+            }
           }
         }
       }
@@ -544,6 +556,18 @@
             "data_description": {
               "notify_targets": "Notify services (e.g. the companion app) and/or a notification in Home Assistant itself.",
               "notify_kinds": "Which decisions to send."
+            }
+          },
+          "weather": {
+            "name": "Weather and outdoor temperature (optional)",
+            "description": "For houses that heat or cool with electricity: the consumption forecast follows the weather forecast. Add a heating/cooling device for a cleaner signal.",
+            "data": {
+              "weather_entity": "Weather entity",
+              "outdoor_temperature_sensor": "Outdoor temperature sensor"
+            },
+            "data_description": {
+              "weather_entity": "A weather entity with a forecast (e.g. Buienradar, Met.no). Turns the temperature step in the consumption forecast on.",
+              "outdoor_temperature_sensor": "Optional, more accurate than the weather entity's current temperature; its history is used to learn right away."
             }
           }
         }
@@ -904,6 +928,56 @@
       },
       "error": {
         "no_days": "Choose at least one day."
+      },
+      "abort": {
+        "reconfigure_successful": "Settings saved.",
+        "already_configured": "This device is already added."
+      }
+    },
+    "heating_cooling": {
+      "entry_type": "Heating/cooling",
+      "initiate_flow": {
+        "user": "Add heating/cooling"
+      },
+      "step": {
+        "user": {
+          "title": "Heating/cooling",
+          "description": "A heat pump, electric heating or airco. Its consumption stays part of the house consumption, but is measured apart so the forecast can follow the outdoor temperature (set a weather entity in the settings).",
+          "data": {
+            "name": "Name",
+            "sensor": "Sensor",
+            "phase": "Phase",
+            "phase_sensor_l1": "Power L1 (optional, 3-phase)",
+            "phase_sensor_l2": "Power L2 (optional, 3-phase)",
+            "phase_sensor_l3": "Power L3 (optional, 3-phase)"
+          },
+          "data_description": {
+            "sensor": "Sensor measuring the power (W) or current (A) of this device.",
+            "phase": "The phase this device is connected to, if it uses a single phase.",
+            "phase_sensor_l1": "For a 3-phase device: a sensor per phase gives the exact split over the phases. Leave empty to spread the total evenly (phase 'all phases') or to use the phase chosen above."
+          }
+        },
+        "reconfigure": {
+          "title": "Heating/cooling",
+          "description": "A heat pump, electric heating or airco. Its consumption stays part of the house consumption, but is measured apart so the forecast can follow the outdoor temperature (set a weather entity in the settings).",
+          "data": {
+            "name": "Name",
+            "sensor": "Sensor",
+            "phase": "Phase",
+            "phase_sensor_l1": "Power L1 (optional, 3-phase)",
+            "phase_sensor_l2": "Power L2 (optional, 3-phase)",
+            "phase_sensor_l3": "Power L3 (optional, 3-phase)"
+          },
+          "data_description": {
+            "sensor": "Sensor measuring the power (W) or current (A) of this device.",
+            "phase": "The phase this device is connected to, if it uses a single phase.",
+            "phase_sensor_l1": "For a 3-phase device: a sensor per phase gives the exact split over the phases. Leave empty to spread the total evenly (phase 'all phases') or to use the phase chosen above."
+          }
+        }
+      },
+      "error": {
+        "sensor_is_phase_sensor": "This sensor is already used as a grid phase measurement.",
+        "sensor_in_use": "This sensor is already used by another device."
       },
       "abort": {
         "reconfigure_successful": "Settings saved.",

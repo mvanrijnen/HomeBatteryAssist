@@ -54,11 +54,13 @@ custom_components/homebatteryassist/
     │   │                  price_forecasts.py, in_development/ (tibber.py)
     │   ├── pv_forecasts/  base.py, template.py, solar_forecast_integrations.py,
     │   │                  energy_dashboard_platform.py
-    │   └── tariffs/       base.py, template.py, as_price_source.py
+    │   ├── tariffs/       base.py, template.py, as_price_source.py
+    │   └── weather/       base.py, template.py, ha_weather_entity.py (optional)
     ├── measure/           3  house_measurement.py, battery_monitor.py
-    ├── history/           4  consumption_history.py, history_import.py, chart_series.py
+    ├── history/           4  consumption_history.py, history_import.py, chart_series.py,
+    │                         temperature_import.py
     ├── forecast/          5  planning_window.py, consumption_forecast.py,
-    │                         user_adjustments.py, phase_shares.py,
+    │                         user_adjustments.py, phase_shares.py, temperature_effect.py,
     │                         forecasters/ (base.py, template.py, weekday_hour_profile.py,
     │                                       same_time_last_weeks.py)
     ├── planning/          6  battery_plan.py (final check), full_charge.py, phase_limit.py,

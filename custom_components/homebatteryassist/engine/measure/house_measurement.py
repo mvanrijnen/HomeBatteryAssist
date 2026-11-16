@@ -50,6 +50,7 @@ from ...const import (
     PHASE_NONE,
     PV_DRIVER_SENSOR,
     SUBENTRY_EXCLUDED_LOAD,
+    SUBENTRY_HEATING_COOLING,
     SUBENTRY_PV_SOURCE,
     phase_index,
     phase_return_sensor_keys,
@@ -91,6 +92,7 @@ class PowerFlow:
     # spread evenly), to learn how the consumption is spread over the phases.
     phase_house_w: tuple[float, ...] = ()
     phase_pv_w: tuple[float, ...] = ()
+    heating_w: float = 0.0  # heating/cooling devices (part of house_w)
 
     @property
     def import_w(self) -> float:
@@ -148,6 +150,11 @@ class MeasurementInput:
                 self.pv_meters.append((driver.create(hass, address), phase))
         self.pv_sensors = [sensor for sensor, _, _ in self.pv_sources]
         self.excluded_sensors = [sensor for sensor, _, _ in self.excluded_loads]
+        # Heating/cooling: part of the house, measured apart for the forecast.
+        self.heating_sensors = [
+            sensor
+            for sensor, _, _ in _subentry_devices(entry, SUBENTRY_HEATING_COOLING)
+        ]
         # per-phase sensors also trigger a recalculation
         self._phase_device_sensors = [
             s
@@ -174,6 +181,7 @@ class MeasurementInput:
             *grid,
             *self.pv_sensors,
             *self.excluded_sensors,
+            *self.heating_sensors,
             *self._phase_device_sensors,
             *batteries,
         ]
@@ -355,6 +363,7 @@ class MeasurementInput:
             tuple(phase_w),
             tuple(round(v, 1) for v in phase_house),
             tuple(round(v, 1) for v in phase_pv),
+            round(self._sum_abs(self.heating_sensors), 1),
         ), []
 
     def _watts(self, entity_id: str) -> float | None:

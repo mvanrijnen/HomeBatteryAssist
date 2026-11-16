@@ -5,7 +5,8 @@ the built-in weekday/hour profile) from the consumption history (excluded
 devices such as an EV charger are not part of it), checked by
 HomeBatteryAssist (``raw_forecast``).
 
-Per slot: forecaster (``base_w``) -> learned or manual correction (``accuracy``)
+Per slot: forecaster -> temperature step (optional, ``temperature_effect``;
+together ``base_w``) -> learned or manual correction (``accuracy``)
 -> user adjustments (``adjustments``, applied last because they are intent).
 ``raw_w`` (the forecaster's value, without correction and without the user's
 adjustments — those are intent, not a forecast error) is what accuracy learns
@@ -35,6 +36,7 @@ from .forecasters.weekday_hour_profile import (
     ConsumptionProfile,
 )
 from .planning_window import PlanningWindow
+from .temperature_effect import TemperatureModel
 from .user_adjustments import Adjustment, apply_adjustments
 
 __all__ = [
@@ -75,19 +77,30 @@ def raw_forecast(
     step: timedelta,
     now: datetime,
     profile: list[tuple[float | None, str | None]] | None = None,
+    temperatures: Sequence[float | None] | None = None,
+    temperature: TemperatureModel | None = None,
 ) -> list[tuple[datetime, datetime, float, str]]:
     """``forecaster``'s prediction per slot of ``window`` after
     HomeBatteryAssist's final check: a missing, negative, non-finite or absurd
     value is replaced by the built-in profile's prediction (slots without
-    either are left out). Raises what the forecaster raises.
+    either are left out). With a learned ``temperature`` model and a
+    forecast per slot (``temperatures``), the temperature step is added
+    (unless the forecaster does that itself). Raises what the forecaster
+    raises.
     """
     if window.is_empty:
         return []
     slots = list(window.slots(step))
-    data = ForecasterInput(now, slots, records, step)
+    data = ForecasterInput(now, slots, records, step, temperatures)
     if profile is None:
         profile = _profile(data)
     forecaster = forecaster or BUILTIN[DEFAULT_FORECASTER]
+    step_on = (
+        temperature is not None
+        and temperature.active
+        and temperatures is not None
+        and not forecaster.uses_temperature
+    )
     if forecaster.key == DEFAULT_FORECASTER and type(forecaster) is type(
         BUILTIN[DEFAULT_FORECASTER]
     ):
@@ -105,8 +118,8 @@ def raw_forecast(
             for i in range(len(slots))
         ]
     out = []
-    for (start, end), (value, method), (fallback, fallback_method) in zip(
-        slots, own, profile, strict=True
+    for i, ((start, end), (value, method), (fallback, fallback_method)) in enumerate(
+        zip(slots, own, profile, strict=True)
     ):
         try:
             number = float(value) if value is not None else None
@@ -116,6 +129,9 @@ def raw_forecast(
             if fallback is None:
                 continue
             number, method = fallback, fallback_method or DEFAULT_FORECASTER
+        if step_on and i < len(temperatures):  # type: ignore[arg-type]
+            extra = temperature.effect(start, temperatures[i])  # type: ignore[index,union-attr]
+            number = min(max(number + extra, 0.0), MAX_W)
         out.append((start, end, round(number, 1), method or forecaster.key))
     return out
 
@@ -134,6 +150,8 @@ def forecast_consumption(
     now: datetime | None = None,
     correct: Callable[[float, datetime], float] | None = None,
     forecaster: Forecaster | None = None,
+    temperatures: Sequence[float | None] | None = None,
+    temperature: TemperatureModel | None = None,
 ) -> list[ForecastSlot]:
     """Expected consumption per slot of ``window`` (empty without history),
     by ``forecaster`` (default: the built-in profile).
@@ -144,7 +162,13 @@ def forecast_consumption(
     adjustments = list(adjustments)
     slots: list[ForecastSlot] = []
     for start, end, base, method in raw_forecast(
-        forecaster, records, window, step, now or window.start
+        forecaster,
+        records,
+        window,
+        step,
+        now or window.start,
+        temperatures=temperatures,
+        temperature=temperature,
     ):
         corrected = round(correct(base, start), 1) if correct else base
         power, applied = apply_adjustments(corrected, start, end, adjustments)
