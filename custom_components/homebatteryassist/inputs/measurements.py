@@ -211,8 +211,10 @@ class MeasurementInput:
     async def async_stop_meter(self) -> None:
         """Stop reading the direct meters (if any)."""
         if self.direct is not None:
+            self.direct.cancel_stale()
             await self.direct.async_stop()
         for meter, _ in self.pv_meters:
+            meter.cancel_stale()
             await meter.async_stop()
 
     @callback

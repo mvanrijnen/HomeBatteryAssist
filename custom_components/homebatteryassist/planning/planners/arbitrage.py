@@ -84,7 +84,11 @@ def _optimise(
         else max(int((battery.ceiling_wh - band - battery.floor_wh) / step), 0)
     )
     flags = (0, 1) if band > 0 else (0,)
-    best_next = [[[0] * levels for _ in flags] for _ in range(count)]
+    # Next level per slot, flag and level; a fraction means "cover the house
+    # load, using part of a level" (see below).
+    best_next: list[list[list[float]]] = [
+        [[0] * levels for _ in flags] for _ in range(count)
+    ]
     future = [terminal for _ in flags]
     for t in range(count - 1, -1, -1):
         slot = slots[t]
@@ -130,22 +134,57 @@ def _optimise(
                     )
                     if cost < best:
                         best, best_j = cost, j
+                # Covering a house load smaller than one level: discharge just
+                # that, using a fraction of a level (valued as a mix of the two
+                # levels). Without this a big battery could not cover small loads.
+                need = max(net, 0.0)
+                part = need * hours / eff / step if need > 0 else 0.0
+                if (
+                    0 < part < 1
+                    and i > 0
+                    and may_discharge(rules, price)
+                    and need <= slot.max_discharge_w
+                ):
+                    cost = (
+                        grid_cost(net - need, hours, price, export)
+                        + need * hours / 1000 * data.cycle_cost
+                        + need * hours / 1000 * extra
+                        + part * future[0][i - 1]
+                        + (1 - part) * future[0][i]
+                    )
+                    if cost < best:
+                        best, best_j = cost, i - part
                 current[flag][i] = best
                 choice[i] = best_j
         future = current
 
-    # Forward pass from the current state of charge (nearest level).
-    i = min(max(round((battery.stored_wh - battery.floor_wh) / step), 0), levels - 1)
+    # Forward pass, following the real stored energy (the nearest level picks
+    # the choice).
+    stored = battery.stored_wh
     flag = 0
     powers = []
     for t, slot in enumerate(slots):
+        i = min(max(round((stored - battery.floor_wh) / step), 0), levels - 1)
         j = best_next[t][flag][i]
-        flag = 1 if (j > i and band > 0) else 0
-        delta = (j - i) * step
-        powers.append(
-            delta / (slot.hours * eff) if delta >= 0 else delta * eff / slot.hours
-        )
-        i = j
+        if j != int(j):
+            # Cover the house load with part of a level.
+            power = -min(
+                max(slot.net_w, 0.0),
+                max(stored - battery.floor_wh, 0.0) * eff / slot.hours,
+            )
+            flag = 0
+        else:
+            flag = 1 if (j > i and band > 0) else 0
+            target = battery.floor_wh + int(j) * step
+            delta = target - stored if j != i else 0.0
+            power = (
+                delta / (slot.hours * eff) if delta >= 0 else delta * eff / slot.hours
+            )
+        power = max(min(power, slot.max_charge_w), -slot.max_discharge_w)
+        if not allow_export and power < 0:
+            power = max(power, -max(slot.net_w, 0.0))  # own use: no export
+        stored += power * slot.hours * eff if power >= 0 else power * slot.hours / eff
+        powers.append(power)
     return powers
 
 

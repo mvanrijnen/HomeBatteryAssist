@@ -364,9 +364,16 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 1,
                 f"{DOMAIN}.{self.config_entry.entry_id}.prices",
             )
-            self.price_log = (await self._price_store.async_load() or {}).get(
-                "prices", {}
-            )
+            stored = (await self._price_store.async_load() or {}).get("prices", {})
+            self.price_log = {
+                key: list(value)
+                for key, value in (stored.items() if isinstance(stored, dict) else ())
+                if isinstance(value, list | tuple)
+                and len(value) == 3
+                and isinstance(value[1], int | float)
+                and dt_util.parse_datetime(str(key)) is not None
+                and dt_util.parse_datetime(str(value[0])) is not None
+            }
 
     def _log_prices(
         self, published: list[PricePoint], slots: list[Any], now: datetime

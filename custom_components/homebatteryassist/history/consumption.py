@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from datetime import datetime, timedelta
 from typing import Any, NotRequired, TypedDict
 
@@ -33,6 +34,21 @@ class ConsumptionRecord(TypedDict):
     phase_house_w: NotRequired[list[float]]  # average house consumption per phase
     phase_pv_w: NotRequired[list[float]]  # average PV production per phase
     vacation: NotRequired[bool]  # measured in vacation mode: not learned from
+
+
+def _valid(record: object) -> bool:
+    """A stored record has the fields every reader relies on."""
+    if not isinstance(record, dict):
+        return False
+    try:
+        return (
+            dt_util.parse_datetime(str(record["start"])) is not None
+            and float(record["minutes"]) > 0
+            and math.isfinite(float(record["avg_w"]))
+            and 0.0 <= float(record["coverage"]) <= 1.0
+        )
+    except (KeyError, TypeError, ValueError):
+        return False
 
 
 class ConsumptionHistory:
@@ -96,7 +112,13 @@ class ConsumptionHistory:
     async def async_load(self) -> None:
         """Load stored records."""
         if (data := await self._store.async_load()) is not None:
-            self.records = data.get("records", [])
+            records = data.get("records", [])
+            self.records = [r for r in records if _valid(r)]
+            if len(self.records) != len(records):
+                _LOGGER.warning(
+                    "Skipped %d invalid consumption history records",
+                    len(records) - len(self.records),
+                )
 
     async def async_save(self) -> None:
         """Write records to disk now."""

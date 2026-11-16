@@ -39,7 +39,7 @@ from typing import Any
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.util import dt as dt_util
 
 from .speedwire import GROUP, PORT, decode
@@ -101,6 +101,7 @@ class DirectMeter:
         self.updated: datetime | None = None
         self.count = 0  # values received since the start
         self._listeners: list[PhaseListener] = []
+        self._unsub_stale: CALLBACK_TYPE | None = None
 
     @property
     def available(self) -> bool:
@@ -126,6 +127,25 @@ class DirectMeter:
         if changed:
             for listener in list(self._listeners):
                 listener(now)
+        # No value for STALE_AFTER: tell the listeners, so they see "unknown".
+        self.cancel_stale()
+        self._unsub_stale = async_call_later(
+            self.hass, STALE_AFTER + timedelta(seconds=1), self._stale
+        )
+
+    @callback
+    def _stale(self, now: datetime) -> None:
+        self._unsub_stale = None
+        if not self.available:
+            for listener in list(self._listeners):
+                listener(now)
+
+    @callback
+    def cancel_stale(self) -> None:
+        """Stop watching for a missing value (when stopping)."""
+        if self._unsub_stale is not None:
+            self._unsub_stale()
+            self._unsub_stale = None
 
     async def async_start(self) -> None:
         """Start reading."""
