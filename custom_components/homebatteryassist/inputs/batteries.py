@@ -63,6 +63,7 @@ from ..const import (
     SIGN_DISCHARGING_POSITIVE,
     SUBENTRY_BATTERY,
     SUBENTRY_VIRTUAL_BATTERY,
+    VALUE_BASIS,
 )
 from ..explain import DecisionLog
 from .units import parse_float, state_to_watts
@@ -258,6 +259,32 @@ class BatteryStats(TypedDict):
     value_since: NotRequired[str]  # ISO 8601: when the value counter started
 
 
+def realised_value(
+    battery_kwh: float,
+    grid_kwh: float | None,
+    price: float,
+    export_price: float | None,
+) -> float:
+    """What a battery saved over an interval, without net metering.
+
+    ``battery_kwh``: + charged / - discharged. ``grid_kwh``: grid energy with
+    the battery (+ import / - export). Imported energy costs ``price``,
+    exported energy earns ``export_price`` (None = the import price). So
+    charging from solar power that would have been exported costs only its
+    export value, and discharging saves the import price only for energy the
+    house would otherwise have bought. Without a grid measurement every kWh
+    counts at the import price.
+    """
+    export = price if export_price is None else export_price
+    if grid_kwh is None:
+        return -battery_kwh * price
+
+    def cost(kwh: float) -> float:
+        return kwh * price if kwh >= 0 else kwh * export
+
+    return cost(grid_kwh - battery_kwh) - cost(grid_kwh)
+
+
 class BatteryInput:
     """Follows all batteries: live state, energy counters and full charges."""
 
@@ -282,6 +309,11 @@ class BatteryInput:
         self._unsub_log: CALLBACK_TYPE | None = None
         # Price (per kWh) right now, set by the setup (from the price forecast).
         self.price_now: Callable[[], float | None] = lambda: None
+        # What exported energy earns right now (None = the import price).
+        self.export_price_now: Callable[[], float | None] = lambda: None
+        # Measured grid power right now, W (+ import / - export), real
+        # batteries included, virtual batteries not.
+        self.grid_now: Callable[[], float | None] = lambda: None
         # battery id -> [[ISO time, state of charge %], ...] every quarter, 7 days
         self.soc_log: dict[str, list[list[Any]]] = {}
 
@@ -299,6 +331,12 @@ class BatteryInput:
             self.stats[config.id] = BatteryStats(
                 charged_kwh=0.0, discharged_kwh=0.0, last_full_charge=None
             ) | stored.get(config.id, {})
+            stats = self.stats[config.id]
+            if stats.get("value_basis") != VALUE_BASIS:
+                # Older counters assumed net metering: start again.
+                stats.pop("value", None)
+                stats.pop("value_since", None)
+                stats["value_basis"] = VALUE_BASIS
         entity_ids = [
             e
             for c in self.configs
@@ -396,13 +434,39 @@ class BatteryInput:
                 stats["charged_kwh"] = round(stats["charged_kwh"] + kwh, 4)
             elif kwh < 0:
                 stats["discharged_kwh"] = round(stats["discharged_kwh"] - kwh, 4)
-            # Realised value: discharging saves buying power, charging costs it
-            # (from the grid, or as export value of solar power).
+            # Realised value: what the grid would have cost without this
+            # battery minus what it costs with it (no net metering).
             if kwh and (price := self.price_now()) is not None:
+                hours = max((when - since).total_seconds(), 0.0) / 3600
+                grid_kwh = self._grid_with_batteries(battery_id, last_power)
                 stats.setdefault("value_since", when.isoformat())
-                stats["value"] = round(stats.get("value", 0.0) - kwh * price, 5)
+                stats["value"] = round(
+                    stats.get("value", 0.0)
+                    + realised_value(
+                        kwh,
+                        None if grid_kwh is None else grid_kwh * hours / 1000,
+                        price,
+                        self.export_price_now(),
+                    ),
+                    5,
+                )
         if power is not None:
             self._last_power[battery_id] = (when, power)
+
+    def _grid_with_batteries(self, battery_id: str, last_power: float) -> float | None:
+        """Grid power (W) with all batteries, the virtual ones included, while
+        ``battery_id`` ran at ``last_power``."""
+        grid = self.grid_now()
+        if grid is None:
+            return None
+        for config in self.configs:
+            if not config.virtual:
+                continue
+            if config.id == battery_id:
+                grid += last_power
+            else:
+                grid += self.states[config.id].power_w or 0.0
+        return grid
 
     def _explain_availability(self, config: BatteryConfig, available: bool) -> None:
         """Explain losing / regaining a battery (not the first state at start-up)."""

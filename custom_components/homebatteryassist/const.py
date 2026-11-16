@@ -96,9 +96,14 @@ EXPORT_FACTOR: Final = "factor"  # import price x factor
 EXPORT_SENSOR: Final = "sensor"  # export price forecast from sensor(s)
 EXPORT_MARKET: Final = "market"  # bare market price (EPEX) from sensor(s)
 EXPORT_MODES: Final = (EXPORT_FACTOR, EXPORT_MARKET, EXPORT_SENSOR)
-DEFAULT_EXPORT_MODE: Final = EXPORT_FACTOR
+DEFAULT_EXPORT_MODE: Final = EXPORT_MARKET
 CONF_CYCLE_COST: Final = "cycle_cost"
-DEFAULT_EXPORT_FACTOR: Final = 1.0  # export earns the import price (net metering)
+# No net metering (NL: ends 1 January 2027): export earns far less than the
+# import price. 1.0 would mean net metering.
+DEFAULT_EXPORT_FACTOR: Final = 0.25
+# Realised battery value without net metering; counters of an older basis
+# (export = import price) are reset once.
+VALUE_BASIS: Final = 2
 DEFAULT_CYCLE_COST: Final = 0.02  # per kWh through the battery
 # Below this power per battery conversion losses are high: use fewer batteries.
 CONF_MIN_BATTERY_POWER: Final = "min_battery_power"

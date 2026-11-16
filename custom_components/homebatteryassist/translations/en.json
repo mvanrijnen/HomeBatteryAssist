@@ -77,7 +77,7 @@
             "data_description": {
               "export_price_mode": "What energy returned to the grid earns. Import price x factor (below), the bare market price (EPEX, from the selected sensors, or from market attributes of the price sensor), or an export price forecast from the selected sensors. Where these do not reach, import price x factor is used.",
               "export_price_entities": "One or more sensors with prices (state and/or price list attributes), e.g. a market price sensor for today/tomorrow plus a forecast sensor for the days after. For overlapping periods the first sensor wins.",
-              "export_price_factor": "Used with 'Import price x factor', and wherever the export price sensors give no price."
+              "export_price_factor": "Used with 'Import price x factor', and wherever the export price sensors give no price. All calculations assume no net metering (ends in the Netherlands on 1 January 2027): export earns only this compensation. Default 0.25 (a quarter of the import price); 1.0 equals net metering."
             }
           },
           "solar": {
@@ -415,7 +415,7 @@
             "data_description": {
               "export_price_mode": "What energy returned to the grid earns. Import price x factor (below), the bare market price (EPEX, from the selected sensors, or from market attributes of the price sensor), or an export price forecast from the selected sensors. Where these do not reach, import price x factor is used.",
               "export_price_entities": "One or more sensors with prices (state and/or price list attributes), e.g. a market price sensor for today/tomorrow plus a forecast sensor for the days after. For overlapping periods the first sensor wins.",
-              "export_price_factor": "Used with 'Import price x factor', and wherever the export price sensors give no price."
+              "export_price_factor": "Used with 'Import price x factor', and wherever the export price sensors give no price. All calculations assume no net metering (ends in the Netherlands on 1 January 2027): export earns only this compensation. Default 0.25 (a quarter of the import price); 1.0 equals net metering."
             }
           },
           "solar": {

@@ -105,7 +105,18 @@ async def async_setup_entry(
             return None
         return next((p.price for p in data.prices if p.start <= now < p.end), None)
 
+    def _export_price_now() -> float | None:
+        data, now = forecast.data, dt_util.utcnow()
+        if data is None:
+            return None
+        slot = next((s for s in data.battery if s.start <= now < s.end), None)
+        if slot is not None and slot.export_price is not None:
+            return slot.export_price
+        price = _price_now()
+        return None if price is None else price * forecast.export_factor
+
     batteries.price_now = _price_now
+    batteries.export_price_now = _export_price_now
     await forecast.async_config_entry_first_refresh()
     if not hass.is_running:
         # Other integrations (price and PV forecasts) may still be starting:
@@ -144,6 +155,9 @@ async def async_setup_entry(
         )
 
     measurements.async_add_listener(_record)
+    batteries.grid_now = lambda: (
+        measurements.flow.grid_w if measurements.flow is not None else None
+    )
     measurements.async_start()
     await measurements.async_start_meter()
 

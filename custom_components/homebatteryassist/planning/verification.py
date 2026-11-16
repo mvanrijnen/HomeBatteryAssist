@@ -25,7 +25,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from ..const import DOMAIN
+from ..const import DOMAIN, VALUE_BASIS
 from .battery_plan import PlanSlot, _grid_cost
 
 _LOGGER = logging.getLogger(__name__)
@@ -73,6 +73,8 @@ class PlanVerification:
     async def async_load(self) -> None:
         """Load the stored records."""
         data = await self._store.async_load() or {}
+        if data.get("value_basis") != VALUE_BASIS:
+            data = {}  # realised values of an older basis (net metering)
         self.records = data.get("records", [])
         self.planned = data.get("planned", {})
 
@@ -81,7 +83,11 @@ class PlanVerification:
         await self._store.async_save(self._data())
 
     def _data(self) -> dict[str, Any]:
-        return {"records": self.records, "planned": self.planned}
+        return {
+            "records": self.records,
+            "planned": self.planned,
+            "value_basis": VALUE_BASIS,
+        }
 
     def record_plan(
         self,

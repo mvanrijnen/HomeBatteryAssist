@@ -70,6 +70,10 @@ const TEXT = {
     consumption: "Consumption",
     last7: "Last 7 days (average per hour)",
     avgDay: "Average day",
+    last7Info:
+      "What the house itself used, averaged per hour: grid import + solar production − excluded devices − battery charging (+ battery discharging). Excluded devices (e.g. an EV charger) are not in the house line and are not forecast. Hover over the line for the exact hour and value.",
+    avgDayInfo:
+      "The same house consumption, averaged per hour of the day over all history (up to 28 days), for weekdays (Mon–Fri) and the weekend separately. This is the typical day pattern; the consumption forecast uses it per weekday, with recent days counting more.",
     weekday: "Weekdays",
     weekend: "Weekend",
     daysOfData: "{days} days of history",
@@ -105,6 +109,9 @@ const TEXT = {
     vsMode: "{mode} vs {other}",
     modeNames: { nom: "Zero on the meter", arbitrage: "Arbitrage", arbitrage_full: "Full arbitrage", time_slots: "Time slots", manual: "Manual" },
     compareTitle: "Return compared",
+    compareShow: "Return overview ▾",
+    compareHide: "Hide overview ▴",
+    realizedShort: "realised so far",
     checkTitle: "Plan versus reality (per day)",
     checkDay: "Day",
     checkPlanned: "Planned saving",
@@ -221,6 +228,10 @@ const TEXT = {
     consumption: "Verbruik",
     last7: "Afgelopen 7 dagen (gemiddeld per uur)",
     avgDay: "Gemiddelde dag",
+    last7Info:
+      "Wat het huis zelf verbruikte, gemiddeld per uur: afname van het net + zonne-opwek − uitgesloten apparaten − laden van de batterij (+ ontladen). Uitgesloten apparaten (bijv. een laadpaal) zitten niet in de huislijn en worden niet voorspeld. Wijs de lijn aan voor het precieze uur en de waarde.",
+    avgDayInfo:
+      "Hetzelfde huisverbruik, gemiddeld per uur van de dag over alle geschiedenis (tot 28 dagen), apart voor werkdagen (ma–vr) en het weekend. Zo zie je het vaste dagpatroon; de verbruiksvoorspelling gebruikt dit per weekdag, waarbij recente dagen zwaarder tellen.",
     weekday: "Werkdagen",
     weekend: "Weekend",
     daysOfData: "{days} dagen historie",
@@ -256,6 +267,9 @@ const TEXT = {
     vsMode: "{mode} t.o.v. {other}",
     modeNames: { nom: "Nul op de meter", arbitrage: "Arbitrage", arbitrage_full: "Arbitrage volledig", time_slots: "Tijdvakken", manual: "Handmatig" },
     compareTitle: "Rendement vergeleken",
+    compareShow: "Rendement overzicht ▾",
+    compareHide: "Overzicht verbergen ▴",
+    realizedShort: "tot nu gerealiseerd",
     checkTitle: "Plan tegen werkelijkheid (per dag)",
     checkDay: "Dag",
     checkPlanned: "Verwachte besparing",
@@ -364,7 +378,13 @@ const STYLE = `
   ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
   li { display: grid; grid-template-columns: 90px 1fr; gap: 8px; font-size: 14px; }
   li time { color: var(--secondary-text-color); }
+  ul.decisions { gap: 0; }
+  ul.decisions li { padding: 8px 0; border-bottom: 1px solid var(--divider-color); line-height: 1.45; }
+  ul.decisions li:last-child { border-bottom: none; }
+  ul.decisions li > div > div + div { margin-top: 2px; }
+  ul.decisions .lead { font-weight: 500; }
   .muted { color: var(--secondary-text-color); }
+  .small { font-size: 0.85em; margin-top: 4px; }
   .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
   .chart h3 { margin: 0 0 6px; font-size: 14px; font-weight: 500; }
   .chart svg { width: 100%; height: auto; display: block; }
@@ -377,6 +397,8 @@ const STYLE = `
   .nav { display: flex; gap: 4px; flex-wrap: wrap; }
   .nav button { font: inherit; font-size: 12px; cursor: pointer; color: var(--primary-text-color);
     background: var(--secondary-background-color); border: 1px solid var(--divider-color); border-radius: 12px; padding: 2px 10px; }
+  button.toggle { font: inherit; font-size: 13px; cursor: pointer; color: var(--primary-color);
+    background: none; border: 1px solid var(--primary-color); border-radius: 12px; padding: 2px 12px; }
   .nav button.active { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: var(--primary-color); }
   .chart .zero { stroke: var(--secondary-text-color); stroke-width: 1; opacity: .6; }
   .chart .now { stroke: var(--secondary-text-color); stroke-width: 1; stroke-dasharray: 2 3; }
@@ -665,10 +687,15 @@ class HomeBatteryAssistPanel extends HTMLElement {
           `<button data-mode="${esc(m)}" class="${m === value.mode ? "active" : ""}" ${this._modeBusy ? "disabled" : ""}>${esc(name(m))}</button>`,
       )
       .join("");
+    const open = this._showCompare;
+    const selected = value.by_mode[value.mode];
+    const summary = `${name(value.mode)} ${t.vsNone}: ${signed(selected)} · ${t.realizedShort}: ${signed(value.realized)}`;
     return `<div class="card"><div class="chart"><div class="head"><h2>${esc(t.compareTitle)}</h2>
       <div class="nav"><span class="muted">${esc(this._modeBusy ? t.modeSwitching : t.modeLabel)}:</span>${buttons}</div></div></div>
-      <table class="compare">${rows.join("")}</table>
-      <div class="muted">${esc(t.compareNote.replace("{date}", date))}</div></div>`;
+      <div class="head"><span>${esc(summary)}</span>
+        <button class="toggle" data-toggle="compare">${esc(open ? t.compareHide : t.compareShow)}</button></div>
+      ${open ? `<table class="compare">${rows.join("")}</table>
+      <div class="muted">${esc(t.compareNote.replace("{date}", date))}</div>` : ""}</div>`;
   }
 
   _planCheck(s, t) {
@@ -1301,10 +1328,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
         <div class="muted">${esc(accText)}</div>
         ${h.battery_forecast?.length ? `<div class="muted">${esc(this._planText(h, t))} · ${esc(t.batteryNote)}</div>` : ""}</div>
       ${socChart ? `<div class="chart wide"><h3>${esc(t.socTitle)}</h3>${socChart}</div>` : ""}
-      <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}</div>
+      <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}<div class="muted small">${esc(t.last7Info)}</div></div>
       <div class="chart"><h3>${esc(t.avgDay)}</h3>${avg}
         <div class="legend"><span><i style="background:${primary}"></i>${esc(t.weekday)}</span>
-        <span><i style="background:${accent}"></i>${esc(t.weekend)}</span></div></div>
+        <span><i style="background:${accent}"></i>${esc(t.weekend)}</span></div>
+        <div class="muted small">${esc(t.avgDayInfo)}</div></div>
     </div></div>`;
   }
 
@@ -1344,9 +1372,23 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return `<div class="card"><h2>${esc(t.accTitle)}</h2>${body}</div>`;
   }
 
+  _message(text) {
+    // Long explanations: one sentence per line; the comparisons with other
+    // modes ("Met …" / "With …") together in a smaller line at the end.
+    const sentences = String(text).split(/(?<=[.!?])\s+(?=[A-Z€(])/u);
+    if (sentences.length < 2) return esc(text);
+    const compare = /^(Met |With |Let op: met |Note: with )/;
+    const main = sentences.filter((x) => !compare.test(x));
+    const other = sentences.filter((x) => compare.test(x));
+    const [first, ...rest] = main;
+    return `<div class="lead">${esc(first)}</div>${rest.map((x) => `<div>${esc(x)}</div>`).join("")}${
+      other.length ? `<div class="muted small">${other.map(esc).join("<br>")}</div>` : ""
+    }`;
+  }
+
   _decisions(s, t) {
     const items = s.decisions.length
-      ? `<ul>${s.decisions.map((d) => `<li><time>${this._time(d.time)}</time><span>${esc(d.message)}</span></li>`).join("")}</ul>`
+      ? `<ul class="decisions">${s.decisions.map((d) => `<li><time>${this._time(d.time)}</time><div>${this._message(d.message)}</div></li>`).join("")}</ul>`
       : `<div class="muted">${esc(t.noDecisions)}</div>`;
     return `<div class="card"><h2>${esc(t.decisions)}</h2>${items}</div>`;
   }
@@ -1385,6 +1427,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this.shadowRoot
       .querySelectorAll("button[data-mode]")
       .forEach((button) => button.addEventListener("click", () => this._setMode(button.dataset.mode)));
+    this.shadowRoot.querySelector('button[data-toggle="compare"]')?.addEventListener("click", () => {
+      this._showCompare = !this._showCompare;
+      this._render();
+    });
     this._bindCharts();
     this._bindFlowNav();
     this._showHover();

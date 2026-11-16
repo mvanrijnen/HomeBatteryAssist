@@ -77,7 +77,7 @@
             "data_description": {
               "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of een terugleverprijsvoorspelling uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
               "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
-              "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven."
+              "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven. De berekeningen gaan uit van geen saldering (in Nederland afgeschaft per 1 januari 2027): teruglevering levert alleen deze vergoeding op. Standaard 0,25 (een kwart van de inkoopprijs); 1,0 staat gelijk aan salderen."
             }
           },
           "solar": {
@@ -415,7 +415,7 @@
             "data_description": {
               "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of een terugleverprijsvoorspelling uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
               "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
-              "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven."
+              "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven. De berekeningen gaan uit van geen saldering (in Nederland afgeschaft per 1 januari 2027): teruglevering levert alleen deze vergoeding op. Standaard 0,25 (een kwart van de inkoopprijs); 1,0 staat gelijk aan salderen."
             }
           },
           "solar": {

@@ -35,7 +35,8 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
 
 - **Consumption forecast** from your own history (per weekday and hour, recent days weigh more). Past consumption can be imported once from Home Assistant's statistics.
 - **Prices** from a price source of your choice (*price drivers*): DynTarNL (tested), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, or any sensor with prices in its attributes; optionally an extra, longer forecast after it. Estimated (forecast) prices are marked as such. New sources can be added from a template driver (`inputs/price_drivers/template.py`).
-- **Export price**: import price × factor, the bare market price (EPEX), or an export price forecast from one or more sensors.
+- **No net metering**: every calculation (plans, comparisons and the realised value of the batteries) assumes there is no net metering (in the Netherlands it ends on 1 January 2027). Imported energy costs the import price; exported energy earns only the export price, so charging from solar power costs what that power would have earned, and discharging saves the import price only for energy the house would otherwise have bought.
+- **Export price**: the bare market price (EPEX, default), an export price forecast from one or more sensors, or import price × factor (default 0.25; 1.0 equals net metering).
 - **PV forecast** from any integration that supports the Energy dashboard's solar forecast (e.g. Forecast.Solar, Solcast), corrected automatically (learned), with a fixed margin, both, or not at all.
 - **Planning window**: every forecast first determines how far ahead it can calculate, limited by your setting and by how far the price and PV forecasts reach.
 - **Accuracy**: every forecast is verified afterwards per lead time (0–1 h … 5 days+). Learned corrections are applied automatically, or set by hand.
@@ -62,7 +63,7 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
 
 ### Dashboard
 
-A dashboard in the sidebar with the energy flows (and which grid meter is used), the current and next power price and the export price, the expected and realised return of each mode compared with no battery and with each other, the forecast chart with the plan, the batteries' state of charge, the last 7 days, the load per phase (including virtual batteries), the planning window, the forecast accuracy and the latest decisions. The plan mode can be chosen right on the dashboard. What phase protection and peak shaving do right now is shown with the phases, and the chart shows the advantage over no battery (and of arbitrage over zero on the meter) up to each moment. A card compares the plan with what really happened, per day.
+A dashboard in the sidebar with the energy flows (and which grid meter is used), the current and next power price and the export price, the expected and realised return of each mode compared with no battery and with each other (behind a *Return overview* button), the forecast chart with the plan, the batteries' state of charge, the last 7 days, the load per phase (including virtual batteries), the planning window, the forecast accuracy and the latest decisions. The plan mode can be chosen right on the dashboard. What phase protection and peak shaving do right now is shown with the phases, and the chart shows the advantage over no battery (and of arbitrage over zero on the meter) up to each moment. A card compares the plan with what really happened, per day.
 
 ## Installation
 
