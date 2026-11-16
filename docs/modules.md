@@ -1,6 +1,6 @@
 # Modules: make HomeBatteryAssist your own
 
-Four parts of HomeBatteryAssist are *modules*: you can choose between the built-in ones, and add your own without changing the integration.
+The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [drivers](drivers.md); see [Architecture](architecture.md)). You choose between the built-in ones, and advanced users can add their own without changing the integration. Four kinds can be added as own modules today:
 
 | Kind | What it does | Built-in | Own modules in | Choose in the settings |
 |---|---|---|---|---|
@@ -10,6 +10,8 @@ Four parts of HomeBatteryAssist are *modules*: you can choose between the built-
 | **PV forecast source** | Reads a solar forecast | Solar forecast integrations (Forecast.Solar, Solcast, …) | `/config/homebatteryassist/pv_forecasts/` | PV forecast |
 
 The built-in modules live in the integration and are updated with it; your own modules live in their own folder under `/config`, so an update never touches them.
+
+The **price sources** (`engine/sources/prices/`: DynTarNL (verified), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, or any sensor with prices in its attributes) are modules too; new ones are added to the code for now (`template.py`). Sources still in development (e.g. Tibber) are kept apart in `in_development/` and not offered.
 
 ## HomeBatteryAssist keeps the final say
 

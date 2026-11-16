@@ -47,12 +47,13 @@ Home Assistant 2025.6 or newer is required.
 
 | Page | About |
 |---|---|
+| [Architecture](docs/architecture.md) | Layers, drivers and modules, and where everything is in the code |
 | [Measuring](docs/measuring.md) | Grid meters, batteries, virtual batteries, PV sources, excluded devices, house consumption |
 | [Forecasting](docs/forecasting.md) | Planning window, consumption, prices, export price and tariff, PV, accuracy |
 | [Planning](docs/planning.md) | Plan modes, rules and limits, full charge, explanations, plan check |
 | [Dashboard](docs/dashboard.md) | What each tab shows |
-| [Modules](docs/modules.md) | Planners, consumption forecasters, tariffs and PV forecast sources — built-in and your own |
-| [Drivers](docs/drivers.md) | Adding a price source, battery or meter |
+| [Modules](docs/modules.md) | Planners, consumption forecasters, price sources, tariffs and PV forecast sources — built-in and your own |
+| [Drivers](docs/drivers.md) | Devices: battery models and readers, meters per brand |
 | [Working with other integrations](docs/integration.md) | Sensors, actions, events, logging, notifications |
 | [Development](docs/development.md) | Tests, code structure, contributing |
 

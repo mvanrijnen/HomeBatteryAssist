@@ -13,9 +13,9 @@ CI (`.github/workflows/validate.yml`) runs hassfest, HACS validation, ruff and p
 
 ## Where things are
 
-The integration is split into modules with a one-way data flow: `inputs` → `history` → `forecasts` → `planning` → `output`; `explain` (the *Why*) is used by all. See `CLAUDE.md` for a detailed map of the code.
+All backend logic is in `engine/`, in layers: see [Architecture](architecture.md) for the layers and the folder map; `CLAUDE.md` has a detailed map of the code.
 
-- Adding a device or price source: [Drivers](drivers.md).
-- Adding a planner, consumption forecaster, tariff or PV forecast source: [Modules](modules.md) — as an own module in `/config`, or as a built-in one in the module's package (add it to `BUILTIN` in its `__init__.py`).
+- Connecting a device (battery model or reader, meter): [Drivers](drivers.md).
+- Adding a planner, consumption forecaster, price source, tariff or PV forecast source: [Modules](modules.md) — as an own module in `/config`, or as a built-in one in its layer (add it to `BUILTIN` / `DRIVERS` in its `__init__.py`).
 
-Every user-facing text is in English and Dutch (`strings.json`, `translations/en.json`, `translations/nl.json`; the explanations in `explain/messages.py` and `explain/plan_story.py`).
+Every user-facing text is in English and Dutch (`strings.json`, `translations/en.json`, `translations/nl.json`; the explanations in `engine/explain/messages.py` and `engine/explain/plan_story.py`).
