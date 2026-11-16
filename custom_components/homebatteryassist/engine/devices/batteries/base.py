@@ -8,7 +8,7 @@ Two building blocks:
   power, usable part, rated cycles, warranty. They are used as starting
   values when a battery is linked and the reader cannot read them.
 - ``BatteryReader`` — how batteries are read through another integration's
-  entities (``readers/``, e.g. Omnibattery or Marstek Modbus). A reader
+  entities (``integrations/``, e.g. Omnibattery or Marstek Modbus). A reader
   recognises the batteries of its integration (``profile``), adds live details
   (``telemetry``) and describes how a battery *would* be controlled (write
   methods). **HomeBatteryAssist never calls the write methods** while it is

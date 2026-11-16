@@ -38,7 +38,7 @@ custom_components/homebatteryassist/
     ├── devices/           1  drivers
     │   ├── batteries/     base.py, template.py, virtual.py (simulation), recognition.py,
     │   │                  marstek/ (__init__.py brand → venus.py → venus_e_v3.py),
-    │   │                  readers/ (entity_reader.py, omnibattery.py, marstek_modbus.py)
+    │   │                  integrations/ (entity_reader.py, omnibattery.py, marstek_modbus.py)
     │   └── meters/        base.py, template.py, homewizard.py, sma.py, shelly.py,
     │                      iammeter.py, direct_reading.py, discovery.py,
     │                      via_ha_integration.py
@@ -67,7 +67,7 @@ custom_components/homebatteryassist/
 A battery driver has two parts:
 
 - a **model** — what the battery *is* — organised by inheritance as **brand → type range → type**: `marstek/__init__.py` (Marstek) → `marstek/venus.py` (Venus) → `marstek/venus_e_v3.py` (Venus E v3). A type inherits from its range and brand and only sets its own specifications (capacity, power, usable part, rated cycles, warranty);
-- a **reader** — how the battery is *read* — one per integration that exposes batteries (`readers/omnibattery.py`, `readers/marstek_modbus.py`).
+- a **reader** — how the battery is *read* — one per integration that exposes batteries (`integrations/omnibattery.py`, `integrations/marstek_modbus.py`).
 
 So one battery type can be read through several integrations. The **virtual battery** (`virtual.py`) is a simulated device that follows the plan.
 

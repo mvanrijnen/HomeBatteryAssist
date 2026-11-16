@@ -2,7 +2,7 @@
 
 Capacity and power as reported by the battery on a real installation; rated
 cycles, warranty and usable part as given by an owner. Read through
-Omnibattery or Marstek Modbus (``readers/``).
+Omnibattery or Marstek Modbus (``integrations/``).
 """
 
 from __future__ import annotations

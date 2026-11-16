@@ -1,5 +1,5 @@
 """Battery drivers (see ``base.py``): models per brand → type range → type,
-readers per integration, and the virtual battery (simulation).
+readers per HA integration (``integrations/``), and the virtual battery (simulation).
 
 ``template.py`` is an example only.
 """
@@ -10,8 +10,8 @@ from homeassistant.core import HomeAssistant
 
 from ...measure.battery_monitor import BatteryConfig
 from .base import BatteryModel, BatteryReader, BatteryTelemetry, platform_of
+from .integrations import READERS
 from .marstek.venus_e_v3 import MarstekVenusEV3
-from .readers import READERS
 
 MODELS: tuple[BatteryModel, ...] = (MarstekVenusEV3(),)
 

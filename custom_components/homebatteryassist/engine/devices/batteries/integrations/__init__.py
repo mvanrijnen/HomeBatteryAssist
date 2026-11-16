@@ -1,4 +1,4 @@
-"""Readers: how batteries are read through another integration's entities.
+"""HA integrations through which batteries are read (one reader per integration).
 
 One file per integration. Only add a reader whose entity keys were verified on
 a real installation.

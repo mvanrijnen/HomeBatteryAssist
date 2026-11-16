@@ -7,8 +7,8 @@ A battery driver has two parts (see ``base.py``):
    ``<brand>/<type>.py``; add the type to ``MODELS`` in ``__init__.py``. Set
    only specifications you know for sure.
 2. A **reader** per integration that exposes such batteries, in
-   ``readers/<integration>.py``; add it to ``READERS`` in
-   ``readers/__init__.py``. Its ``profile`` recognises the batteries of that
+   ``integrations/<integration>.py``; add it to ``READERS`` in
+   ``integrations/__init__.py``. Its ``profile`` recognises the batteries of that
    integration (state of charge and power sensor, starting values).
 
 Rules:
@@ -31,7 +31,7 @@ from homeassistant.core import HomeAssistant
 from ....const import SIGN_CHARGING_POSITIVE
 from ...measure.battery_monitor import BatteryConfig
 from .base import BatteryModel, BatteryProfile
-from .readers.entity_reader import EntityReader
+from .integrations.entity_reader import EntityReader
 
 # -- 1. Model: brand -> type range -> type (normally three files) -------------
 
@@ -61,7 +61,7 @@ class ExampleHome10(ExampleHome):
     warranty_years = 10
 
 
-# -- 2. Reader: one integration (``readers/my_battery.py``) --------------------
+# -- 2. Reader: one integration (``integrations/my_battery.py``) --------------------
 
 
 class TemplateBatteryReader(EntityReader):

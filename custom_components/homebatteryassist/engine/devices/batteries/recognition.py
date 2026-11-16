@@ -1,6 +1,6 @@
 """Battery profiles: recognise batteries that other integrations already expose.
 
-Each reader (``readers/``) has a profile that maps the translation keys of its
+Each reader (``integrations/``) has a profile that maps the translation keys of its
 integration's entities to the fields of a battery subentry, so a battery can be
 linked with all values filled in; a recognised battery type (``marstek/...``)
 fills in what the integration does not tell. This only reads the entity registry and states; it never talks to the
@@ -34,7 +34,7 @@ from ....const import (
 )
 from ...units import parse_float
 from .base import BatteryModel, BatteryProfile
-from .readers import READERS
+from .integrations import READERS
 
 PROFILES: tuple[BatteryProfile, ...] = tuple(
     r.profile for r in READERS if r.profile is not None
