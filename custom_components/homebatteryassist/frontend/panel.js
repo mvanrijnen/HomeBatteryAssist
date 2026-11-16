@@ -54,6 +54,8 @@ const TEXT = {
     withVirtual: "with virtual batteries",
     phaseLimit: "limit {a} A (fuse with {m}% margin)",
     fromGrid: "from the grid",
+    phaseTotal: "Total",
+    phaseTotalOf: "net, of 3 × {a} A",
     toGrid: "to the grid",
     relief: "phase protection: batteries take {w} off",
     limitedNow: "batteries held back by the limit",
@@ -225,6 +227,8 @@ const TEXT = {
     withVirtual: "met virtuele batterijen",
     phaseLimit: "grens {a} A (zekering met {m}% marge)",
     fromGrid: "van het net",
+    phaseTotal: "Totaal",
+    phaseTotalOf: "saldo, van 3 × {a} A",
     toGrid: "naar het net",
     relief: "fasebeveiliging: batterijen nemen {w} over",
     limitedNow: "batterijen teruggeschroefd door de grens",
@@ -403,6 +407,7 @@ const STYLE = `
   table.compare tr.sel td { font-weight: 500; }
   table.compare small { color: var(--secondary-text-color); margin-left: 4px; }
   .phase { display: grid; grid-template-columns: 40px 1fr 190px; gap: 8px; align-items: center; font-size: 14px; }
+  .phase.total { border-top: 1px solid var(--divider-color); padding-top: 8px; font-weight: 500; }
   .phase b { color: var(--primary-text-color); font-weight: 500; }
   .phase .who { grid-column: 2 / 4; display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
   .phase .who span { padding: 1px 8px; border-radius: 10px; background: var(--secondary-background-color); }
@@ -815,6 +820,19 @@ class HomeBatteryAssistPanel extends HTMLElement {
         ${this._phaseBar(load, power, cls, t)}
         <span class="muted"><b>${this._power(power)}</b> · ${current == null ? "–" : `${current} A`} / ${s.max_current} A</span>
         ${who.length || withVirtual || this._protectNote(s, i, t) ? `<div class="who">${who.join("")}${withVirtual}${this._protectNote(s, i, t)}</div>` : ""}</div>`);
+    }
+    if (s.phases === 3) {
+      // Net exchange over all phases, against three fuses.
+      const powers = [1, 2, 3].map((i) => {
+        const id = s.entities[`phase_l${i}_load`];
+        return id && this._hass.states[id] ? this._hass.states[id].attributes.power ?? null : null;
+      });
+      const known = powers.filter((p) => p !== null);
+      const total = known.length ? known.reduce((a, b) => a + b, 0) : null;
+      const load = total === null ? null : (Math.abs(total) / (3 * s.max_current * 230)) * 100;
+      rows.push(`<div class="phase total"><span>${esc(t.phaseTotal)}</span>
+        ${this._phaseBar(load, total, "", t)}
+        <span class="muted"><b>${this._power(total)}</b> · ${esc(t.phaseTotalOf.replace("{a}", s.max_current))}</span></div>`);
     }
     const prot = s.protection;
     const peak =
