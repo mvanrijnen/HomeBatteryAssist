@@ -49,11 +49,14 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
   - **Time slots**: your own slots (days, times, charge/discharge/idle, power, until a state of charge), zero on the meter outside them;
   - **Manual**: a fixed charge or discharge power.
 - **Max. cycles per day** for arbitrage, to spare the batteries.
+- **Your own rules**: a reserve state of charge (backup), max. charge/discharge power of all batteries together, a target grid power for zero on the meter, discharge only from a price, charge from the grid only up to a price, a minimum arbitrage margin, and a charge hysteresis.
+- **Warm batteries**: with an optional temperature sensor per battery the plans use less power above a temperature limit.
+- **Vacation mode**: consumption measured during a vacation is not learned from.
 - **Negative prices**: charging when import is negative, making room before a negative export price.
 - **Peak shaving** on the total grid import: the plan keeps energy in reserve for peaks, virtual batteries shave them live.
 - **Phase limits**: the plan never lets a phase exceed the main fuse (with an adjustable safety margin). The share of each phase is learned from your history.
 - **Phase protection** (virtual batteries): when a phase is overloaded, batteries on that phase take load off it within seconds.
-- **Periodic full charge** per battery (for the battery management's calibration), at the cheapest moment; batteries charge fully at the same time when the grid connection allows it.
+- **Periodic full charge** per battery (for the battery management's calibration), at the cheapest moment, optionally on a preferred weekday and preferably with solar power; batteries charge fully at the same time when the grid connection allows it.
 - **Distribution over several batteries**: as few batteries as possible at a sensible minimum power, kept in balance.
 - **Plain-language explanation**, e.g. *"The batteries do not discharge now, because power is not expensive enough now (€ 0.31 per kWh): they keep their energy for Mon 07:00-12:00, when power costs € 0.40 per kWh, and charge tonight at € 0.27 per kWh."*
 
