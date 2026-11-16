@@ -115,6 +115,8 @@ const TEXT = {
     socExpected: "Expected state of charge",
     socTitle: "State of charge of the batteries",
     priceTitle: "Electricity price",
+    priceAxis: "Price per kWh (right axis)",
+    exportAxis: "Export earns per kWh (right axis)",
     priceImport: "Price (published)",
     priceImportFc: "Price (forecast)",
     priceExport: "Export earns (published)",
@@ -294,6 +296,8 @@ const TEXT = {
     socExpected: "Verwachte vulling",
     socTitle: "Vulling batterijen",
     priceTitle: "Stroomprijs",
+    priceAxis: "Prijs per kWh (rechter as)",
+    exportAxis: "Teruglevering per kWh (rechter as)",
     priceImport: "Prijs (gepubliceerd)",
     priceImportFc: "Prijs (voorspeld)",
     priceExport: "Teruglevering (gepubliceerd)",
@@ -922,19 +926,37 @@ class HomeBatteryAssistPanel extends HTMLElement {
     // Full-width charts get a wider canvas so they are as high as the others.
     // The full-width flow chart gets a wider and higher canvas.
     const wide = id === "forecast" || id === "soc";
-    const W = wide ? 1232 : 600, H = id === "forecast" ? 300 : 190, L = 58, R = 8, T = 8, B = 24;
-    const all = series.flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
+    const rightSeries = series.filter((s) => s.axis === "right");
+    const W = wide ? 1232 : 600, H = id === "forecast" ? 300 : 190, L = 58, R = rightSeries.length ? 58 : 8, T = 8, B = 24;
+    const all = series.filter((s) => s.axis !== "right").flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
     const yMax = this._niceMax(Math.max(...all, 0));
     const low = Math.min(...all, 0);
     const yMin = low < 0 ? -this._niceMax(-low) : 0;
     const x = (v) => L + ((v - xMin) / (xMax - xMin || 1)) * (W - L - R);
     const y = (v) => T + (1 - (v - yMin) / (yMax - yMin)) * (H - T - B);
+    // Right axis (e.g. prices): its own scale on the same grid lines.
+    let right = null;
+    if (rightSeries.length) {
+      const values = rightSeries.flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
+      if (values.length) {
+        const step = 0.05;
+        const rMin = Math.min(0, Math.floor(Math.min(...values) / step) * step);
+        const rMax = Math.max(Math.ceil(Math.max(...values) / step) * step, rMin + step);
+        right = { min: rMin, max: rMax, fmt: rightSeries[0].axisFmt || rightSeries[0].fmt };
+      }
+    }
+    const yr = (v) => T + (1 - (v - right.min) / (right.max - right.min)) * (H - T - B);
+    const yOf = (s) => (s.axis === "right" && right ? yr : y);
     let svg = `<clipPath id="clip-${id}"><rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}"/></clipPath>`;
     const steps = 4;
     for (let i = 0; i <= steps; i++) {
       const v = yMin + ((yMax - yMin) / steps) * i;
       svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>`;
       svg += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${esc(yFmt ? yFmt(v) : this._axisPower(v))}</text>`;
+      if (right) {
+        const rv = right.min + ((right.max - right.min) / steps) * i;
+        svg += `<text class="axis" x="${W - R + 6}" y="${y(v) + 4}" text-anchor="start">${esc(right.fmt ? right.fmt(rv) : rv.toFixed(2))}</text>`;
+      }
     }
     if (yMin < 0) svg += `<line class="zero" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
     for (const [v, label] of ticks) {
@@ -943,10 +965,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
     for (const s of series) {
       let d = "";
       let prev = null;
+      const sy = yOf(s);
       for (const [px, py] of s.points) {
         if (py == null) { prev = null; continue; }
         const jump = prev === null || (gapLimit && px - prev > gapLimit);
-        d += `${jump ? "M" : "L"}${x(px).toFixed(1)},${y(py).toFixed(1)}`;
+        d += `${jump ? "M" : "L"}${x(px).toFixed(1)},${sy(py).toFixed(1)}`;
         prev = px;
       }
       svg += `<path class="line${s.dashed ? " dashed" : ""}" d="${d}" stroke="${s.color}" clip-path="url(#clip-${id})"/>`;
@@ -957,7 +980,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     }
     svg += `<g class="hover" style="display:none"><line class="cursor" y1="${T}" y2="${H - B}"/>
       ${series.map((s, i) => `<circle r="3.5" data-i="${i}" style="fill:${s.color}"/>`).join("")}</g>`;
-    this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt, yFmt };
+    this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt, yFmt, right };
     return `<svg data-chart="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${svg}</svg>
       <div class="tip" data-tip="${id}" hidden></div>`;
   }
@@ -1133,7 +1156,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
       return;
     }
     const sx = (v) => c.L + ((v - c.xMin) / (c.xMax - c.xMin || 1)) * (c.W - c.L - c.R);
-    const sy = (v) => c.T + (1 - (v - c.yMin) / (c.yMax - c.yMin)) * (c.H - c.T - c.B);
+    const sy = (v, s) =>
+      s?.axis === "right" && c.right
+        ? c.T + (1 - (v - c.right.min) / (c.right.max - c.right.min)) * (c.H - c.T - c.B)
+        : c.T + (1 - (v - c.yMin) / (c.yMax - c.yMin)) * (c.H - c.T - c.B);
     layer.style.display = "";
     const cursor = layer.querySelector(".cursor");
     cursor.setAttribute("x1", sx(anchor[0]));
@@ -1143,12 +1169,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
       circle.style.display = hit ? "" : "none";
       if (hit) {
         circle.setAttribute("cx", sx(hit[0]));
-        circle.setAttribute("cy", sy(hit[1]));
+        circle.setAttribute("cy", sy(hit[1], c.series[Number(circle.dataset.i)]));
       }
     });
     const rows = c.series
       .map((s, i) => (hits[i] ? `<div class="r"><span><i style="background:${s.color}"></i>${esc(s.label || "")}</span>
-        <b>${esc(c.yFmt ? c.yFmt(hits[i][1]) : this._power(hits[i][1]))}</b></div>` : ""))
+        <b>${esc(s.fmt ? s.fmt(hits[i][1]) : c.yFmt ? c.yFmt(hits[i][1]) : this._power(hits[i][1]))}</b></div>` : ""))
       .join("");
     const extra = c.extra ? c.extra(anchor[0], hits) : "";
     tip.innerHTML = `<div class="t">${esc(c.xFmt(anchor[0]))}</div>${rows}${extra}`;
@@ -1247,8 +1273,33 @@ class HomeBatteryAssistPanel extends HTMLElement {
           return [ts, Math.round(power - (pvByHour.get(hour) || 0))];
         });
     let socChart = "";
-    let priceChart = "";
-    let priceLegend = "";
+    // Prices (published solid, forecast dashed) as steps, on the right axis.
+    const priceRows = h.price_series || [];
+    const priceColor = "#ff7043";
+    const exportColor = "#26a69a";
+    const priceUnit = h.price_unit || "";
+    const priceFmt = (v) => `${Number(v).toFixed(2)}${priceUnit ? ` ${priceUnit}` : ""}`;
+    const axisFmt = (v) => `€ ${Number(v).toFixed(2)}`;
+    const priceSteps = (rows, value) => {
+      const pts = [];
+      for (const row of rows) {
+        const v = value(row);
+        if (v == null) continue;
+        pts.push([row[0], v], [row[1] - 1, v]);
+      }
+      return pts;
+    };
+    const knownPrices = priceRows.filter((r) => !r[4]);
+    const guessedPrices = priceRows.filter((r) => r[4]);
+    if (knownPrices.length && guessedPrices.length) guessedPrices.unshift(knownPrices.at(-1));
+    const priceSeries = priceRows.length
+      ? [
+          { points: priceSteps(knownPrices, (r) => r[2]), color: priceColor, label: t.priceImport, axis: "right", fmt: priceFmt },
+          { points: priceSteps(guessedPrices, (r) => r[2]), color: priceColor, dashed: true, label: t.priceImportFc, axis: "right", fmt: priceFmt },
+          { points: priceSteps(knownPrices, (r) => r[3]), color: exportColor, label: t.priceExport, axis: "right", fmt: priceFmt },
+          { points: priceSteps(guessedPrices, (r) => r[3]), color: exportColor, dashed: true, label: t.priceExportFc, axis: "right", fmt: priceFmt },
+        ].map((series) => ({ ...series, axisFmt }))
+      : [];
     if (!fc.length && !verified.length && !past.length) {
       forecastChart = `<div class="muted">${esc(t.noForecast)}</div>`;
     } else {
@@ -1300,6 +1351,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
           ...(h.has_excluded
             ? [{ points: past.map(([ts, , excluded]) => [ts, excluded || null]), color: excludedColor, label: t.excludedLine }]
             : []),
+          ...priceSeries,
         ].map((series) => ({ ...series, points: inView(series.points) })),
         fMin,
         fMax,
@@ -1365,45 +1417,6 @@ class HomeBatteryAssistPanel extends HTMLElement {
           });
           return rows.join("");
         };
-      }
-      // Prices (published solid, forecast dashed), as steps.
-      const series = h.price_series || [];
-      if (series.length) {
-        const priceColor = "#ff7043";
-        const exportColor = "#26a69a";
-        const steps = (rows, value) => {
-          const pts = [];
-          for (const row of rows) {
-            const v = value(row);
-            if (v == null) continue;
-            pts.push([row[0], v], [row[1] - 1, v]);
-          }
-          return pts;
-        };
-        const known = series.filter((r) => !r[4]);
-        const guessed = series.filter((r) => r[4]);
-        // Join the forecast to the last published price.
-        if (known.length && guessed.length) guessed.unshift(known.at(-1));
-        const unit = h.price_unit || "";
-        const money = (v) => `${Number(v).toFixed(2)}${unit ? ` ${unit}` : ""}`;
-        priceChart = this._chart(
-          "price",
-          [
-            { points: inView(steps(known, (r) => r[2])), color: priceColor, label: t.priceImport },
-            { points: inView(steps(guessed, (r) => r[2])), color: priceColor, dashed: true, label: t.priceImportFc },
-            { points: inView(steps(known, (r) => r[3])), color: exportColor, label: t.priceExport },
-            { points: inView(steps(guessed, (r) => r[3])), color: exportColor, dashed: true, label: t.priceExportFc },
-          ],
-          fMin,
-          fMax,
-          fTicks,
-          2 * 3600e3,
-          now >= fMin && now <= fMax ? [[now, t.now]] : [],
-          this._charts.forecast.xFmt,
-          money,
-        );
-        priceLegend = `<div class="legend"><span><i style="background:${priceColor}"></i>${esc(t.priceImport.split(" (")[0])}</span>
-          <span><i style="background:${exportColor}"></i>${esc(t.priceExport.split(" (")[0])}</span></div>`;
       }
       // Tooltip extras: the deviation in the past, the usual deviation ahead.
       const accuracy = h.accuracy || {};
@@ -1476,6 +1489,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
       item(gridColor, t.gridMeasured),
       h.has_battery ? item(batteryColor, t.batteryLine) : "",
       h.has_excluded ? item(excludedColor, t.excludedLine) : "",
+      priceRows.length ? item(priceColor, t.priceAxis) : "",
+      priceRows.length ? item(exportColor, t.exportAxis) : "",
       item(secondary, t.predicted, true),
     ].join("")}</div>`;
 
@@ -1484,7 +1499,6 @@ class HomeBatteryAssistPanel extends HTMLElement {
       <div class="chart wide"><div class="head"><h3>${esc(t.flowTitle)}</h3>${this._flowNav(t)}</div>${forecastChart}${forecastLegend}
         <div class="muted">${esc(accText)}</div>
         ${h.battery_forecast?.length ? `<div class="muted">${esc(this._planText(h, t))} · ${esc(t.batteryNote)}</div>` : ""}</div>
-      ${priceChart ? `<div class="chart wide"><h3>${esc(t.priceTitle)}</h3>${priceChart}${priceLegend}<div class="muted small">${esc(t.priceInfo)}</div></div>` : ""}
       ${socChart ? `<div class="chart wide"><h3>${esc(t.socTitle)}</h3>${socChart}</div>` : ""}
       <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}<div class="muted small">${esc(t.last7Info)}</div></div>
       <div class="chart"><div class="head"><h3>${esc(t.avgDay)}</h3>${this._dayNav(t, weeks, lang)}</div>${avg}
