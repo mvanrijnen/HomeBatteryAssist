@@ -54,6 +54,9 @@ MIN_COVERAGE = 0.8
 
 type Kind = Literal["consumption", "pv", "price"]
 KINDS: tuple[Kind, ...] = ("consumption", "pv", "price")
+# Extra kinds "consumption@<forecaster key>": every consumption forecaster's
+# own predictions, to compare forecasters (no corrections are learned for them).
+FORECASTER_KIND = "consumption@"
 type Mode = Literal["learned", "off", "manual"]
 MODES: tuple[Mode, ...] = ("learned", "off", "manual")
 ALL_BUCKETS = "all"
@@ -114,11 +117,31 @@ class ForecastAccuracy:
         self.settings: dict[str, dict[str, Any]] = {
             k: _default_setting() for k in KINDS
         }
+        self.kinds: list[str] = list(KINDS)
+
+    def track(self, kind: str) -> None:
+        """Also keep predictions and results of ``kind`` (a forecaster)."""
+        if kind not in self.kinds:
+            self.kinds.append(kind)
+            self.predictions.setdefault(kind, {})
+            self.results.setdefault(kind, [])
+            self.settings.setdefault(kind, _default_setting())
+
+    def forecasters(self) -> dict[str, dict[str, Any]]:
+        """Accuracy per consumption forecaster (key -> summary per bucket)."""
+        return {
+            kind.removeprefix(FORECASTER_KIND): self.summary(kind)
+            for kind in self.kinds
+            if kind.startswith(FORECASTER_KIND)
+        }
 
     async def async_load(self) -> None:
         """Load stored predictions and results."""
         if (data := await self._store.async_load()) is not None:
-            for kind in KINDS:
+            for kind in data.get("predictions", {}) | data.get("results", {}):
+                if kind.startswith(FORECASTER_KIND):
+                    self.track(kind)
+            for kind in self.kinds:
                 self.predictions[kind] = data.get("predictions", {}).get(kind, {})
                 self.results[kind] = data.get("results", {}).get(kind, [])
                 self.settings[kind] = (
@@ -169,7 +192,11 @@ class ForecastAccuracy:
             for r in records
             if r.get("source") != "import" and r["coverage"] >= MIN_COVERAGE
         }
-        return self._settle("consumption", actuals)
+        count = self._settle("consumption", actuals)
+        for kind in self.kinds:
+            if kind.startswith(FORECASTER_KIND):
+                self._settle(kind, actuals)
+        return count
 
     def evaluate_pv(self, records: Iterable[ConsumptionRecord]) -> int:
         """Compare with measured PV energy per hour (Wh) from the history."""
@@ -213,7 +240,7 @@ class ForecastAccuracy:
         """Drop old results and predictions that will never be settled."""
         cutoff = (now - RETENTION).isoformat()
         stale = (now - timedelta(days=2)).isoformat()
-        for kind in KINDS:
+        for kind in self.kinds:
             self.results[kind] = [r for r in self.results[kind] if r["start"] >= cutoff]
             self.predictions[kind] = {
                 start: entry
@@ -226,7 +253,7 @@ class ForecastAccuracy:
 
     def refresh_stats(self, now: datetime) -> None:
         """Recalculate the running statistics per kind and bucket."""
-        self._stats = {kind: self._kind_stats(kind, now) for kind in KINDS}
+        self._stats = {kind: self._kind_stats(kind, now) for kind in self.kinds}
 
     def _kind_stats(self, kind: Kind, now: datetime) -> dict[str, BucketStats]:
         sums: dict[str, list[float]] = {}
@@ -260,7 +287,7 @@ class ForecastAccuracy:
             n, w = int(acc[0]), acc[1]
             bias = acc[2] / w
             ratio = acc[6] / acc[7] if acc[7] else None
-            strength = min(n / MIN_SAMPLES[kind], 1.0)
+            strength = min(n / MIN_SAMPLES.get(kind, MIN_SAMPLES["consumption"]), 1.0)
             if kind == "pv":
                 low, high = PV_FACTOR_RANGE
                 factor = min(max(ratio, low), high) if ratio is not None else 1.0

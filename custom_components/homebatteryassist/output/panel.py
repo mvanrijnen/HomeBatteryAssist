@@ -20,6 +20,7 @@ from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME, NOMINAL_VOLTAGE
 from ..forecasts.accuracy import BUCKET_KEYS, KINDS
+from ..forecasts.forecasters import BUILTIN as FORECASTERS
 from ..history.profile import day_profile, days_covered, hourly_series, week_profiles
 from ..inputs.battery_drivers import telemetry as battery_telemetry
 from ..inputs.direct import SOURCE_NAMES, find_direct_meters
@@ -138,6 +139,18 @@ def _planner_info(forecast: Any) -> dict[str, Any]:
         "saving": round(plan.saving, 2) if plan and plan.saving is not None else None,
         "until": forecast.data.window.end.isoformat(),
         "own": len(forecast.planners),
+        "forecaster": {
+            "key": forecast.forecaster_key,
+            "name": forecast.forecaster_name(forecast.forecaster_key),
+            "builtin": forecast.forecaster_key not in forecast.forecasters,
+            "fallback": forecast.forecaster_fallback,
+        },
+        "tariff": {
+            "key": forecast.tariff_key,
+            "name": forecast.tariff_name(forecast.tariff_key),
+            "builtin": forecast.tariff_key not in forecast.tariffs,
+            "fallback": forecast.tariff_fallback,
+        },
     }
 
 
@@ -504,6 +517,17 @@ def websocket_history(
                 for kind in KINDS
             },
             "price_unit": forecast.data.price_unit,
+            # Accuracy of every consumption forecaster, side by side.
+            "forecasters": {
+                key: {
+                    "name": forecast.forecaster_name(key),
+                    "builtin": key not in forecast.forecasters,
+                    "chosen": key == forecast.forecaster_key,
+                    "lead_times": summary,
+                }
+                for key, summary in forecast.accuracy.forecasters().items()
+                if key in forecast.forecasters or key in FORECASTERS
+            },
             "price_series": [
                 [
                     int(start.timestamp() * 1000),

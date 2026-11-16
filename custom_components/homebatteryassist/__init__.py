@@ -35,9 +35,12 @@ from .explain.notify import Notifier
 from .forecasts.accuracy import ForecastAccuracy
 from .forecasts.adjustments import AdjustmentStore
 from .forecasts.coordinator import ForecastCoordinator
+from .forecasts.forecasters import async_load_user_forecasters
 from .history import ConsumptionHistory
 from .inputs.batteries import ACTIVITY_THRESHOLD_W, BatteryInput, activity_of
 from .inputs.measurements import MeasurementInput
+from .inputs.pv_forecasts import async_load_user_pv_sources
+from .inputs.tariffs import async_load_user_tariffs
 from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
 from .output.panel import async_setup_panel
 from .planning.battery_plan import MODE_NOM
@@ -97,6 +100,9 @@ async def async_setup_entry(
         accuracy,
         lambda: batteries.states.values(),
         await async_load_user_planners(hass),
+        await async_load_user_forecasters(hass),
+        await async_load_user_tariffs(hass),
+        await async_load_user_pv_sources(hass),
     )
     forecast.last_full = lambda battery_id: batteries.stats.get(battery_id, {}).get(
         "last_full_charge"

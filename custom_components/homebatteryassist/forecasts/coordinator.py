@@ -36,6 +36,7 @@ from homeassistant.util import dt as dt_util
 from ..const import (
     CONF_BALANCE_INTERVAL,
     CONF_CHARGE_HYSTERESIS,
+    CONF_CONSUMPTION_FORECASTER,
     CONF_CYCLE_COST,
     CONF_EXPORT_ENTITIES,
     CONF_EXPORT_FACTOR,
@@ -67,6 +68,7 @@ from ..const import (
     CONF_RESERVE_SOC,
     CONF_SYSTEM_MAX_CHARGE,
     CONF_SYSTEM_MAX_DISCHARGE,
+    CONF_TARIFF,
     CONF_TEMP_BAND,
     CONF_TEMP_DISCHARGE,
     CONF_TEMP_LIMIT,
@@ -114,7 +116,11 @@ from ..inputs.prices import (
     parse_market_forecast,
     parse_price_forecast,
 )
-from ..inputs.solar import PV_PERIOD, async_get_pv_forecast
+from ..inputs.pv_forecasts import PvForecastSource, async_read_pv_forecasts
+from ..inputs.solar import PV_PERIOD
+from ..inputs.tariffs import BUILTIN as TARIFFS
+from ..inputs.tariffs import DEFAULT_TARIFF, Tariff, apply_tariff
+from ..inputs.tariffs.source import SourceTariff
 from ..planning.battery_plan import (
     DEFAULT_PLAN_MODE,
     MODE_MANUAL,
@@ -135,9 +141,11 @@ from ..planning.phase_limit import (
 )
 from ..planning.planners import BUILTIN, Planner
 from ..planning.schedule import WEEKDAYS, Target, TimeSlot, slot_target
-from .accuracy import KINDS, ForecastAccuracy
+from .accuracy import FORECASTER_KIND, KINDS, ForecastAccuracy
 from .adjustments import AdjustmentStore
-from .consumption import ForecastSlot, forecast_consumption
+from .consumption import METHODS, ForecastSlot, forecast_consumption, raw_forecast
+from .forecasters import BUILTIN as FORECASTERS
+from .forecasters import DEFAULT_FORECASTER, Forecaster
 from .horizon import HorizonLimit, PlanningWindow, planning_horizon
 from .phases import PhaseProfile
 
@@ -208,6 +216,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         accuracy: ForecastAccuracy,
         battery_states: Callable[[], Iterable[BatteryState]] = lambda: (),
         planners: Mapping[str, Planner] | None = None,
+        forecasters: Mapping[str, Forecaster] | None = None,
+        tariffs: Mapping[str, Tariff] | None = None,
+        pv_sources: Mapping[str, PvForecastSource] | None = None,
     ) -> None:
         """Initialize."""
         super().__init__(
@@ -232,6 +243,20 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.planners: dict[str, Planner] = dict(planners or {})
         self._failed_planners: set[str] = set()
         self.plan_fallback = False  # the chosen own planner failed or is gone
+        # Consumption forecasters: own ones next to the built-in ones.
+        self.forecasters: dict[str, Forecaster] = dict(forecasters or {})
+        self.forecaster_key: str = entry.options.get(
+            CONF_CONSUMPTION_FORECASTER, DEFAULT_FORECASTER
+        )
+        self.forecaster_fallback = False
+        self._failed_forecasters: set[str] = set()
+        # Tariff: what a kWh really costs and earns.
+        self.tariffs: dict[str, Tariff] = dict(tariffs or {})
+        self.tariff_key: str = entry.options.get(CONF_TARIFF, DEFAULT_TARIFF)
+        self.tariff_fallback = False
+        self._failed_tariffs: set[str] = set()
+        # Own PV forecast sources (the built-in one reads the Energy platforms).
+        self.pv_sources: dict[str, PvForecastSource] = dict(pv_sources or {})
         self.export_factor: float = entry.options.get(
             CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR
         )
@@ -429,7 +454,6 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             "pv", [(start, start + PV_PERIOD, wh) for start, wh in pv_wh.items()], now
         )
 
-        published = [p for p in prices if not p.estimated]
         # 4. Everything else only within the window, corrected.
         prices = [
             PricePoint(
@@ -455,6 +479,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         }
         if self.pv_entries:
             pv_now_w = pv_wh.get(hour)
+        # What a kWh really costs and earns: the chosen tariff module.
+        prices, export_prices = await self._async_apply_tariff(
+            prices, export_prices, now, price_unit
+        )
 
         _LOGGER.debug(
             "Inputs: prices until %s, PV until %s -> window %s - %s (%.1f h, %s); "
@@ -469,14 +497,33 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             len(pv_wh),
         )
         self.adjustments.prune(now)
-        consumption = forecast_consumption(
-            self.history.records,
-            window,
-            timedelta(minutes=self.history.minutes),
-            self.adjustments.items,
-            now,
-            lambda value, start: accuracy.correct("consumption", value, start, now),
+        step = timedelta(minutes=self.history.minutes)
+        chosen = self.forecasters.get(self.forecaster_key) or FORECASTERS.get(
+            self.forecaster_key
         )
+        try:
+            consumption = forecast_consumption(
+                self.history.records,
+                window,
+                step,
+                self.adjustments.items,
+                now,
+                lambda value, start: accuracy.correct("consumption", value, start, now),
+                chosen,
+            )
+            self.forecaster_fallback = chosen is None
+        except Exception:  # an own forecaster module may fail in any way
+            _LOGGER.exception("Consumption forecaster %s failed", self.forecaster_key)
+            self._forecaster_failed(self.forecaster_key)
+            self.forecaster_fallback = True
+            consumption = forecast_consumption(
+                self.history.records,
+                window,
+                step,
+                self.adjustments.items,
+                now,
+                lambda value, start: accuracy.correct("consumption", value, start, now),
+            )
         # 6. Battery plans (advice) for every mode, off the event loop, within
         # the phase limits of the grid connection.
         states = list(self.battery_states())
@@ -566,14 +613,53 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self._explain_plan(data)
         self._explain_method(data)
-        self._log_prices(published, battery, now)
+        self._log_prices([p for p in prices if not p.estimated], battery, now)
 
-        # 5. Remember the raw consumption predictions.
+        # 5. Remember the raw consumption predictions, also of every
+        # forecaster on its own (to compare them).
         accuracy.record(
             "consumption", [(s.start, s.end, s.raw) for s in consumption], now
         )
+        self._record_forecasters(window, step, now)
         self.hass.bus.async_fire(EVENT_FORECAST_UPDATED, summarise(data))
         return data
+
+    def _record_forecasters(
+        self, window: PlanningWindow, step: timedelta, now: datetime
+    ) -> None:
+        """Each forecaster's own prediction, for the comparison of accuracy."""
+        records = self.history.records
+        for key, forecaster in (*FORECASTERS.items(), *self.forecasters.items()):
+            try:
+                slots = raw_forecast(forecaster, records, window, step, now)
+            except Exception:
+                _LOGGER.exception("Consumption forecaster %s failed", key)
+                self._forecaster_failed(key)
+                continue
+            kind = f"{FORECASTER_KIND}{key}"
+            self.accuracy.track(kind)
+            self.accuracy.record(kind, [(a, b, v) for a, b, v, _m in slots], now)
+
+    def _forecaster_failed(self, key: str) -> None:
+        if key in self._failed_forecasters:
+            return
+        self._failed_forecasters.add(key)
+        forecaster = self.forecasters.get(key)
+        self._decisions.async_log(
+            "forecast",
+            "forecaster_failed",
+            name=(forecaster.name if forecaster else "") or key,
+        )
+
+    def forecaster_name(self, key: str) -> str:
+        """Name of a consumption forecaster for the user."""
+        forecaster = self.forecasters.get(key) or FORECASTERS.get(key)
+        return (forecaster.name if forecaster else "") or key
+
+    def tariff_name(self, key: str) -> str:
+        """Name of a tariff for the user."""
+        tariff = self.tariffs.get(key) or TARIFFS.get(key)
+        return (tariff.name if tariff else "") or key
 
     def planner_name(self, mode: str) -> str:
         """Name of a plan mode / planner for the user."""
@@ -706,6 +792,43 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 entities += driver.watch(self.hass, source)
         return list(dict.fromkeys(entities))
 
+    async def _async_apply_tariff(
+        self,
+        prices: list[PricePoint],
+        export_prices: list[PricePoint],
+        now: datetime,
+        unit: str | None,
+    ) -> tuple[list[PricePoint], list[PricePoint]]:
+        """Import and export prices after the chosen tariff (checked)."""
+        tariff = self.tariffs.get(self.tariff_key) or TARIFFS.get(self.tariff_key)
+        self.tariff_fallback = tariff is None
+        tariff = tariff or TARIFFS[DEFAULT_TARIFF]
+        if tariff.key == DEFAULT_TARIFF and isinstance(tariff, SourceTariff):
+            return prices, export_prices
+        market: list[PricePoint] = []
+        if tariff.needs_market:
+            driver, _source = split_key(self.price_source)
+            offered = {s.key: s for s in (driver.find(self.hass) if driver else [])}
+            source = offered.get(self.price_source)
+            if source is not None and ROLE_MARKET in source.roles:
+                data = await self._async_read_driver(self.price_source, ROLE_MARKET)
+                market = data.points
+        try:
+            return apply_tariff(
+                tariff, prices, export_prices, market, now, unit, self.export_factor
+            )
+        except Exception:  # an own tariff module may fail in any way
+            _LOGGER.exception("Tariff %s failed", self.tariff_key)
+            self.tariff_fallback = True
+            if self.tariff_key not in self._failed_tariffs:
+                self._failed_tariffs.add(self.tariff_key)
+                self._decisions.async_log(
+                    "planning",
+                    "tariff_failed",
+                    name=(tariff.name or self.tariff_key),
+                )
+            return prices, export_prices
+
     async def _async_read_driver(self, key: str, role: str) -> PriceData:
         driver, source = split_key(key)
         if driver is None:
@@ -776,7 +899,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
     async def _async_read_pv(self, now: datetime) -> dict[datetime, float]:
         if not self.pv_entries:
             return {}
-        forecast = await async_get_pv_forecast(self.hass, self.pv_entries)
+        forecast = await async_read_pv_forecasts(
+            self.hass, self.pv_entries, self.pv_sources
+        )
         return {start: wh for start, wh in forecast.items() if start + PV_PERIOD > now}
 
     def _explain_corrections(self, now: datetime) -> None:
@@ -884,12 +1009,22 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         if method == self._last_method:
             return
         self._last_method = method
+        days = round(
+            sum(r["minutes"] * r["coverage"] for r in self.history.records) / 1440
+        )
+        if method in (*METHODS, "none"):
+            self._decisions.async_log(
+                "forecast", f"consumption_method_{method}", days=days
+            )
+            return
+        forecaster = self.forecasters.get(self.forecaster_key) or FORECASTERS.get(
+            self.forecaster_key
+        )
         self._decisions.async_log(
             "forecast",
-            f"consumption_method_{method}",
-            days=round(
-                sum(r["minutes"] * r["coverage"] for r in self.history.records) / 1440
-            ),
+            "consumption_method_module",
+            name=(forecaster.name if forecaster else "") or method,
+            days=days,
         )
 
     def _explain_new_prices(self, prices: list[PricePoint]) -> None:

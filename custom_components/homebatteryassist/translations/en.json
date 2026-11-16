@@ -53,7 +53,9 @@
           "forecast_interval": "Recalculate every",
           "plan_mode": "Battery plan mode",
           "price_source": "Price source",
-          "price_extension": "Extra price forecast"
+          "price_extension": "Extra price forecast",
+          "consumption_forecaster": "Consumption forecaster",
+          "tariff": "Tariff"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -63,7 +65,9 @@
           "forecast_interval": "How often the forecasts are recalculated automatically.",
           "plan_mode": "How HomeBatteryAssist would control the batteries (advice only for now). All modes are always calculated for comparison. Own planner modules from /config/homebatteryassist/planners appear here too (after a reload).",
           "price_source": "Where the power prices come from. Sources found in Home Assistant are listed (* = not yet tested on a real installation); 'Price sensor' uses the sensor chosen below.",
-          "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated."
+          "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated.",
+          "consumption_forecaster": "How the house consumption is forecast. The accuracy of every forecaster is shown side by side on the dashboard. Own forecasters from /config/homebatteryassist/forecasters appear here too (after a reload).",
+          "tariff": "How the prices of the price source become what a kWh really costs and earns. Own tariffs from /config/homebatteryassist/tariffs appear here too (after a reload)."
         },
         "sections": {
           "export": {
@@ -368,6 +372,17 @@
       "options": {
         "sensor": "A sensor (choose below)"
       }
+    },
+    "consumption_forecaster": {
+      "options": {
+        "profile": "Weekday and hour profile (recent days count more)",
+        "last_weeks": "Same time in the last weeks"
+      }
+    },
+    "tariff": {
+      "options": {
+        "source": "As the price source and export settings give them"
+      }
     }
   },
   "options": {
@@ -391,7 +406,9 @@
           "forecast_interval": "Recalculate every",
           "plan_mode": "Battery plan mode",
           "price_source": "Price source",
-          "price_extension": "Extra price forecast"
+          "price_extension": "Extra price forecast",
+          "consumption_forecaster": "Consumption forecaster",
+          "tariff": "Tariff"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -401,7 +418,9 @@
           "forecast_interval": "How often the forecasts are recalculated automatically.",
           "plan_mode": "How HomeBatteryAssist would control the batteries (advice only for now). All modes are always calculated for comparison. Own planner modules from /config/homebatteryassist/planners appear here too (after a reload).",
           "price_source": "Where the power prices come from. Sources found in Home Assistant are listed (* = not yet tested on a real installation); 'Price sensor' uses the sensor chosen below.",
-          "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated."
+          "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated.",
+          "consumption_forecaster": "How the house consumption is forecast. The accuracy of every forecaster is shown side by side on the dashboard. Own forecasters from /config/homebatteryassist/forecasters appear here too (after a reload).",
+          "tariff": "How the prices of the price source become what a kWh really costs and earns. Own tariffs from /config/homebatteryassist/tariffs appear here too (after a reload)."
         },
         "sections": {
           "export": {

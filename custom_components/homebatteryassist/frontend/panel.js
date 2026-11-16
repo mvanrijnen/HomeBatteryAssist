@@ -116,6 +116,14 @@ const TEXT = {
     plannerOwn: "own module",
     plannerSaving: "expected saving {saving} until {until} compared with no battery",
     plannerFallback: "This planner failed or is missing: zero on the meter is used instead (see Why).",
+    plannerForecaster: "Consumption forecast:",
+    plannerTariff: "Tariff:",
+    moduleFallback: "failed or missing, built-in used",
+    chosen: "chosen",
+    forecasterNames: { profile: "Weekday and hour profile", last_weeks: "Same time in the last weeks" },
+    tariffNames: { source: "As the price source gives them" },
+    forecastersTitle: "Consumption forecasters compared",
+    forecastersHelp: "Average deviation of each forecaster's own prediction (before corrections) per lead time; the best in bold. All forecasters are calculated every cycle, also when they are not chosen — choose one in the settings.",
     planOther: "{mode}: {saving}",
     socExpected: "Expected state of charge",
     socTitle: "State of charge of the batteries",
@@ -302,6 +310,14 @@ const TEXT = {
     plannerOwn: "eigen module",
     plannerSaving: "verwachte besparing {saving} tot {until} t.o.v. geen batterij",
     plannerFallback: "Deze module gaf een fout of ontbreekt: nul op de meter wordt gebruikt (zie Waarom).",
+    plannerForecaster: "Verbruiksvoorspelling:",
+    plannerTariff: "Tarief:",
+    moduleFallback: "fout of ontbreekt, ingebouwde gebruikt",
+    chosen: "gekozen",
+    forecasterNames: { profile: "Profiel per weekdag en uur", last_weeks: "Zelfde tijd afgelopen weken" },
+    tariffNames: { source: "Zoals de prijsbron ze geeft" },
+    forecastersTitle: "Verbruiksvoorspellers vergeleken",
+    forecastersHelp: "Gemiddelde afwijking van de eigen voorspelling van elke voorspeller (vóór correcties) per vooruitzicht; de beste vetgedrukt. Alle voorspellers worden elke cyclus doorgerekend, ook als ze niet gekozen zijn — kies er een in de instellingen.",
     planOther: "{mode}: {saving}",
     socExpected: "Verwachte vulling",
     socTitle: "Vulling batterijen",
@@ -442,6 +458,7 @@ const STYLE = `
   li { display: grid; grid-template-columns: 90px 1fr; gap: 8px; font-size: 14px; }
   li time { color: var(--secondary-text-color); }
   .card.planner { padding: 10px 16px; font-size: 15px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+  .card.planner .sub { flex-basis: 100%; font-size: 13px; }
   .alert-text { flex-basis: 100%; color: var(--error-color, #db4437); font-size: 13px; }
   ul.decisions { gap: 0; }
   ul.decisions li { padding: 8px 0; border-bottom: 1px solid var(--divider-color); line-height: 1.45; }
@@ -1564,7 +1581,41 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const body = any
       ? `<div class="acc-wrap"><table class="acc">${head}${rows}</table></div><div class="muted">${esc(t.accHelp)}</div>`
       : `<div class="muted">${esc(t.accNoData)}</div>`;
-    return `<div class="card"><h2>${esc(t.accTitle)}</h2>${body}</div>`;
+    return `<div class="card"><h2>${esc(t.accTitle)}</h2>${body}</div>${this._forecasterAccuracy(t, leads, head)}`;
+  }
+
+  _forecasterAccuracy(t, leads, head) {
+    // Every consumption forecaster's own accuracy (before corrections), the
+    // lowest average deviation per lead time in bold.
+    const all = Object.entries(this._history?.forecasters || {});
+    if (all.length < 2) return "";
+    const best = Object.fromEntries(
+      leads.map((lead) => {
+        const values = all
+          .map(([, f]) => f.lead_times[lead])
+          .filter((b) => b && b.samples && b.mae != null)
+          .map((b) => b.mae);
+        return [lead, values.length > 1 ? Math.min(...values) : null];
+      }),
+    );
+    const rows = all
+      .map(([key, f]) => {
+        const name = t.forecasterNames[key] || f.name || key;
+        const cells = leads
+          .map((lead) => {
+            const b = f.lead_times[lead];
+            if (!b || !b.samples || b.mae == null) return "<td>–</td>";
+            const text = `${Math.round(b.mae)} W`;
+            return `<td title="${b.samples} · bias ${Math.round(b.bias)} W">${b.mae === best[lead] ? `<b>${esc(text)}</b>` : esc(text)}</td>`;
+          })
+          .join("");
+        const tag = f.chosen ? t.chosen : f.builtin ? t.plannerBuiltin : t.plannerOwn;
+        return `<tr><td>${esc(name)}<small>${esc(tag)}</small></td>${cells}</tr>`;
+      })
+      .join("");
+    return `<div class="card"><h2>${esc(t.forecastersTitle)}</h2>
+      <div class="acc-wrap"><table class="acc">${head}${rows}</table></div>
+      <div class="muted">${esc(t.forecastersHelp)}</div></div>`;
   }
 
   _message(text) {
@@ -1592,8 +1643,15 @@ class HomeBatteryAssistPanel extends HTMLElement {
         ? ""
         : ` · ${t.plannerSaving.replace("{saving}", `${p.saving.toFixed(2)} ${unit}`.trim()).replace("{until}", this._time(p.until))}`;
     const warn = p.fallback ? `<div class="alert-text">${esc(t.plannerFallback)}</div>` : "";
+    const module = (label, m, names) => {
+      if (!m) return "";
+      const text = names[m.key] || m.name || m.key;
+      const tag = m.fallback ? t.moduleFallback : m.builtin ? t.plannerBuiltin : t.plannerOwn;
+      return `<div class="sub"><span class="muted">${esc(label)}</span> ${esc(text)} <small class="muted">(${esc(tag)})</small></div>`;
+    };
     return `<div class="card planner"><span class="muted">${esc(t.plannerActive)}</span>
-      <b>${esc(name.charAt(0).toUpperCase() + name.slice(1))}</b> <small class="muted">(${esc(kind)})</small>${esc(saving)}${warn}</div>`;
+      <b>${esc(name.charAt(0).toUpperCase() + name.slice(1))}</b> <small class="muted">(${esc(kind)})</small>${esc(saving)}${warn}
+      ${module(t.plannerForecaster, p.forecaster, t.forecasterNames)}${module(t.plannerTariff, p.tariff, t.tariffNames)}</div>`;
   }
 
   _decisions(s, t) {

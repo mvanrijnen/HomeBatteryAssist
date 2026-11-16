@@ -1,0 +1,43 @@
+# Planning (advice)
+
+HomeBatteryAssist plans what the batteries could best do over the [planning window](forecasting.md#planning-window). **It is advice only**: no battery is controlled. Only virtual batteries follow the plan, as a simulation.
+
+## Plan modes
+
+Every plan mode is a [planner module](modules.md); all are calculated every cycle, with the expected saving compared with no battery:
+
+- **Zero on the meter (NOM)**: charge with surplus solar power, supply the house on shortage.
+- **Arbitrage** (own use): charge when power is cheap, supply the house when it is expensive.
+- **Full arbitrage**: like arbitrage, but may also discharge to the grid when the export price makes that worthwhile.
+- **Time slots**: your own slots (days, times, charge/discharge/idle, power, until a state of charge), zero on the meter outside them.
+- **Manual**: a fixed charge or discharge power.
+- **Your own planner**: see [Modules](modules.md).
+
+Choose the mode in the settings, on the dashboard or with the action `set_plan_mode`. HomeBatteryAssist checks every plan afterwards (power, phases, state of charge, price rules) — see [the final say](modules.md#homebatteryassist-keeps-the-final-say).
+
+## Rules and limits
+
+- **Max. cycles per day** for arbitrage, to spare the batteries.
+- **Your own rules**: a reserve state of charge (backup), max. charge/discharge power of all batteries together, a target grid power for zero on the meter, discharge only from a price, charge from the grid only up to a price, a minimum arbitrage margin, and a charge hysteresis.
+- **Warm batteries**: with an optional temperature sensor per battery the plans use less power above a temperature limit.
+- **Negative prices**: charging when import is negative, making room before a negative export price.
+- **Peak shaving** on the total grid import: the plan keeps energy in reserve for peaks; virtual batteries shave them live.
+- **Phase limits**: the plan never lets a phase exceed the main fuse (with an adjustable safety margin). The share of each phase is learned from your history.
+- **Phase protection** (virtual batteries): when a phase is overloaded, batteries on that phase take load off it within seconds.
+- **Distribution over several batteries**: as few batteries as possible at a sensible minimum power, kept in balance.
+
+## Periodic full charge
+
+Per battery (for the battery management's calibration), every so many days, at the cheapest moment, optionally on a preferred weekday and preferably with solar power; batteries charge fully at the same time when the grid connection allows it. The full charge is always inserted **after** the planner, whatever planner is chosen.
+
+## Explanation
+
+The plan is explained in plain language, as periods — what happens until when, and why — and compared with no battery, e.g.:
+
+> *Until 17:00 the batteries do not discharge and the house runs on the grid, because power is not expensive enough now (€ 0.31 per kWh): they keep their energy for Mon 17:00-20:00, when power costs € 0.46 per kWh.*
+
+What each real battery does by its own control is explained as periods too — since when it charges or supplies, with what (solar power or the grid), until when it is expected to go on, and what happens when it stops — and whether that matches the plan.
+
+## Plan check
+
+Afterwards, the plan is compared with what really happened, per day (dashboard, *Return* tab).

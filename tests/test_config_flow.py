@@ -81,6 +81,8 @@ async def test_three_phase_flow(hass: HomeAssistant) -> None:
         "forecast_interval": 15,  # default
         CONF_PRICE_FORECAST: "sensor.prices",
         "plan_mode": "nom",  # defaults of the battery plan
+        "consumption_forecaster": "profile",
+        "tariff": "source",
         "export_price_factor": 0.25,
         "export_price_mode": "market",
         "price_source": "sensor",
@@ -137,6 +139,8 @@ async def test_single_phase_flow(hass: HomeAssistant) -> None:
         CONF_PLANNING_HORIZON: 2,
         "forecast_interval": 15,
         "plan_mode": "nom",  # defaults of the battery plan
+        "consumption_forecaster": "profile",
+        "tariff": "source",
         "export_price_factor": 0.25,
         "export_price_mode": "market",
         "price_source": "sensor",
@@ -260,6 +264,8 @@ async def test_options_flow_changes_settings(hass: HomeAssistant) -> None:
         CONF_PLANNING_HORIZON: 5,
         "forecast_interval": 5,
         "plan_mode": "nom",  # defaults of the battery plan
+        "consumption_forecaster": "profile",
+        "tariff": "source",
         "export_price_factor": 0.25,
         "export_price_mode": "market",
         "price_source": "sensor",

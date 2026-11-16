@@ -69,6 +69,7 @@ from .const import (
     CONF_BALANCE_INTERVAL,
     CONF_CAPACITY,
     CONF_CHARGE_HYSTERESIS,
+    CONF_CONSUMPTION_FORECASTER,
     CONF_CYCLE_COST,
     CONF_DEVICE_PHASE_SENSORS,
     CONF_EFFICIENCY,
@@ -125,6 +126,7 @@ from .const import (
     CONF_SOURCE,
     CONF_SYSTEM_MAX_CHARGE,
     CONF_SYSTEM_MAX_DISCHARGE,
+    CONF_TARIFF,
     CONF_TEMP_BAND,
     CONF_TEMP_DISCHARGE,
     CONF_TEMP_LIMIT,
@@ -182,6 +184,8 @@ from .const import (
 )
 from .explain.notify import KINDS as NOTIFY_KINDS
 from .explain.notify import PERSISTENT
+from .forecasts.forecasters import BUILTIN as FORECASTERS
+from .forecasts.forecasters import DEFAULT_FORECASTER, async_load_user_forecasters
 from .inputs.direct import (
     DIRECT_SOURCES,
     SOURCE_HOMEWIZARD,
@@ -195,7 +199,9 @@ from .inputs.meter_drivers import DRIVERS as METER_DRIVERS
 from .inputs.meters import MeterCandidate, find_meter_candidates
 from .inputs.price_drivers import find_sources, get_driver
 from .inputs.profiles import BatteryCandidate, find_battery_candidates
-from .inputs.solar import async_solar_forecast_entries
+from .inputs.pv_forecasts import async_find_pv_forecasts, async_load_user_pv_sources
+from .inputs.tariffs import BUILTIN as TARIFFS
+from .inputs.tariffs import DEFAULT_TARIFF, async_load_user_tariffs
 from .planning.battery_plan import DEFAULT_PLAN_MODE, PLAN_MODES
 from .planning.planners import async_load_user_planners
 from .planning.schedule import ACTION_CHARGE, ACTIONS, WEEKDAYS
@@ -497,6 +503,37 @@ async def _flat_settings_schema(
             )
         ),
         vol.Required(
+            CONF_CONSUMPTION_FORECASTER,
+            default=current.get(CONF_CONSUMPTION_FORECASTER, DEFAULT_FORECASTER),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    *(SelectOptionDict(value=k, label=k) for k in FORECASTERS),
+                    *(
+                        SelectOptionDict(value=k, label=f.name or k)
+                        for k, f in (await async_load_user_forecasters(hass)).items()
+                    ),
+                ],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_CONSUMPTION_FORECASTER,
+            )
+        ),
+        vol.Required(
+            CONF_TARIFF, default=current.get(CONF_TARIFF, DEFAULT_TARIFF)
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    *(SelectOptionDict(value=k, label=k) for k in TARIFFS),
+                    *(
+                        SelectOptionDict(value=k, label=t.name or k)
+                        for k, t in (await async_load_user_tariffs(hass)).items()
+                    ),
+                ],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_TARIFF,
+            )
+        ),
+        vol.Required(
             CONF_MANUAL_POWER,
             default=current.get(CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER),
         ): _number(-20000, 20000, 50, "W"),
@@ -669,8 +706,10 @@ async def _flat_settings_schema(
         ),
     }
     pv_options = [
-        SelectOptionDict(value=e.entry_id, label=e.title)
-        for e in await async_solar_forecast_entries(hass)
+        SelectOptionDict(value=value, label=label)
+        for value, label in await async_find_pv_forecasts(
+            hass, await async_load_user_pv_sources(hass)
+        )
     ]
     # Keep earlier choices selectable even if that integration is not loaded now.
     known = {option["value"] for option in pv_options}
@@ -707,6 +746,10 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
             user_input.get(CONF_FORECAST_INTERVAL, DEFAULT_FORECAST_INTERVAL)
         ),
         CONF_PLAN_MODE: user_input.get(CONF_PLAN_MODE, DEFAULT_PLAN_MODE),
+        CONF_CONSUMPTION_FORECASTER: user_input.get(
+            CONF_CONSUMPTION_FORECASTER, DEFAULT_FORECASTER
+        ),
+        CONF_TARIFF: user_input.get(CONF_TARIFF, DEFAULT_TARIFF),
         CONF_EXPORT_FACTOR: float(
             user_input.get(CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR)
         ),

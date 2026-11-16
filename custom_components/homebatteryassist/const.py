@@ -46,6 +46,8 @@ CONF_PRICE_FORECAST: Final = "price_forecast_entity"
 CONF_PV_FORECAST: Final = "pv_forecast_entries"
 # Battery plan (advice): mode and cost assumptions.
 CONF_PLAN_MODE: Final = "plan_mode"
+CONF_CONSUMPTION_FORECASTER: Final = "consumption_forecaster"
+CONF_TARIFF: Final = "tariff"
 CONF_EXPORT_FACTOR: Final = "export_price_factor"
 CONF_EXPORT_MODE: Final = "export_price_mode"
 CONF_PRICE_SOURCE: Final = "price_source"  # "<driver>:<source>" or "sensor"

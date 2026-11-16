@@ -241,7 +241,7 @@ async def test_planning_horizon_sensor(
     )
     entry.add_to_hass(hass)
     with patch(
-        "custom_components.homebatteryassist.forecasts.coordinator.async_get_pv_forecast",
+        "custom_components.homebatteryassist.inputs.pv_forecasts.energy.async_get_pv_forecast",
         AsyncMock(return_value={NOW + h * H: 100.0 for h in range(24)}),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -307,9 +307,7 @@ async def test_settings_step_lists_pv_forecasts(hass: HomeAssistant) -> None:
             result["flow_id"], {"sensor_l1": "sensor.l1"}
         )
 
-    target = (
-        "custom_components.homebatteryassist.config_flow.async_solar_forecast_entries"
-    )
+    target = "custom_components.homebatteryassist.inputs.pv_forecasts.energy.async_solar_forecast_entries"
     with patch(target, AsyncMock(return_value=[])):
         result = await _to_settings()
     assert CONF_PV_FORECAST not in result["data_schema"].schema

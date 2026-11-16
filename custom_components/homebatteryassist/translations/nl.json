@@ -53,7 +53,9 @@
           "forecast_interval": "Herberekenen elke",
           "plan_mode": "Modus batterijplan",
           "price_source": "Prijsbron",
-          "price_extension": "Extra prijsvoorspelling"
+          "price_extension": "Extra prijsvoorspelling",
+          "consumption_forecaster": "Verbruiksvoorspeller",
+          "tariff": "Tarief"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -63,7 +65,9 @@
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
           "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Alle modi worden altijd ter vergelijking doorgerekend. Eigen planningsmodules uit /config/homebatteryassist/planners verschijnen hier ook (na herladen).",
           "price_source": "Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest.",
-          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld."
+          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld.",
+          "consumption_forecaster": "Hoe het huisverbruik voorspeld wordt. De nauwkeurigheid van elke voorspeller staat naast elkaar op het dashboard. Eigen voorspellers uit /config/homebatteryassist/forecasters verschijnen hier ook (na herladen).",
+          "tariff": "Hoe de prijzen van de prijsbron worden omgezet in wat een kWh echt kost en oplevert. Eigen tarieven uit /config/homebatteryassist/tariffs verschijnen hier ook (na herladen)."
         },
         "sections": {
           "export": {
@@ -368,6 +372,17 @@
       "options": {
         "sensor": "Een sensor (hieronder kiezen)"
       }
+    },
+    "consumption_forecaster": {
+      "options": {
+        "profile": "Profiel per weekdag en uur (recente dagen tellen zwaarder)",
+        "last_weeks": "Zelfde tijd in de afgelopen weken"
+      }
+    },
+    "tariff": {
+      "options": {
+        "source": "Zoals de prijsbron en de terugleverinstellingen ze geven"
+      }
     }
   },
   "options": {
@@ -391,7 +406,9 @@
           "forecast_interval": "Herberekenen elke",
           "plan_mode": "Modus batterijplan",
           "price_source": "Prijsbron",
-          "price_extension": "Extra prijsvoorspelling"
+          "price_extension": "Extra prijsvoorspelling",
+          "consumption_forecaster": "Verbruiksvoorspeller",
+          "tariff": "Tarief"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -401,7 +418,9 @@
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
           "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Alle modi worden altijd ter vergelijking doorgerekend. Eigen planningsmodules uit /config/homebatteryassist/planners verschijnen hier ook (na herladen).",
           "price_source": "Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest.",
-          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld."
+          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld.",
+          "consumption_forecaster": "Hoe het huisverbruik voorspeld wordt. De nauwkeurigheid van elke voorspeller staat naast elkaar op het dashboard. Eigen voorspellers uit /config/homebatteryassist/forecasters verschijnen hier ook (na herladen).",
+          "tariff": "Hoe de prijzen van de prijsbron worden omgezet in wat een kWh echt kost en oplevert. Eigen tarieven uit /config/homebatteryassist/tariffs verschijnen hier ook (na herladen)."
         },
         "sections": {
           "export": {
