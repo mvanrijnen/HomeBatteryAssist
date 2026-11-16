@@ -190,6 +190,27 @@ def _pack(
     )
 
 
+def reach_times(
+    slots: Sequence[PlanSlot], soc: float, floor_soc: float, ceiling_soc: float
+) -> tuple[datetime | None, datetime | None]:
+    """When the plan's state of charge, starting at ``soc`` (%), first reaches
+    ``floor_soc`` (empty) and ``ceiling_soc`` (full), interpolated within the
+    slot; ``None`` if not within the plan or already there."""
+    empty = full = None
+    margin = 0.5  # %
+    for slot in slots:
+        if empty is None and soc > floor_soc + margin >= slot.soc:
+            part = (soc - floor_soc) / (soc - slot.soc)
+            empty = slot.start + (slot.end - slot.start) * min(part, 1.0)
+        if full is None and soc < ceiling_soc - margin <= slot.soc:
+            part = (ceiling_soc - soc) / (slot.soc - soc)
+            full = slot.start + (slot.end - slot.start) * min(part, 1.0)
+        if empty is not None and full is not None:
+            break
+        soc = slot.soc
+    return empty, full
+
+
 def _price_at(prices: Sequence[PricePoint], when: datetime) -> float | None:
     for point in prices:
         if point.start <= when < point.end:

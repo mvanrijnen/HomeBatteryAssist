@@ -11,7 +11,9 @@ from custom_components.homebatteryassist.inputs.prices import PricePoint
 from custom_components.homebatteryassist.planning.battery_plan import (
     MODE_ARBITRAGE,
     MODE_NOM,
+    PlanSlot,
     plan_batteries,
+    reach_times,
 )
 
 T0 = datetime(2026, 11, 16, 0, 0, tzinfo=dt_util.UTC)
@@ -326,3 +328,26 @@ def test_hysteresis_in_arbitrage() -> None:
     )
     assert max(s.soc for s in free.slots) > 99  # tops up to full
     assert held.slots[0].power_w == 0.0 and held.slots[1].power_w == 0.0
+
+
+def test_reach_times() -> None:
+    """Empty / full moments are interpolated within the slot they occur in."""
+
+    def slot(hour: int, soc: float) -> PlanSlot:
+        return PlanSlot(T0 + hour * H, T0 + (hour + 1) * H, 0.0, soc, 0.0, None)
+
+    # 30% -> 20% -> 5%: the floor (10%) is reached 2/3 into the second hour.
+    empty, full = reach_times([slot(0, 20.0), slot(1, 5.0)], 30.0, 10.0, 100.0)
+    assert empty == T0 + H + H * (10 / 15)
+    assert full is None
+    # Charging up to the ceiling, then down to the floor.
+    empty, full = reach_times(
+        [slot(0, 60.0), slot(1, 100.0), slot(2, 50.0), slot(3, 10.0)],
+        20.0,
+        10.0,
+        100.0,
+    )
+    assert full == T0 + 2 * H  # 60 -> 100 within the second hour: at its end
+    assert empty == T0 + 4 * H
+    # Already empty: no moment.
+    assert reach_times([slot(0, 10.0)], 10.0, 10.0, 100.0) == (None, None)

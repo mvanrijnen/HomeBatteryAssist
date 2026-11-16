@@ -31,6 +31,7 @@ from ..planning.battery_plan import (
     MODE_ARBITRAGE,
     MODE_NOM,
     compare_modes,
+    reach_times,
 )
 from ..planning.phase_limit import phase_limit_w
 from ..planning.verification import slot_saving
@@ -99,6 +100,25 @@ def _entity_ids(registry: er.EntityRegistry, prefix: str, keys: Any) -> dict[str
 
 def _iso(value: Any) -> str | None:
     return value.isoformat() if value else None
+
+
+def _expected_reach(data: Any, battery_id: str) -> dict[str, str | None]:
+    """When the battery is expected to be empty / full if it follows the
+    consumption and PV forecast by itself (zero on the meter, the usual own
+    control of a home battery). Only for a single battery: the plan pools
+    all batteries."""
+    plan = data.forecast.data.plans.get(MODE_NOM)
+    states = [s for s in data.batteries.states.values() if s.available]
+    if plan is None or len(states) != 1 or states[0].config.id != battery_id:
+        return {}
+    state = states[0]
+    config = state.config
+    floor = min(max(config.min_soc, data.forecast.rules.reserve_soc), config.max_soc)
+    empty, full = reach_times(plan.slots, state.soc, floor, config.max_soc)
+    return {
+        "expected_empty": empty.isoformat() if empty else None,
+        "expected_full": full.isoformat() if full else None,
+    }
 
 
 def _meter_info(hass: HomeAssistant, measurements: MeasurementInput) -> dict[str, Any]:
@@ -227,6 +247,7 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
                 "entities": _entity_ids(
                     registry, config.id, (d.key for d in BATTERY_SENSORS)
                 ),
+                **_expected_reach(data, config.id),
             }
             for config in data.batteries.configs
         ],

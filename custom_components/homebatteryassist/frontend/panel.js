@@ -32,6 +32,9 @@ const TEXT = {
     usable: "Usable",
     fullAt: "Full at",
     emptyAt: "Empty at",
+    fullExpected: "Full at (forecast)",
+    emptyExpected: "Empty at (forecast)",
+    reachInfo: "At the current power / if the battery follows the consumption and solar forecast (zero on the meter)",
     phases: "Grid connection",
     phase: "Phase",
     detail: {
@@ -191,6 +194,9 @@ const TEXT = {
     usable: "Bruikbaar",
     fullAt: "Vol om",
     emptyAt: "Leeg om",
+    fullExpected: "Vol om (voorspeld)",
+    emptyExpected: "Leeg om (voorspeld)",
+    reachInfo: "Bij het huidige vermogen / als de batterij de verbruiks- en zonnevoorspelling volgt (nul op de meter)",
     phases: "Netaansluiting",
     phase: "Fase",
     detail: {
@@ -734,7 +740,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
       <div class="row"><span>${esc(t.usable)}</span><b>${this._kwh(this._num(e.battery_usable_energy))}</b></div>
       ${this._status?.phases === 3 ? `<div class="row"><span>${esc(t.phase)}</span><b>${esc(b.phase && b.phase !== "none" ? b.phase.toUpperCase() : t.allPhases)}</b></div>` : ""}
       <div class="row"><span>${esc(status === "discharging" ? t.discharging : t.charging)}</span><b>${this._power(power === null ? null : Math.abs(power))}</b></div>
-      ${target ? `<div class="row"><span>${esc(status === "charging" ? t.fullAt : t.emptyAt)}</span><b>${this._time(target)}</b></div>` : ""}
+      ${target ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(status === "charging" ? t.fullAt : t.emptyAt)}</span><b>${this._time(target)}</b></div>` : ""}
+      ${b.expected_full ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.fullExpected)}</span><b>${this._time(b.expected_full)}</b></div>` : ""}
+      ${b.expected_empty ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.emptyExpected)}</span><b>${this._time(b.expected_empty)}</b></div>` : ""}
       ${Object.entries(b.details || {})
         .filter(([k]) => t.detail[k])
         .map(([k, v]) => {
