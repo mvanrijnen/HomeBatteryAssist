@@ -10,14 +10,16 @@ Instead of lists of periods and numbers, a few sentences:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from homeassistant.util import dt as dt_util
 
 from ..planning.battery_plan import BatteryPlan, PlanSlot
 
 ACTIVE_W = 100.0  # below this a battery counts as idle
+HOLD = timedelta(hours=6)  # stored this long before use: explain why
 
 DAYS = {
     "nl": ("ma", "di", "wo", "do", "vr", "za", "zo"),
@@ -37,7 +39,10 @@ TEXT = {
         "now_discharge": "Van nu tot {until} leveren de batterijen stroom aan het huis, omdat stroom dan duur is ({price}).",
         "now_discharge_export": "Van nu tot {until} leveren de batterijen stroom aan het huis en terug aan het net, omdat teruglevering dan veel oplevert ({price}).",
         "now_discharge_nom": "Van nu tot {until} leveren de batterijen stroom aan het huis, zodat er geen stroom van het net nodig is.",
-        "next_grid": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use} als stroom {use_price} kost. Na verlies levert dat ongeveer {gain} op.",
+        "next_grid": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use}, als stroom gemiddeld {use_price} kost. Na verlies levert dat ongeveer {gain} op.",
+        "uses_many": "verspreid over {n} momenten van {first} tot {last}, het meest {main}",
+        "hold": "Tot {first} blijft die energie in de batterij en komt de stroom van het net: stroom kost tussendoor hooguit {gap_price}, en is later duurder (tot {max_price}).",
+        "full_charge": "Daarmee wordt {names} ook helemaal vol geladen, zoals gepland.",
         "next_pv": "{when} laden we {energy} met zonnestroom, om die te gebruiken {use}.",
         "no_charge": "In de komende {hours} uur is laden niet nodig of levert het niets op.",
         "phase_limited": "Daarbij laden we soms langzamer dan kan, zodat de hoofdzekering ({amps} A per fase) niet overbelast raakt.",
@@ -76,7 +81,10 @@ TEXT = {
         "now_discharge": "From now until {until} the batteries supply the house, because power is expensive then ({price}).",
         "now_discharge_export": "From now until {until} the batteries supply the house and the grid, because export pays well then ({price}).",
         "now_discharge_nom": "From now until {until} the batteries supply the house, so no power from the grid is needed.",
-        "next_grid": "{when} we charge {energy} from the grid at {price}, to use it {use} when power costs {use_price}. After losses that brings about {gain}.",
+        "next_grid": "{when} we charge {energy} from the grid at {price}, to use it {use}, when power costs {use_price} on average. After losses that brings about {gain}.",
+        "uses_many": "spread over {n} moments from {first} to {last}, most {main}",
+        "hold": "Until {first} that energy stays in the battery and the house runs on the grid: power costs at most {gap_price} in between, and is more expensive later (up to {max_price}).",
+        "full_charge": "This also charges {names} completely, as planned.",
         "next_pv": "{when} we charge {energy} with solar power, to use it {use}.",
         "no_charge": "In the next {hours} hours charging is not needed or brings nothing.",
         "phase_limited": "At times we charge slower than possible, so the main fuse ({amps} A per phase) is not overloaded.",
@@ -245,6 +253,7 @@ def plan_story(
     cycle_cost: float,
     min_soc_reached: bool,
     max_current: int | None = None,
+    full_charges: Sequence[tuple[datetime, datetime, str]] = (),
 ) -> str:
     """A few plain sentences about what the plan does and why."""
     lang = _lang(language)
@@ -377,10 +386,21 @@ def plan_story(
         block = charges[0]
         until = charges[1].start if len(charges) > 1 else slots[-1].end
         uses = [d for d in discharges if block.end <= d.start < until]
-        use_text = f" {t['and']} ".join(
-            f"{_time(d.start, lang)}-{dt_util.as_local(d.end):%H:%M}" for d in uses[:2]
-        )
-        use_text = f"{t['from']} {use_text}" if use_text else ""
+
+        def span(d: _Block) -> str:
+            return f"{_time(d.start, lang)}-{dt_util.as_local(d.end):%H:%M}"
+
+        if len(uses) > 2:
+            main = max(uses, key=lambda d: d.energy_wh)
+            use_text = t["uses_many"].format(
+                n=len(uses),
+                first=_time(uses[0].start, lang),
+                last=_time(uses[-1].end, lang),
+                main=f"{t['from']} {span(main)}",
+            )
+        else:
+            use_text = f" {t['and']} ".join(span(d) for d in uses)
+            use_text = f"{t['from']} {use_text}" if use_text else ""
         if block.from_grid and block.price is not None and uses:
             weight = sum(d.energy_wh for d in uses if d.price is not None)
             use_price = (
@@ -414,6 +434,31 @@ def plan_story(
                 )
                 .replace(" ,", ",")
             )
+        names = sorted(
+            {
+                name
+                for start, end, name in full_charges
+                if start < block.end and end > block.start
+            }
+        )
+        if names:
+            sentences.append(t["full_charge"].format(names=f" {t['and']} ".join(names)))
+        if uses and uses[0].start - block.end >= HOLD:
+            # Why the energy is not used earlier: the moments in between are cheaper.
+            gap = [
+                s.price
+                for s in slots
+                if block.end <= s.start < uses[0].start and s.price is not None
+            ]
+            top = max((d.price for d in uses if d.price is not None), default=None)
+            if gap and top is not None and max(gap) < top:
+                sentences.append(
+                    t["hold"].format(
+                        first=_time(uses[0].start, lang),
+                        gap_price=per_kwh(max(gap)),
+                        max_price=per_kwh(top),
+                    )
+                )
         if block.limited and max_current:
             sentences.append(t["phase_limited"].format(amps=max_current))
     else:

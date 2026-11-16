@@ -770,6 +770,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             self.cycle_cost,
             min_soc_reached,
             self.config_entry.data[CONF_MAX_CURRENT],
+            [(f.start, f.end, f.name) for f in data.full_charges],
         )
         # Log when the gist changes (not for every small change in numbers).
         current = next((s for s in plan.slots if s.start <= now < s.end), None)

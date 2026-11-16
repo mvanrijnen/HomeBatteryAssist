@@ -33,7 +33,7 @@ async def test_story_charge_now_and_use_later(hass: HomeAssistant) -> None:
         "Van nu tot 04:00 laden de batterijen uit het net, omdat stroom dan goedkoop is (€ 0,20 per kWh)."
     )
     assert "laden we 4,0 kWh uit het net tegen € 0,20 per kWh" in text
-    assert "als stroom € 0,45 per kWh kost" in text
+    assert "als stroom gemiddeld € 0,45 per kWh kost" in text
     # Only compared with no battery, not with the other modes.
     assert text.endswith(
         "Tot 06:00 scheelt dit plan naar verwachting € 0,50 ten opzichte van geen batterij."
@@ -64,7 +64,7 @@ async def test_story_joins_charge_blocks(hass: HomeAssistant) -> None:
     )
     text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
     assert "laden we 4,0 kWh uit het net" in text
-    assert "als stroom € 0,45 per kWh kost" in text
+    assert "als stroom gemiddeld € 0,45 per kWh kost" in text
 
 
 async def test_story_waits_for_cheaper_power(hass: HomeAssistant) -> None:
@@ -97,4 +97,30 @@ async def test_story_explains_why_not_discharging(hass: HomeAssistant) -> None:
     text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
     assert "en laden vannacht bij tegen € 0,27 per kWh" in text or (
         "bij tegen € 0,27 per kWh" in text
+    )
+
+
+async def test_story_many_uses_and_holding(hass: HomeAssistant) -> None:
+    """Energy used at many moments is summed up; holding it for hours is
+    explained by the cheaper moments in between; a full charge is named."""
+    await hass.config.async_set_time_zone("Europe/Amsterdam")
+    powers = [2000.0, 0.0] + [0.0] * 6 + [-500.0, 0.0, -500.0, 0.0, -1000.0, -1000.0]
+    prices = [0.20, 0.30] + [0.40] * 6 + [0.44, 0.40, 0.45, 0.40, 0.48, 0.48]
+    plan = _plan(powers, prices)
+    text = plan_story(
+        plan,
+        {},
+        T0,
+        "nl",
+        0.85,
+        0.02,
+        False,
+        full_charges=[(T0, T0 + H, "Venus")],
+    )
+    assert "verspreid over 3 momenten van ma 10:00 tot ma 16:00" in text
+    assert "het meest op ma 14:00-16:00" in text
+    assert "Daarmee wordt Venus ook helemaal vol geladen, zoals gepland." in text
+    assert (
+        "Tot ma 10:00 blijft die energie in de batterij en komt de stroom van het "
+        "net: stroom kost tussendoor hooguit € 0,40 per kWh" in text
     )
