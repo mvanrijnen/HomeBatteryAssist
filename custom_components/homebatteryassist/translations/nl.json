@@ -287,8 +287,7 @@
         "speedwire": "SMA Home Manager / Energy Meter (Speedwire)",
         "shelly": "Shelly Pro 3EM / 3EM",
         "shelly_em": "Shelly EM / Pro EM (1 fase)",
-        "iammeter": "Iammeter WEM3080 / WEM3080T",
-        "astrameter": "AstraMeter (status-API; vereist 'dashboard direct access')"
+        "iammeter": "Iammeter WEM3080 / WEM3080T"
       }
     },
     "weekday": {

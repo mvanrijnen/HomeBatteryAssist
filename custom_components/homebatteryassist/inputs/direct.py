@@ -9,10 +9,6 @@ read straight from a meter that allows this without disturbing anyone:
   config entry;
 - ``shelly_em``: a Shelly EM (1 phase; Gen1 ``/status``, Gen2+ Pro EM
   ``/rpc/EM1.GetStatus?id=0``), channel 1;
-- ``astrameter``: the status of an AstraMeter (``GET /api/status``, read-only)
-  — the grid power per phase it hands to the Marstek batteries. Needs the
-  add-on option ``dashboard_direct_access`` (best with
-  ``dashboard_allow_write`` off); the add-on is found via the Supervisor;
 - ``iammeter``: an Iammeter WEM3080 (1 phase) or WEM3080T (3 phases) local
   API (``GET /monitorjson``). Shelly EM and Iammeter follow their API
   documentation and are not yet verified on a device;
@@ -56,16 +52,12 @@ SOURCE_SPEEDWIRE = "speedwire"
 SOURCE_SHELLY = "shelly"
 SOURCE_SHELLY_EM = "shelly_em"
 SOURCE_IAMMETER = "iammeter"
-SOURCE_ASTRAMETER = "astrameter"
-ASTRAMETER_ADDON = "b2500_meter"  # slug suffix of the AstraMeter add-on
-ASTRAMETER_PORT = 52500
 DIRECT_SOURCES = (
     SOURCE_HOMEWIZARD,
     SOURCE_SPEEDWIRE,
     SOURCE_SHELLY,
     SOURCE_SHELLY_EM,
     SOURCE_IAMMETER,
-    SOURCE_ASTRAMETER,
 )
 SOURCE_NAMES = {
     SOURCE_HOMEWIZARD: "HomeWizard",
@@ -73,7 +65,6 @@ SOURCE_NAMES = {
     SOURCE_SHELLY: "Shelly 3EM",
     SOURCE_SHELLY_EM: "Shelly EM",
     SOURCE_IAMMETER: "Iammeter",
-    SOURCE_ASTRAMETER: "AstraMeter",
 }
 
 # HomeWizard meters (product type = device model id) -> phases (None: depends
@@ -299,57 +290,6 @@ class IammeterMeter(PollingMeter):
             return iammeter_phases(await response.json(content_type=None))
 
 
-class AstraMeterMeter(PollingMeter):
-    """Reads the grid power per phase from an AstraMeter's status."""
-
-    label = SOURCE_ASTRAMETER
-
-    async def _async_read(self) -> tuple[float, ...] | None:
-        session = async_get_clientsession(self.hass)
-        async with asyncio.timeout(3):
-            response = await session.get(f"http://{self.address}/api/status")
-            response.raise_for_status()
-            return astrameter_phases(await response.json(content_type=None))
-
-
-def astrameter_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
-    """Grid power per phase (+ import) from the AstraMeter status document.
-
-    Every field there is optional: the grid of the first emulated device that
-    reports one, else the first power meter's last values.
-    """
-    for device in data.get("devices") or []:
-        grid = device.get("grid") or {}
-        if grid.get("meter_failed"):
-            continue
-        values = [grid.get(f"l{n}_w") for n in (1, 2, 3)]
-        if values[0] is not None:
-            known = [float(v) for v in values if v is not None]
-            return tuple(known)
-    for meter in data.get("powermeters") or []:
-        if meter.get("last_read_ok") is False:
-            continue
-        if values := meter.get("last_values_w"):
-            return tuple(float(v) for v in values[:3])
-    return None
-
-
-def astrameter_addresses(hass: HomeAssistant) -> list[str]:
-    """Address of the AstraMeter add-on on this host, if it is installed."""
-    try:
-        from homeassistant.components.hassio import get_addons_info
-    except ImportError:
-        return []
-    try:
-        addons = get_addons_info(hass) or {}
-    except Exception:
-        return []
-    if any(slug.endswith(ASTRAMETER_ADDON) for slug in addons):
-        # The add-on uses host networking, like Home Assistant itself.
-        return [f"127.0.0.1:{ASTRAMETER_PORT}"]
-    return []
-
-
 def iammeter_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
     """Signed power per phase: WEM3080T ``Datas`` (per phase [V, A, W, ...]),
     WEM3080 ``Data`` ([V, A, W, ...])."""
@@ -434,10 +374,6 @@ def find_direct_meters(hass: HomeAssistant) -> list[DirectCandidate]:
     for entry in hass.config_entries.async_entries(SOURCE_IAMMETER):
         if host := entry.data.get("host"):
             found.append(DirectCandidate(SOURCE_IAMMETER, host, "Iammeter", None))
-    for address in astrameter_addresses(hass):
-        found.append(
-            DirectCandidate(SOURCE_ASTRAMETER, address, "AstraMeter (add-on)", None)
-        )
     return found
 
 
@@ -541,8 +477,6 @@ def create_meter(hass: HomeAssistant, source: str, address: str) -> DirectMeter:
         return ShellyMeter(hass, address)
     if source == SOURCE_SHELLY_EM:
         return ShellyEmMeter(hass, address)
-    if source == SOURCE_ASTRAMETER:
-        return AstraMeterMeter(hass, address)
     if source == SOURCE_IAMMETER:
         return IammeterMeter(hass, address)
     return SpeedwireMeter(hass, address)
