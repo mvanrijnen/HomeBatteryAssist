@@ -10,12 +10,29 @@ from homeassistant.core import HomeAssistant
 
 from ...measure.battery_monitor import BatteryConfig
 from .base import BatteryModel, BatteryReader, BatteryTelemetry, platform_of
+from .direct.base import DirectBatteryDriver
+from .hoymiles.hibattery_1920_ac import HoymilesHiBattery1920Ac
+from .hoymiles.hibattery_4020_ac import HoymilesHiBattery4020Ac
+from .hoymiles.hibattery_4020_x import HoymilesHiBattery4020X
+from .hoymiles.mqtt import HoymilesMqttDriver
+from .hoymiles.ms_a2 import HoymilesMsA2
 from .integrations import READERS
 from .marstek.venus_e_v3 import MarstekVenusEV3
 
-MODELS: tuple[BatteryModel, ...] = (MarstekVenusEV3(),)
+MODELS: tuple[BatteryModel, ...] = (
+    MarstekVenusEV3(),
+    HoymilesMsA2(),
+    HoymilesHiBattery1920Ac(),
+    HoymilesHiBattery4020X(),
+    HoymilesHiBattery4020Ac(),
+)
+
+# Direct drivers (own connection to the battery): PREPARED, NOT USED. Listed
+# for documentation and tests only; nothing offers or starts them.
+DIRECT_DRIVERS: tuple[type[DirectBatteryDriver], ...] = (HoymilesMqttDriver,)
 
 __all__ = [
+    "DIRECT_DRIVERS",
     "MODELS",
     "READERS",
     "BatteryModel",
