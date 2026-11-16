@@ -28,6 +28,8 @@ class FakeDevice:
             address, count = struct.unpack(">HH", pdu[1:5])
             if address >= 1000:  # illegal address
                 reply = bytes([function | 0x80, 2])
+                if address == 2000:  # a device announcing a wrong length
+                    return struct.pack(">HHHB", transaction, 0, 4, unit) + reply
             else:
                 values = [self.registers.get(address + i, 0) for i in range(count)]
                 reply = bytes([function, 2 * count]) + struct.pack(
@@ -90,6 +92,8 @@ async def test_read_write(device: FakeDevice) -> None:
     assert device.writes == [(5, [0xFFFF]), (7, [1, 2])]
     with pytest.raises(ModbusError, match="exception code 2"):
         await client.read_holding(1000, 1)
+    with pytest.raises(ModbusError, match="exception code 2"):
+        await client.read_holding(2000, 1)  # malformed length: no timeout
     with pytest.raises(ValueError):
         await client.read_holding(0, 200)
     await client.close()

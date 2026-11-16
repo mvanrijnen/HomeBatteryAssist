@@ -17,10 +17,22 @@ from .hoymiles.hibattery_4020_x import HoymilesHiBattery4020X
 from .hoymiles.mqtt import HoymilesMqttDriver
 from .hoymiles.ms_a2 import HoymilesMsA2
 from .integrations import READERS
+from .marstek.modbus import (
+    MarstekVenusAModbus,
+    MarstekVenusDModbus,
+    MarstekVenusEV2Modbus,
+    MarstekVenusEV3Modbus,
+)
+from .marstek.venus_a import MarstekVenusA
+from .marstek.venus_d import MarstekVenusD
+from .marstek.venus_e_v2 import MarstekVenusEV2
 from .marstek.venus_e_v3 import MarstekVenusEV3
 
 MODELS: tuple[BatteryModel, ...] = (
     MarstekVenusEV3(),
+    MarstekVenusEV2(),
+    MarstekVenusA(),
+    MarstekVenusD(),
     HoymilesMsA2(),
     HoymilesHiBattery1920Ac(),
     HoymilesHiBattery4020X(),
@@ -29,7 +41,13 @@ MODELS: tuple[BatteryModel, ...] = (
 
 # Direct drivers (own connection to the battery): PREPARED, NOT USED. Listed
 # for documentation and tests only; nothing offers or starts them.
-DIRECT_DRIVERS: tuple[type[DirectBatteryDriver], ...] = (HoymilesMqttDriver,)
+DIRECT_DRIVERS: tuple[type[DirectBatteryDriver], ...] = (
+    HoymilesMqttDriver,
+    MarstekVenusEV2Modbus,
+    MarstekVenusEV3Modbus,
+    MarstekVenusAModbus,
+    MarstekVenusDModbus,
+)
 
 __all__ = [
     "DIRECT_DRIVERS",

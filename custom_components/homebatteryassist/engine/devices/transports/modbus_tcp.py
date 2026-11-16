@@ -40,8 +40,11 @@ class ModbusTcpClient:
         *,
         timeout: float = 3.0,
         pause: float = 0.0,
+        reconnect_delay: float = 0.0,
     ) -> None:
-        """Initialize; ``pause`` seconds are waited between requests."""
+        """Initialize; ``pause`` seconds are waited between requests and
+        ``reconnect_delay`` seconds between a close and the next connect
+        (some devices refuse a fast reconnect)."""
         self.host = host
         self.port = port
         self.unit = unit
@@ -49,8 +52,10 @@ class ModbusTcpClient:
         self.pause = pause
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
+        self.reconnect_delay = reconnect_delay
         self._lock = asyncio.Lock()
         self._transaction = 0
+        self._closed_at: float | None = None
 
     @property
     def connected(self) -> bool:
@@ -58,7 +63,11 @@ class ModbusTcpClient:
         return self._writer is not None and not self._writer.is_closing()
 
     async def connect(self) -> None:
-        """Open the connection."""
+        """Open the connection (after ``reconnect_delay`` since a close)."""
+        if self._closed_at is not None and self.reconnect_delay:
+            wait = self._closed_at + self.reconnect_delay - asyncio.get_running_loop().time()
+            if wait > 0:
+                await asyncio.sleep(wait)
         try:
             self._reader, self._writer = await asyncio.wait_for(
                 asyncio.open_connection(self.host, self.port), self.timeout
@@ -74,6 +83,7 @@ class ModbusTcpClient:
             self._writer.close()
             with contextlib.suppress(OSError):
                 await self._writer.wait_closed()
+            self._closed_at = asyncio.get_running_loop().time()
         self._reader = self._writer = None
 
     async def read_holding(self, address: int, count: int) -> list[int]:
@@ -121,9 +131,19 @@ class ModbusTcpClient:
                     self._reader.readexactly(7), self.timeout
                 )
                 transaction, _protocol, length, _unit = struct.unpack(">HHHB", header)
-                response = await asyncio.wait_for(
-                    self._reader.readexactly(length - 1), self.timeout
+                first = await asyncio.wait_for(
+                    self._reader.readexactly(1), self.timeout
                 )
+                if first[0] & 0x80:
+                    # Exception: only the code follows. Read just that, since
+                    # some devices announce a wrong length for this frame.
+                    response = first + await asyncio.wait_for(
+                        self._reader.readexactly(1), self.timeout
+                    )
+                else:
+                    response = first + await asyncio.wait_for(
+                        self._reader.readexactly(length - 2), self.timeout
+                    )
             except (OSError, TimeoutError, asyncio.IncompleteReadError) as err:
                 await self.close()
                 raise ModbusError(f"{self.host}: {err or type(err).__name__}") from err
