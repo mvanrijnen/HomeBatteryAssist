@@ -40,7 +40,7 @@ TEXT = {
         "now_discharge": "Van nu tot {until} leveren de batterijen stroom aan het huis, omdat stroom dan duur is ({price}).",
         "now_discharge_export": "Van nu tot {until} leveren de batterijen stroom aan het huis en terug aan het net, omdat teruglevering dan veel oplevert ({price}).",
         "now_discharge_nom": "Van nu tot {until} leveren de batterijen stroom aan het huis, zodat er geen stroom van het net nodig is.",
-        "next_grid": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use}, als stroom gemiddeld {use_price} kost. Na verlies levert dat ongeveer {gain} op.",
+        "next_grid": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use}, als stroom gemiddeld {use_price} kost. Na verlies en slijtage levert laden uit het net in dit plan ongeveer {gain} op.",
         "uses_many": "verspreid over {n} momenten van {first} tot {last}, het meest {main}",
         "hold": "Tot {first} blijft die energie in de batterij en komt de stroom van het net: stroom kost tussendoor hooguit {gap_price}, en is later duurder (tot {max_price}).",
         "full_charge": "Daarmee wordt {names} ook helemaal vol geladen, zoals gepland.",
@@ -83,7 +83,7 @@ TEXT = {
         "now_discharge": "From now until {until} the batteries supply the house, because power is expensive then ({price}).",
         "now_discharge_export": "From now until {until} the batteries supply the house and the grid, because export pays well then ({price}).",
         "now_discharge_nom": "From now until {until} the batteries supply the house, so no power from the grid is needed.",
-        "next_grid": "{when} we charge {energy} from the grid at {price}, to use it {use}, when power costs {use_price} on average. After losses that brings about {gain}.",
+        "next_grid": "{when} we charge {energy} from the grid at {price}, to use it {use}, when power costs {use_price} on average. After losses and wear, charging from the grid brings about {gain} in this plan.",
         "uses_many": "spread over {n} moments from {first} to {last}, most {main}",
         "hold": "Until {first} that energy stays in the battery and the house runs on the grid: power costs at most {gap_price} in between, and is more expensive later (up to {max_price}).",
         "full_charge": "This also charges {names} completely, as planned.",
@@ -184,8 +184,10 @@ def _merge(charges: list[_Block], discharges: list[_Block]) -> list[_Block]:
     """Join charge blocks that have no discharging in between (one charge moment)."""
     merged: list[_Block] = []
     for block in charges:
-        if merged and not any(
-            merged[-1].end <= d.start < block.start for d in discharges
+        if (
+            merged
+            and merged[-1].from_grid == block.from_grid  # same source only
+            and not any(merged[-1].end <= d.start < block.start for d in discharges)
         ):
             last = merged.pop()
             energy = last.energy_wh + block.energy_wh
@@ -390,10 +392,15 @@ def plan_story(
 
     # 2. The next charge and what it is for.
     if charges:
-        block = charges[0]
+        # Tell the next charge from the grid if there is one (the decision
+        # worth explaining), else the next charge with solar power.
+        block = next((c for c in charges if c.from_grid), charges[0])
         # The energy is used until the next charge from the grid (charging
         # with solar power in between does not replace it).
-        until = next((c.start for c in charges[1:] if c.from_grid), slots[-1].end)
+        until = next(
+            (c.start for c in charges if c.from_grid and c.start > block.start),
+            slots[-1].end,
+        )
         uses = [d for d in discharges if block.end <= d.start < until]
 
         def span(d: _Block) -> str:
@@ -430,6 +437,17 @@ def plan_story(
                     - charged * block.price
                     - cycle_cost * (charged + used)
                 )
+                # The planner's own figure where it can be had: what this plan
+                # brings more than zero on the meter (which never charges from
+                # the grid), so the story matches the plan.
+                nom = others.get("nom")
+                if (
+                    nom is not None
+                    and nom.saving is not None
+                    and plan.saving is not None
+                    and plan.strategy != "nom"
+                ):
+                    gain = plan.saving - nom.saving
                 key = "next_grid" if gain >= SMALL_GAIN else "next_grid_small"
                 sentences.append(
                     t[key].format(

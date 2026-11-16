@@ -34,6 +34,9 @@ async def test_story_charge_now_and_use_later(hass: HomeAssistant) -> None:
     )
     assert "laden we 4,0 kWh uit het net tegen € 0,20 per kWh" in text
     assert "als stroom gemiddeld € 0,45 per kWh kost" in text
+    # The gain is what this plan brings more than zero on the meter.
+    gain = f"{plan.saving - nom.saving:.2f}".replace(".", ",")
+    assert f"levert laden uit het net in dit plan ongeveer € {gain} op" in text
     # Only compared with no battery, not with the other modes.
     assert text.endswith(
         "Tot 06:00 scheelt dit plan naar verwachting € 0,50 ten opzichte van geen batterij."
@@ -124,3 +127,12 @@ async def test_story_many_uses_and_holding(hass: HomeAssistant) -> None:
         "Tot ma 10:00 blijft die energie in de batterij en komt de stroom van het "
         "net: stroom kost tussendoor hooguit € 0,40 per kWh" in text
     )
+
+
+async def test_story_charge_that_brings_nothing(hass: HomeAssistant) -> None:
+    """Charging from the grid that brings next to nothing is said so."""
+    await hass.config.async_set_time_zone("Europe/Amsterdam")
+    plan = _plan([2000.0, -500.0], [0.30, 0.45], saving=0.21)
+    nom = BatteryPlan("nom", "nom", [], 1.0, 1.0 + 0.20)
+    text = plan_story(plan, {"nom": nom}, T0, "nl", 0.85, 0.02, False)
+    assert "levert dat vrijwel niets op" in text
