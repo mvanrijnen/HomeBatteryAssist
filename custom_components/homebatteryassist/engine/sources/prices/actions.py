@@ -1,6 +1,6 @@
 """Price drivers for core integrations that give prices through an action.
 
-Nord Pool, Tibber, EnergyZero and easyEnergy (all part of Home Assistant) do
+Nord Pool, EnergyZero and easyEnergy (all part of Home Assistant) do
 not keep a price list in their sensors; they offer a read-only action with a
 response instead. The drivers call it for today and tomorrow, at most every
 ``REFRESH`` per source (the integrations fetch from the supplier's API).
@@ -157,30 +157,6 @@ class NordPoolDriver(ActionDriver):
         return PriceData(points_from(items, 1 / 1000), unit)
 
 
-class TibberDriver(ActionDriver):
-    """Tibber (core): ``tibber.get_prices``, per kWh incl. taxes."""
-
-    key = "tibber"
-    name = "Tibber"
-    domain = "tibber"
-
-    async def _async_fetch(
-        self, hass: HomeAssistant, source: str, role: str
-    ) -> PriceData:
-        start, end = _days()
-        response = await self._call(
-            hass,
-            "tibber",
-            "get_prices",
-            {"start": start.isoformat(), "end": end.isoformat()},
-        )
-        homes = response.get("prices", {})
-        first = next(iter(homes.values()), [])
-        return PriceData(
-            points_from((p.get("start_time"), None, p.get("price")) for p in first)
-        )
-
-
 class EnergyZeroDriver(ActionDriver):
     """EnergyZero (core): ``energyzero.get_energy_prices`` incl. VAT."""
 
@@ -234,7 +210,6 @@ class EasyEnergyDriver(EnergyZeroDriver):
 
 ACTION_DRIVERS: tuple[PriceDriver, ...] = (
     NordPoolDriver(),
-    TibberDriver(),
     EnergyZeroDriver(),
     EasyEnergyDriver(),
 )
