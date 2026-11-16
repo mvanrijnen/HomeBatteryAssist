@@ -26,9 +26,9 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
     Meters already in Home Assistant are offered automatically; any of these can also be entered by IP address;
   - **via the sensors of its integration** (e.g. a HomeWizard P1 is recognised and filled in);
   - **your own sensors** per phase: one signed sensor, or separate import and return sensors; power (W) or current (A).
-- **Batteries**, linked read-only through the entities of their own integration. Batteries of **Omnibattery** and **Marstek Modbus** are recognised and filled in; any other battery can be linked manually. Per battery: state of charge, power, status, stored/usable energy, time to full/empty, charged/discharged energy, last full charge and realised return, plus totals.
+- **Batteries**, linked read-only through the entities of their own integration. Batteries of **Omnibattery** and **Marstek Modbus** are recognised and filled in, and their *battery driver* adds temperature, voltages, cell voltages, cycles, energy of today and measured efficiency; any other battery can be linked manually. Per battery: state of charge, power, status, stored/usable energy, time to full/empty, charged/discharged energy, last full charge and realised return, plus totals.
 - **Virtual batteries**: simulated what-if batteries (capacity, power, state-of-charge limits, losses, phase) that follow the plan live, so you can see what a (bigger) battery would bring before buying one.
-- **PV sources** and **excluded devices** (e.g. an EV charger), each optionally bound to a phase.
+- **PV sources** and **excluded devices** (e.g. an EV charger): on one phase, on all phases (3-phase, spread evenly) or measured per phase with a sensor per phase. A PV source can also be a meter read directly (e.g. a HomeWizard kWh meter on the inverter's line).
 - **House consumption** = grid + PV − excluded devices − battery charging, plus grid import/export, PV power and the load per phase as % of the main fuse.
 
 ### Forecasting
@@ -62,7 +62,7 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
 
 ### Dashboard
 
-A dashboard in the sidebar with the energy flows (and which grid meter is used), the current and next power price and the export price, the expected and realised return of each mode compared with no battery and with each other, the forecast chart with the plan, the batteries' state of charge, the last 7 days, the load per phase (including virtual batteries), the planning window, the forecast accuracy and the latest decisions. The plan mode can be chosen right on the dashboard.
+A dashboard in the sidebar with the energy flows (and which grid meter is used), the current and next power price and the export price, the expected and realised return of each mode compared with no battery and with each other, the forecast chart with the plan, the batteries' state of charge, the last 7 days, the load per phase (including virtual batteries), the planning window, the forecast accuracy and the latest decisions. The plan mode can be chosen right on the dashboard. What phase protection and peak shaving do right now is shown with the phases, and the chart shows the advantage over no battery (and of arbitrage over zero on the meter) up to each moment. A card compares the plan with what really happened, per day.
 
 ## Installation
 
@@ -82,7 +82,8 @@ Home Assistant 2025.6 or newer is required.
 ## Configuration
 
 - **Configure** on the integration opens a menu:
-  - **Settings**: history interval, planning horizon, forecast interval, price and PV forecast (with its correction), export price, plan mode, battery wear cost, max. cycles per day, manual power, peak limit, minimum power per battery, safety margin per phase, balancing and full-charge windows;
+  - **Settings**: the main fields on top (history interval, planning horizon, forecast interval, price source, extra price forecast, plan mode, PV forecast), the rest in collapsible sections: export price, solar forecast correction, planning, limits and reserve, full charge, notifications and temperature. Empty fields show their default value;
+  - **Back to default settings**: every setting back to its default; where the prices and PV forecast come from is kept;
   - **Grid connection and meter**: the meter, phases, connection size and sensors. Your previous choices are kept: switching back to your own sensors starts from them.
 - **Add** batteries, virtual batteries, PV sources, excluded devices and time slots under the integration; each can be changed later (including its phase).
 
@@ -116,6 +117,22 @@ HomeBatteryAssist never controls anything, so it can run next to any battery or 
       custom_components.homebatteryassist.forecasts: debug    # forecast details
       custom_components.homebatteryassist.inputs.direct: debug # directly read meters
   ```
+
+## Notifications
+
+Choose in the settings which decisions you want to be told about — the plan changes, new prices or a changed forecast reach, phase protection / limits / peak shaving, full charges, a lost or restored measurement — and send them to notify services (e.g. the companion app) and/or as a notification in Home Assistant.
+
+## Drivers: adding a device or price source
+
+Prices, batteries, grid meters and PV meters are read through *drivers*, one per kind of source. Every kind has an empty template that is only a code example (never offered in the settings):
+
+| Kind | Package | Template |
+|---|---|---|
+| Price sources (incl. forecast-only sources) | `inputs/price_drivers/` | `template.py` |
+| Batteries (reading; write methods are defined but never used) | `inputs/battery_drivers/` | `template.py` |
+| Grid and PV meters read directly | `inputs/meter_drivers/` | `template.py` |
+
+A driver only reads: Home Assistant states and registries, a read-only local API or data a device broadcasts anyway. Copy the template, fill it in, add it to `DRIVERS` in the package's `__init__.py`, and mark it verified only after testing on a real installation.
 
 ## Development
 
