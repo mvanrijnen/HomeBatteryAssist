@@ -14,6 +14,7 @@ device; HomeBatteryAssist's direct battery drivers are disabled by default.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import struct
 from typing import Literal
 
@@ -71,10 +72,8 @@ class ModbusTcpClient:
         """Close the connection."""
         if self._writer is not None:
             self._writer.close()
-            try:
+            with contextlib.suppress(OSError):
                 await self._writer.wait_closed()
-            except OSError:
-                pass
         self._reader = self._writer = None
 
     async def read_holding(self, address: int, count: int) -> list[int]:
