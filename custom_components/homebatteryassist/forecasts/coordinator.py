@@ -29,6 +29,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
@@ -139,6 +140,8 @@ from .horizon import HorizonLimit, PlanningWindow, planning_horizon
 from .phases import PhaseProfile
 
 _LOGGER = logging.getLogger(__name__)
+
+PRICE_LOG_DAYS = timedelta(days=8)  # published prices kept for the chart
 
 EVENT_FORECAST_UPDATED = f"{DOMAIN}_forecast_updated"
 RETRY_INTERVAL = timedelta(minutes=1)
@@ -310,11 +313,62 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             self.export_entities = []
         self.pv_entries: list[str] = list(options.get(CONF_PV_FORECAST) or [])
         self._last_limit: HorizonLimit | None = None
+        self._price_store: Store[dict[str, Any]] | None = None
+        # period start (ISO) -> [end, import price, export price]
+        self.price_log: dict[str, list[Any]] = {}
         self._last_price_end: datetime | None = None
         self.phase_profile: PhaseProfile | None = None
 
+    async def _async_load_price_log(self) -> None:
+        if self._price_store is None:
+            self._price_store = Store(
+                self.hass,
+                1,
+                f"{DOMAIN}.{self.config_entry.entry_id}.prices",
+            )
+            self.price_log = (await self._price_store.async_load() or {}).get(
+                "prices", {}
+            )
+
+    def _log_prices(
+        self, published: list[PricePoint], slots: list[Any], now: datetime
+    ) -> None:
+        """Remember published prices (and what export earned) for the chart."""
+        export = {s.start: s.export_price for s in slots}
+        for point in published:
+            key = point.start.isoformat()
+            old = self.price_log.get(key)
+            value = export.get(point.start)
+            if value is None and old is not None:
+                value = old[2]
+            self.price_log[key] = [point.end.isoformat(), point.price, value]
+        cutoff = (now - PRICE_LOG_DAYS).isoformat()
+        self.price_log = {k: v for k, v in self.price_log.items() if k >= cutoff}
+        if self._price_store is not None:
+            self._price_store.async_delay_save(lambda: {"prices": self.price_log}, 60)
+
+    def price_series(self, now: datetime) -> list[list[Any]]:
+        """Prices for the chart: published ones from the log before the plan
+        window, then the window's prices (published or forecast).
+        Rows: [start, end, import price, export price, estimated]."""
+        data = self.data
+        window_start = data.window.start if data else now
+        rows: list[list[Any]] = []
+        for key, (end, price, export) in sorted(self.price_log.items()):
+            start = dt_util.parse_datetime(key)
+            if start is not None and start < window_start:
+                rows.append([start, dt_util.parse_datetime(end), price, export, False])
+        if data:
+            export = {s.start: s.export_price for s in data.battery}
+            rows.extend(
+                [p.start, p.end, p.price, export.get(p.start), p.estimated]
+                for p in data.prices
+            )
+        return rows
+
     async def _async_update_data(self) -> ForecastData:
         now = dt_util.utcnow()
+        await self._async_load_price_log()
 
         # 1. Inputs
         prices, price_unit = await self._async_read_prices(now)
@@ -363,6 +417,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             "pv", [(start, start + PV_PERIOD, wh) for start, wh in pv_wh.items()], now
         )
 
+        published = [p for p in prices if not p.estimated]
         # 4. Everything else only within the window, corrected.
         prices = [
             PricePoint(
@@ -482,6 +537,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self._explain_plan(data)
         self._explain_method(data)
+        self._log_prices(published, battery, now)
 
         # 5. Remember the raw consumption predictions.
         accuracy.record(

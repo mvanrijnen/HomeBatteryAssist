@@ -114,6 +114,12 @@ const TEXT = {
     planOther: "{mode}: {saving}",
     socExpected: "Expected state of charge",
     socTitle: "State of charge of the batteries",
+    priceTitle: "Electricity price",
+    priceImport: "Price (published)",
+    priceImportFc: "Price (forecast)",
+    priceExport: "Export earns (published)",
+    priceExportFc: "Export earns (forecast)",
+    priceInfo: "Solid: published prices; dashed: forecast (estimated). The price is what one kWh from the grid costs (all-in); export is what one kWh to the grid earns.",
     socTotal: "Total",
     socPlan: "Total (plan)",
     realized: "Realised return",
@@ -287,6 +293,12 @@ const TEXT = {
     planOther: "{mode}: {saving}",
     socExpected: "Verwachte vulling",
     socTitle: "Vulling batterijen",
+    priceTitle: "Stroomprijs",
+    priceImport: "Prijs (gepubliceerd)",
+    priceImportFc: "Prijs (voorspeld)",
+    priceExport: "Teruglevering (gepubliceerd)",
+    priceExportFc: "Teruglevering (voorspeld)",
+    priceInfo: "Doorgetrokken: gepubliceerde prijzen; gestippeld: voorspelling (geschat). De prijs is wat een kWh van het net kost (all-in); teruglevering is wat een kWh naar het net oplevert.",
     socTotal: "Totaal",
     socPlan: "Totaal (plan)",
     realized: "Gerealiseerd rendement",
@@ -1235,6 +1247,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
           return [ts, Math.round(power - (pvByHour.get(hour) || 0))];
         });
     let socChart = "";
+    let priceChart = "";
+    let priceLegend = "";
     if (!fc.length && !verified.length && !past.length) {
       forecastChart = `<div class="muted">${esc(t.noForecast)}</div>`;
     } else {
@@ -1352,6 +1366,45 @@ class HomeBatteryAssistPanel extends HTMLElement {
           return rows.join("");
         };
       }
+      // Prices (published solid, forecast dashed), as steps.
+      const series = h.price_series || [];
+      if (series.length) {
+        const priceColor = "#ff7043";
+        const exportColor = "#26a69a";
+        const steps = (rows, value) => {
+          const pts = [];
+          for (const row of rows) {
+            const v = value(row);
+            if (v == null) continue;
+            pts.push([row[0], v], [row[1] - 1, v]);
+          }
+          return pts;
+        };
+        const known = series.filter((r) => !r[4]);
+        const guessed = series.filter((r) => r[4]);
+        // Join the forecast to the last published price.
+        if (known.length && guessed.length) guessed.unshift(known.at(-1));
+        const unit = h.price_unit || "";
+        const money = (v) => `${Number(v).toFixed(2)}${unit ? ` ${unit}` : ""}`;
+        priceChart = this._chart(
+          "price",
+          [
+            { points: inView(steps(known, (r) => r[2])), color: priceColor, label: t.priceImport },
+            { points: inView(steps(guessed, (r) => r[2])), color: priceColor, dashed: true, label: t.priceImportFc },
+            { points: inView(steps(known, (r) => r[3])), color: exportColor, label: t.priceExport },
+            { points: inView(steps(guessed, (r) => r[3])), color: exportColor, dashed: true, label: t.priceExportFc },
+          ],
+          fMin,
+          fMax,
+          fTicks,
+          2 * 3600e3,
+          now >= fMin && now <= fMax ? [[now, t.now]] : [],
+          this._charts.forecast.xFmt,
+          money,
+        );
+        priceLegend = `<div class="legend"><span><i style="background:${priceColor}"></i>${esc(t.priceImport.split(" (")[0])}</span>
+          <span><i style="background:${exportColor}"></i>${esc(t.priceExport.split(" (")[0])}</span></div>`;
+      }
       // Tooltip extras: the deviation in the past, the usual deviation ahead.
       const accuracy = h.accuracy || {};
       const leadKey = (ms) => {
@@ -1431,6 +1484,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       <div class="chart wide"><div class="head"><h3>${esc(t.flowTitle)}</h3>${this._flowNav(t)}</div>${forecastChart}${forecastLegend}
         <div class="muted">${esc(accText)}</div>
         ${h.battery_forecast?.length ? `<div class="muted">${esc(this._planText(h, t))} · ${esc(t.batteryNote)}</div>` : ""}</div>
+      ${priceChart ? `<div class="chart wide"><h3>${esc(t.priceTitle)}</h3>${priceChart}${priceLegend}<div class="muted small">${esc(t.priceInfo)}</div></div>` : ""}
       ${socChart ? `<div class="chart wide"><h3>${esc(t.socTitle)}</h3>${socChart}</div>` : ""}
       <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}<div class="muted small">${esc(t.last7Info)}</div></div>
       <div class="chart"><div class="head"><h3>${esc(t.avgDay)}</h3>${this._dayNav(t, weeks, lang)}</div>${avg}

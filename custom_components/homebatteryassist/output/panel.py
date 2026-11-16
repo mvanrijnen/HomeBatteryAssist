@@ -485,6 +485,17 @@ def websocket_history(
                 for kind in KINDS
             },
             "price_unit": forecast.data.price_unit,
+            "price_series": [
+                [
+                    int(start.timestamp() * 1000),
+                    int(end.timestamp() * 1000),
+                    price,
+                    export,
+                    estimated,
+                ]
+                for start, end, price, export, estimated in forecast.price_series(now)
+                if start >= now - timedelta(days=8)
+            ],
             # The plan afterwards, per day: planned saving vs realised value.
             "plan_check": entry.runtime_data.plan_check.days(7),
             "profile": day_profile(records),

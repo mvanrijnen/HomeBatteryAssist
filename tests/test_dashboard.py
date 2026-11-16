@@ -200,6 +200,7 @@ async def test_history_websocket(
     assert result["has_excluded"] is False
     assert result["past"][0][1:] == [300.0, 0.0, None, None]  # no PV/battery measured
     assert result["pv_forecast"] == []
+    assert result["price_series"] == []  # no price forecast configured
     assert result["profile"]["weekday"][12] == 1000.0
     assert result["profile"]["weekend"][12] == 500.0
     assert result["profile"]["weekend"][3] is None
