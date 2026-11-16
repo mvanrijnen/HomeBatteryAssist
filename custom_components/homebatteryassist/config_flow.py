@@ -47,6 +47,7 @@ from homeassistant.config_entries import (
 )
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers.selector import (
     BooleanSelector,
     EntitySelector,
@@ -290,10 +291,87 @@ def _price_source_selector(hass: HomeAssistant, first: str, key: str) -> SelectS
     )
 
 
+# Settings grouped in collapsible sections; the rest stays at the top.
+SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
+    "export": ("export_price_mode", "export_price_entities", "export_price_factor"),
+    "solar": ("pv_correction", "pv_forecast_margin"),
+    "planning": (
+        "cycle_cost",
+        "max_cycles_per_day",
+        "min_arbitrage_margin",
+        "min_discharge_price",
+        "max_charge_price",
+        "nom_target_w",
+        "manual_power_w",
+        "charge_hysteresis",
+        "vacation",
+    ),
+    "limits": (
+        "reserve_soc",
+        "system_max_charge_w",
+        "system_max_discharge_w",
+        "min_battery_power",
+        "balance_interval",
+        "peak_limit_w",
+        "peak_include_excluded",
+        "phase_margin",
+    ),
+    "full_charge": ("full_charge_window_days", "full_charge_day", "full_charge_solar"),
+    "temperature": (
+        "temperature_limit",
+        "temperature_band",
+        "temperature_min_power",
+        "temperature_discharge",
+    ),
+}
+
+
 async def settings_schema(
     hass: HomeAssistant, current: Mapping[str, Any] | None = None
 ) -> vol.Schema:
-    """Build the schema for the changeable settings (setup step 4 and options)."""
+    """The settings form: main fields on top, the rest in collapsed sections."""
+    flat = await _flat_settings_schema(hass, current)
+    top: dict[Any, Any] = {}
+    grouped: dict[str, dict[Any, Any]] = {name: {} for name in SETTINGS_SECTIONS}
+    where = {key: name for name, keys in SETTINGS_SECTIONS.items() for key in keys}
+    for marker, validator in flat.schema.items():
+        name = where.get(str(marker))
+        (grouped[name] if name else top)[marker] = validator
+    for name, fields in grouped.items():
+        if fields:
+            top[vol.Required(name, default={})] = section(
+                vol.Schema(fields), {"collapsed": True}
+            )
+    return vol.Schema(top)
+
+
+def nest_settings(values: Mapping[str, Any]) -> dict[str, Any]:
+    """Flat options -> the form's nested values (for suggested values)."""
+    where = {key: name for name, keys in SETTINGS_SECTIONS.items() for key in keys}
+    nested: dict[str, Any] = {name: {} for name in SETTINGS_SECTIONS}
+    for key, value in values.items():
+        if key in where:
+            nested[where[key]][key] = value
+        else:
+            nested[key] = value
+    return nested
+
+
+def flatten_settings(user_input: Mapping[str, Any]) -> dict[str, Any]:
+    """The form's nested input -> flat."""
+    flat: dict[str, Any] = {}
+    for key, value in user_input.items():
+        if key in SETTINGS_SECTIONS and isinstance(value, Mapping):
+            flat.update(value)
+        else:
+            flat[key] = value
+    return flat
+
+
+async def _flat_settings_schema(
+    hass: HomeAssistant, current: Mapping[str, Any] | None = None
+) -> vol.Schema:
+    """All settings fields (setup step 4 and options), not grouped."""
     current = current or {}
     schema: dict[Any, Any] = {
         vol.Required(
@@ -524,6 +602,7 @@ SELECT_OPTIONS = (CONF_HISTORY_INTERVAL, CONF_FORECAST_INTERVAL, CONF_BALANCE_IN
 
 def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     """Convert the settings form input to stored options."""
+    user_input = flatten_settings(user_input)
     options: dict[str, Any] = {
         CONF_HISTORY_INTERVAL: int(user_input[CONF_HISTORY_INTERVAL]),
         CONF_PLANNING_HORIZON: int(user_input[CONF_PLANNING_HORIZON]),
@@ -951,7 +1030,9 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
         }
         return self.async_show_form(
             step_id="settings",
-            data_schema=self.add_suggested_values_to_schema(schema, suggested),
+            data_schema=self.add_suggested_values_to_schema(
+                schema, nest_settings(suggested)
+            ),
         )
 
     async def async_step_grid(

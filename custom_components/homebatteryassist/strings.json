@@ -52,37 +52,8 @@
           "pv_forecast_entries": "PV forecast",
           "forecast_interval": "Recalculate every",
           "plan_mode": "Battery plan mode",
-          "export_price_factor": "Export compensation",
-          "cycle_cost": "Battery wear cost",
-          "min_battery_power": "Minimum power per battery",
-          "balance_interval": "Balance check every",
-          "full_charge_window_days": "Force full charge within",
-          "phase_margin": "Safety margin per phase",
-          "export_price_mode": "Export price",
-          "export_price_entities": "Export price sensors",
-          "max_cycles_per_day": "Max. cycles per day (arbitrage)",
-          "pv_forecast_margin": "Margin on the PV forecast",
-          "peak_limit_w": "Peak limit grid import",
-          "manual_power_w": "Manual power",
-          "pv_correction": "Correction of the PV forecast",
           "price_source": "Price source",
-          "price_extension": "Extra price forecast",
-          "reserve_soc": "Reserve state of charge",
-          "system_max_charge_w": "Max. charge power, all batteries",
-          "system_max_discharge_w": "Max. discharge power, all batteries",
-          "nom_target_w": "Target grid power (zero on the meter)",
-          "min_discharge_price": "Discharge only from price",
-          "max_charge_price": "Charge from the grid up to price",
-          "min_arbitrage_margin": "Min. arbitrage margin",
-          "peak_include_excluded": "Peak limit includes excluded devices",
-          "charge_hysteresis": "Charge hysteresis",
-          "vacation": "Vacation mode",
-          "full_charge_day": "Preferred day for full charges",
-          "full_charge_solar": "Full charge preferably with solar power",
-          "temperature_limit": "Temperature limit",
-          "temperature_band": "Temperature reduction band",
-          "temperature_min_power": "Minimum power when warm",
-          "temperature_discharge": "Also reduce discharging when warm"
+          "price_extension": "Extra price forecast"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -91,37 +62,116 @@
           "pv_forecast_entries": "Integrations providing a solar forecast (e.g. Forecast.Solar, Solcast). Selected forecasts are added up to the total for your home.",
           "forecast_interval": "How often the forecasts are recalculated automatically.",
           "plan_mode": "How HomeBatteryAssist would control the batteries (advice only for now). Both modes are always calculated for comparison.",
-          "export_price_factor": "Used with 'Import price x factor', and wherever the export price sensors give no price.",
-          "cycle_cost": "Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains.",
-          "min_battery_power": "Below this power the conversion losses of a battery are high: a request is spread over as few batteries as possible, each running at least at this power, and over more batteries when more power is needed.",
-          "balance_interval": "How often to check whether another battery should take over, so the batteries stay equally full. In between, the batteries in use are kept.",
-          "full_charge_window_days": "When a battery has not been fully charged within its interval, a full charge is forced at the cheapest moment within this many days before the deadline.",
-          "phase_margin": "Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation.",
-          "export_price_mode": "What energy returned to the grid earns. Import price x factor (below), the bare market price (EPEX, from the selected sensors, or from market attributes of the price sensor), or an export price forecast from the selected sensors. Where these do not reach, import price x factor is used.",
-          "export_price_entities": "One or more sensors with prices (state and/or price list attributes), e.g. a market price sensor for today/tomorrow plus a forecast sensor for the days after. For overlapping periods the first sensor wins.",
-          "max_cycles_per_day": "Arbitrage charges and discharges at most this many full cycles per day (energy discharged / capacity), to spare the batteries. 0 = no limit.",
-          "pv_forecast_margin": "Used with 'fixed margin' and 'both': the plans count on this much less solar power, as a buffer against optimistic forecasts.",
-          "peak_limit_w": "Peak shaving on the total grid import (all phases together): the arbitrage plans keep energy in reserve to stay below this power, and virtual batteries take load off when it is exceeded. Next to the per-phase protection of the main fuse. 0 = off.",
-          "manual_power_w": "Used in the plan mode “Manual”: the batteries always charge (positive) or discharge (negative) at this power, within their limits.",
-          "pv_correction": "How the PV forecast is corrected before planning: automatically (learned from how accurate past forecasts were), with a fixed margin (below), both, or not at all.",
           "price_source": "Where the power prices come from. Sources found in Home Assistant are listed (* = not yet tested on a real installation); 'Price sensor' uses the sensor chosen below.",
-          "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated.",
-          "reserve_soc": "The plans never go below this state of charge (e.g. as backup reserve), on top of each battery's own minimum. Peak shaving and phase protection may still use it. 0 = off.",
-          "system_max_charge_w": "All batteries together never charge at more than this power. 0 = no limit.",
-          "system_max_discharge_w": "All batteries together never discharge at more than this power. 0 = no limit.",
-          "nom_target_w": "Zero on the meter aims at this grid power instead of exactly 0 W, e.g. +50 W so a little is always imported.",
-          "min_discharge_price": "Optional: the batteries only discharge when power costs at least this much (also in zero on the meter).",
-          "max_charge_price": "Optional: arbitrage only charges from the grid when power costs at most this much (charging with surplus solar power is always allowed).",
-          "min_arbitrage_margin": "Arbitrage only charges to discharge later when that brings at least this much per kWh, on top of the wear cost.",
-          "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit.",
-          "charge_hysteresis": "Once full, the batteries only charge again after their state of charge dropped this much below the maximum (fewer small top-ups). 0 = off.",
-          "vacation": "While on, the measured house consumption is not used to learn the usual consumption (the forecast keeps using the normal days).",
-          "full_charge_day": "Plan the periodic full charge on this weekday when it fits in the period; otherwise on the cheapest moment.",
-          "full_charge_solar": "Count solar surplus as cheap (what exporting it would earn), so a full charge on a sunny moment is preferred over the grid.",
-          "temperature_limit": "Batteries with a temperature sensor charge at full power up to this temperature.",
-          "temperature_band": "Above the limit the power goes down over this many degrees, to the minimum power.",
-          "temperature_min_power": "Power at the end of the reduction band, as % of the battery's maximum.",
-          "temperature_discharge": "Reduce the discharge power too, not only the charge power."
+          "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated."
+        },
+        "sections": {
+          "export": {
+            "name": "Export price",
+            "description": "What returning power earns.",
+            "data": {
+              "export_price_mode": "Export price",
+              "export_price_entities": "Export price sensors",
+              "export_price_factor": "Export compensation"
+            },
+            "data_description": {
+              "export_price_mode": "What energy returned to the grid earns. Import price x factor (below), the bare market price (EPEX, from the selected sensors, or from market attributes of the price sensor), or an export price forecast from the selected sensors. Where these do not reach, import price x factor is used.",
+              "export_price_entities": "One or more sensors with prices (state and/or price list attributes), e.g. a market price sensor for today/tomorrow plus a forecast sensor for the days after. For overlapping periods the first sensor wins.",
+              "export_price_factor": "Used with 'Import price x factor', and wherever the export price sensors give no price."
+            }
+          },
+          "solar": {
+            "name": "Solar forecast",
+            "description": "Correction of the PV forecast.",
+            "data": {
+              "pv_correction": "Correction of the PV forecast",
+              "pv_forecast_margin": "Margin on the PV forecast"
+            },
+            "data_description": {
+              "pv_correction": "How the PV forecast is corrected before planning: automatically (learned from how accurate past forecasts were), with a fixed margin (below), both, or not at all.",
+              "pv_forecast_margin": "Used with 'fixed margin' and 'both': the plans count on this much less solar power, as a buffer against optimistic forecasts."
+            }
+          },
+          "planning": {
+            "name": "Planning",
+            "description": "How the plans weigh costs and prices, and the fixed modes.",
+            "data": {
+              "cycle_cost": "Battery wear cost",
+              "max_cycles_per_day": "Max. cycles per day (arbitrage)",
+              "min_arbitrage_margin": "Min. arbitrage margin",
+              "min_discharge_price": "Discharge only from price",
+              "max_charge_price": "Charge from the grid up to price",
+              "nom_target_w": "Target grid power (zero on the meter)",
+              "manual_power_w": "Manual power",
+              "charge_hysteresis": "Charge hysteresis",
+              "vacation": "Vacation mode"
+            },
+            "data_description": {
+              "cycle_cost": "Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains.",
+              "max_cycles_per_day": "Arbitrage charges and discharges at most this many full cycles per day (energy discharged / capacity), to spare the batteries. 0 = no limit.",
+              "min_arbitrage_margin": "Arbitrage only charges to discharge later when that brings at least this much per kWh, on top of the wear cost.",
+              "min_discharge_price": "Optional: the batteries only discharge when power costs at least this much (also in zero on the meter).",
+              "max_charge_price": "Optional: arbitrage only charges from the grid when power costs at most this much (charging with surplus solar power is always allowed).",
+              "nom_target_w": "Zero on the meter aims at this grid power instead of exactly 0 W, e.g. +50 W so a little is always imported.",
+              "manual_power_w": "Used in the plan mode “Manual”: the batteries always charge (positive) or discharge (negative) at this power, within their limits.",
+              "charge_hysteresis": "Once full, the batteries only charge again after their state of charge dropped this much below the maximum (fewer small top-ups). 0 = off.",
+              "vacation": "While on, the measured house consumption is not used to learn the usual consumption (the forecast keeps using the normal days)."
+            }
+          },
+          "limits": {
+            "name": "Limits and reserve",
+            "description": "Reserve, power limits, peak limit and phase margin.",
+            "data": {
+              "reserve_soc": "Reserve state of charge",
+              "system_max_charge_w": "Max. charge power, all batteries",
+              "system_max_discharge_w": "Max. discharge power, all batteries",
+              "min_battery_power": "Minimum power per battery",
+              "balance_interval": "Balance check every",
+              "peak_limit_w": "Peak limit grid import",
+              "peak_include_excluded": "Peak limit includes excluded devices",
+              "phase_margin": "Safety margin per phase"
+            },
+            "data_description": {
+              "reserve_soc": "The plans never go below this state of charge (e.g. as backup reserve), on top of each battery's own minimum. Peak shaving and phase protection may still use it. 0 = off.",
+              "system_max_charge_w": "All batteries together never charge at more than this power. 0 = no limit.",
+              "system_max_discharge_w": "All batteries together never discharge at more than this power. 0 = no limit.",
+              "min_battery_power": "Below this power the conversion losses of a battery are high: a request is spread over as few batteries as possible, each running at least at this power, and over more batteries when more power is needed.",
+              "balance_interval": "How often to check whether another battery should take over, so the batteries stay equally full. In between, the batteries in use are kept.",
+              "peak_limit_w": "Peak shaving on the total grid import (all phases together): the arbitrage plans keep energy in reserve to stay below this power, and virtual batteries take load off when it is exceeded. Next to the per-phase protection of the main fuse. 0 = off.",
+              "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit.",
+              "phase_margin": "Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation."
+            }
+          },
+          "full_charge": {
+            "name": "Full charge",
+            "description": "The periodic full charge of the batteries.",
+            "data": {
+              "full_charge_window_days": "Force full charge within",
+              "full_charge_day": "Preferred day for full charges",
+              "full_charge_solar": "Full charge preferably with solar power"
+            },
+            "data_description": {
+              "full_charge_window_days": "When a battery has not been fully charged within its interval, a full charge is forced at the cheapest moment within this many days before the deadline.",
+              "full_charge_day": "Plan the periodic full charge on this weekday when it fits in the period; otherwise on the cheapest moment.",
+              "full_charge_solar": "Count solar surplus as cheap (what exporting it would earn), so a full charge on a sunny moment is preferred over the grid."
+            }
+          },
+          "temperature": {
+            "name": "Temperature",
+            "description": "Less power for warm batteries (with a temperature sensor).",
+            "data": {
+              "temperature_limit": "Temperature limit",
+              "temperature_band": "Temperature reduction band",
+              "temperature_min_power": "Minimum power when warm",
+              "temperature_discharge": "Also reduce discharging when warm"
+            },
+            "data_description": {
+              "temperature_limit": "Batteries with a temperature sensor charge at full power up to this temperature.",
+              "temperature_band": "Above the limit the power goes down over this many degrees, to the minimum power.",
+              "temperature_min_power": "Power at the end of the reduction band, as % of the battery's maximum.",
+              "temperature_discharge": "Reduce the discharge power too, not only the charge power."
+            }
+          }
         }
       }
     },
@@ -308,37 +358,8 @@
           "pv_forecast_entries": "PV forecast",
           "forecast_interval": "Recalculate every",
           "plan_mode": "Battery plan mode",
-          "export_price_factor": "Export compensation",
-          "cycle_cost": "Battery wear cost",
-          "min_battery_power": "Minimum power per battery",
-          "balance_interval": "Balance check every",
-          "full_charge_window_days": "Force full charge within",
-          "phase_margin": "Safety margin per phase",
-          "export_price_mode": "Export price",
-          "export_price_entities": "Export price sensors",
-          "max_cycles_per_day": "Max. cycles per day (arbitrage)",
-          "pv_forecast_margin": "Margin on the PV forecast",
-          "peak_limit_w": "Peak limit grid import",
-          "manual_power_w": "Manual power",
-          "pv_correction": "Correction of the PV forecast",
           "price_source": "Price source",
-          "price_extension": "Extra price forecast",
-          "reserve_soc": "Reserve state of charge",
-          "system_max_charge_w": "Max. charge power, all batteries",
-          "system_max_discharge_w": "Max. discharge power, all batteries",
-          "nom_target_w": "Target grid power (zero on the meter)",
-          "min_discharge_price": "Discharge only from price",
-          "max_charge_price": "Charge from the grid up to price",
-          "min_arbitrage_margin": "Min. arbitrage margin",
-          "peak_include_excluded": "Peak limit includes excluded devices",
-          "charge_hysteresis": "Charge hysteresis",
-          "vacation": "Vacation mode",
-          "full_charge_day": "Preferred day for full charges",
-          "full_charge_solar": "Full charge preferably with solar power",
-          "temperature_limit": "Temperature limit",
-          "temperature_band": "Temperature reduction band",
-          "temperature_min_power": "Minimum power when warm",
-          "temperature_discharge": "Also reduce discharging when warm"
+          "price_extension": "Extra price forecast"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -347,37 +368,116 @@
           "pv_forecast_entries": "Integrations providing a solar forecast (e.g. Forecast.Solar, Solcast). Selected forecasts are added up to the total for your home.",
           "forecast_interval": "How often the forecasts are recalculated automatically.",
           "plan_mode": "How HomeBatteryAssist would control the batteries (advice only for now). Both modes are always calculated for comparison.",
-          "export_price_factor": "Used with 'Import price x factor', and wherever the export price sensors give no price.",
-          "cycle_cost": "Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains.",
-          "min_battery_power": "Below this power the conversion losses of a battery are high: a request is spread over as few batteries as possible, each running at least at this power, and over more batteries when more power is needed.",
-          "balance_interval": "How often to check whether another battery should take over, so the batteries stay equally full. In between, the batteries in use are kept.",
-          "full_charge_window_days": "When a battery has not been fully charged within its interval, a full charge is forced at the cheapest moment within this many days before the deadline.",
-          "phase_margin": "Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation.",
-          "export_price_mode": "What energy returned to the grid earns. Import price x factor (below), the bare market price (EPEX, from the selected sensors, or from market attributes of the price sensor), or an export price forecast from the selected sensors. Where these do not reach, import price x factor is used.",
-          "export_price_entities": "One or more sensors with prices (state and/or price list attributes), e.g. a market price sensor for today/tomorrow plus a forecast sensor for the days after. For overlapping periods the first sensor wins.",
-          "max_cycles_per_day": "Arbitrage charges and discharges at most this many full cycles per day (energy discharged / capacity), to spare the batteries. 0 = no limit.",
-          "pv_forecast_margin": "Used with 'fixed margin' and 'both': the plans count on this much less solar power, as a buffer against optimistic forecasts.",
-          "peak_limit_w": "Peak shaving on the total grid import (all phases together): the arbitrage plans keep energy in reserve to stay below this power, and virtual batteries take load off when it is exceeded. Next to the per-phase protection of the main fuse. 0 = off.",
-          "manual_power_w": "Used in the plan mode “Manual”: the batteries always charge (positive) or discharge (negative) at this power, within their limits.",
-          "pv_correction": "How the PV forecast is corrected before planning: automatically (learned from how accurate past forecasts were), with a fixed margin (below), both, or not at all.",
           "price_source": "Where the power prices come from. Sources found in Home Assistant are listed (* = not yet tested on a real installation); 'Price sensor' uses the sensor chosen below.",
-          "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated.",
-          "reserve_soc": "The plans never go below this state of charge (e.g. as backup reserve), on top of each battery's own minimum. Peak shaving and phase protection may still use it. 0 = off.",
-          "system_max_charge_w": "All batteries together never charge at more than this power. 0 = no limit.",
-          "system_max_discharge_w": "All batteries together never discharge at more than this power. 0 = no limit.",
-          "nom_target_w": "Zero on the meter aims at this grid power instead of exactly 0 W, e.g. +50 W so a little is always imported.",
-          "min_discharge_price": "Optional: the batteries only discharge when power costs at least this much (also in zero on the meter).",
-          "max_charge_price": "Optional: arbitrage only charges from the grid when power costs at most this much (charging with surplus solar power is always allowed).",
-          "min_arbitrage_margin": "Arbitrage only charges to discharge later when that brings at least this much per kWh, on top of the wear cost.",
-          "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit.",
-          "charge_hysteresis": "Once full, the batteries only charge again after their state of charge dropped this much below the maximum (fewer small top-ups). 0 = off.",
-          "vacation": "While on, the measured house consumption is not used to learn the usual consumption (the forecast keeps using the normal days).",
-          "full_charge_day": "Plan the periodic full charge on this weekday when it fits in the period; otherwise on the cheapest moment.",
-          "full_charge_solar": "Count solar surplus as cheap (what exporting it would earn), so a full charge on a sunny moment is preferred over the grid.",
-          "temperature_limit": "Batteries with a temperature sensor charge at full power up to this temperature.",
-          "temperature_band": "Above the limit the power goes down over this many degrees, to the minimum power.",
-          "temperature_min_power": "Power at the end of the reduction band, as % of the battery's maximum.",
-          "temperature_discharge": "Reduce the discharge power too, not only the charge power."
+          "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated."
+        },
+        "sections": {
+          "export": {
+            "name": "Export price",
+            "description": "What returning power earns.",
+            "data": {
+              "export_price_mode": "Export price",
+              "export_price_entities": "Export price sensors",
+              "export_price_factor": "Export compensation"
+            },
+            "data_description": {
+              "export_price_mode": "What energy returned to the grid earns. Import price x factor (below), the bare market price (EPEX, from the selected sensors, or from market attributes of the price sensor), or an export price forecast from the selected sensors. Where these do not reach, import price x factor is used.",
+              "export_price_entities": "One or more sensors with prices (state and/or price list attributes), e.g. a market price sensor for today/tomorrow plus a forecast sensor for the days after. For overlapping periods the first sensor wins.",
+              "export_price_factor": "Used with 'Import price x factor', and wherever the export price sensors give no price."
+            }
+          },
+          "solar": {
+            "name": "Solar forecast",
+            "description": "Correction of the PV forecast.",
+            "data": {
+              "pv_correction": "Correction of the PV forecast",
+              "pv_forecast_margin": "Margin on the PV forecast"
+            },
+            "data_description": {
+              "pv_correction": "How the PV forecast is corrected before planning: automatically (learned from how accurate past forecasts were), with a fixed margin (below), both, or not at all.",
+              "pv_forecast_margin": "Used with 'fixed margin' and 'both': the plans count on this much less solar power, as a buffer against optimistic forecasts."
+            }
+          },
+          "planning": {
+            "name": "Planning",
+            "description": "How the plans weigh costs and prices, and the fixed modes.",
+            "data": {
+              "cycle_cost": "Battery wear cost",
+              "max_cycles_per_day": "Max. cycles per day (arbitrage)",
+              "min_arbitrage_margin": "Min. arbitrage margin",
+              "min_discharge_price": "Discharge only from price",
+              "max_charge_price": "Charge from the grid up to price",
+              "nom_target_w": "Target grid power (zero on the meter)",
+              "manual_power_w": "Manual power",
+              "charge_hysteresis": "Charge hysteresis",
+              "vacation": "Vacation mode"
+            },
+            "data_description": {
+              "cycle_cost": "Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains.",
+              "max_cycles_per_day": "Arbitrage charges and discharges at most this many full cycles per day (energy discharged / capacity), to spare the batteries. 0 = no limit.",
+              "min_arbitrage_margin": "Arbitrage only charges to discharge later when that brings at least this much per kWh, on top of the wear cost.",
+              "min_discharge_price": "Optional: the batteries only discharge when power costs at least this much (also in zero on the meter).",
+              "max_charge_price": "Optional: arbitrage only charges from the grid when power costs at most this much (charging with surplus solar power is always allowed).",
+              "nom_target_w": "Zero on the meter aims at this grid power instead of exactly 0 W, e.g. +50 W so a little is always imported.",
+              "manual_power_w": "Used in the plan mode “Manual”: the batteries always charge (positive) or discharge (negative) at this power, within their limits.",
+              "charge_hysteresis": "Once full, the batteries only charge again after their state of charge dropped this much below the maximum (fewer small top-ups). 0 = off.",
+              "vacation": "While on, the measured house consumption is not used to learn the usual consumption (the forecast keeps using the normal days)."
+            }
+          },
+          "limits": {
+            "name": "Limits and reserve",
+            "description": "Reserve, power limits, peak limit and phase margin.",
+            "data": {
+              "reserve_soc": "Reserve state of charge",
+              "system_max_charge_w": "Max. charge power, all batteries",
+              "system_max_discharge_w": "Max. discharge power, all batteries",
+              "min_battery_power": "Minimum power per battery",
+              "balance_interval": "Balance check every",
+              "peak_limit_w": "Peak limit grid import",
+              "peak_include_excluded": "Peak limit includes excluded devices",
+              "phase_margin": "Safety margin per phase"
+            },
+            "data_description": {
+              "reserve_soc": "The plans never go below this state of charge (e.g. as backup reserve), on top of each battery's own minimum. Peak shaving and phase protection may still use it. 0 = off.",
+              "system_max_charge_w": "All batteries together never charge at more than this power. 0 = no limit.",
+              "system_max_discharge_w": "All batteries together never discharge at more than this power. 0 = no limit.",
+              "min_battery_power": "Below this power the conversion losses of a battery are high: a request is spread over as few batteries as possible, each running at least at this power, and over more batteries when more power is needed.",
+              "balance_interval": "How often to check whether another battery should take over, so the batteries stay equally full. In between, the batteries in use are kept.",
+              "peak_limit_w": "Peak shaving on the total grid import (all phases together): the arbitrage plans keep energy in reserve to stay below this power, and virtual batteries take load off when it is exceeded. Next to the per-phase protection of the main fuse. 0 = off.",
+              "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit.",
+              "phase_margin": "Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation."
+            }
+          },
+          "full_charge": {
+            "name": "Full charge",
+            "description": "The periodic full charge of the batteries.",
+            "data": {
+              "full_charge_window_days": "Force full charge within",
+              "full_charge_day": "Preferred day for full charges",
+              "full_charge_solar": "Full charge preferably with solar power"
+            },
+            "data_description": {
+              "full_charge_window_days": "When a battery has not been fully charged within its interval, a full charge is forced at the cheapest moment within this many days before the deadline.",
+              "full_charge_day": "Plan the periodic full charge on this weekday when it fits in the period; otherwise on the cheapest moment.",
+              "full_charge_solar": "Count solar surplus as cheap (what exporting it would earn), so a full charge on a sunny moment is preferred over the grid."
+            }
+          },
+          "temperature": {
+            "name": "Temperature",
+            "description": "Less power for warm batteries (with a temperature sensor).",
+            "data": {
+              "temperature_limit": "Temperature limit",
+              "temperature_band": "Temperature reduction band",
+              "temperature_min_power": "Minimum power when warm",
+              "temperature_discharge": "Also reduce discharging when warm"
+            },
+            "data_description": {
+              "temperature_limit": "Batteries with a temperature sensor charge at full power up to this temperature.",
+              "temperature_band": "Above the limit the power goes down over this many degrees, to the minimum power.",
+              "temperature_min_power": "Power at the end of the reduction band, as % of the battery's maximum.",
+              "temperature_discharge": "Reduce the discharge power too, not only the charge power."
+            }
+          }
         }
       },
       "meter": {

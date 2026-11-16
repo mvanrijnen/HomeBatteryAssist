@@ -52,37 +52,8 @@
           "pv_forecast_entries": "PV-voorspelling",
           "forecast_interval": "Herberekenen elke",
           "plan_mode": "Modus batterijplan",
-          "export_price_factor": "Vergoeding teruglevering",
-          "cycle_cost": "Slijtagekosten batterij",
-          "min_battery_power": "Minimaal vermogen per batterij",
-          "balance_interval": "Balanscontrole elke",
-          "full_charge_window_days": "Volledig opladen forceren binnen",
-          "phase_margin": "Veiligheidsmarge per fase",
-          "export_price_mode": "Terugleverprijs",
-          "export_price_entities": "Terugleverprijs-sensoren",
-          "max_cycles_per_day": "Max. cycli per dag (arbitrage)",
-          "pv_forecast_margin": "Marge op de zonvoorspelling",
-          "peak_limit_w": "Piekgrens netafname",
-          "manual_power_w": "Handmatig vermogen",
-          "pv_correction": "Correctie zonvoorspelling",
           "price_source": "Prijsbron",
-          "price_extension": "Extra prijsvoorspelling",
-          "reserve_soc": "Reserve laadniveau",
-          "system_max_charge_w": "Max. laadvermogen alle batterijen",
-          "system_max_discharge_w": "Max. ontlaadvermogen alle batterijen",
-          "nom_target_w": "Doelnetvermogen (nul op de meter)",
-          "min_discharge_price": "Pas ontladen vanaf prijs",
-          "max_charge_price": "Uit het net laden tot prijs",
-          "min_arbitrage_margin": "Min. arbitragemarge",
-          "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee",
-          "charge_hysteresis": "Laadhysterese",
-          "vacation": "Vakantiemodus",
-          "full_charge_day": "Voorkeursdag volladen",
-          "full_charge_solar": "Volladen liefst met zonnestroom",
-          "temperature_limit": "Temperatuurgrens",
-          "temperature_band": "Afbouwband temperatuur",
-          "temperature_min_power": "Minimaal vermogen bij warmte",
-          "temperature_discharge": "Ook ontladen terugregelen bij warmte"
+          "price_extension": "Extra prijsvoorspelling"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -91,37 +62,116 @@
           "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
           "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
-          "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven.",
-          "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
-          "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is.",
-          "balance_interval": "Hoe vaak gekeken wordt of een andere batterij het moet overnemen, zodat de batterijen gelijk gevuld blijven. Daartussen blijven de gebruikte batterijen actief.",
-          "full_charge_window_days": "Als een batterij niet binnen zijn interval volledig is opgeladen, wordt een volledige oplading geforceerd op het goedkoopste moment binnen zoveel dagen vóór de deadline.",
-          "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie.",
-          "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of een terugleverprijsvoorspelling uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
-          "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
-          "max_cycles_per_day": "Arbitrage laadt en ontlaadt hoogstens zoveel volledige cycli per dag (ontladen energie / capaciteit), om de batterijen te sparen. 0 = geen grens.",
-          "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen.",
-          "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
-          "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
-          "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet.",
           "price_source": "Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest.",
-          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld.",
-          "reserve_soc": "De plannen gaan nooit onder dit laadniveau (bijv. als noodreserve), bovenop het eigen minimum van elke batterij. Piekafvlakking en fasebeveiliging mogen het nog wel gebruiken. 0 = uit.",
-          "system_max_charge_w": "Alle batterijen samen laden nooit met meer dan dit vermogen. 0 = geen grens.",
-          "system_max_discharge_w": "Alle batterijen samen ontladen nooit met meer dan dit vermogen. 0 = geen grens.",
-          "nom_target_w": "Nul op de meter mikt op dit netvermogen in plaats van precies 0 W, bijv. +50 W zodat er altijd een beetje wordt afgenomen.",
-          "min_discharge_price": "Optioneel: de batterijen ontladen alleen als stroom minstens dit kost (ook bij nul op de meter).",
-          "max_charge_price": "Optioneel: arbitrage laadt alleen uit het net als stroom hoogstens dit kost (laden met zonne-overschot mag altijd).",
-          "min_arbitrage_margin": "Arbitrage laadt alleen om later te ontladen als dat minstens zoveel per kWh oplevert, bovenop de slijtagekosten.",
-          "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
-          "charge_hysteresis": "Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit.",
-          "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken).",
-          "full_charge_day": "Plan het periodiek volladen op deze weekdag als die in de periode past; anders op het goedkoopste moment.",
-          "full_charge_solar": "Tel zonne-overschot als goedkoop (wat terugleveren zou opleveren), zodat volladen op een zonnig moment de voorkeur krijgt boven het net.",
-          "temperature_limit": "Batterijen met een temperatuursensor laden tot deze temperatuur met vol vermogen.",
-          "temperature_band": "Boven de grens gaat het vermogen over zoveel graden omlaag, tot het minimale vermogen.",
-          "temperature_min_power": "Vermogen aan het eind van de afbouwband, in % van het maximum van de batterij.",
-          "temperature_discharge": "Ook het ontlaadvermogen verlagen, niet alleen het laadvermogen."
+          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld."
+        },
+        "sections": {
+          "export": {
+            "name": "Terugleverprijs",
+            "description": "Wat teruggeleverde stroom oplevert.",
+            "data": {
+              "export_price_mode": "Terugleverprijs",
+              "export_price_entities": "Terugleverprijs-sensoren",
+              "export_price_factor": "Vergoeding teruglevering"
+            },
+            "data_description": {
+              "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of een terugleverprijsvoorspelling uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
+              "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
+              "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven."
+            }
+          },
+          "solar": {
+            "name": "Zonvoorspelling",
+            "description": "Correctie van de zonvoorspelling.",
+            "data": {
+              "pv_correction": "Correctie zonvoorspelling",
+              "pv_forecast_margin": "Marge op de zonvoorspelling"
+            },
+            "data_description": {
+              "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet.",
+              "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen."
+            }
+          },
+          "planning": {
+            "name": "Planning",
+            "description": "Hoe de plannen kosten en prijzen afwegen, en de vaste standen.",
+            "data": {
+              "cycle_cost": "Slijtagekosten batterij",
+              "max_cycles_per_day": "Max. cycli per dag (arbitrage)",
+              "min_arbitrage_margin": "Min. arbitragemarge",
+              "min_discharge_price": "Pas ontladen vanaf prijs",
+              "max_charge_price": "Uit het net laden tot prijs",
+              "nom_target_w": "Doelnetvermogen (nul op de meter)",
+              "manual_power_w": "Handmatig vermogen",
+              "charge_hysteresis": "Laadhysterese",
+              "vacation": "Vakantiemodus"
+            },
+            "data_description": {
+              "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
+              "max_cycles_per_day": "Arbitrage laadt en ontlaadt hoogstens zoveel volledige cycli per dag (ontladen energie / capaciteit), om de batterijen te sparen. 0 = geen grens.",
+              "min_arbitrage_margin": "Arbitrage laadt alleen om later te ontladen als dat minstens zoveel per kWh oplevert, bovenop de slijtagekosten.",
+              "min_discharge_price": "Optioneel: de batterijen ontladen alleen als stroom minstens dit kost (ook bij nul op de meter).",
+              "max_charge_price": "Optioneel: arbitrage laadt alleen uit het net als stroom hoogstens dit kost (laden met zonne-overschot mag altijd).",
+              "nom_target_w": "Nul op de meter mikt op dit netvermogen in plaats van precies 0 W, bijv. +50 W zodat er altijd een beetje wordt afgenomen.",
+              "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
+              "charge_hysteresis": "Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit.",
+              "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken)."
+            }
+          },
+          "limits": {
+            "name": "Grenzen en reserve",
+            "description": "Reserve, vermogensgrenzen, piekgrens en fasemarge.",
+            "data": {
+              "reserve_soc": "Reserve laadniveau",
+              "system_max_charge_w": "Max. laadvermogen alle batterijen",
+              "system_max_discharge_w": "Max. ontlaadvermogen alle batterijen",
+              "min_battery_power": "Minimaal vermogen per batterij",
+              "balance_interval": "Balanscontrole elke",
+              "peak_limit_w": "Piekgrens netafname",
+              "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee",
+              "phase_margin": "Veiligheidsmarge per fase"
+            },
+            "data_description": {
+              "reserve_soc": "De plannen gaan nooit onder dit laadniveau (bijv. als noodreserve), bovenop het eigen minimum van elke batterij. Piekafvlakking en fasebeveiliging mogen het nog wel gebruiken. 0 = uit.",
+              "system_max_charge_w": "Alle batterijen samen laden nooit met meer dan dit vermogen. 0 = geen grens.",
+              "system_max_discharge_w": "Alle batterijen samen ontladen nooit met meer dan dit vermogen. 0 = geen grens.",
+              "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is.",
+              "balance_interval": "Hoe vaak gekeken wordt of een andere batterij het moet overnemen, zodat de batterijen gelijk gevuld blijven. Daartussen blijven de gebruikte batterijen actief.",
+              "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
+              "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
+              "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie."
+            }
+          },
+          "full_charge": {
+            "name": "Volladen",
+            "description": "Het periodiek volladen van de batterijen.",
+            "data": {
+              "full_charge_window_days": "Volledig opladen forceren binnen",
+              "full_charge_day": "Voorkeursdag volladen",
+              "full_charge_solar": "Volladen liefst met zonnestroom"
+            },
+            "data_description": {
+              "full_charge_window_days": "Als een batterij niet binnen zijn interval volledig is opgeladen, wordt een volledige oplading geforceerd op het goedkoopste moment binnen zoveel dagen vóór de deadline.",
+              "full_charge_day": "Plan het periodiek volladen op deze weekdag als die in de periode past; anders op het goedkoopste moment.",
+              "full_charge_solar": "Tel zonne-overschot als goedkoop (wat terugleveren zou opleveren), zodat volladen op een zonnig moment de voorkeur krijgt boven het net."
+            }
+          },
+          "temperature": {
+            "name": "Temperatuur",
+            "description": "Minder vermogen voor warme batterijen (met een temperatuursensor).",
+            "data": {
+              "temperature_limit": "Temperatuurgrens",
+              "temperature_band": "Afbouwband temperatuur",
+              "temperature_min_power": "Minimaal vermogen bij warmte",
+              "temperature_discharge": "Ook ontladen terugregelen bij warmte"
+            },
+            "data_description": {
+              "temperature_limit": "Batterijen met een temperatuursensor laden tot deze temperatuur met vol vermogen.",
+              "temperature_band": "Boven de grens gaat het vermogen over zoveel graden omlaag, tot het minimale vermogen.",
+              "temperature_min_power": "Vermogen aan het eind van de afbouwband, in % van het maximum van de batterij.",
+              "temperature_discharge": "Ook het ontlaadvermogen verlagen, niet alleen het laadvermogen."
+            }
+          }
         }
       }
     },
@@ -308,37 +358,8 @@
           "pv_forecast_entries": "PV-voorspelling",
           "forecast_interval": "Herberekenen elke",
           "plan_mode": "Modus batterijplan",
-          "export_price_factor": "Vergoeding teruglevering",
-          "cycle_cost": "Slijtagekosten batterij",
-          "min_battery_power": "Minimaal vermogen per batterij",
-          "balance_interval": "Balanscontrole elke",
-          "full_charge_window_days": "Volledig opladen forceren binnen",
-          "phase_margin": "Veiligheidsmarge per fase",
-          "export_price_mode": "Terugleverprijs",
-          "export_price_entities": "Terugleverprijs-sensoren",
-          "max_cycles_per_day": "Max. cycli per dag (arbitrage)",
-          "pv_forecast_margin": "Marge op de zonvoorspelling",
-          "peak_limit_w": "Piekgrens netafname",
-          "manual_power_w": "Handmatig vermogen",
-          "pv_correction": "Correctie zonvoorspelling",
           "price_source": "Prijsbron",
-          "price_extension": "Extra prijsvoorspelling",
-          "reserve_soc": "Reserve laadniveau",
-          "system_max_charge_w": "Max. laadvermogen alle batterijen",
-          "system_max_discharge_w": "Max. ontlaadvermogen alle batterijen",
-          "nom_target_w": "Doelnetvermogen (nul op de meter)",
-          "min_discharge_price": "Pas ontladen vanaf prijs",
-          "max_charge_price": "Uit het net laden tot prijs",
-          "min_arbitrage_margin": "Min. arbitragemarge",
-          "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee",
-          "charge_hysteresis": "Laadhysterese",
-          "vacation": "Vakantiemodus",
-          "full_charge_day": "Voorkeursdag volladen",
-          "full_charge_solar": "Volladen liefst met zonnestroom",
-          "temperature_limit": "Temperatuurgrens",
-          "temperature_band": "Afbouwband temperatuur",
-          "temperature_min_power": "Minimaal vermogen bij warmte",
-          "temperature_discharge": "Ook ontladen terugregelen bij warmte"
+          "price_extension": "Extra prijsvoorspelling"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -347,37 +368,116 @@
           "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
           "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
-          "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven.",
-          "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
-          "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is.",
-          "balance_interval": "Hoe vaak gekeken wordt of een andere batterij het moet overnemen, zodat de batterijen gelijk gevuld blijven. Daartussen blijven de gebruikte batterijen actief.",
-          "full_charge_window_days": "Als een batterij niet binnen zijn interval volledig is opgeladen, wordt een volledige oplading geforceerd op het goedkoopste moment binnen zoveel dagen vóór de deadline.",
-          "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie.",
-          "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of een terugleverprijsvoorspelling uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
-          "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
-          "max_cycles_per_day": "Arbitrage laadt en ontlaadt hoogstens zoveel volledige cycli per dag (ontladen energie / capaciteit), om de batterijen te sparen. 0 = geen grens.",
-          "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen.",
-          "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
-          "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
-          "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet.",
           "price_source": "Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest.",
-          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld.",
-          "reserve_soc": "De plannen gaan nooit onder dit laadniveau (bijv. als noodreserve), bovenop het eigen minimum van elke batterij. Piekafvlakking en fasebeveiliging mogen het nog wel gebruiken. 0 = uit.",
-          "system_max_charge_w": "Alle batterijen samen laden nooit met meer dan dit vermogen. 0 = geen grens.",
-          "system_max_discharge_w": "Alle batterijen samen ontladen nooit met meer dan dit vermogen. 0 = geen grens.",
-          "nom_target_w": "Nul op de meter mikt op dit netvermogen in plaats van precies 0 W, bijv. +50 W zodat er altijd een beetje wordt afgenomen.",
-          "min_discharge_price": "Optioneel: de batterijen ontladen alleen als stroom minstens dit kost (ook bij nul op de meter).",
-          "max_charge_price": "Optioneel: arbitrage laadt alleen uit het net als stroom hoogstens dit kost (laden met zonne-overschot mag altijd).",
-          "min_arbitrage_margin": "Arbitrage laadt alleen om later te ontladen als dat minstens zoveel per kWh oplevert, bovenop de slijtagekosten.",
-          "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
-          "charge_hysteresis": "Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit.",
-          "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken).",
-          "full_charge_day": "Plan het periodiek volladen op deze weekdag als die in de periode past; anders op het goedkoopste moment.",
-          "full_charge_solar": "Tel zonne-overschot als goedkoop (wat terugleveren zou opleveren), zodat volladen op een zonnig moment de voorkeur krijgt boven het net.",
-          "temperature_limit": "Batterijen met een temperatuursensor laden tot deze temperatuur met vol vermogen.",
-          "temperature_band": "Boven de grens gaat het vermogen over zoveel graden omlaag, tot het minimale vermogen.",
-          "temperature_min_power": "Vermogen aan het eind van de afbouwband, in % van het maximum van de batterij.",
-          "temperature_discharge": "Ook het ontlaadvermogen verlagen, niet alleen het laadvermogen."
+          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld."
+        },
+        "sections": {
+          "export": {
+            "name": "Terugleverprijs",
+            "description": "Wat teruggeleverde stroom oplevert.",
+            "data": {
+              "export_price_mode": "Terugleverprijs",
+              "export_price_entities": "Terugleverprijs-sensoren",
+              "export_price_factor": "Vergoeding teruglevering"
+            },
+            "data_description": {
+              "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of een terugleverprijsvoorspelling uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
+              "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
+              "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven."
+            }
+          },
+          "solar": {
+            "name": "Zonvoorspelling",
+            "description": "Correctie van de zonvoorspelling.",
+            "data": {
+              "pv_correction": "Correctie zonvoorspelling",
+              "pv_forecast_margin": "Marge op de zonvoorspelling"
+            },
+            "data_description": {
+              "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet.",
+              "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen."
+            }
+          },
+          "planning": {
+            "name": "Planning",
+            "description": "Hoe de plannen kosten en prijzen afwegen, en de vaste standen.",
+            "data": {
+              "cycle_cost": "Slijtagekosten batterij",
+              "max_cycles_per_day": "Max. cycli per dag (arbitrage)",
+              "min_arbitrage_margin": "Min. arbitragemarge",
+              "min_discharge_price": "Pas ontladen vanaf prijs",
+              "max_charge_price": "Uit het net laden tot prijs",
+              "nom_target_w": "Doelnetvermogen (nul op de meter)",
+              "manual_power_w": "Handmatig vermogen",
+              "charge_hysteresis": "Laadhysterese",
+              "vacation": "Vakantiemodus"
+            },
+            "data_description": {
+              "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
+              "max_cycles_per_day": "Arbitrage laadt en ontlaadt hoogstens zoveel volledige cycli per dag (ontladen energie / capaciteit), om de batterijen te sparen. 0 = geen grens.",
+              "min_arbitrage_margin": "Arbitrage laadt alleen om later te ontladen als dat minstens zoveel per kWh oplevert, bovenop de slijtagekosten.",
+              "min_discharge_price": "Optioneel: de batterijen ontladen alleen als stroom minstens dit kost (ook bij nul op de meter).",
+              "max_charge_price": "Optioneel: arbitrage laadt alleen uit het net als stroom hoogstens dit kost (laden met zonne-overschot mag altijd).",
+              "nom_target_w": "Nul op de meter mikt op dit netvermogen in plaats van precies 0 W, bijv. +50 W zodat er altijd een beetje wordt afgenomen.",
+              "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
+              "charge_hysteresis": "Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit.",
+              "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken)."
+            }
+          },
+          "limits": {
+            "name": "Grenzen en reserve",
+            "description": "Reserve, vermogensgrenzen, piekgrens en fasemarge.",
+            "data": {
+              "reserve_soc": "Reserve laadniveau",
+              "system_max_charge_w": "Max. laadvermogen alle batterijen",
+              "system_max_discharge_w": "Max. ontlaadvermogen alle batterijen",
+              "min_battery_power": "Minimaal vermogen per batterij",
+              "balance_interval": "Balanscontrole elke",
+              "peak_limit_w": "Piekgrens netafname",
+              "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee",
+              "phase_margin": "Veiligheidsmarge per fase"
+            },
+            "data_description": {
+              "reserve_soc": "De plannen gaan nooit onder dit laadniveau (bijv. als noodreserve), bovenop het eigen minimum van elke batterij. Piekafvlakking en fasebeveiliging mogen het nog wel gebruiken. 0 = uit.",
+              "system_max_charge_w": "Alle batterijen samen laden nooit met meer dan dit vermogen. 0 = geen grens.",
+              "system_max_discharge_w": "Alle batterijen samen ontladen nooit met meer dan dit vermogen. 0 = geen grens.",
+              "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is.",
+              "balance_interval": "Hoe vaak gekeken wordt of een andere batterij het moet overnemen, zodat de batterijen gelijk gevuld blijven. Daartussen blijven de gebruikte batterijen actief.",
+              "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
+              "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
+              "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie."
+            }
+          },
+          "full_charge": {
+            "name": "Volladen",
+            "description": "Het periodiek volladen van de batterijen.",
+            "data": {
+              "full_charge_window_days": "Volledig opladen forceren binnen",
+              "full_charge_day": "Voorkeursdag volladen",
+              "full_charge_solar": "Volladen liefst met zonnestroom"
+            },
+            "data_description": {
+              "full_charge_window_days": "Als een batterij niet binnen zijn interval volledig is opgeladen, wordt een volledige oplading geforceerd op het goedkoopste moment binnen zoveel dagen vóór de deadline.",
+              "full_charge_day": "Plan het periodiek volladen op deze weekdag als die in de periode past; anders op het goedkoopste moment.",
+              "full_charge_solar": "Tel zonne-overschot als goedkoop (wat terugleveren zou opleveren), zodat volladen op een zonnig moment de voorkeur krijgt boven het net."
+            }
+          },
+          "temperature": {
+            "name": "Temperatuur",
+            "description": "Minder vermogen voor warme batterijen (met een temperatuursensor).",
+            "data": {
+              "temperature_limit": "Temperatuurgrens",
+              "temperature_band": "Afbouwband temperatuur",
+              "temperature_min_power": "Minimaal vermogen bij warmte",
+              "temperature_discharge": "Ook ontladen terugregelen bij warmte"
+            },
+            "data_description": {
+              "temperature_limit": "Batterijen met een temperatuursensor laden tot deze temperatuur met vol vermogen.",
+              "temperature_band": "Boven de grens gaat het vermogen over zoveel graden omlaag, tot het minimale vermogen.",
+              "temperature_min_power": "Vermogen aan het eind van de afbouwband, in % van het maximum van de batterij.",
+              "temperature_discharge": "Ook het ontlaadvermogen verlagen, niet alleen het laadvermogen."
+            }
+          }
         }
       },
       "meter": {
