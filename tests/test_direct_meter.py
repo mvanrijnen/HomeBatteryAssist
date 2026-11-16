@@ -204,3 +204,23 @@ async def test_homewizard_kwh_meters_found(hass: HomeAssistant) -> None:
         )
     found = {(c.address, c.phases) for c in find_direct_meters(hass)}
     assert found == {("192.0.2.21", 1), ("192.0.2.30", 3)}
+
+
+def test_astrameter_phases() -> None:
+    """Grid power per phase from the AstraMeter status (fields optional)."""
+    from custom_components.homebatteryassist.inputs.direct import astrameter_phases
+
+    status = {
+        "schema_version": 1,
+        "devices": [
+            {"kind": "ct002", "grid": {"l1_w": 120.0, "l2_w": -300.5, "l3_w": 15}}
+        ],
+    }
+    assert astrameter_phases(status) == (120.0, -300.5, 15.0)
+    assert astrameter_phases(
+        {
+            "devices": [{"grid": {"meter_failed": True, "l1_w": 1}}],
+            "powermeters": [{"last_read_ok": True, "last_values_w": [10, 20, 30]}],
+        }
+    ) == (10.0, 20.0, 30.0)
+    assert astrameter_phases({"schema_version": 1}) is None
