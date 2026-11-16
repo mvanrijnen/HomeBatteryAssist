@@ -65,7 +65,11 @@ class ModbusTcpClient:
     async def connect(self) -> None:
         """Open the connection (after ``reconnect_delay`` since a close)."""
         if self._closed_at is not None and self.reconnect_delay:
-            wait = self._closed_at + self.reconnect_delay - asyncio.get_running_loop().time()
+            wait = (
+                self._closed_at
+                + self.reconnect_delay
+                - asyncio.get_running_loop().time()
+            )
             if wait > 0:
                 await asyncio.sleep(wait)
         try:

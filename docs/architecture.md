@@ -33,12 +33,16 @@ custom_components/homebatteryassist/
 ├── strings.json, translations/
 └── engine/
     ├── coordinator.py     one cycle through the layers
+    ├── control/           battery_controller.py — built, not active
     ├── units.py           unit conversion
     ├── own_modules.py     loading own modules from /config
     ├── devices/           1  drivers
     │   ├── batteries/     base.py, template.py, virtual.py (simulation), recognition.py,
-    │   │                  marstek/ (__init__.py brand → venus.py → venus_e_v3.py),
-    │   │                  integrations/ (entity_reader.py, omnibattery.py, marstek_modbus.py)
+    │   │                  integrations/ (entity_reader.py, omnibattery.py, marstek_modbus.py),
+    │   │                  direct/ (base.py, modbus.py, http.py, mqtt.py — prepared, not used),
+    │   │                  one folder per brand: models (brand → range → type) + direct driver:
+    │   │                  marstek/, anker/, huawei/, zendure/, sessy/, indevolt/, hoymiles/
+    │   ├── transports/    modbus_tcp.py (own small Modbus TCP client)
     │   └── meters/        base.py, template.py, homewizard.py, sma.py, shelly.py,
     │                      iammeter.py, direct_reading.py, discovery.py,
     │                      via_ha_integration.py
@@ -70,6 +74,20 @@ A battery driver has two parts:
 - a **reader** — how the battery is *read* — one per integration that exposes batteries (`integrations/omnibattery.py`, `integrations/marstek_modbus.py`).
 
 So one battery type can be read through several integrations. The **virtual battery** (`virtual.py`) is a simulated device that follows the plan.
+
+## Control layer (built, not active)
+
+HomeBatteryAssist does not control batteries. The control layer (`engine/control/battery_controller.py`) is built beforehand, so the safety is in place before anything is ever controlled:
+
+- a **master switch**, off by default — nothing is sent while it is off, and nothing in HomeBatteryAssist turns it on;
+- **always release** control to the battery's own logic on stop, reload, restart and every error;
+- a **watchdog**: without a new command for 2 minutes, control is released;
+- **refresh** the last command for batteries that drop out of external control otherwise;
+- **throttle**: a minimum time between commands and a deadband (idle and direction changes are never held back);
+- **idle = release** for batteries where 0 W is not idle (e.g. a Huawei inverter keeps limiting PV);
+- the **limits** of the device and of the caller are always enforced.
+
+Each [direct driver](drivers.md#direct-battery-drivers--prepared-not-used) states its own control needs; the controller enforces them.
 
 ## Meters
 

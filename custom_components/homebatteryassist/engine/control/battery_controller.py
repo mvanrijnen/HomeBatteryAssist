@@ -66,7 +66,9 @@ class Action:
     reason: str = ""
 
 
-def clamp(power_w: float, driver: DirectBatteryDriver, limits: tuple[float, float]) -> float:
+def clamp(
+    power_w: float, driver: DirectBatteryDriver, limits: tuple[float, float]
+) -> float:
     """``power_w`` within the device's and the caller's charge/discharge limits."""
     max_charge, max_discharge = limits
     if driver.max_charge_w is not None:
@@ -84,9 +86,7 @@ def decide(
 ) -> Action | None:
     """The next action under all safety rules, or None (nothing to do)."""
     # Watchdog: no fresh target -> back to the battery's own control.
-    if state.active and (
-        state.target_at is None or now - state.target_at > watchdog
-    ):
+    if state.active and (state.target_at is None or now - state.target_at > watchdog):
         return Action("release", reason="watchdog")
     target = state.target_w
     if target is None or (abs(target) < IDLE_W and driver.idle_is_release):
@@ -126,7 +126,9 @@ class BatteryController:
         self.state = ControlState()
         self.errors = 0
 
-    async def async_command(self, power_w: float | None, now: datetime | None = None) -> None:
+    async def async_command(
+        self, power_w: float | None, now: datetime | None = None
+    ) -> None:
         """Ask for ``power_w`` (+ charging; None = release). Refused while
         control is switched off."""
         if not self.enabled:

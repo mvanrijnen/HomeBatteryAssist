@@ -29,6 +29,24 @@ A battery driver has two parts (`base.py`):
 
 One battery type can be read through several integrations; the model and the reader are chosen separately. `template.py` shows both. The **virtual battery** (`virtual.py`) is a simulated device that follows the plan.
 
+### Direct battery drivers — prepared, not used
+
+Next to the readers (which go through another integration), every brand can have a **direct driver**: HomeBatteryAssist's own connection to the battery, for the day it controls batteries itself instead of e.g. Omnibattery. They are **disabled** (`enabled = False`): never offered, never connecting, and their write methods are never called. Many batteries allow only one connection, which today belongs to another integration.
+
+Generic bases in `direct/` (a brand only adds its specifics): `modbus.py` (a register map as data, read in blocks that never cross undefined registers; own small Modbus TCP client in `engine/devices/transports/modbus_tcp.py`), `http.py` (local JSON API) and `mqtt.py` (through Home Assistant's MQTT integration).
+
+| Brand | Driver | Types (models) | Connection |
+|---|---|---|---|
+| Marstek | `marstek/modbus.py` | Venus E v2, Venus E v3, Venus A, Venus D | Modbus TCP |
+| Anker | `anker/modbus.py` | SOLIX Solarbank Max AC, XE AC, E5000 Pro, Max, XE | Modbus TCP |
+| Huawei | `huawei/modbus.py` | LUNA2000 (through the SUN2000 inverter) | Modbus TCP |
+| Zendure | `zendure/http.py` | SolarFlow 800, 800 Plus, 800 Pro, 1600 AC+, 2400 AC+, 2400 Pro | local HTTP |
+| Sessy | `sessy/http.py` | Sessy home battery | local HTTP |
+| Indevolt | `indevolt/http.py` | SolidFlex/PowerFlex 1200, 2000, 3000, SolidFlex 3600, BK1600 | local HTTP |
+| Hoymiles | `hoymiles/mqtt.py` | MS-A2, HiBattery 1920 AC, 4020 X, 4020 AC | MQTT |
+
+None is verified on a device yet. The device facts (registers, endpoints, scales, signs, control sequences) were taken from Omnibattery's drivers (GPL-3.0) and, where available, the vendors' own documentation — facts only; the code is HomeBatteryAssist's own. Each driver also states how it must be controlled (`refresh_s`, `min_interval_s`, `deadband_w`, `idle_is_release`, limits), which the control layer enforces — see [Architecture](architecture.md#control-layer-built-not-active).
+
 ## Meters — `engine/devices/meters/`
 
 One file per brand, sharing `direct_reading.py` (reading about once a second; a value older than 10 s counts as unknown):
