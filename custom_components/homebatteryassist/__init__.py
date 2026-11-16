@@ -24,11 +24,14 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_HISTORY_INTERVAL,
+    CONF_NOTIFY_KINDS,
+    CONF_NOTIFY_TARGETS,
     CONF_VACATION,
     DEFAULT_HISTORY_INTERVAL,
     DOMAIN,
 )
 from .explain import DecisionLog
+from .explain.notify import Notifier
 from .forecasts.accuracy import ForecastAccuracy
 from .forecasts.adjustments import AdjustmentStore
 from .forecasts.coordinator import ForecastCoordinator
@@ -62,6 +65,11 @@ async def async_setup_entry(
     """Set up HomeBatteryAssist from a config entry."""
     decisions = DecisionLog(hass, entry.entry_id)
     await decisions.async_load()
+    decisions.notifier = Notifier(
+        hass,
+        list(entry.options.get(CONF_NOTIFY_TARGETS) or []),
+        list(entry.options.get(CONF_NOTIFY_KINDS) or []),
+    )
     adjustments = AdjustmentStore(hass, entry.entry_id)
     await adjustments.async_load()
     accuracy = ForecastAccuracy(hass, entry.entry_id)

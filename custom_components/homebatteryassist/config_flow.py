@@ -98,6 +98,8 @@ from .const import (
     CONF_MIN_MARGIN,
     CONF_MIN_SOC,
     CONF_NOM_TARGET,
+    CONF_NOTIFY_KINDS,
+    CONF_NOTIFY_TARGETS,
     CONF_PEAK_INCLUDE_EXCLUDED,
     CONF_PEAK_LIMIT,
     CONF_PHASE,
@@ -175,6 +177,8 @@ from .const import (
     phase_return_sensor_keys,
     phase_sensor_keys,
 )
+from .explain.notify import KINDS as NOTIFY_KINDS
+from .explain.notify import PERSISTENT
 from .inputs.direct import (
     DIRECT_SOURCES,
     SOURCE_HOMEWIZARD,
@@ -330,6 +334,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "phase_margin",
     ),
     "full_charge": ("full_charge_window_days", "full_charge_day", "full_charge_solar"),
+    "notifications": ("notify_targets", "notify_kinds"),
     "temperature": (
         "temperature_limit",
         "temperature_band",
@@ -360,6 +365,8 @@ async def settings_schema(
 
 # Kept when going back to the defaults: where the inputs come from.
 KEEP_ON_RESET = (
+    CONF_NOTIFY_TARGETS,
+    CONF_NOTIFY_KINDS,
     CONF_PRICE_SOURCE,
     CONF_PRICE_EXTENSION,
     CONF_PRICE_FORECAST,
@@ -517,6 +524,31 @@ async def _flat_settings_schema(
         vol.Required(
             CONF_FULL_CHARGE_SOLAR, default=current.get(CONF_FULL_CHARGE_SOLAR, True)
         ): BooleanSelector(),
+        vol.Optional(CONF_NOTIFY_TARGETS): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    SelectOptionDict(value=PERSISTENT, label=PERSISTENT),
+                    *(
+                        SelectOptionDict(value=name, label=f"notify.{name}")
+                        for name in sorted(
+                            hass.services.async_services_for_domain("notify")
+                        )
+                        if name not in ("send_message", "persistent_notification")
+                    ),
+                ],
+                multiple=True,
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_NOTIFY_TARGETS,
+            )
+        ),
+        vol.Optional(CONF_NOTIFY_KINDS): SelectSelector(
+            SelectSelectorConfig(
+                options=list(NOTIFY_KINDS),
+                multiple=True,
+                mode=SelectSelectorMode.LIST,
+                translation_key=CONF_NOTIFY_KINDS,
+            )
+        ),
         vol.Required(
             CONF_TEMP_LIMIT, default=current.get(CONF_TEMP_LIMIT, 40)
         ): _number(0, 80, 1, "°C"),
@@ -699,6 +731,8 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     options[CONF_VACATION] = bool(user_input.get(CONF_VACATION, False))
     options[CONF_FULL_CHARGE_DAY] = user_input.get(CONF_FULL_CHARGE_DAY, "none")
     options[CONF_FULL_CHARGE_SOLAR] = bool(user_input.get(CONF_FULL_CHARGE_SOLAR, True))
+    options[CONF_NOTIFY_TARGETS] = list(user_input.get(CONF_NOTIFY_TARGETS) or [])
+    options[CONF_NOTIFY_KINDS] = list(user_input.get(CONF_NOTIFY_KINDS) or [])
     options[CONF_TEMP_LIMIT] = int(user_input.get(CONF_TEMP_LIMIT, 40))
     options[CONF_TEMP_BAND] = int(user_input.get(CONF_TEMP_BAND, 10))
     options[CONF_TEMP_MIN_POWER] = int(user_input.get(CONF_TEMP_MIN_POWER, 40))

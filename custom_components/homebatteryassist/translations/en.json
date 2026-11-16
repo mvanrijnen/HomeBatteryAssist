@@ -171,6 +171,18 @@
               "temperature_min_power": "Power at the end of the reduction band, as % of the battery's maximum.",
               "temperature_discharge": "Reduce the discharge power too, not only the charge power."
             }
+          },
+          "notifications": {
+            "name": "Notifications",
+            "description": "Get important decisions as notifications.",
+            "data": {
+              "notify_targets": "Send to",
+              "notify_kinds": "About"
+            },
+            "data_description": {
+              "notify_targets": "Notify services (e.g. the companion app) and/or a notification in Home Assistant itself.",
+              "notify_kinds": "Which decisions to send."
+            }
           }
         }
       }
@@ -337,6 +349,20 @@
         "sat": "Saturday",
         "sun": "Sunday"
       }
+    },
+    "notify_targets": {
+      "options": {
+        "persistent_notification": "Notification in Home Assistant"
+      }
+    },
+    "notify_kinds": {
+      "options": {
+        "plan": "The plan changes",
+        "prices": "New prices / changed forecast reach",
+        "protection": "Phase protection, limits and peak shaving",
+        "full_charge": "Full charges",
+        "measurement": "Measurement lost / restored"
+      }
     }
   },
   "options": {
@@ -477,6 +503,18 @@
               "temperature_band": "Above the limit the power goes down over this many degrees, to the minimum power.",
               "temperature_min_power": "Power at the end of the reduction band, as % of the battery's maximum.",
               "temperature_discharge": "Reduce the discharge power too, not only the charge power."
+            }
+          },
+          "notifications": {
+            "name": "Notifications",
+            "description": "Get important decisions as notifications.",
+            "data": {
+              "notify_targets": "Send to",
+              "notify_kinds": "About"
+            },
+            "data_description": {
+              "notify_targets": "Notify services (e.g. the companion app) and/or a notification in Home Assistant itself.",
+              "notify_kinds": "Which decisions to send."
             }
           }
         }

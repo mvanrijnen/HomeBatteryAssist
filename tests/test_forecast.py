@@ -276,9 +276,13 @@ async def test_planning_horizon_sensor(
     keys = [
         d["key"]
         for d in entry.runtime_data.decisions.entries
-        if d["category"] == "planning"
+        if d["category"] == "planning" and d["key"].startswith("horizon_")
     ]
     assert keys == ["horizon_price", "horizon_pv"]
+    # The longer price list in between is announced as new prices.
+    assert any(
+        d["key"] == "prices_updated" for d in entry.runtime_data.decisions.entries
+    )
 
 
 async def test_settings_step_lists_pv_forecasts(hass: HomeAssistant) -> None:

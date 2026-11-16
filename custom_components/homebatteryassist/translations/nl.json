@@ -171,6 +171,18 @@
               "temperature_min_power": "Vermogen aan het eind van de afbouwband, in % van het maximum van de batterij.",
               "temperature_discharge": "Ook het ontlaadvermogen verlagen, niet alleen het laadvermogen."
             }
+          },
+          "notifications": {
+            "name": "Meldingen",
+            "description": "Belangrijke beslissingen als melding ontvangen.",
+            "data": {
+              "notify_targets": "Sturen naar",
+              "notify_kinds": "Over"
+            },
+            "data_description": {
+              "notify_targets": "Notify-diensten (bijv. de companion-app) en/of een melding in Home Assistant zelf.",
+              "notify_kinds": "Welke beslissingen worden verstuurd."
+            }
           }
         }
       }
@@ -337,6 +349,20 @@
         "sat": "Zaterdag",
         "sun": "Zondag"
       }
+    },
+    "notify_targets": {
+      "options": {
+        "persistent_notification": "Melding in Home Assistant"
+      }
+    },
+    "notify_kinds": {
+      "options": {
+        "plan": "Het plan verandert",
+        "prices": "Nieuwe prijzen / gewijzigd bereik voorspelling",
+        "protection": "Fasebeveiliging, grenzen en piekafvlakking",
+        "full_charge": "Volladen",
+        "measurement": "Meting weggevallen / terug"
+      }
     }
   },
   "options": {
@@ -477,6 +503,18 @@
               "temperature_band": "Boven de grens gaat het vermogen over zoveel graden omlaag, tot het minimale vermogen.",
               "temperature_min_power": "Vermogen aan het eind van de afbouwband, in % van het maximum van de batterij.",
               "temperature_discharge": "Ook het ontlaadvermogen verlagen, niet alleen het laadvermogen."
+            }
+          },
+          "notifications": {
+            "name": "Meldingen",
+            "description": "Belangrijke beslissingen als melding ontvangen.",
+            "data": {
+              "notify_targets": "Sturen naar",
+              "notify_kinds": "Over"
+            },
+            "data_description": {
+              "notify_targets": "Notify-diensten (bijv. de companion-app) en/of een melding in Home Assistant zelf.",
+              "notify_kinds": "Welke beslissingen worden verstuurd."
             }
           }
         }

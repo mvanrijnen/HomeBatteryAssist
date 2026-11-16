@@ -43,6 +43,7 @@ class DecisionLog:
         )
         self.entries: list[Decision] = []
         self._listeners: list[Callable[[], None]] = []
+        self.notifier: Any = None  # explain.notify.Notifier, optional
 
     @property
     def latest(self) -> Decision | None:
@@ -82,6 +83,8 @@ class DecisionLog:
         self.hass.bus.async_fire(EVENT_DECISION, dict(decision))
         for listener in list(self._listeners):
             listener()
+        if self.notifier is not None:
+            self.notifier.async_decision(decision)
         return decision
 
     def _data(self) -> dict[str, Any]:

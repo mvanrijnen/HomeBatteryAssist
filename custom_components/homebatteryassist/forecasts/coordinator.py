@@ -309,6 +309,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             self.export_entities = []
         self.pv_entries: list[str] = list(options.get(CONF_PV_FORECAST) or [])
         self._last_limit: HorizonLimit | None = None
+        self._last_price_end: datetime | None = None
         self.phase_profile: PhaseProfile | None = None
 
     async def _async_update_data(self) -> ForecastData:
@@ -319,6 +320,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         export_prices = await self._async_read_export_prices(now)
         pv_wh = await self._async_read_pv(now)
         price_end = prices[-1].end if prices else None
+        self._explain_new_prices(prices)
         pv_end = max(pv_wh) + PV_PERIOD if pv_wh else None
         hour = now.replace(minute=0, second=0, microsecond=0)
         pv_now_w = pv_wh.get(hour) if self.pv_entries else None
@@ -793,6 +795,20 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             days=round(
                 sum(r["minutes"] * r["coverage"] for r in self.history.records) / 1440
             ),
+        )
+
+    def _explain_new_prices(self, prices: list[PricePoint]) -> None:
+        """Tell when new published prices arrive (e.g. tomorrow's)."""
+        published = [p for p in prices if not p.estimated]
+        end = published[-1].end if published else None
+        previous, self._last_price_end = self._last_price_end, end
+        if previous is None or end is None or end - previous < timedelta(hours=6):
+            return
+        self._decisions.async_log(
+            "planning",
+            "prices_updated",
+            end=end,
+            hours=round((end - previous).total_seconds() / 3600),
         )
 
     def _explain_window(self, window: PlanningWindow) -> None:

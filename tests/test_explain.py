@@ -112,3 +112,39 @@ async def test_consumption_availability_is_explained(
     assert state.state == "Huisverbruik wordt weer gemeten."
     assert state.attributes["category"] == "measurement"
     assert state.attributes["recent"][1]["message"].startswith("Huisverbruik onbekend")
+
+
+async def test_notifications(hass: HomeAssistant) -> None:
+    """Chosen kinds of decisions go to the chosen notify services."""
+    from homeassistant.core import ServiceCall
+
+    from custom_components.homebatteryassist.explain import DecisionLog
+    from custom_components.homebatteryassist.explain.notify import Notifier, kind_of
+
+    assert kind_of("horizon_price") == "prices"
+    assert kind_of("phase_relief") == "protection"
+    assert kind_of("battery_switch") is None
+
+    sent: list[ServiceCall] = []
+
+    async def capture(call: ServiceCall) -> None:
+        sent.append(call)
+
+    hass.services.async_register("notify", "phone", capture)
+    log = DecisionLog(hass, "test")
+    log.notifier = Notifier(hass, ["phone"], ["protection"])
+    log.async_log(
+        "battery",
+        "phase_relief",
+        names="V1",
+        action="ontladen",
+        power="1 kW",
+        phase="L1",
+        current="26",
+        limit="22.5",
+    )
+    log.async_log("measurement", "consumption_restored")  # not chosen
+    await hass.async_block_till_done()
+    assert len(sent) == 1
+    assert sent[0].data["title"] == "HomeBatteryAssist"
+    assert "L1" in sent[0].data["message"]
