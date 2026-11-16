@@ -1,6 +1,7 @@
 """Edge cases: daylight saving time, odd inputs, restarts."""
 
 from datetime import datetime, timedelta
+from itertools import pairwise
 from types import SimpleNamespace
 
 from homeassistant.core import HomeAssistant
@@ -49,7 +50,7 @@ async def test_forecast_over_dst_end(hass: HomeAssistant) -> None:
     assert len(slots) == 100
     starts = [s.start for s in slots]
     assert len(set(starts)) == 100
-    assert all(b - a == Q for a, b in zip(starts, starts[1:], strict=False))
+    assert all(b - a == Q for a, b in pairwise(starts))
     assert {round(s.power_w) for s in slots} == {400}
 
 
