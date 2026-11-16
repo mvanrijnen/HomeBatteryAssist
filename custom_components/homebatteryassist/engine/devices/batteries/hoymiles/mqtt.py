@@ -72,6 +72,7 @@ class HoymilesMqttDriver(MqttBatteryDriver):
         HoymilesHiBattery4020Ac,
     )
     can_write = True  # described below; never called
+    refresh_s = 30.0  # drops out of external control without a refresh
     source = "Omnibattery drivers/hoymiles.py (facts only)"
 
     def topic(self, component: str, obj: str, suffix: str) -> str:

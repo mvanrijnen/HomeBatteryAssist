@@ -57,6 +57,20 @@ class DirectBatteryDriver:
     enabled: bool = False  # never connects unless set deliberately
     source: str = ""  # where the device facts come from
 
+    # -- How the battery must be controlled (used by engine/control) --------
+    # Repeat the last command at least this often (0 = not needed), e.g. a
+    # battery that drops out of external control without refreshes.
+    refresh_s: float = 0.0
+    # At most one new command this often, and only when it differs by at least
+    # ``deadband_w`` (devices that ramp slowly or wear on writes).
+    min_interval_s: float = 0.0
+    deadband_w: float = 0.0
+    # 0 W is not "idle" for this battery (e.g. it still limits PV): idle must be
+    # a release, never a 0 W command.
+    idle_is_release: bool = False
+    max_charge_w: float | None = None  # hard limits of the device, if known
+    max_discharge_w: float | None = None
+
     def __init__(self, hass: HomeAssistant, address: str, **options: Any) -> None:
         """Initialize for one battery at ``address`` (host / IP / device id)."""
         self.hass = hass
