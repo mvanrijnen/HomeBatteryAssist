@@ -5,7 +5,7 @@ Instead of lists of periods and numbers, a few sentences:
 1. what the batteries do now, and why;
 2. the next moment they charge: how much, from what source, at what price,
    for which later moment, and what it brings;
-3. how the selected mode compares with the other one.
+3. what the plan is expected to bring compared with no battery.
 """
 
 from __future__ import annotations
@@ -26,24 +26,24 @@ DAYS = {
 
 TEXT = {
     "nl": {
-        "now_idle_empty": "De batterijen doen nu niets: ze zijn zo leeg als ingesteld, en laden loont nu niet.",
-        "now_idle_no_gain": "De batterijen doen nu niets: stroom kost nu {price}, en het duurste moment daarna ({later}) is na verlies niet genoeg duurder om nu te laden.",
-        "now_idle": "De batterijen doen nu niets.",
-        "now_idle_wait": "De batterijen doen nu niets: ze wachten op goedkopere stroom ({price}, {when}).",
-        "now_idle_save": "De batterijen leveren nu niet, omdat stroom nu niet duur genoeg is ({price}): ze bewaren hun energie voor {use}, als stroom {use_price} kost.",
-        "now_idle_save_wait": "De batterijen leveren nu niet, omdat stroom nu niet duur genoeg is ({price}): ze bewaren hun energie voor {use}, als stroom {use_price} kost, en laden {when} bij tegen {charge_price}.",
-        "now_charge_pv": "De batterijen laden nu {power} met zonnestroom die anders naar het net zou gaan.",
-        "now_charge_grid": "De batterijen laden nu {power} uit het net, omdat stroom nu goedkoop is ({price}).",
-        "now_discharge": "De batterijen leveren nu {power} aan het huis, omdat stroom nu duur is ({price}).",
-        "now_discharge_export": "De batterijen ontladen nu {power}, waarvan {export} terug aan het net, omdat teruglevering nu veel oplevert ({price}).",
-        "now_discharge_nom": "De batterijen leveren nu {power} aan het huis, zodat er geen stroom van het net nodig is.",
+        "now_idle_empty": "Tot {until} doen de batterijen niets en komt de stroom van het net: ze zijn zo leeg als ingesteld, en laden loont nu niet.",
+        "now_idle_no_gain": "Tot {until} doen de batterijen niets en komt de stroom van het net: stroom kost nu {price}, en het duurste moment daarna ({later}) is na verlies niet genoeg duurder om nu te laden.",
+        "now_idle": "Tot {until} doen de batterijen niets.",
+        "now_idle_wait": "Tot {until} doen de batterijen niets en komt de stroom van het net: ze wachten op goedkopere stroom ({price}, {when}).",
+        "now_idle_save": "Tot {start} leveren de batterijen niet en komt de stroom van het net, omdat stroom nu niet duur genoeg is ({price}): ze bewaren hun energie voor {use}, als stroom {use_price} kost.",
+        "now_idle_save_wait": "Tot {start} leveren de batterijen niet en komt de stroom van het net, omdat stroom nu niet duur genoeg is ({price}): ze bewaren hun energie voor {use}, als stroom {use_price} kost, en laden {when} bij tegen {charge_price}.",
+        "now_charge_pv": "Van nu tot {until} laden de batterijen met zonnestroom die anders naar het net zou gaan.",
+        "now_charge_grid": "Van nu tot {until} laden de batterijen uit het net, omdat stroom dan goedkoop is ({price}).",
+        "now_discharge": "Van nu tot {until} leveren de batterijen stroom aan het huis, omdat stroom dan duur is ({price}).",
+        "now_discharge_export": "Van nu tot {until} leveren de batterijen stroom aan het huis en terug aan het net, omdat teruglevering dan veel oplevert ({price}).",
+        "now_discharge_nom": "Van nu tot {until} leveren de batterijen stroom aan het huis, zodat er geen stroom van het net nodig is.",
         "next_grid": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use} als stroom {use_price} kost. Na verlies levert dat ongeveer {gain} op.",
         "next_pv": "{when} laden we {energy} met zonnestroom, om die te gebruiken {use}.",
         "no_charge": "In de komende {hours} uur is laden niet nodig of levert het niets op.",
         "phase_limited": "Daarbij laden we soms langzamer dan kan, zodat de hoofdzekering ({amps} A per fase) niet overbelast raakt.",
-        "compare_better": "Met {other} zou het {diff} minder opleveren.",
-        "compare_worse": "Let op: met {other} zou het {diff} meer opleveren.",
-        "compare_same": "Met {other} zou het ongeveer hetzelfde opleveren.",
+        "vs_none_saves": "Tot {end} scheelt dit plan naar verwachting {diff} ten opzichte van geen batterij.",
+        "vs_none_costs": "Tot {end} kost dit plan naar verwachting {diff} meer dan geen batterij.",
+        "vs_none_same": "Tot {end} scheelt dit plan naar verwachting niets ten opzichte van geen batterij.",
         "per_kwh": "{amount} per kWh",
         "from": "op",
         "and": "en",
@@ -57,32 +57,32 @@ TEXT = {
             "time_slots": "tijdvakken",
             "manual": "handmatig",
         },
-        "now_fixed_charge": "De batterijen laden nu {power}: {why}.",
-        "now_fixed_discharge": "De batterijen ontladen nu {power}: {why}.",
-        "now_fixed_idle": "De batterijen doen nu niets: {why}.",
+        "now_fixed_charge": "Van nu tot {until} laden de batterijen: {why}.",
+        "now_fixed_discharge": "Van nu tot {until} leveren de batterijen stroom: {why}.",
+        "now_fixed_idle": "Tot {until} doen de batterijen niets: {why}.",
         "why_manual": "zo ingesteld (handmatig)",
         "why_slot": "volgens tijdvak {name}",
         "fixed_outside": "Buiten de tijdvakken werken ze als nul op de meter.",
     },
     "en": {
-        "now_idle_empty": "The batteries are idle: they are as empty as allowed, and charging does not pay off now.",
-        "now_idle_no_gain": "The batteries are idle: power costs {price} now, and the most expensive moment after that ({later}) is not enough more expensive after losses to charge now.",
-        "now_idle": "The batteries are idle.",
-        "now_idle_wait": "The batteries are idle: they wait for cheaper power ({price}, {when}).",
-        "now_idle_save": "The batteries do not discharge now, because power is not expensive enough now ({price}): they keep their energy for {use}, when power costs {use_price}.",
-        "now_idle_save_wait": "The batteries do not discharge now, because power is not expensive enough now ({price}): they keep their energy for {use}, when power costs {use_price}, and charge {when} at {charge_price}.",
-        "now_charge_pv": "The batteries are charging {power} with solar power that would otherwise go to the grid.",
-        "now_charge_grid": "The batteries are charging {power} from the grid, because power is cheap now ({price}).",
-        "now_discharge": "The batteries supply {power} to the house, because power is expensive now ({price}).",
-        "now_discharge_export": "The batteries discharge {power}, of which {export} goes to the grid, because export pays well now ({price}).",
-        "now_discharge_nom": "The batteries supply {power} to the house, so no power from the grid is needed.",
+        "now_idle_empty": "Until {until} the batteries are idle and the house runs on the grid: they are as empty as allowed, and charging does not pay off now.",
+        "now_idle_no_gain": "Until {until} the batteries are idle and the house runs on the grid: power costs {price} now, and the most expensive moment after that ({later}) is not enough more expensive after losses to charge now.",
+        "now_idle": "Until {until} the batteries are idle.",
+        "now_idle_wait": "Until {until} the batteries are idle and the house runs on the grid: they wait for cheaper power ({price}, {when}).",
+        "now_idle_save": "Until {start} the batteries do not discharge and the house runs on the grid, because power is not expensive enough now ({price}): they keep their energy for {use}, when power costs {use_price}.",
+        "now_idle_save_wait": "Until {start} the batteries do not discharge and the house runs on the grid, because power is not expensive enough now ({price}): they keep their energy for {use}, when power costs {use_price}, and charge {when} at {charge_price}.",
+        "now_charge_pv": "From now until {until} the batteries charge with solar power that would otherwise go to the grid.",
+        "now_charge_grid": "From now until {until} the batteries charge from the grid, because power is cheap then ({price}).",
+        "now_discharge": "From now until {until} the batteries supply the house, because power is expensive then ({price}).",
+        "now_discharge_export": "From now until {until} the batteries supply the house and the grid, because export pays well then ({price}).",
+        "now_discharge_nom": "From now until {until} the batteries supply the house, so no power from the grid is needed.",
         "next_grid": "{when} we charge {energy} from the grid at {price}, to use it {use} when power costs {use_price}. After losses that brings about {gain}.",
         "next_pv": "{when} we charge {energy} with solar power, to use it {use}.",
         "no_charge": "In the next {hours} hours charging is not needed or brings nothing.",
         "phase_limited": "At times we charge slower than possible, so the main fuse ({amps} A per phase) is not overloaded.",
-        "compare_better": "With {other} it would bring {diff} less.",
-        "compare_worse": "Note: with {other} it would bring {diff} more.",
-        "compare_same": "With {other} it would bring about the same.",
+        "vs_none_saves": "Until {end} this plan is expected to save {diff} compared with no battery.",
+        "vs_none_costs": "Until {end} this plan is expected to cost {diff} more than no battery.",
+        "vs_none_same": "Until {end} this plan is expected to save nothing compared with no battery.",
         "per_kwh": "{amount} per kWh",
         "from": "on",
         "and": "and",
@@ -96,9 +96,9 @@ TEXT = {
             "time_slots": "time slots",
             "manual": "manual",
         },
-        "now_fixed_charge": "The batteries are charging {power}: {why}.",
-        "now_fixed_discharge": "The batteries are discharging {power}: {why}.",
-        "now_fixed_idle": "The batteries are idle: {why}.",
+        "now_fixed_charge": "From now until {until} the batteries charge: {why}.",
+        "now_fixed_discharge": "From now until {until} the batteries discharge: {why}.",
+        "now_fixed_idle": "Until {until} the batteries are idle: {why}.",
         "why_manual": "as set (manual)",
         "why_slot": "following time slot {name}",
         "fixed_outside": "Outside the time slots they work as zero on the meter.",
@@ -128,10 +128,6 @@ def _money(value: float, lang: str) -> str:
 def _kwh(wh: float, lang: str) -> str:
     text = f"{wh / 1000:.1f} kWh"
     return text.replace(".", ",") if lang == "nl" else text
-
-
-def _power(w: float) -> str:
-    return f"{abs(w):.0f} W" if abs(w) < 1000 else f"{abs(w) / 1000:.1f} kW"
 
 
 def _time(when: datetime, lang: str) -> str:
@@ -215,6 +211,31 @@ def _when(block: _Block, now: datetime, lang: str) -> str:
     return f"{t['from'].capitalize()} {span}"
 
 
+def _run_end(slots: list[PlanSlot], current: PlanSlot, lang: str, now: datetime) -> str:
+    """Local end time of the run of slots doing the same as ``current``."""
+
+    def kind(slot: PlanSlot) -> tuple[int, bool, str | None]:
+        sign = 1 if slot.power_w > ACTIVE_W else -1 if slot.power_w < -ACTIVE_W else 0
+        return sign, sign > 0 and slot.grid_w > ACTIVE_W, slot.reason
+
+    end = current.end
+    for slot in slots:
+        if slot.start < current.end:
+            continue
+        if slot.start != end or kind(slot) != kind(current):
+            break
+        end = slot.end
+    return _at(end, lang, now)
+
+
+def _at(when: datetime, lang: str, now: datetime) -> str:
+    """``HH:MM`` today, else with the weekday."""
+    local = dt_util.as_local(when)
+    if local.date() == dt_util.as_local(now).date():
+        return f"{local:%H:%M}"
+    return _time(when, lang)
+
+
 def plan_story(
     plan: BatteryPlan,
     others: dict[str, BatteryPlan],
@@ -240,6 +261,8 @@ def plan_story(
     current = next((s for s in slots if s.start <= now < s.end), slots[0])
     price_now = current.price
 
+    until = _run_end(slots, current, lang, now)
+
     def per_kwh(value: float) -> str:
         return t["per_kwh"].format(amount=_money(value, lang))
 
@@ -257,32 +280,25 @@ def plan_story(
             if current.power_w < -ACTIVE_W
             else "now_fixed_idle"
         )
-        sentences.append(t[key].format(power=_power(current.power_w), why=why))
+        sentences.append(t[key].format(until=until, why=why))
         if plan.strategy == "time_slots":
             sentences.append(t["fixed_outside"])
     elif current.power_w > ACTIVE_W:
         key = "now_charge_grid" if current.grid_w > ACTIVE_W else "now_charge_pv"
-        sentences.append(
-            t[key].format(power=_power(current.power_w), price=per_kwh(price_now or 0))
-        )
+        sentences.append(t[key].format(until=until, price=per_kwh(price_now or 0)))
     elif current.power_w < -ACTIVE_W:
         if plan.strategy == "nom" or price_now is None:
-            sentences.append(
-                t["now_discharge_nom"].format(power=_power(current.power_w))
-            )
+            sentences.append(t["now_discharge_nom"].format(until=until))
         elif current.grid_w < -ACTIVE_W:
             sentences.append(
                 t["now_discharge_export"].format(
-                    power=_power(current.power_w),
-                    export=_power(current.grid_w),
+                    until=until,
                     price=per_kwh(current.export_price or price_now),
                 )
             )
         else:
             sentences.append(
-                t["now_discharge"].format(
-                    power=_power(current.power_w), price=per_kwh(price_now)
-                )
+                t["now_discharge"].format(until=until, price=per_kwh(price_now))
             )
     elif (
         not min_soc_reached
@@ -307,6 +323,7 @@ def plan_story(
         if charge is not None:
             sentences.append(
                 t["now_idle_save_wait"].format(
+                    start=_at(saving.start, lang, now),
                     price=per_kwh(price_now),
                     use=use,
                     use_price=per_kwh(saving.price),
@@ -317,7 +334,10 @@ def plan_story(
         else:
             sentences.append(
                 t["now_idle_save"].format(
-                    price=per_kwh(price_now), use=use, use_price=per_kwh(saving.price)
+                    start=_at(saving.start, lang, now),
+                    price=per_kwh(price_now),
+                    use=use,
+                    use_price=per_kwh(saving.price),
                 )
             )
     elif (
@@ -329,12 +349,13 @@ def plan_story(
     ):
         sentences.append(
             t["now_idle_wait"].format(
+                until=until,
                 price=per_kwh(charges[0].price),
                 when=_when(charges[0], now, lang).split(" (")[0].lower(),
             )
         )
     elif min_soc_reached:
-        sentences.append(t["now_idle_empty"])
+        sentences.append(t["now_idle_empty"].format(until=until))
     elif price_now is not None:
         later = max(
             (s.price for s in slots if s.start > now and s.price is not None),
@@ -343,13 +364,13 @@ def plan_story(
         if later is not None and later * efficiency - cycle_cost <= price_now:
             sentences.append(
                 t["now_idle_no_gain"].format(
-                    price=per_kwh(price_now), later=per_kwh(later)
+                    until=until, price=per_kwh(price_now), later=per_kwh(later)
                 )
             )
         else:
-            sentences.append(t["now_idle"])
+            sentences.append(t["now_idle"].format(until=until))
     else:
-        sentences.append(t["now_idle"])
+        sentences.append(t["now_idle"].format(until=until))
 
     # 2. The next charge and what it is for.
     if charges:
@@ -399,20 +420,17 @@ def plan_story(
         hours = round((slots[-1].end - now).total_seconds() / 3600)
         sentences.append(t["no_charge"].format(hours=hours))
 
-    # 3. Compared with the other mode(s).
-    for mode, other in others.items():
-        if other.saving is None or plan.saving is None:
-            continue
-        diff = plan.saving - other.saving
-        name = t["modes"].get(mode, mode)
-        if abs(diff) < 0.05:
-            sentences.append(t["compare_same"].format(other=name))
-        elif diff > 0:
+    # 3. Compared with no battery over the whole plan.
+    if plan.saving is not None:
+        end_text = _at(slots[-1].end, lang, now)
+        if abs(plan.saving) < 0.05:
+            sentences.append(t["vs_none_same"].format(end=end_text))
+        elif plan.saving > 0:
             sentences.append(
-                t["compare_better"].format(other=name, diff=_money(diff, lang))
+                t["vs_none_saves"].format(end=end_text, diff=_money(plan.saving, lang))
             )
         else:
             sentences.append(
-                t["compare_worse"].format(other=name, diff=_money(-diff, lang))
+                t["vs_none_costs"].format(end=end_text, diff=_money(-plan.saving, lang))
             )
     return " ".join(sentences)

@@ -25,9 +25,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "battery_unavailable": "Battery {name} unavailable: its state of charge or power sensor has no valid value.",
         "battery_restored": "Battery {name} is available again.",
         "battery_full_charge": "Battery {name} is fully charged.",
-        "battery_charging": "{name} is charging at {power}.{plan}",
-        "battery_discharging": "{name} is supplying the house with {power}.{plan}",
-        "battery_idle": "{name} stopped charging and supplying.{plan}",
+        "battery_charging": "Since {since} {name} has been charging with {extra}{until}.{plan}",
+        "battery_discharging": "Since {since} {name} has been supplying the house{extra}, so less power comes from the grid{until}.{plan}",
+        "battery_stopped_charging": "{name} charged from {start} to {end}: {energy}{why}. {idle}{until}.{plan}",
+        "battery_stopped_discharging": "{name} supplied power from {start} to {end}: {energy}{why}. {idle}{until}.{plan}",
         "history_imported": "Consumption history imported: {count} periods from {first} to {last}.",
         "consumption_method_weekday_hour": "Consumption forecast based on the average per weekday and hour ({days} days of history).",
         "consumption_method_daytype_hour": "Consumption forecast based on weekdays/weekend per hour: not enough history per weekday yet ({days} days).",
@@ -70,9 +71,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "battery_unavailable": "Batterij {name} niet beschikbaar: de sensor voor vulling of vermogen heeft geen geldige waarde.",
         "battery_restored": "Batterij {name} is weer beschikbaar.",
         "battery_full_charge": "Batterij {name} is volledig opgeladen.",
-        "battery_charging": "{name} laadt nu met {power}.{plan}",
-        "battery_discharging": "{name} levert nu {power} aan het huis.{plan}",
-        "battery_idle": "{name} laadt en levert nu niet meer.{plan}",
+        "battery_charging": "{name} laadt sinds {since} met {extra}{until}.{plan}",
+        "battery_discharging": "{name} levert sinds {since} stroom aan het huis{extra}, zodat er minder stroom van het net nodig is{until}.{plan}",
+        "battery_stopped_charging": "{name} heeft geladen van {start} tot {end}: {energy}{why}. {idle}{until}.{plan}",
+        "battery_stopped_discharging": "{name} heeft stroom geleverd van {start} tot {end}: {energy}{why}. {idle}{until}.{plan}",
         "history_imported": "Verbruikshistorie geïmporteerd: {count} perioden van {first} tot {last}.",
         "consumption_method_weekday_hour": "Verbruiksvoorspelling gebaseerd op het gemiddelde per weekdag en uur ({days} dagen historie).",
         "consumption_method_daytype_hour": "Verbruiksvoorspelling gebaseerd op werkdag/weekend per uur: nog te weinig historie per weekdag ({days} dagen).",
@@ -127,21 +129,62 @@ KIND_NAMES: dict[str, dict[str, str]] = {
 }
 
 
-# How a real battery's activity compares with the plan (``plan`` parameter).
-PLAN_TEXTS: dict[str, dict[str, str]] = {
+# Phrases filled into a message: a parameter value "@<term>" is replaced by
+# the term in the message's language, itself filled from the other parameters.
+TERMS: dict[str, dict[str, str]] = {
     "en": {
         "none": "",
-        "same": " That matches the plan.",
-        "charge": " The plan said: charge {planned}. The battery follows its own control; HomeBatteryAssist only advises.",
-        "discharge": " The plan said: supply {planned}. The battery follows its own control; HomeBatteryAssist only advises.",
-        "idle": " The plan said: neither charge nor supply now. The battery follows its own control; HomeBatteryAssist only advises.",
+        "src_pv": "solar power that would otherwise go to the grid",
+        "src_grid": "power from the grid",
+        "src_mixed": "solar power and power from the grid",
+        "also_export": " and the grid",
+        "until_none": "",
+        "until_empty": ", expected until about {time}, when it is empty",
+        "until_full": ", expected until about {time}, when it is full",
+        "until_pv_end": ", expected until about {time}, when the solar surplus ends",
+        "until_pv_covers": ", expected until about {time}, when solar power covers the house again",
+        "until_other": ", expected until about {time}",
+        "until_resume_charging": ", expected until about {time}, when it charges again",
+        "until_resume_supplying": ", expected until about {time}, when it supplies the house again",
+        "idle_none": "Now it is idle",
+        "idle_grid": "Now it is idle and the house runs on the grid",
+        "idle_export": "Now it is idle and the solar surplus goes to the grid",
+        "idle_pv": "Now it is idle and solar power covers the house",
+        "stop_none": "",
+        "stop_full": " — it is full",
+        "stop_empty": " — it is empty (set lower limit)",
+        "plan_none": "",
+        "plan_same": " That matches the plan.",
+        "plan_charge": " The plan said: charge now. The battery follows its own control; HomeBatteryAssist only advises.",
+        "plan_discharge": " The plan said: supply now. The battery follows its own control; HomeBatteryAssist only advises.",
+        "plan_idle": " The plan said: neither charge nor supply now. The battery follows its own control; HomeBatteryAssist only advises.",
     },
     "nl": {
         "none": "",
-        "same": " Dat klopt met het plan.",
-        "charge": " Het plan zei: {planned} laden. De batterij volgt haar eigen sturing; HomeBatteryAssist geeft alleen advies.",
-        "discharge": " Het plan zei: {planned} leveren. De batterij volgt haar eigen sturing; HomeBatteryAssist geeft alleen advies.",
-        "idle": " Het plan zei: nu niet laden of leveren. De batterij volgt haar eigen sturing; HomeBatteryAssist geeft alleen advies.",
+        "src_pv": "zonnestroom die anders naar het net zou gaan",
+        "src_grid": "stroom uit het net",
+        "src_mixed": "zonnestroom en stroom uit het net",
+        "also_export": " en aan het net",
+        "until_none": "",
+        "until_empty": ", naar verwachting tot ongeveer {time}, dan is hij leeg",
+        "until_full": ", naar verwachting tot ongeveer {time}, dan is hij vol",
+        "until_pv_end": ", naar verwachting tot ongeveer {time}, dan is er geen zonne-overschot meer",
+        "until_pv_covers": ", naar verwachting tot ongeveer {time}, dan dekt zonnestroom het verbruik weer",
+        "until_other": ", naar verwachting tot ongeveer {time}",
+        "until_resume_charging": ", naar verwachting tot ongeveer {time}, dan gaat hij weer laden",
+        "until_resume_supplying": ", naar verwachting tot ongeveer {time}, dan gaat hij weer leveren",
+        "idle_none": "Nu doet hij niets",
+        "idle_grid": "Nu doet hij niets en komt de stroom voor het huis van het net",
+        "idle_export": "Nu doet hij niets en gaat het zonne-overschot naar het net",
+        "idle_pv": "Nu doet hij niets en dekt zonnestroom het verbruik van het huis",
+        "stop_none": "",
+        "stop_full": " — hij is vol",
+        "stop_empty": " — hij is leeg (ingestelde ondergrens)",
+        "plan_none": "",
+        "plan_same": " Dat klopt met het plan.",
+        "plan_charge": " Het plan zei: nu laden. De batterij volgt haar eigen sturing; HomeBatteryAssist geeft alleen advies.",
+        "plan_discharge": " Het plan zei: nu leveren. De batterij volgt haar eigen sturing; HomeBatteryAssist geeft alleen advies.",
+        "plan_idle": " Het plan zei: nu niet laden of leveren. De batterij volgt haar eigen sturing; HomeBatteryAssist geeft alleen advies.",
     },
 }
 
@@ -157,10 +200,21 @@ def render(language: str | None, key: str, params: dict[str, Any]) -> str:
         # Forecast kinds by name in the user's language.
         names = KIND_NAMES.get(lang, KIND_NAMES[DEFAULT_LANGUAGE])
         params = {**params, "kind": names.get(params["kind"], params["kind"])}
-    if "plan" in params:
-        texts = PLAN_TEXTS.get(lang, PLAN_TEXTS[DEFAULT_LANGUAGE])
-        text = texts.get(params["plan"], "")
-        params = {**params, "plan": text.format(planned=params.get("planned", ""))}
+    terms = TERMS.get(lang, TERMS[DEFAULT_LANGUAGE])
+    plain = {
+        k: _format(v)
+        for k, v in params.items()
+        if not (isinstance(v, str) and v.startswith("@"))
+    }
+    filled = dict(params)
+    for name, value in params.items():
+        if isinstance(value, str) and value.startswith("@"):
+            term = terms.get(value[1:], TERMS[DEFAULT_LANGUAGE].get(value[1:], ""))
+            try:
+                filled[name] = term.format(**plain)
+            except (KeyError, IndexError):
+                filled[name] = term
+    params = filled
     try:
         return template.format(**{k: _format(v) for k, v in params.items()})
     except (KeyError, IndexError):

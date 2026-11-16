@@ -36,10 +36,11 @@ from .forecasts.accuracy import ForecastAccuracy
 from .forecasts.adjustments import AdjustmentStore
 from .forecasts.coordinator import ForecastCoordinator
 from .history import ConsumptionHistory
-from .inputs.batteries import BatteryInput
+from .inputs.batteries import ACTIVITY_THRESHOLD_W, BatteryInput, activity_of
 from .inputs.measurements import MeasurementInput
 from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
 from .output.panel import async_setup_panel
+from .planning.battery_plan import MODE_NOM
 from .planning.verification import PlanVerification
 from .services import async_setup_services
 from .simulation.virtual_battery import VirtualBatterySimulator
@@ -125,6 +126,39 @@ async def async_setup_entry(
         return next((s.power_w for s in data.battery if s.start <= now < s.end), None)
 
     batteries.planned_now = _planned_now
+
+    def _expected_until(battery_id: str, activity: str):
+        """When a real battery's activity is expected to end if it follows the
+        forecast at zero on the meter (its usual own control), and why. Only
+        with a single battery: the plan pools all batteries."""
+        data, now = forecast.data, dt_util.utcnow()
+        live = [s for s in batteries.states.values() if s.available]
+        plan = data.plans.get(MODE_NOM) if data else None
+        if plan is None or len(live) != 1 or live[0].config.id != battery_id:
+            return None
+        grid = batteries.grid_now()
+        if activity == "charging" and grid is not None and grid > ACTIVITY_THRESHOLD_W:
+            return None  # charging from the grid: not zero on the meter
+        config = live[0].config
+        for slot in plan.slots:
+            if slot.end <= now:
+                continue
+            if activity_of(slot.power_w) == activity:
+                continue
+            if activity == "idle":
+                why = (
+                    "resume_charging"
+                    if activity_of(slot.power_w) == "charging"
+                    else "resume_supplying"
+                )
+            elif activity == "discharging":
+                why = "empty" if slot.soc <= config.min_soc + 1 else "pv_covers"
+            else:
+                why = "full" if slot.soc >= config.max_soc - 1 else "pv_end"
+            return max(slot.start, now), why
+        return None
+
+    batteries.expected_until = _expected_until
     await forecast.async_config_entry_first_refresh()
     if not hass.is_running:
         # Other integrations (price and PV forecasts) may still be starting:

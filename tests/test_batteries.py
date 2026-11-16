@@ -399,13 +399,26 @@ async def test_no_battery_no_totals(hass: HomeAssistant) -> None:
 async def test_activity_explained(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory
 ) -> None:
-    """What a real battery does by itself is explained once it lasts, next to
-    what the plan said; short swings are not."""
-    freezer.move_to(NOW)
+    """What a real battery does by itself is explained as periods: since when,
+    with what and until when, next to the plan; when it stops, the period it
+    ran. Short swings are not explained."""
+    await hass.config.async_set_time_zone("Europe/Amsterdam")
+    freezer.move_to(NOW)  # 13:00 local
     entry = await _entry(hass)
     batteries = entry.runtime_data.batteries
     batteries.planned_now = lambda: 0.0
+    batteries.expected_until = lambda battery_id, activity: {
+        "discharging": (NOW + timedelta(hours=3), "empty"),
+        "idle": (NOW + timedelta(hours=20), "resume_charging"),
+    }.get(activity)
     decisions = entry.runtime_data.decisions
+
+    async def later(minutes: int) -> None:
+        freezer.tick(timedelta(minutes=minutes))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+
+    _set(hass, "sensor.grid", "0", "W")
     _set(hass, "sensor.marstek_soc", "50", "%")
     _set(hass, "sensor.marstek_power", "0", "W")  # first state: not explained
     await hass.async_block_till_done()
@@ -414,35 +427,47 @@ async def test_activity_explained(
     # A short swing (2 minutes) is not explained.
     _set(hass, "sensor.marstek_power", "800", "W")  # discharging
     await hass.async_block_till_done()
-    freezer.tick(timedelta(minutes=2))
-    async_fire_time_changed(hass)
+    await later(2)
     _set(hass, "sensor.marstek_power", "0", "W")
     await hass.async_block_till_done()
-    freezer.tick(timedelta(minutes=6))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
+    await later(6)
     assert decisions.latest == before
 
-    # Lasting discharging, while the plan said idle.
+    # Lasting discharging (from 13:08), while the plan said idle.
     _set(hass, "sensor.marstek_power", "500", "W")
     await hass.async_block_till_done()
-    freezer.tick(timedelta(minutes=6))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
+    await later(6)
     assert decisions.latest["key"] == "battery_discharging"
     assert decisions.latest["message"] == (
-        "Venus is supplying the house with 500 W. The plan said: neither charge "
-        "nor supply now. The battery follows its own control; "
+        "Since 13:08 Venus has been supplying the house, so less power comes from "
+        "the grid, expected until about 16:00, when it is empty. The plan said: "
+        "neither charge nor supply now. The battery follows its own control; "
         "HomeBatteryAssist only advises."
     )
 
-    # Charging as planned.
+    # It stops at 14:08 at its lower limit: the period is summed up, and the
+    # idle period that follows is explained (the house runs on the grid).
+    await later(54)
+    _set(hass, "sensor.grid", "400", "W")
+    _set(hass, "sensor.marstek_soc", "10", "%")
+    _set(hass, "sensor.marstek_power", "0", "W")
+    await hass.async_block_till_done()
+    await later(6)
+    assert decisions.latest["key"] == "battery_stopped_discharging"
+    assert decisions.latest["message"] == (
+        "Venus supplied power from 13:08 to 14:08: 0.5 kWh — it is empty "
+        "(set lower limit). Now it is idle and the house runs on the grid, "
+        "expected until about 17-11 09:00, when it charges again. That matches "
+        "the plan."
+    )
+
+    # Charging from the grid, as planned.
     batteries.planned_now = lambda: 1000.0
+    _set(hass, "sensor.grid", "1500", "W")
     _set(hass, "sensor.marstek_power", "-1200", "W")
     await hass.async_block_till_done()
-    freezer.tick(timedelta(minutes=6))
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
+    await later(6)
     assert decisions.latest["message"] == (
-        "Venus is charging at 1200 W. That matches the plan."
+        "Since 14:14 Venus has been charging with power from the grid. "
+        "That matches the plan."
     )

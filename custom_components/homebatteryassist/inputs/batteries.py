@@ -89,6 +89,14 @@ def activity_of(power_w: float) -> str:
     return "idle"
 
 
+def clock(when: datetime) -> str:
+    """Local time as ``HH:MM`` today, else ``dd-mm HH:MM``."""
+    local = dt_util.as_local(when)
+    if local.date() == dt_util.now().date():
+        return f"{local:%H:%M}"
+    return f"{local:%d-%m %H:%M}"
+
+
 def plan_comparison(actual: str, planned_w: float | None) -> str:
     """How a battery's activity compares with the plan right now: ``same``,
     ``charge`` / ``discharge`` / ``idle`` (what the plan said instead) or
@@ -344,7 +352,14 @@ class BatteryInput:
         self.planned_now: Callable[[], float | None] = lambda: None
         # battery id -> explained activity, and a pending change with its timer
         self._activity: dict[str, str] = {}
-        self._pending: dict[str, tuple[str, CALLBACK_TYPE]] = {}
+        self._pending: dict[str, tuple[str, datetime, CALLBACK_TYPE]] = {}
+        # battery id -> start of the current period with the counters then
+        self._began: dict[str, tuple[datetime, float, float]] = {}
+        # When the current activity is expected to end and why
+        # (``empty``/``full``/``pv_end``/``pv_covers``), if known.
+        self.expected_until: Callable[[str, str], tuple[datetime, str] | None] = (
+            lambda battery_id, activity: None
+        )
         # battery id -> [[ISO time, state of charge %], ...] every quarter, 7 days
         self.soc_log: dict[str, list[list[Any]]] = {}
 
@@ -394,7 +409,7 @@ class BatteryInput:
         if self._unsub_log is not None:
             self._unsub_log()
             self._unsub_log = None
-        for _activity, cancel in self._pending.values():
+        for _activity, _began, cancel in self._pending.values():
             cancel()
         self._pending.clear()
         await self._store.async_save(self._data())
@@ -505,41 +520,121 @@ class BatteryInput:
         return grid
 
     def _follow_activity(self, config: BatteryConfig, power: float | None) -> None:
-        """Explain what a real battery does (its own control), once a change
-        has lasted ``ACTIVITY_SETTLE``; not the first state after start-up."""
+        """Explain what a real battery does (its own control) as periods: when a
+        change has lasted ``ACTIVITY_SETTLE``, since when, with what and until
+        when it is expected to go on; when it stops, the period it ran. Not the
+        first state after start-up."""
         if power is None:
             return
         activity = activity_of(power)
         if config.id not in self._activity:
             self._activity[config.id] = activity
+            self._began[config.id] = self._period_start(config.id, dt_util.utcnow())
             return
         pending = self._pending.get(config.id)
         if pending is not None and pending[0] == activity:
             return
         if pending is not None:
-            pending[1]()
+            pending[2]()
             del self._pending[config.id]
         if activity == self._activity[config.id]:
             return
+        began = dt_util.utcnow()
 
         @callback
         def _settled(_now: datetime) -> None:
             self._pending.pop(config.id, None)
+            previous = self._activity[config.id]
             self._activity[config.id] = activity
-            power_w = self.states[config.id].power_w or 0.0
-            planned = self.planned_now()
-            self._decisions.async_log(
-                "battery",
-                f"battery_{activity}",
-                name=config.name,
-                power=f"{abs(power_w):.0f} W",
-                plan=plan_comparison(activity, planned),
-                planned=f"{abs(planned or 0.0):.0f} W",
-            )
+            if previous != "idle" and activity == "idle":
+                self._explain_stop(config, previous, began)
+            elif activity != "idle":
+                self._explain_start(config, activity, began)
+            self._began[config.id] = self._period_start(config.id, began)
 
         self._pending[config.id] = (
             activity,
+            began,
             async_call_later(self.hass, ACTIVITY_SETTLE, _settled),
+        )
+
+    def _period_start(
+        self, battery_id: str, when: datetime
+    ) -> tuple[datetime, float, float]:
+        stats = self.stats[battery_id]
+        return when, stats["charged_kwh"], stats["discharged_kwh"]
+
+    def _explain_start(
+        self, config: BatteryConfig, activity: str, began: datetime
+    ) -> None:
+        grid = self.grid_now()
+        if activity == "charging":
+            power = self.states[config.id].power_w or 0.0
+            if grid is None or grid <= ACTIVITY_THRESHOLD_W:
+                extra = "@src_pv"
+            elif grid >= power - ACTIVITY_THRESHOLD_W:
+                extra = "@src_grid"
+            else:
+                extra = "@src_mixed"
+        else:
+            exporting = grid is not None and grid < -ACTIVITY_THRESHOLD_W
+            extra = "@also_export" if exporting else "@none"
+        expected = self.expected_until(config.id, activity)
+        until, why = expected if expected else (None, "none")
+        planned = self.planned_now()
+        self._decisions.async_log(
+            "battery",
+            f"battery_{activity}",
+            name=config.name,
+            since=clock(began),
+            extra=extra,
+            until="@until_none" if until is None else f"@until_{why}",
+            time=clock(until) if until else "",
+            plan=f"@plan_{plan_comparison(activity, planned)}",
+        )
+
+    def _explain_stop(
+        self, config: BatteryConfig, previous: str, ended: datetime
+    ) -> None:
+        start, charged, discharged = self._began.get(
+            config.id, self._period_start(config.id, ended)
+        )
+        stats = self.stats[config.id]
+        kwh = (
+            stats["charged_kwh"] - charged
+            if previous == "charging"
+            else stats["discharged_kwh"] - discharged
+        )
+        state = self.states[config.id]
+        why = "none"
+        if state.soc is not None and state.soc >= config.max_soc - 1:
+            why = "full"
+        elif state.soc is not None and state.soc <= config.min_soc + 1:
+            why = "empty"
+        # What the house runs on now that the battery is idle.
+        grid = self.grid_now()
+        if grid is None:
+            idle = "none"
+        elif grid > ACTIVITY_THRESHOLD_W:
+            idle = "grid"
+        elif grid < -ACTIVITY_THRESHOLD_W:
+            idle = "export"
+        else:
+            idle = "pv"
+        expected = self.expected_until(config.id, "idle")
+        until, until_why = expected if expected else (None, "none")
+        self._decisions.async_log(
+            "battery",
+            f"battery_stopped_{previous}",
+            name=config.name,
+            start=clock(start),
+            end=clock(ended),
+            energy=f"{kwh:.1f} kWh",
+            why=f"@stop_{why}",
+            idle=f"@idle_{idle}",
+            until="@until_none" if until is None else f"@until_{until_why}",
+            time=clock(until) if until else "",
+            plan=f"@plan_{plan_comparison('idle', self.planned_now())}",
         )
 
     def _explain_availability(self, config: BatteryConfig, available: bool) -> None:
