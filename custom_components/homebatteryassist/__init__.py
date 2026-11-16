@@ -153,6 +153,9 @@ async def async_setup_entry(
                 continue
             if activity_of(slot.power_w) == activity:
                 continue
+            if slot.start <= now:
+                # The forecast does not match what the battery does now.
+                return None
             if activity == "idle":
                 why = (
                     "resume_charging"
@@ -225,7 +228,7 @@ async def async_setup_entry(
 
     @callback
     def _check_plan(now: datetime) -> None:
-        plan_check.settle(now, _battery_totals)
+        plan_check.settle(now, _battery_totals, forecast.cycle_cost)
         if forecast.data is not None:
             plan_check.record_plan(
                 forecast.data.battery,

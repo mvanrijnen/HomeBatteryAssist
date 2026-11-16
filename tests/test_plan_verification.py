@@ -47,3 +47,15 @@ async def test_plan_versus_counters(hass: HomeAssistant) -> None:
     (day,) = check.days()
     assert day["power_deviation_w"] == 400
     assert day["slots"] == 1
+
+
+async def test_realised_value_after_wear(hass: HomeAssistant) -> None:
+    """The realised value counts the same wear as the planned saving."""
+    check = PlanVerification(hass, "test")
+    totals = {"charged_kwh": 10.0, "discharged_kwh": 5.0, "value": 1.0}
+    check.settle(T0, lambda: dict(totals), 0.05)
+    check.record_plan([_slot(T0, 2000.0, 2500.0, 0.10)], "arbitrage", T0, 1.0, 0.05)
+    totals.update(charged_kwh=10.4, value=0.96)
+    check.settle(T0 + Q, lambda: dict(totals), 0.05)
+    (record,) = check.records
+    assert record["value"] == round(-0.04 - 0.4 * 0.05, 5)

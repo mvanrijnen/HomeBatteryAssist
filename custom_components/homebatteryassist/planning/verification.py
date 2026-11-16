@@ -34,6 +34,7 @@ _LOGGER = logging.getLogger(__name__)
 STORAGE_VERSION = 1
 RETENTION = timedelta(days=28)
 SAVE_DELAY = 60
+WEAR_BASIS = 1  # realised values after wear, like the planned saving
 
 
 def slot_saving(
@@ -74,8 +75,8 @@ class PlanVerification:
     async def async_load(self) -> None:
         """Load the stored records."""
         data = await self._store.async_load() or {}
-        if data.get("value_basis") != VALUE_BASIS:
-            data = {}  # realised values of an older basis (net metering)
+        if data.get("value_basis") != VALUE_BASIS or data.get("wear") != WEAR_BASIS:
+            data = {}  # realised values of an older basis (net metering / no wear)
         self.records = data.get("records", [])
         self.planned = data.get("planned", {})
 
@@ -88,6 +89,7 @@ class PlanVerification:
             "records": self.records,
             "planned": self.planned,
             "value_basis": VALUE_BASIS,
+            "wear": WEAR_BASIS,
         }
 
     def record_plan(
@@ -117,11 +119,14 @@ class PlanVerification:
         self,
         now: datetime,
         counters: Callable[[], Mapping[str, float]],
+        cycle_cost: float = 0.0,
     ) -> None:
         """At a slot boundary: compare the finished slot(s) with the counters.
 
         ``counters`` gives the totals over all batteries: ``charged_kwh``,
-        ``discharged_kwh`` and ``value``.
+        ``discharged_kwh`` and ``value``. The realised value is counted after
+        wear (``cycle_cost`` per kWh charged or discharged), like the planned
+        saving.
         """
         totals = counters()
         snapshot = (
@@ -149,7 +154,10 @@ class PlanVerification:
             del self.planned[key]
             if slot_start < start - timedelta(minutes=1):
                 continue  # not measured from its start (e.g. after a restart)
-            energy = (snapshot[1] - previous[1]) - (snapshot[2] - previous[2])
+            charged = snapshot[1] - previous[1]
+            discharged = snapshot[2] - previous[2]
+            energy = charged - discharged
+            wear = (charged + discharged) * cycle_cost
             self.records.append(
                 {
                     "start": key,
@@ -157,7 +165,7 @@ class PlanVerification:
                     "plan_w": entry["plan_w"],
                     "actual_w": round(energy * 1000 / hours, 1),
                     "plan_saving": entry["plan_saving"],
-                    "value": round(snapshot[3] - previous[3], 5),
+                    "value": round(snapshot[3] - previous[3] - wear, 5),
                     "mode": entry["mode"],
                 }
             )
