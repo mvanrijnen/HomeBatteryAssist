@@ -32,9 +32,11 @@ const TEXT = {
     usable: "Usable",
     fullAt: "Full at",
     emptyAt: "Empty at",
-    fullExpected: "Full at (forecast)",
-    emptyExpected: "Empty at (forecast)",
-    reachInfo: "At the current power / if the battery follows the consumption and solar forecast (zero on the meter)",
+    fullExpected: "Full at (plan)",
+    emptyExpected: "Empty at (plan)",
+    fullNom: "Full at (zero on the meter)",
+    emptyNom: "Empty at (zero on the meter)",
+    reachInfo: "Now: at the current power. Plan: following the selected plan with the consumption and solar forecast. Zero on the meter: if the battery just covers the house's forecast consumption.",
     phases: "Grid connection",
     phase: "Phase",
     detail: {
@@ -194,9 +196,11 @@ const TEXT = {
     usable: "Bruikbaar",
     fullAt: "Vol om",
     emptyAt: "Leeg om",
-    fullExpected: "Vol om (voorspeld)",
-    emptyExpected: "Leeg om (voorspeld)",
-    reachInfo: "Bij het huidige vermogen / als de batterij de verbruiks- en zonnevoorspelling volgt (nul op de meter)",
+    fullExpected: "Vol om (plan)",
+    emptyExpected: "Leeg om (plan)",
+    fullNom: "Vol om (nul op de meter)",
+    emptyNom: "Leeg om (nul op de meter)",
+    reachInfo: "Nu: bij het huidige vermogen. Plan: volgens het gekozen plan met de verbruiks- en zonnevoorspelling. Nul op de meter: als de batterij alleen het voorspelde verbruik van het huis dekt.",
     phases: "Netaansluiting",
     phase: "Fase",
     detail: {
@@ -743,6 +747,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
       ${target ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(status === "charging" ? t.fullAt : t.emptyAt)}</span><b>${this._time(target)}</b></div>` : ""}
       ${b.expected_full ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.fullExpected)}</span><b>${this._time(b.expected_full)}</b></div>` : ""}
       ${b.expected_empty ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.emptyExpected)}</span><b>${this._time(b.expected_empty)}</b></div>` : ""}
+      ${b.nom_full && b.nom_full !== b.expected_full ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.fullNom)}</span><b>${this._time(b.nom_full)}</b></div>` : ""}
+      ${b.nom_empty && b.nom_empty !== b.expected_empty ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.emptyNom)}</span><b>${this._time(b.nom_empty)}</b></div>` : ""}
       ${Object.entries(b.details || {})
         .filter(([k]) => t.detail[k])
         .map(([k, v]) => {

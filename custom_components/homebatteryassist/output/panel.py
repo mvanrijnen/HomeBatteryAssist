@@ -103,22 +103,29 @@ def _iso(value: Any) -> str | None:
 
 
 def _expected_reach(data: Any, battery_id: str) -> dict[str, str | None]:
-    """When the battery is expected to be empty / full if it follows the
-    consumption and PV forecast by itself (zero on the meter, the usual own
-    control of a home battery). Only for a single battery: the plan pools
-    all batteries."""
-    plan = data.forecast.data.plans.get(MODE_NOM)
+    """When the battery is expected to be empty / full: following the selected
+    plan, and (if that is another mode) at zero on the meter — the usual own
+    control of a home battery. Only for a single battery: the plans pool all
+    batteries."""
     states = [s for s in data.batteries.states.values() if s.available]
-    if plan is None or len(states) != 1 or states[0].config.id != battery_id:
+    if len(states) != 1 or states[0].config.id != battery_id:
         return {}
     state = states[0]
     config = state.config
     floor = min(max(config.min_soc, data.forecast.rules.reserve_soc), config.max_soc)
-    empty, full = reach_times(plan.slots, state.soc, floor, config.max_soc)
-    return {
-        "expected_empty": empty.isoformat() if empty else None,
-        "expected_full": full.isoformat() if full else None,
-    }
+    forecast = data.forecast.data
+    result: dict[str, str | None] = {}
+    modes = {"expected": forecast.plan_mode}
+    if forecast.plan_mode != MODE_NOM:
+        modes["nom"] = MODE_NOM
+    for prefix, mode in modes.items():
+        plan = forecast.plans.get(mode)
+        if plan is None:
+            continue
+        empty, full = reach_times(plan.slots, state.soc, floor, config.max_soc)
+        result[f"{prefix}_empty"] = empty.isoformat() if empty else None
+        result[f"{prefix}_full"] = full.isoformat() if full else None
+    return result
 
 
 def _meter_info(hass: HomeAssistant, measurements: MeasurementInput) -> dict[str, Any]:
