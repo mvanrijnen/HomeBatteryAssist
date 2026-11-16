@@ -77,6 +77,25 @@ async def async_get_config_entry_diagnostics(
             "pv_hours": len(forecast.pv_wh),
             "pv_end": forecast.pv_end.isoformat() if forecast.pv_end else None,
             "last_update_success": data.forecast.last_update_success,
+            "plans": {
+                mode: {"strategy": plan.strategy, "saving": plan.saving}
+                for mode, plan in forecast.plans.items()
+            },
+        },
+        "modules": {
+            "planner": data.forecast.plan_mode,
+            "planner_fallback": data.forecast.plan_fallback,
+            "consumption_forecaster": data.forecast.forecaster_key,
+            "forecaster_fallback": data.forecast.forecaster_fallback,
+            "tariff": data.forecast.tariff_key,
+            "tariff_fallback": data.forecast.tariff_fallback,
+            "own": {
+                "planners": sorted(data.forecast.planners),
+                "forecasters": sorted(data.forecast.forecasters),
+                "tariffs": sorted(data.forecast.tariffs),
+                "pv_forecasts": sorted(data.forecast.pv_sources),
+            },
+            "forecaster_accuracy": data.forecast.accuracy.forecasters(),
         },
         "accuracy": {
             kind: {

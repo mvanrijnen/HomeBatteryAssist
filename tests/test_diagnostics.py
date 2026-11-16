@@ -34,8 +34,12 @@ async def test_diagnostics(hass: HomeAssistant) -> None:
         "history",
         "forecasts",
         "accuracy",
+        "modules",
         "decisions",
     }
+    assert diag["modules"]["planner"] == "nom"
+    assert diag["modules"]["consumption_forecaster"] == "profile"
+    assert diag["modules"]["tariff"] == "source"
     assert diag["config"]["data"]["sensor_l1"] == "sensor.l1"
     assert diag["inputs"]["house_consumption_w"] == 750.0
     assert diag["inputs"]["sources"]["sensor.l1"]["state"] == "750"
