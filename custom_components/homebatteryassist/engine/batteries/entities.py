@@ -13,9 +13,9 @@ from typing import ClassVar
 
 from homeassistant.core import HomeAssistant
 
-from ...inputs.batteries import BatteryConfig
-from ...inputs.units import parse_float
+from ..inputs.units import parse_float
 from .base import BatteryDriver, BatteryTelemetry, device_entities
+from .monitor import BatteryConfig
 
 TELEMETRY_FIELDS = (
     "temperature_c",

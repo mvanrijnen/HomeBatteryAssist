@@ -67,7 +67,7 @@ from ...const import (
     VALUE_BASIS,
 )
 from ..explain import DecisionLog
-from .units import parse_float, state_to_watts
+from ..inputs.units import parse_float, state_to_watts
 
 _LOGGER = logging.getLogger(__name__)
 

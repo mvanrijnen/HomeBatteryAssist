@@ -22,7 +22,7 @@ import logging
 
 from homeassistant.core import HomeAssistant
 
-from ...inputs.prices import PricePoint
+from ..inputs.prices import PricePoint
 from .base import ROLE_IMPORT, PriceData, PriceDriver, PriceSource
 
 _LOGGER = logging.getLogger(__name__)

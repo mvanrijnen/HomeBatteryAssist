@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from ...inputs.batteries import BatteryConfig
+from .monitor import BatteryConfig
 
 
 @dataclass(slots=True)

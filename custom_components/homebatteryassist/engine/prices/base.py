@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 
 from homeassistant.core import HomeAssistant
 
-from ...inputs.prices import PricePoint
+from ..inputs.prices import PricePoint
 
 ROLE_IMPORT = "import"
 ROLE_MARKET = "market"

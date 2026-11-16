@@ -4,9 +4,9 @@ Prices, batteries, grid meters and PV meters are read through *drivers*, one per
 
 | Kind | Package | Template |
 |---|---|---|
-| Price sources (incl. forecast-only sources) | `engine/drivers/prices/` | `template.py` |
-| Batteries (reading; write methods are defined but never used) | `engine/drivers/batteries/` | `template.py` |
-| Grid and PV meters read directly | `engine/drivers/meters/` | `template.py` |
+| Price sources (incl. forecast-only sources) | `engine/prices/` | `template.py` |
+| Batteries (reading; write methods are defined but never used) | `engine/batteries/` | `template.py` |
+| Grid and PV meters read directly | `engine/meters/` | `template.py` |
 
 Every kind has an empty template that is only a code example (never offered in the settings).
 

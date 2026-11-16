@@ -49,7 +49,6 @@ from homeassistant.util import dt as dt_util
 from ...const import NOMINAL_VOLTAGE
 from ..explain import DecisionLog
 from ..forecasts.coordinator import ForecastCoordinator
-from ..inputs.batteries import BatteryConfig, BatteryInput
 from ..inputs.measurements import MeasurementInput
 from ..planning.battery_plan import MODE_NOM
 from ..planning.distribution import Candidate, Distributor
@@ -61,6 +60,7 @@ from ..planning.phase_limit import (
     relieve,
     shave_peak,
 )
+from .monitor import BatteryConfig, BatteryInput
 
 _LOGGER = logging.getLogger(__name__)
 

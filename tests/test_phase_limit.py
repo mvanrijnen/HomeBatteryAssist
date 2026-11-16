@@ -6,6 +6,9 @@ from types import SimpleNamespace
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
+from custom_components.homebatteryassist.engine.batteries.virtual import (
+    VirtualBatterySimulator,
+)
 from custom_components.homebatteryassist.engine.forecasts.consumption import (
     ForecastSlot,
 )
@@ -23,9 +26,6 @@ from custom_components.homebatteryassist.engine.planning.phase_limit import (
     cap_powers,
     max_power,
     phase_limit_w,
-)
-from custom_components.homebatteryassist.engine.simulation.virtual_battery import (
-    VirtualBatterySimulator,
 )
 
 T0 = datetime(2026, 11, 16, 0, 0, tzinfo=dt_util.UTC)

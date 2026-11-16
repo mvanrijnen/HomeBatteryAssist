@@ -23,7 +23,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from ...const import DEFAULT_PHASE_MARGIN, NOMINAL_VOLTAGE, phase_index
-from ..inputs.batteries import BatteryConfig
+from ..batteries.monitor import BatteryConfig
 
 
 def phase_limit_w(max_current: float, margin: float = DEFAULT_PHASE_MARGIN) -> float:

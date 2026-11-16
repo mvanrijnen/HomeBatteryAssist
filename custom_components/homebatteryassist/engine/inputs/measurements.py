@@ -55,10 +55,10 @@ from ...const import (
     phase_return_sensor_keys,
     phase_sensor_keys,
 )
-from ..drivers.meters import get_driver as get_meter_driver
+from ..batteries.monitor import battery_configs, battery_power
 from ..explain import DecisionLog
-from .batteries import battery_configs, battery_power
-from .direct import DIRECT_SOURCES, SOURCE_SENSORS, DirectMeter, create_meter
+from ..meters import get_driver as get_meter_driver
+from ..meters.direct import DIRECT_SOURCES, SOURCE_SENSORS, DirectMeter, create_meter
 from .units import state_to_watts
 
 _LOGGER = logging.getLogger(__name__)

@@ -150,7 +150,7 @@ async def test_direct_meter_goes_stale(hass: HomeAssistant, freezer) -> None:
     measurement becomes unknown instead of keeping the last value."""
     from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-    from custom_components.homebatteryassist.engine.inputs.direct import DirectMeter
+    from custom_components.homebatteryassist.engine.meters.direct import DirectMeter
 
     freezer.move_to(DST_END)
     meter = DirectMeter(hass, "192.0.2.1")

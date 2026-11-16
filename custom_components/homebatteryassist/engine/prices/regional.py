@@ -22,7 +22,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
-from ...inputs.prices import PricePoint
+from ..inputs.prices import PricePoint
 from .base import ROLE_IMPORT, PriceData, PriceDriver, PriceSource
 from .sensors import SensorAttributeDriver
 

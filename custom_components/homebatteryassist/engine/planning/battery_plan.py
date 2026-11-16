@@ -26,8 +26,8 @@ from datetime import date, datetime
 
 from homeassistant.util import dt as dt_util
 
+from ..batteries.monitor import BatteryState
 from ..forecasts.consumption import ForecastSlot
-from ..inputs.batteries import BatteryState
 from ..inputs.prices import PricePoint
 from ..modules.planners import (
     BUILTIN,

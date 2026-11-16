@@ -26,7 +26,7 @@ from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME
-from ..engine.inputs.batteries import BatteryInput, BatteryState, BatteryStatus
+from ..engine.batteries.monitor import BatteryInput, BatteryState, BatteryStatus
 from ..models import HomeBatteryAssistConfigEntry
 
 

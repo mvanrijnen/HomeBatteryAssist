@@ -16,8 +16,8 @@ import asyncio
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from ...inputs.direct import DirectCandidate, DirectMeter, PollingMeter
 from .base import MeterDriver
+from .direct import DirectCandidate, DirectMeter, PollingMeter
 
 
 class TemplateMeter(PollingMeter):

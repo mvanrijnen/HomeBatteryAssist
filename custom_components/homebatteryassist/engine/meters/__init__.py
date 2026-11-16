@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
 
-from ...inputs.direct import (
+from .base import MeterDriver
+from .direct import (
     SOURCE_HOMEWIZARD,
     SOURCE_IAMMETER,
     SOURCE_NAMES,
@@ -19,7 +20,6 @@ from ...inputs.direct import (
     create_meter,
     find_direct_meters,
 )
-from .base import MeterDriver
 
 
 class _Driver(MeterDriver):

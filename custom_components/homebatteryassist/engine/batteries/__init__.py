@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
 
-from ...inputs.batteries import BatteryConfig
 from .base import BatteryDriver, BatteryTelemetry, platform_of
 from .entities import MarstekModbusDriver, OmnibatteryDriver
+from .monitor import BatteryConfig
 
 DRIVERS: tuple[BatteryDriver, ...] = (OmnibatteryDriver(), MarstekModbusDriver())
 

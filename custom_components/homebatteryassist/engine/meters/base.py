@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from homeassistant.core import HomeAssistant
 
-from ...inputs.direct import DirectCandidate, DirectMeter
+from .direct import DirectCandidate, DirectMeter
 
 
 class MeterDriver:

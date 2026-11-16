@@ -19,7 +19,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME, NOMINAL_VOLTAGE
-from ..engine.drivers.batteries import telemetry as battery_telemetry
+from ..engine.batteries import telemetry as battery_telemetry
 from ..engine.forecasts.accuracy import BUCKET_KEYS, KINDS
 from ..engine.history.profile import (
     day_profile,
@@ -27,9 +27,9 @@ from ..engine.history.profile import (
     hourly_series,
     week_profiles,
 )
-from ..engine.inputs.direct import SOURCE_NAMES, find_direct_meters
 from ..engine.inputs.measurements import MeasurementInput
-from ..engine.inputs.meters import find_meter_candidates
+from ..engine.meters.direct import SOURCE_NAMES, find_direct_meters
+from ..engine.meters.ha_meters import find_meter_candidates
 from ..engine.modules.forecasters import BUILTIN as FORECASTERS
 from ..engine.planning.battery_plan import (
     ARBITRAGE_MODES,

@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
-from ...inputs.prices import parse_price_forecast
+from ..inputs.prices import parse_price_forecast
 from .base import ROLE_IMPORT, ROLE_MARKET, PriceData, PriceDriver, PriceSource
 
 

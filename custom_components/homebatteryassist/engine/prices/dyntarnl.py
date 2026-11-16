@@ -18,7 +18,7 @@ from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from ...inputs.prices import (
+from ..inputs.prices import (
     MARKET_ATTRIBUTES,
     merge_price_forecasts,
     parse_price_forecast,

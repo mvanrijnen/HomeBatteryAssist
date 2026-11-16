@@ -2,7 +2,7 @@
 
 Never registered and never offered. Copy this file, rename the class, fill
 it in, and add an instance to ``DRIVERS`` in ``__init__.py``. Also add a
-``BatteryProfile`` to ``inputs/profiles.py`` so the battery is recognised when
+``BatteryProfile`` to ``engine/batteries/profiles.py`` so the battery is recognised when
 it is added (state of charge and power sensor, properties).
 
 Rules:
@@ -21,8 +21,8 @@ from typing import ClassVar
 
 from homeassistant.core import HomeAssistant
 
-from ...inputs.batteries import BatteryConfig
 from .entities import EntityBatteryDriver
+from .monitor import BatteryConfig
 
 
 class TemplateBatteryDriver(EntityBatteryDriver):

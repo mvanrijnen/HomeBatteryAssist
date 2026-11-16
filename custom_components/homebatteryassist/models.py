@@ -7,10 +7,10 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 
+from .engine.batteries.monitor import BatteryInput
 from .engine.explain import DecisionLog
 from .engine.forecasts.coordinator import ForecastCoordinator
 from .engine.history import ConsumptionHistory
-from .engine.inputs.batteries import BatteryInput
 from .engine.inputs.measurements import MeasurementInput
 from .engine.planning.verification import PlanVerification
 
