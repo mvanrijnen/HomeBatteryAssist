@@ -443,8 +443,8 @@ const STYLE = `
   .chart svg { width: 100%; height: auto; display: block; }
   .chart .grid { stroke: var(--divider-color); stroke-width: 1; }
   .chart .axis { fill: var(--secondary-text-color); font-size: 11px; }
-  .chart .line { fill: none; stroke-width: 2; stroke-linejoin: round; }
-  .chart .line.dashed { stroke-dasharray: 5 4; stroke-width: 1.5; }
+  .chart .line { fill: none; stroke-width: 1.4; stroke-linejoin: round; }
+  .chart .line.dashed { stroke-dasharray: 4 3; stroke-width: 1.2; }
   .chart .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
   .chart .head h3 { margin: 0; }
   .nav { display: flex; gap: 4px; flex-wrap: wrap; }
@@ -1202,7 +1202,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     // Last 7 days: hourly points, ticks at local midnight.
     const pts = h.hourly.map(([time, house]) => [time, house]);
     const excludedPts = h.hourly.map(([time, , excluded]) => [time, excluded]);
-    const excludedColor = "#ab47bc"; // purple: clearly different from PV (yellow)
+    const excludedColor = "#ce93d8"; // purple: clearly different from PV (yellow)
     const xMin = pts.length ? pts[0][0] : Date.now() - 7 * 864e5;
     const xMax = Date.now();
     const ticks = [];
@@ -1257,9 +1257,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
     let forecastChart;
     const past = h.past || [];
     const pvFc = h.pv_forecast || [];
-    const pvColor = "#fbc02d";
-    const batteryColor = "var(--success-color, #43a047)";
-    const gridColor = "#e53935";
+    const pvColor = "#ffd600";
+    const batteryColor = "#00c853";
+    const gridColor = "#ff1744";
     // Grid = house - PV + excluded devices + battery charging (from the history).
     const gridPast = past.map(([ts, house, excluded, pv, battery]) => [
       ts,
@@ -1278,8 +1278,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     let socChart = "";
     // Prices (published solid, forecast dashed) as steps, on the right axis.
     const priceRows = h.price_series || [];
-    const priceColor = "#ff7043";
-    const exportColor = "#26a69a";
+    const priceColor = "var(--primary-text-color)"; // white in a dark theme
+    const exportColor = "#ff9100";
     const priceUnit = h.price_unit || "";
     const priceFmt = (v) => `${Number(v).toFixed(2)}${priceUnit ? ` ${priceUnit}` : ""}`;
     const axisFmt = (v) => `€ ${Number(v).toFixed(2)}`;
