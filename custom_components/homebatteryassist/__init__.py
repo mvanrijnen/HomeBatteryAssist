@@ -187,6 +187,7 @@ async def async_setup_entry(
         history=history,
         forecast=forecast,
         plan_check=plan_check,
+        simulator=simulator,
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # Options and subentry changes (PV sources, excluded loads) require a reload.

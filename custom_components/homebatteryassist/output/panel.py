@@ -32,6 +32,7 @@ from ..planning.battery_plan import (
     compare_modes,
 )
 from ..planning.phase_limit import phase_limit_w
+from ..planning.verification import slot_saving
 from .batteries import BATTERY_SENSORS, TOTAL_SENSORS
 
 _LOGGER = logging.getLogger(__name__)
@@ -128,6 +129,32 @@ def _meter_info(hass: HomeAssistant, measurements: MeasurementInput) -> dict[str
     }
 
 
+def _protection(data: Any) -> dict[str, Any] | None:
+    sim = data.simulator
+    if sim is None:
+        return None
+    return {
+        "relief": {f"L{i + 1}": round(w) for i, w in sim.relief_now.items()},
+        "limited": [f"L{i + 1}" for i in sim.limited_phases],
+        "peak_w": round(sim.peak_now),
+        "peak_limit_w": data.forecast.peak_w,
+    }
+
+
+def _vs_none(forecast: Any) -> list[list[float]]:
+    plan = forecast.data.plans.get(forecast.data.plan_mode)
+    if plan is None or not plan.slots or plan.cost is None:
+        return []
+    start_soc = plan.slots[0].soc
+    total = 0.0
+    series = []
+    for slot in plan.slots:
+        total += slot_saving(slot, forecast.export_factor, forecast.cycle_cost) or 0.0
+        stored = (slot.soc - start_soc) / 100 * plan.capacity_kwh * plan.value_per_kwh
+        series.append([int(slot.start.timestamp() * 1000), round(total + stored, 4)])
+    return series
+
+
 def _prices_now(hass: HomeAssistant, data: Any) -> dict[str, Any] | None:
     """The current and the next power price, and what export earns now."""
     forecast = data.forecast.data
@@ -207,6 +234,8 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             "limited_by": window.limited_by.value,
         },
         "prices": _prices_now(hass, data),
+        # What the phase protection, phase limits and peak shaving do now.
+        "protection": _protection(data),
         # How far each forecast reaches (ISO end or None), for the indicators.
         "reach": {
             "max_end": (
@@ -317,6 +346,9 @@ def websocket_history(
                 ),
                 2,
             ),
+            # Cumulative advantage of the selected plan over no battery, incl.
+            # the value of the energy stored at that moment: [time ms, amount]
+            "selected_vs_none": _vs_none(forecast),
             # Cumulative advantage of arbitrage over NOM: [time ms, amount]
             "arbitrage_vs_nom": [
                 [int(t.timestamp() * 1000), value]

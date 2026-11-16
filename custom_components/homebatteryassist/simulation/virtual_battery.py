@@ -131,6 +131,9 @@ class VirtualBatterySimulator:
         # phase index -> {"start", "seen", "wh", "names"} while relieving it
         self.relief: dict[int, dict[str, Any]] = {}
         self._peak: dict[str, Any] | None = None  # running peak shaving
+        # For the dashboard: what the protections do right now.
+        self.relief_now: dict[int, float] = {}  # phase index -> W taken off
+        self.peak_now: float = 0.0  # W shaved off the total
         self._full: set[str] = set()  # batteries waiting for the hysteresis
 
     @property
@@ -260,6 +263,7 @@ class VirtualBatterySimulator:
         )
         names = {c.id: c.name for c in self.virtual}
         dutch = (self.hass.config.language or "").startswith("nl")
+        self.relief_now = dict(relieved)
         for index, power in relieved.items():
             event = self.relief.get(index)
             helpers = [
@@ -335,6 +339,7 @@ class VirtualBatterySimulator:
             ],
         )
         dutch = (self.hass.config.language or "").startswith("nl")
+        self.peak_now = shaved
         if shaved > 0:
             event = self._peak
             if event is None:

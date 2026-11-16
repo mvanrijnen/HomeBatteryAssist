@@ -37,6 +37,10 @@ const TEXT = {
     allPhases: "all phases",
     withVirtual: "with virtual batteries",
     phaseLimit: "limit {a} A (fuse with {m}% margin)",
+    relief: "phase protection: batteries take {w} off",
+    limitedNow: "batteries held back by the limit",
+    peakNow: "peak shaving: {w} taken off (limit {l})",
+    peakSet: "peak limit {l}",
     idle: "idle",
     planning: "Planning",
     planningUntil: "Can plan {hours} h ahead, until {end}",
@@ -107,6 +111,7 @@ const TEXT = {
     since: "since {date}",
     until: "until {date}",
     advantageUntil: "Advantage of arbitrage over NOM until here",
+    vsNoneUntil: "Advantage over no battery until here",
     arbVsNom: "arbitrage vs. NOM: {diff} in the planning window",
     batteryNote: "The battery plan is how HomeBatteryAssist would control the batteries; for now it is advice only.",
     flowTitle: "Energy flows and expected consumption",
@@ -172,6 +177,10 @@ const TEXT = {
     allPhases: "alle fasen",
     withVirtual: "met virtuele batterijen",
     phaseLimit: "grens {a} A (zekering met {m}% marge)",
+    relief: "fasebeveiliging: batterijen nemen {w} over",
+    limitedNow: "batterijen teruggeschroefd door de grens",
+    peakNow: "piekafvlakking: {w} opgevangen (grens {l})",
+    peakSet: "piekgrens {l}",
     idle: "rust",
     planning: "Planning",
     planningUntil: "Kan {hours} uur vooruit plannen, tot {end}",
@@ -242,6 +251,7 @@ const TEXT = {
     since: "sinds {date}",
     until: "tot {date}",
     advantageUntil: "Voordeel arbitrage t.o.v. NOM tot hier",
+    vsNoneUntil: "Voordeel t.o.v. geen batterij tot hier",
     arbVsNom: "arbitrage t.o.v. NOM: {diff} in het planningsvenster",
     batteryNote: "Het batterijplan is hoe HomeBatteryAssist de batterijen zou aansturen; voorlopig alleen advies.",
     flowTitle: "Energiestromen en verwacht verbruik",
@@ -715,10 +725,30 @@ class HomeBatteryAssistPanel extends HTMLElement {
         <div class="bar"><div class="fill ${cls}" style="width:${Math.min(load ?? 0, 100)}%"></div>
           <div class="text">${load === null ? "–" : `${Math.round(load)}%`}</div></div>
         <span class="muted"><b>${this._power(power)}</b> · ${current == null ? "–" : `${current} A`} / ${s.max_current} A</span>
-        ${who.length || withVirtual ? `<div class="who">${who.join("")}${withVirtual}</div>` : ""}</div>`);
+        ${who.length || withVirtual || this._protectNote(s, i, t) ? `<div class="who">${who.join("")}${withVirtual}${this._protectNote(s, i, t)}</div>` : ""}</div>`);
     }
+    const prot = s.protection;
+    const peak =
+      prot && prot.peak_limit_w > 0
+        ? `<div class="muted">${esc(
+            prot.peak_w > 0
+              ? t.peakNow.replace("{w}", this._power(prot.peak_w)).replace("{l}", this._power(prot.peak_limit_w))
+              : t.peakSet.replace("{l}", this._power(prot.peak_limit_w)),
+          )}</div>`
+        : "";
+    rows.push(peak);
     const limit = s.phase_limit_a ? ` <small class="muted">· ${esc(t.phaseLimit.replace("{a}", s.phase_limit_a).replace("{m}", s.phase_margin ?? 10))}</small>` : "";
     return `<div class="card"><h2>${esc(t.phases)} · ${s.phases}x${s.max_current}A${limit}</h2><div class="phases">${rows.join("")}</div></div>`;
+  }
+
+  _protectNote(s, i, t) {
+    // Phase protection / limit on this phase right now (virtual batteries).
+    const prot = s.protection;
+    if (!prot) return "";
+    const phase = `L${i}`;
+    if (prot.relief?.[phase]) return `<span class="alert">${esc(t.relief.replace("{w}", this._power(prot.relief[phase])))}</span>`;
+    if (prot.limited?.includes(phase)) return `<span class="warn">${esc(t.limitedNow)}</span>`;
+    return "";
   }
 
   _planning(s, t) {
@@ -1197,6 +1227,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
           const cap = h.battery_capacity_kwh || 0;
           const kwh = cap ? ` · ${((socHit[2] / 100) * cap).toFixed(1)} / ${cap.toFixed(1)} kWh` : "";
           html += `<div class="r"><span><i style="background:${batteryColor}"></i>${esc(t.socExpected)}</span><b>${Math.round(socHit[2])}%${esc(kwh)}</b></div>`;
+        }
+        const none = (h.selected_vs_none || []).find(([cts]) => Math.abs(cts - ts) < 15 * 60e3);
+        if (ts > Date.now() && none) {
+          const v = none[1];
+          html += `<div class="r muted"><span>${esc(t.vsNoneUntil)}</span><b>${v >= 0 ? "+" : ""}${esc(this._money(v, h))}</b></div>`;
         }
         const cmp = (h.arbitrage_vs_nom || []).find(([cts]) => Math.abs(cts - ts) < 15 * 60e3);
         if (ts > Date.now() && cmp) {

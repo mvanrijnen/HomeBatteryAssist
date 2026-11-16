@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 
@@ -24,6 +25,7 @@ class HomeBatteryAssistData:
     history: ConsumptionHistory
     forecast: ForecastCoordinator
     plan_check: PlanVerification
+    simulator: Any = None  # VirtualBatterySimulator (live protections)
 
 
 type HomeBatteryAssistConfigEntry = ConfigEntry[HomeBatteryAssistData]
