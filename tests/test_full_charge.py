@@ -85,3 +85,23 @@ def test_together_when_the_connection_allows() -> None:
         batteries, {}, prices, 3, NOW, fits=lambda when, powers: len(powers) < 2
     )
     assert second.start >= first.end or second.end <= first.start
+
+
+def test_preferred_day_and_solar() -> None:
+    """A preferred weekday wins when possible; solar surplus counts as cheap."""
+    prices = _prices([0.30, 0.05, 0.10, 0.30])
+    battery = [_battery("a")]
+    other_day = (dt_util.as_local(NOW).weekday() + 3) % 7
+    (charge,) = schedule_full_charges(
+        battery, {}, prices, 3, NOW, preferred_day=other_day
+    )
+    assert charge.start == NOW + H  # preferred day not in reach: cheapest
+    (charge,) = schedule_full_charges(
+        battery,
+        {},
+        prices,
+        3,
+        NOW,
+        slot_price=lambda when, price, power: 0.0 if when >= NOW + 3 * H else price,
+    )
+    assert charge.start >= NOW + 3 * H  # free solar power wins

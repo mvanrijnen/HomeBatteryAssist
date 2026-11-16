@@ -77,6 +77,8 @@ class ConsumptionProfile:
         self._levels: dict[str, dict[object, _Acc]] = {m: {} for m in METHODS}
         self.days = 0.0
         for record in records:
+            if record.get("vacation"):
+                continue  # vacation: not the usual consumption
             start = dt_util.parse_datetime(record["start"])
             if start is None:
                 continue

@@ -23,6 +23,7 @@ from collections import Counter
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -33,11 +34,14 @@ from homeassistant.util import dt as dt_util
 
 from ..const import (
     CONF_BALANCE_INTERVAL,
+    CONF_CHARGE_HYSTERESIS,
     CONF_CYCLE_COST,
     CONF_EXPORT_ENTITIES,
     CONF_EXPORT_FACTOR,
     CONF_EXPORT_MODE,
     CONF_FORECAST_INTERVAL,
+    CONF_FULL_CHARGE_DAY,
+    CONF_FULL_CHARGE_SOLAR,
     CONF_FULL_CHARGE_WINDOW,
     CONF_MANUAL_POWER,
     CONF_MAX_CHARGE_PRICE,
@@ -62,6 +66,10 @@ from ..const import (
     CONF_RESERVE_SOC,
     CONF_SYSTEM_MAX_CHARGE,
     CONF_SYSTEM_MAX_DISCHARGE,
+    CONF_TEMP_BAND,
+    CONF_TEMP_DISCHARGE,
+    CONF_TEMP_LIMIT,
+    CONF_TEMP_MIN_POWER,
     DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
     DEFAULT_EXPORT_FACTOR,
@@ -121,7 +129,7 @@ from ..planning.phase_limit import (
     max_power,
     phase_limit_w,
 )
-from ..planning.schedule import Target, TimeSlot, slot_target
+from ..planning.schedule import WEEKDAYS, Target, TimeSlot, slot_target
 from .accuracy import KINDS, ForecastAccuracy
 from .adjustments import AdjustmentStore
 from .consumption import ForecastSlot, forecast_consumption
@@ -230,6 +238,18 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             CONF_PEAK_INCLUDE_EXCLUDED, True
         )
         opts = entry.options
+        self.full_charge_day: int | None = (
+            WEEKDAYS.index(opts[CONF_FULL_CHARGE_DAY])
+            if opts.get(CONF_FULL_CHARGE_DAY) in WEEKDAYS
+            else None
+        )
+        self.full_charge_solar: bool = opts.get(CONF_FULL_CHARGE_SOLAR, True)
+        self.temperature = {
+            "limit": float(opts.get(CONF_TEMP_LIMIT, 40)),
+            "band": float(opts.get(CONF_TEMP_BAND, 10)),
+            "min": float(opts.get(CONF_TEMP_MIN_POWER, 40)) / 100,
+            "discharge": bool(opts.get(CONF_TEMP_DISCHARGE, False)),
+        }
         self.rules = PlanRules(
             reserve_soc=float(opts.get(CONF_RESERVE_SOC, 0)),
             max_charge_w=float(opts.get(CONF_SYSTEM_MAX_CHARGE, 0)),
@@ -238,6 +258,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             min_discharge_price=opts.get(CONF_MIN_DISCHARGE_PRICE),
             max_charge_price=opts.get(CONF_MAX_CHARGE_PRICE),
             min_margin=float(opts.get(CONF_MIN_MARGIN, 0)),
+            charge_hysteresis=float(opts.get(CONF_CHARGE_HYSTERESIS, 0)),
         )
         self.manual_power: float = entry.options.get(
             CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER
@@ -395,10 +416,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         }
         limits = self._phase_limits(states, consumption, pv_plan)
         plans: dict[str, BatteryPlan] = {}
+        derated = [self._derated(s) for s in states]
         for mode in PLAN_MODES:
             plan = await self.hass.async_add_executor_job(
                 lambda m=mode: plan_batteries(
-                    states,
+                    derated,
                     consumption,
                     pv_plan,
                     prices,
@@ -431,6 +453,12 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             self.full_charge_window,
             now,
             fits=self._fits_connection(states, consumption, pv_plan),
+            preferred_day=self.full_charge_day,
+            slot_price=(
+                self._solar_price(consumption, pv_plan, export_prices)
+                if self.full_charge_solar
+                else None
+            ),
         )
         battery = _with_full_charges(battery, full_charges)
         self._explain_full_charges(full_charges)
@@ -484,6 +512,49 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             )
             for start, loads in self.phase_profile.loads(consumption, pv_wh).items()
         }
+
+    def _derated(self, state: BatteryState) -> Any:
+        """The battery with its power reduced when it is warm (temperature
+        sensor); other batteries as they are."""
+        sensor = state.config.temperature_sensor
+        temp = self.hass.states.get(sensor) if sensor else None
+        try:
+            celsius = float(temp.state) if temp else None
+        except ValueError:
+            celsius = None
+        t = self.temperature
+        if celsius is None or celsius <= t["limit"] or t["band"] <= 0:
+            return state
+        factor = max(t["min"], 1 - (celsius - t["limit"]) / t["band"] * (1 - t["min"]))
+        return SimpleNamespace(
+            soc=state.soc,
+            config=state.config,
+            charge_factor=factor,
+            discharge_factor=factor if t["discharge"] else 1.0,
+        )
+
+    def _solar_price(
+        self,
+        consumption: list[ForecastSlot],
+        pv: dict[datetime, float],
+        export_prices: list[PricePoint],
+    ) -> Callable[[datetime, float, float], float]:
+        """Charging with solar surplus costs what exporting it would have earned."""
+        surplus: dict[datetime, float] = {}
+        for slot in consumption:
+            hour = slot.start.replace(minute=0, second=0, microsecond=0)
+            surplus[slot.start] = max(pv.get(hour, 0.0) - slot.power_w, 0.0)
+        factor = self.export_factor
+
+        def price(start: datetime, import_price: float, power: float) -> float:
+            share = min(surplus.get(start, 0.0) / power, 1.0) if power > 0 else 0.0
+            export = next(
+                (p.price for p in export_prices if p.start <= start < p.end),
+                import_price * factor,
+            )
+            return share * export + (1 - share) * import_price
+
+        return price
 
     def _target(self, mode: str) -> Callable[[datetime], Target | None] | None:
         """The fixed actions of the manual and time slot modes."""

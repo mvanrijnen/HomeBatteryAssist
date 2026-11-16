@@ -74,7 +74,15 @@
           "min_discharge_price": "Discharge only from price",
           "max_charge_price": "Charge from the grid up to price",
           "min_arbitrage_margin": "Min. arbitrage margin",
-          "peak_include_excluded": "Peak limit includes excluded devices"
+          "peak_include_excluded": "Peak limit includes excluded devices",
+          "charge_hysteresis": "Charge hysteresis",
+          "vacation": "Vacation mode",
+          "full_charge_day": "Preferred day for full charges",
+          "full_charge_solar": "Full charge preferably with solar power",
+          "temperature_limit": "Temperature limit",
+          "temperature_band": "Temperature reduction band",
+          "temperature_min_power": "Minimum power when warm",
+          "temperature_discharge": "Also reduce discharging when warm"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -105,7 +113,15 @@
           "min_discharge_price": "Optional: the batteries only discharge when power costs at least this much (also in zero on the meter).",
           "max_charge_price": "Optional: arbitrage only charges from the grid when power costs at most this much (charging with surplus solar power is always allowed).",
           "min_arbitrage_margin": "Arbitrage only charges to discharge later when that brings at least this much per kWh, on top of the wear cost.",
-          "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit."
+          "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit.",
+          "charge_hysteresis": "Once full, the batteries only charge again after their state of charge dropped this much below the maximum (fewer small top-ups). 0 = off.",
+          "vacation": "While on, the measured house consumption is not used to learn the usual consumption (the forecast keeps using the normal days).",
+          "full_charge_day": "Plan the periodic full charge on this weekday when it fits in the period; otherwise on the cheapest moment.",
+          "full_charge_solar": "Count solar surplus as cheap (what exporting it would earn), so a full charge on a sunny moment is preferred over the grid.",
+          "temperature_limit": "Batteries with a temperature sensor charge at full power up to this temperature.",
+          "temperature_band": "Above the limit the power goes down over this many degrees, to the minimum power.",
+          "temperature_min_power": "Power at the end of the reduction band, as % of the battery's maximum.",
+          "temperature_discharge": "Reduce the discharge power too, not only the charge power."
         }
       }
     },
@@ -259,6 +275,18 @@
       "options": {
         "none": "None"
       }
+    },
+    "full_charge_day": {
+      "options": {
+        "none": "No preference",
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday",
+        "sun": "Sunday"
+      }
     }
   },
   "options": {
@@ -302,7 +330,15 @@
           "min_discharge_price": "Discharge only from price",
           "max_charge_price": "Charge from the grid up to price",
           "min_arbitrage_margin": "Min. arbitrage margin",
-          "peak_include_excluded": "Peak limit includes excluded devices"
+          "peak_include_excluded": "Peak limit includes excluded devices",
+          "charge_hysteresis": "Charge hysteresis",
+          "vacation": "Vacation mode",
+          "full_charge_day": "Preferred day for full charges",
+          "full_charge_solar": "Full charge preferably with solar power",
+          "temperature_limit": "Temperature limit",
+          "temperature_band": "Temperature reduction band",
+          "temperature_min_power": "Minimum power when warm",
+          "temperature_discharge": "Also reduce discharging when warm"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -333,7 +369,15 @@
           "min_discharge_price": "Optional: the batteries only discharge when power costs at least this much (also in zero on the meter).",
           "max_charge_price": "Optional: arbitrage only charges from the grid when power costs at most this much (charging with surplus solar power is always allowed).",
           "min_arbitrage_margin": "Arbitrage only charges to discharge later when that brings at least this much per kWh, on top of the wear cost.",
-          "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit."
+          "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit.",
+          "charge_hysteresis": "Once full, the batteries only charge again after their state of charge dropped this much below the maximum (fewer small top-ups). 0 = off.",
+          "vacation": "While on, the measured house consumption is not used to learn the usual consumption (the forecast keeps using the normal days).",
+          "full_charge_day": "Plan the periodic full charge on this weekday when it fits in the period; otherwise on the cheapest moment.",
+          "full_charge_solar": "Count solar surplus as cheap (what exporting it would earn), so a full charge on a sunny moment is preferred over the grid.",
+          "temperature_limit": "Batteries with a temperature sensor charge at full power up to this temperature.",
+          "temperature_band": "Above the limit the power goes down over this many degrees, to the minimum power.",
+          "temperature_min_power": "Power at the end of the reduction band, as % of the battery's maximum.",
+          "temperature_discharge": "Reduce the discharge power too, not only the charge power."
         }
       },
       "meter": {
@@ -493,7 +537,8 @@
             "max_soc": "Maximum state of charge",
             "round_trip_efficiency": "Round-trip efficiency",
             "full_charge_interval_days": "Full charge every",
-            "phase": "Phase"
+            "phase": "Phase",
+            "temperature_sensor": "Temperature sensor (optional)"
           },
           "data_description": {
             "soc_sensor": "Sensor with the state of charge in %.",
@@ -504,7 +549,8 @@
             "max_soc": "The battery is not charged above this level (except for a full charge).",
             "round_trip_efficiency": "Share of charged energy that comes back out when discharging.",
             "full_charge_interval_days": "Charge to 100% at least every this many days (cell balancing). 0 = never.",
-            "phase": "The phase the battery is connected to, if it uses a single phase."
+            "phase": "The phase the battery is connected to, if it uses a single phase.",
+            "temperature_sensor": "Battery temperature; when warm the plans use less power (see the temperature settings)."
           }
         },
         "battery": {
@@ -522,7 +568,8 @@
             "max_soc": "Maximum state of charge",
             "round_trip_efficiency": "Round-trip efficiency",
             "full_charge_interval_days": "Full charge every",
-            "phase": "Phase"
+            "phase": "Phase",
+            "temperature_sensor": "Temperature sensor (optional)"
           },
           "data_description": {
             "soc_sensor": "Sensor with the state of charge in %.",
@@ -533,7 +580,8 @@
             "max_soc": "The battery is not charged above this level (except for a full charge).",
             "round_trip_efficiency": "Share of charged energy that comes back out when discharging.",
             "full_charge_interval_days": "Charge to 100% at least every this many days (cell balancing). 0 = never.",
-            "phase": "The phase the battery is connected to, if it uses a single phase."
+            "phase": "The phase the battery is connected to, if it uses a single phase.",
+            "temperature_sensor": "Battery temperature; when warm the plans use less power (see the temperature settings)."
           }
         }
       },

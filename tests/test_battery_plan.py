@@ -275,3 +275,35 @@ def test_plan_rules() -> None:
         rules=PlanRules(nom_target_w=200.0),
     )
     assert nom.slots[0].power_w == -800.0
+
+
+def test_charge_hysteresis() -> None:
+    """Full battery: no top-up charging until it dropped below the hysteresis."""
+    from custom_components.homebatteryassist.planning.battery_plan import PlanRules
+
+    slots = _slots([300.0, -200.0, 300.0, -200.0])
+    plan = plan_batteries(
+        [_battery(soc=100.0)],
+        slots,
+        {},
+        _prices([0.3] * 4),
+        mode=MODE_NOM,
+        rules=PlanRules(charge_hysteresis=10.0),
+    )
+    # 100 -> 93 %: no top-up yet; after 87 % (below 90 %) it charges again
+    assert plan.slots[1].power_w == 0.0
+    assert plan.slots[3].power_w > 0.0
+
+
+def test_temperature_derating_in_pack() -> None:
+    """A warm battery plans with less charge power."""
+    from types import SimpleNamespace
+
+    from custom_components.homebatteryassist.planning.battery_plan import _pack
+
+    battery = _battery()
+    warm = SimpleNamespace(
+        soc=battery.soc, config=battery.config, charge_factor=0.5, discharge_factor=1.0
+    )
+    assert _pack([warm]).max_charge == 1250.0
+    assert _pack([warm]).max_discharge == 2500.0

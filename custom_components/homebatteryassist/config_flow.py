@@ -67,13 +67,16 @@ from .const import (
     BATTERY_SENSOR_KEYS,
     CONF_BALANCE_INTERVAL,
     CONF_CAPACITY,
+    CONF_CHARGE_HYSTERESIS,
     CONF_CYCLE_COST,
     CONF_EFFICIENCY,
     CONF_EXPORT_ENTITIES,
     CONF_EXPORT_FACTOR,
     CONF_EXPORT_MODE,
     CONF_FORECAST_INTERVAL,
+    CONF_FULL_CHARGE_DAY,
     CONF_FULL_CHARGE_INTERVAL,
+    CONF_FULL_CHARGE_SOLAR,
     CONF_FULL_CHARGE_WINDOW,
     CONF_HISTORY_INTERVAL,
     CONF_INITIAL_SOC,
@@ -116,6 +119,12 @@ from .const import (
     CONF_SOURCE,
     CONF_SYSTEM_MAX_CHARGE,
     CONF_SYSTEM_MAX_DISCHARGE,
+    CONF_TEMP_BAND,
+    CONF_TEMP_DISCHARGE,
+    CONF_TEMP_LIMIT,
+    CONF_TEMP_MIN_POWER,
+    CONF_TEMPERATURE_SENSOR,
+    CONF_VACATION,
     DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
     DEFAULT_EFFICIENCY,
@@ -362,6 +371,36 @@ async def settings_schema(
             0, 1, 0.005, ""
         ),
         vol.Required(
+            CONF_CHARGE_HYSTERESIS, default=current.get(CONF_CHARGE_HYSTERESIS, 0)
+        ): _number(0, 20, 1, "%"),
+        vol.Required(
+            CONF_VACATION, default=current.get(CONF_VACATION, False)
+        ): BooleanSelector(),
+        vol.Required(
+            CONF_FULL_CHARGE_DAY, default=current.get(CONF_FULL_CHARGE_DAY, "none")
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=["none", *WEEKDAYS],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_FULL_CHARGE_DAY,
+            )
+        ),
+        vol.Required(
+            CONF_FULL_CHARGE_SOLAR, default=current.get(CONF_FULL_CHARGE_SOLAR, True)
+        ): BooleanSelector(),
+        vol.Required(
+            CONF_TEMP_LIMIT, default=current.get(CONF_TEMP_LIMIT, 40)
+        ): _number(0, 80, 1, "°C"),
+        vol.Required(CONF_TEMP_BAND, default=current.get(CONF_TEMP_BAND, 10)): _number(
+            1, 40, 1, "°C"
+        ),
+        vol.Required(
+            CONF_TEMP_MIN_POWER, default=current.get(CONF_TEMP_MIN_POWER, 40)
+        ): _number(0, 100, 5, "%"),
+        vol.Required(
+            CONF_TEMP_DISCHARGE, default=current.get(CONF_TEMP_DISCHARGE, False)
+        ): BooleanSelector(),
+        vol.Required(
             CONF_PEAK_INCLUDE_EXCLUDED,
             default=current.get(CONF_PEAK_INCLUDE_EXCLUDED, True),
         ): BooleanSelector(),
@@ -524,6 +563,14 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     )
     options[CONF_NOM_TARGET] = int(user_input.get(CONF_NOM_TARGET, 0))
     options[CONF_MIN_MARGIN] = float(user_input.get(CONF_MIN_MARGIN, 0))
+    options[CONF_CHARGE_HYSTERESIS] = int(user_input.get(CONF_CHARGE_HYSTERESIS, 0))
+    options[CONF_VACATION] = bool(user_input.get(CONF_VACATION, False))
+    options[CONF_FULL_CHARGE_DAY] = user_input.get(CONF_FULL_CHARGE_DAY, "none")
+    options[CONF_FULL_CHARGE_SOLAR] = bool(user_input.get(CONF_FULL_CHARGE_SOLAR, True))
+    options[CONF_TEMP_LIMIT] = int(user_input.get(CONF_TEMP_LIMIT, 40))
+    options[CONF_TEMP_BAND] = int(user_input.get(CONF_TEMP_BAND, 10))
+    options[CONF_TEMP_MIN_POWER] = int(user_input.get(CONF_TEMP_MIN_POWER, 40))
+    options[CONF_TEMP_DISCHARGE] = bool(user_input.get(CONF_TEMP_DISCHARGE, False))
     options[CONF_PEAK_INCLUDE_EXCLUDED] = bool(
         user_input.get(CONF_PEAK_INCLUDE_EXCLUDED, True)
     )
@@ -1056,6 +1103,11 @@ def battery_schema(three_phase: bool) -> vol.Schema:
         vol.Required(
             CONF_FULL_CHARGE_INTERVAL, default=DEFAULT_FULL_CHARGE_INTERVAL
         ): _number(0, 90, 1, "d"),
+        vol.Optional(CONF_TEMPERATURE_SENSOR): EntitySelector(
+            EntitySelectorConfig(
+                domain="sensor", device_class=SensorDeviceClass.TEMPERATURE
+            )
+        ),
     }
     if three_phase:
         schema[vol.Required(CONF_PHASE, default=PHASE_NONE)] = phase_selector()

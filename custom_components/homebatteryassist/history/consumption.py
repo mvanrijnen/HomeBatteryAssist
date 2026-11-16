@@ -32,6 +32,7 @@ class ConsumptionRecord(TypedDict):
     battery_w: NotRequired[float]  # average battery power, + charging / - discharging
     phase_house_w: NotRequired[list[float]]  # average house consumption per phase
     phase_pv_w: NotRequired[list[float]]  # average PV production per phase
+    vacation: NotRequired[bool]  # measured in vacation mode: not learned from
 
 
 class ConsumptionHistory:
@@ -49,6 +50,7 @@ class ConsumptionHistory:
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.consumption"
         )
         self.minutes = minutes
+        self.vacation = False  # mark new records as vacation (not learned)
         self._interval = timedelta(minutes=minutes)
         self.records: list[ConsumptionRecord] = []
 
@@ -182,6 +184,8 @@ class ConsumptionHistory:
                 record["pv_w"] = round(self._pv_ws / self._pv_s, 1)
             if self._battery_s > 0:
                 record["battery_w"] = round(self._battery_ws / self._battery_s, 1)
+            if self.vacation:
+                record["vacation"] = True
             if self._phase_s > 0:
                 record["phase_house_w"] = [
                     round(v / self._phase_s, 1) for v in self._phase_house_ws

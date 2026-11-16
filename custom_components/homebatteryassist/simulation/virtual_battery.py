@@ -131,6 +131,7 @@ class VirtualBatterySimulator:
         # phase index -> {"start", "seen", "wh", "names"} while relieving it
         self.relief: dict[int, dict[str, Any]] = {}
         self._peak: dict[str, Any] | None = None  # running peak shaving
+        self._full: set[str] = set()  # batteries waiting for the hysteresis
 
     @property
     def virtual(self) -> list[BatteryConfig]:
@@ -440,8 +441,14 @@ class VirtualBatterySimulator:
             total = max(total, -rules.max_discharge_w)
 
         candidates = []
+        hysteresis = self._forecast.rules.charge_hysteresis
         for config in virtual:
             state = self._batteries.states[config.id]
+            soc_now = state.soc if state.soc is not None else config.initial_soc
+            if hysteresis > 0 and soc_now >= config.max_soc - 0.05:
+                self._full.add(config.id)
+            elif soc_now < config.max_soc - hysteresis:
+                self._full.discard(config.id)
             candidates.append(
                 Candidate(
                     config.id,
@@ -450,7 +457,7 @@ class VirtualBatterySimulator:
                         max(config.min_soc, self._forecast.rules.reserve_soc),
                         config.max_soc,
                     ),
-                    config.max_soc,
+                    soc_now if config.id in self._full else config.max_soc,
                     config.max_charge_w,
                     config.max_discharge_w,
                 )

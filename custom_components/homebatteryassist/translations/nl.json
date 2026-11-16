@@ -74,7 +74,15 @@
           "min_discharge_price": "Pas ontladen vanaf prijs",
           "max_charge_price": "Uit het net laden tot prijs",
           "min_arbitrage_margin": "Min. arbitragemarge",
-          "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee"
+          "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee",
+          "charge_hysteresis": "Laadhysterese",
+          "vacation": "Vakantiemodus",
+          "full_charge_day": "Voorkeursdag volladen",
+          "full_charge_solar": "Volladen liefst met zonnestroom",
+          "temperature_limit": "Temperatuurgrens",
+          "temperature_band": "Afbouwband temperatuur",
+          "temperature_min_power": "Minimaal vermogen bij warmte",
+          "temperature_discharge": "Ook ontladen terugregelen bij warmte"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -105,7 +113,15 @@
           "min_discharge_price": "Optioneel: de batterijen ontladen alleen als stroom minstens dit kost (ook bij nul op de meter).",
           "max_charge_price": "Optioneel: arbitrage laadt alleen uit het net als stroom hoogstens dit kost (laden met zonne-overschot mag altijd).",
           "min_arbitrage_margin": "Arbitrage laadt alleen om later te ontladen als dat minstens zoveel per kWh oplevert, bovenop de slijtagekosten.",
-          "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens."
+          "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
+          "charge_hysteresis": "Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit.",
+          "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken).",
+          "full_charge_day": "Plan het periodiek volladen op deze weekdag als die in de periode past; anders op het goedkoopste moment.",
+          "full_charge_solar": "Tel zonne-overschot als goedkoop (wat terugleveren zou opleveren), zodat volladen op een zonnig moment de voorkeur krijgt boven het net.",
+          "temperature_limit": "Batterijen met een temperatuursensor laden tot deze temperatuur met vol vermogen.",
+          "temperature_band": "Boven de grens gaat het vermogen over zoveel graden omlaag, tot het minimale vermogen.",
+          "temperature_min_power": "Vermogen aan het eind van de afbouwband, in % van het maximum van de batterij.",
+          "temperature_discharge": "Ook het ontlaadvermogen verlagen, niet alleen het laadvermogen."
         }
       }
     },
@@ -259,6 +275,18 @@
       "options": {
         "none": "Geen"
       }
+    },
+    "full_charge_day": {
+      "options": {
+        "none": "Geen voorkeur",
+        "mon": "Maandag",
+        "tue": "Dinsdag",
+        "wed": "Woensdag",
+        "thu": "Donderdag",
+        "fri": "Vrijdag",
+        "sat": "Zaterdag",
+        "sun": "Zondag"
+      }
     }
   },
   "options": {
@@ -302,7 +330,15 @@
           "min_discharge_price": "Pas ontladen vanaf prijs",
           "max_charge_price": "Uit het net laden tot prijs",
           "min_arbitrage_margin": "Min. arbitragemarge",
-          "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee"
+          "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee",
+          "charge_hysteresis": "Laadhysterese",
+          "vacation": "Vakantiemodus",
+          "full_charge_day": "Voorkeursdag volladen",
+          "full_charge_solar": "Volladen liefst met zonnestroom",
+          "temperature_limit": "Temperatuurgrens",
+          "temperature_band": "Afbouwband temperatuur",
+          "temperature_min_power": "Minimaal vermogen bij warmte",
+          "temperature_discharge": "Ook ontladen terugregelen bij warmte"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -333,7 +369,15 @@
           "min_discharge_price": "Optioneel: de batterijen ontladen alleen als stroom minstens dit kost (ook bij nul op de meter).",
           "max_charge_price": "Optioneel: arbitrage laadt alleen uit het net als stroom hoogstens dit kost (laden met zonne-overschot mag altijd).",
           "min_arbitrage_margin": "Arbitrage laadt alleen om later te ontladen als dat minstens zoveel per kWh oplevert, bovenop de slijtagekosten.",
-          "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens."
+          "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
+          "charge_hysteresis": "Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit.",
+          "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken).",
+          "full_charge_day": "Plan het periodiek volladen op deze weekdag als die in de periode past; anders op het goedkoopste moment.",
+          "full_charge_solar": "Tel zonne-overschot als goedkoop (wat terugleveren zou opleveren), zodat volladen op een zonnig moment de voorkeur krijgt boven het net.",
+          "temperature_limit": "Batterijen met een temperatuursensor laden tot deze temperatuur met vol vermogen.",
+          "temperature_band": "Boven de grens gaat het vermogen over zoveel graden omlaag, tot het minimale vermogen.",
+          "temperature_min_power": "Vermogen aan het eind van de afbouwband, in % van het maximum van de batterij.",
+          "temperature_discharge": "Ook het ontlaadvermogen verlagen, niet alleen het laadvermogen."
         }
       },
       "meter": {
@@ -493,7 +537,8 @@
             "max_soc": "Maximale vulling",
             "round_trip_efficiency": "Rendement laden en ontladen",
             "full_charge_interval_days": "Volledig opladen elke",
-            "phase": "Fase"
+            "phase": "Fase",
+            "temperature_sensor": "Temperatuursensor (optioneel)"
           },
           "data_description": {
             "soc_sensor": "Sensor met de vulling in %.",
@@ -504,7 +549,8 @@
             "max_soc": "De batterij wordt niet verder geladen dan dit niveau (behalve bij volledig opladen).",
             "round_trip_efficiency": "Deel van de geladen energie dat bij ontladen weer terugkomt.",
             "full_charge_interval_days": "Minstens elke zoveel dagen tot 100% laden (balanceren van de cellen). 0 = nooit.",
-            "phase": "De fase waarop de batterij is aangesloten, als hij één fase gebruikt."
+            "phase": "De fase waarop de batterij is aangesloten, als hij één fase gebruikt.",
+            "temperature_sensor": "Temperatuur van de batterij; bij warmte rekenen de plannen met minder vermogen (zie de temperatuurinstellingen)."
           }
         },
         "battery": {
@@ -522,7 +568,8 @@
             "max_soc": "Maximale vulling",
             "round_trip_efficiency": "Rendement laden en ontladen",
             "full_charge_interval_days": "Volledig opladen elke",
-            "phase": "Fase"
+            "phase": "Fase",
+            "temperature_sensor": "Temperatuursensor (optioneel)"
           },
           "data_description": {
             "soc_sensor": "Sensor met de vulling in %.",
@@ -533,7 +580,8 @@
             "max_soc": "De batterij wordt niet verder geladen dan dit niveau (behalve bij volledig opladen).",
             "round_trip_efficiency": "Deel van de geladen energie dat bij ontladen weer terugkomt.",
             "full_charge_interval_days": "Minstens elke zoveel dagen tot 100% laden (balanceren van de cellen). 0 = nooit.",
-            "phase": "De fase waarop de batterij is aangesloten, als hij één fase gebruikt."
+            "phase": "De fase waarop de batterij is aangesloten, als hij één fase gebruikt.",
+            "temperature_sensor": "Temperatuur van de batterij; bij warmte rekenen de plannen met minder vermogen (zie de temperatuurinstellingen)."
           }
         }
       },

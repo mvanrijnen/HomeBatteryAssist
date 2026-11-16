@@ -22,7 +22,12 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
-from .const import CONF_HISTORY_INTERVAL, DEFAULT_HISTORY_INTERVAL, DOMAIN
+from .const import (
+    CONF_HISTORY_INTERVAL,
+    CONF_VACATION,
+    DEFAULT_HISTORY_INTERVAL,
+    DOMAIN,
+)
 from .explain import DecisionLog
 from .forecasts.accuracy import ForecastAccuracy
 from .forecasts.adjustments import AdjustmentStore
@@ -68,6 +73,7 @@ async def async_setup_entry(
         entry.options.get(CONF_HISTORY_INTERVAL, DEFAULT_HISTORY_INTERVAL),
     )
     await history.async_load()
+    history.vacation = bool(entry.options.get(CONF_VACATION, False))
 
     batteries = BatteryInput(hass, entry, decisions)
     await batteries.async_start()

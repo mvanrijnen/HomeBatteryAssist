@@ -69,12 +69,17 @@ def schedule_full_charges(
     now: datetime,
     step: timedelta = timedelta(minutes=15),
     fits: Callable[[datetime, Mapping[str, float]], bool] | None = None,
+    preferred_day: int | None = None,
+    slot_price: Callable[[datetime, float, float], float] | None = None,
 ) -> list[FullCharge]:
     """Plan the full charges that are due within ``window_days``.
 
     ``fits``: whether charging with these powers (battery id -> W) in the slot
     starting at the given time stays within the grid connection; without it,
     full charges never overlap.
+    ``preferred_day``: weekday (0 = Monday) to prefer, if it fits in the period.
+    ``slot_price(start, price, power)``: the effective price of charging in a
+    slot, e.g. lower when there is solar surplus.
     """
     if not prices:
         return []
@@ -144,7 +149,15 @@ def schedule_full_charges(
                 continue  # gap in the prices
             if not allowed(start, end):
                 continue  # together they would overload the connection
-            cost = sum(price for _, price in block)
+            cost = sum(
+                slot_price(when, price, power) if slot_price else price
+                for when, price in block
+            )
+            if (
+                preferred_day is not None
+                and dt_util.as_local(start).weekday() != preferred_day
+            ):
+                cost += 1000  # only when the preferred day is not possible
             if best is None or cost < best[0]:
                 best = (cost, i)
         if best is None:
@@ -161,7 +174,7 @@ def schedule_full_charges(
                 deadline,
                 last_full.get(config.id),
                 power,
-                round(best[0] / count, 5),
+                round((best[0] % 1000) / count, 5),
                 round(sum(candidates) / len(candidates), 5) if candidates else None,
             )
         )

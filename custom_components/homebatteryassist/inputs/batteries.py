@@ -47,6 +47,7 @@ from ..const import (
     CONF_POWER_SENSOR,
     CONF_POWER_SIGN,
     CONF_SOC_SENSOR,
+    CONF_TEMPERATURE_SENSOR,
     DEFAULT_EFFICIENCY,
     DEFAULT_FULL_CHARGE_INTERVAL,
     DEFAULT_INITIAL_SOC,
@@ -99,6 +100,7 @@ class BatteryConfig:
     full_charge_interval_days: int  # 0 = no periodic full charge
     phase: str
     virtual: bool = False  # simulated what-if battery, no sensors
+    temperature_sensor: str = ""  # optional, for derating the power
     initial_soc: float = DEFAULT_INITIAL_SOC
     loss_min: float = 0.0  # virtual: round-trip loss range (fraction)
     loss_max: float = 0.0
@@ -132,6 +134,7 @@ class BatteryConfig:
             ),
             phase=data.get(CONF_PHASE, PHASE_NONE),
             virtual=virtual,
+            temperature_sensor=data.get(CONF_TEMPERATURE_SENSOR) or "",
             initial_soc=float(data.get(CONF_INITIAL_SOC, DEFAULT_INITIAL_SOC)),
             loss_min=loss_min if virtual else 0.0,
             loss_max=loss_max if virtual else 0.0,

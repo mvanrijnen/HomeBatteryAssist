@@ -138,6 +138,7 @@ class PlanRules:
     min_discharge_price: float | None = None
     max_charge_price: float | None = None
     min_margin: float = 0.0
+    charge_hysteresis: float = 0.0  # % below max SoC before charging again
 
 
 @dataclass(frozen=True, slots=True)
@@ -338,10 +339,16 @@ def _nom(
     stored = pack.stored
     result: list[PlanSlot] = []
     cost_with = cost_without = 0.0
+    # Charge hysteresis: once full, charge again only after dropping this much.
+    hysteresis = pack.rules.charge_hysteresis * pack.capacity / 100
+    full = hysteresis > 0 and stored >= pack.ceiling - 1
     for slot, hours, net_raw, price, max_c, max_d, export in slots:
         net = net_raw
         power = 0.0
         fixed = target(slot.start) if target else None
+        if full and stored < pack.ceiling - hysteresis:
+            full = False
+        hold = full
         if fixed is not None:
             if fixed.power_w > 0:
                 top = pack.ceiling
@@ -357,7 +364,7 @@ def _nom(
                 available = max(stored - bottom, 0.0)
                 power = -min(-fixed.power_w, max_d, available * pack.eff / hours)
                 stored += power * hours / pack.eff
-        elif (net := net_raw - pack.rules.nom_target_w) < 0:
+        elif (net := net_raw - pack.rules.nom_target_w) < 0 and not hold:
             room = max(pack.ceiling - stored, 0.0)
             power = min(-net, max_c, room / (hours * pack.eff))
             stored += power * hours * pack.eff
@@ -366,6 +373,8 @@ def _nom(
             power = -min(net, max_d, available * pack.eff / hours)
             stored += power * hours / pack.eff
         net = net_raw
+        if hysteresis > 0 and stored >= pack.ceiling - 1:
+            full = True
         if priced:
             cost_with += _grid_cost(net + power, hours, price, export)
             cost_with += abs(power) * hours / 1000 * cycle_cost
