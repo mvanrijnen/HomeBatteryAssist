@@ -9,7 +9,7 @@ from custom_components.homebatteryassist.engine.devices.batteries.direct.modbus_
     blocks,
 )
 from custom_components.homebatteryassist.engine.devices.batteries.marstek import (
-    modbus as marstek,
+    venus_direct_modbus as marstek,
 )
 from custom_components.homebatteryassist.engine.devices.batteries.marstek.venus_direct_modbus import (
     MarstekVenusAModbus,

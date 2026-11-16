@@ -6,7 +6,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 
 from custom_components.homebatteryassist.engine.devices.batteries.anker import (
-    modbus as anker,
+    solarbank_direct_modbus as anker,
 )
 from custom_components.homebatteryassist.engine.devices.batteries.anker.solarbank_direct_modbus import (
     AnkerModbusDriver,

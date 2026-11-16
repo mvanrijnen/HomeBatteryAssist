@@ -10,7 +10,7 @@ from custom_components.homebatteryassist.engine.devices.batteries.direct.modbus_
     blocks,
 )
 from custom_components.homebatteryassist.engine.devices.batteries.huawei import (
-    modbus as huawei,
+    sun2000_direct_modbus as huawei,
 )
 from custom_components.homebatteryassist.engine.devices.batteries.huawei.sun2000_direct_modbus import (
     HuaweiModbusDriver,

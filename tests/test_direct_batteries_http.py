@@ -12,13 +12,13 @@ import pytest
 from homeassistant.core import HomeAssistant
 
 from custom_components.homebatteryassist.engine.devices.batteries.indevolt import (
-    http as indevolt,
+    flex_direct_http as indevolt,
 )
 from custom_components.homebatteryassist.engine.devices.batteries.sessy import (
-    http as sessy,
+    sessy_direct_http as sessy,
 )
 from custom_components.homebatteryassist.engine.devices.batteries.zendure import (
-    http as zendure,
+    solarflow_direct_http as zendure,
 )
 
 DRIVERS = (
