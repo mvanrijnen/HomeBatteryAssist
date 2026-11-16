@@ -109,7 +109,7 @@ const TEXT = {
     vsMode: "{mode} vs {other}",
     modeNames: { nom: "Zero on the meter", arbitrage: "Arbitrage", arbitrage_full: "Full arbitrage", time_slots: "Time slots", manual: "Manual" },
     compareTitle: "Return compared",
-    tabs: { overview: "Overview", forecast: "Forecast", value: "Return", batteries: "Batteries & phases", check: "Accuracy" },
+    tabs: { overview: "Overview", forecast: "Forecast", value: "Return", batteries: "Batteries", check: "Accuracy" },
     compareShow: "Return overview ▾",
     compareHide: "Hide overview ▴",
     realizedShort: "realised so far",
@@ -268,7 +268,7 @@ const TEXT = {
     vsMode: "{mode} t.o.v. {other}",
     modeNames: { nom: "Nul op de meter", arbitrage: "Arbitrage", arbitrage_full: "Arbitrage volledig", time_slots: "Tijdvakken", manual: "Handmatig" },
     compareTitle: "Rendement vergeleken",
-    tabs: { overview: "Overzicht", forecast: "Voorspelling", value: "Rendement", batteries: "Batterijen & fasen", check: "Nauwkeurigheid" },
+    tabs: { overview: "Overzicht", forecast: "Voorspelling", value: "Rendement", batteries: "Batterijen", check: "Nauwkeurigheid" },
     compareShow: "Rendement overzicht ▾",
     compareHide: "Overzicht verbergen ▴",
     realizedShort: "tot nu gerealiseerd",
@@ -1403,10 +1403,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
     else {
       const s = this._status;
       const tabs = {
-        overview: () => [this._flows(s, t), this._decisions(s, t)],
+        overview: () => [this._flows(s, t), this._phases(s, t), this._decisions(s, t)],
         forecast: () => [this._consumption(t), this._planning(s, t)],
         value: () => [this._compare(s, t), this._planCheck(s, t)],
-        batteries: () => [this._batteries(s, t), this._phases(s, t)],
+        batteries: () => [this._batteries(s, t)],
         check: () => [this._accuracy(t)],
       };
       const tab = tabs[this._tab] ? this._tab : "overview";
