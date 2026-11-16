@@ -162,7 +162,7 @@ const TEXT = {
     navNowTitle: "Follow the current time",
     navFwd: "Forward",
     navEnd: "To the end of the forecast",
-    spans: { 24: "1 day", 72: "3 days", 168: "7 days" },
+    spans: { today: "Today", tomorrow: "Today + tomorrow", all: "Whole forecast" },
     now: "now",
     accuracy: "Average deviation (shortest lead time): {mae} ({mape}%)",
     notVerified: "Not checked yet: measured slots are compared with the forecast as time passes.",
@@ -343,7 +343,7 @@ const TEXT = {
     navNowTitle: "Grafiek loopt mee met de tijd",
     navFwd: "Vooruit",
     navEnd: "Naar het einde van de voorspelling",
-    spans: { 24: "1 dag", 72: "3 dagen", 168: "7 dagen" },
+    spans: { today: "Vandaag", tomorrow: "Vandaag + morgen", all: "Hele voorspelling" },
     now: "nu",
     accuracy: "Gemiddelde afwijking (kortste vooruitzicht): {mae} ({mape}%)",
     notVerified: "Nog niet gecontroleerd: gemeten tijdvakken worden in de loop van de tijd met de voorspelling vergeleken.",
@@ -479,6 +479,7 @@ const STYLE = `
   .legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 `;
 
+const FLOW_LEAD = 6 * 3600e3; // the flow chart shows this much history before now
 const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
@@ -500,7 +501,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
       this._tab = "overview";
     }
     this._hover = null;
-    this._flowSpan = 72; // hours in view
+    this._flowSpan = 72; // hours in view (follows the chosen range)
+    this._flowRange = "all"; // today | tomorrow | all (the whole forecast)
     this._flowEnd = null; // ms; null = follow "now"
     this._dayWeek = null; // index in profile_weeks; null = all history
   }
@@ -1010,7 +1012,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
 
   _flowNav(t) {
     const spans = Object.entries(t.spans)
-      .map(([h, label]) => `<button data-span="${h}" class="${Number(h) === this._flowSpan ? "active" : ""}">${esc(label)}</button>`)
+      .map(([h, label]) => `<button data-span="${h}" class="${h === this._flowRange ? "active" : ""}">${esc(label)}</button>`)
       .join("");
     const nav = [
       ["start", "⏮", t.navStart],
@@ -1056,7 +1058,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const b = this._flowBounds;
     if (!b) return;
     const span = this._flowSpan * 3600e3;
-    const current = this._flowEnd ?? b.now + (span * 2) / 3;
+    const current = this._flowEnd ?? b.now - FLOW_LEAD + span;
     const target = {
       start: b.dataMin + span,
       back: current - span / 2,
@@ -1083,7 +1085,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     }
     for (const button of this.shadowRoot.querySelectorAll(".nav button[data-span]")) {
       button.addEventListener("click", () => {
-        this._flowSpan = Number(button.dataset.span);
+        this._flowRange = button.dataset.span;
+        this._flowEnd = null;
         this._scheduleRender();
       });
     }
@@ -1303,14 +1306,22 @@ class HomeBatteryAssistPanel extends HTMLElement {
     if (!fc.length && !verified.length && !past.length) {
       forecastChart = `<div class="muted">${esc(t.noForecast)}</div>`;
     } else {
-      // Visible range: scrollable between the first measurement and the forecast end.
-      const span = this._flowSpan * 3600e3;
+      // Visible range: by default from a little before now to the end of the
+      // forecast (or of today / tomorrow); scrollable back into the history.
       const firsts = [past[0]?.[0], verified[0]?.[0]].filter((v) => v != null);
       const lasts = [fc.at(-1)?.[0], pvFc.at(-1)?.[0]].filter((v) => v != null);
       const dataMin = Math.min(now - 24 * 3600e3, ...firsts);
       const dataMax = Math.max(now + 3600e3, ...lasts.map((v) => v + 3600e3));
       this._flowBounds = { dataMin, dataMax, now };
-      let fMax = this._flowEnd ?? now + (span * 2) / 3;
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0);
+      const rangeEnd = {
+        today: midnight.getTime(),
+        tomorrow: midnight.getTime() + 864e5,
+      }[this._flowRange] ?? dataMax;
+      const span = Math.max(rangeEnd - (now - FLOW_LEAD), FLOW_LEAD);
+      this._flowSpan = span / 3600e3;
+      let fMax = this._flowEnd ?? now - FLOW_LEAD + span;
       fMax = Math.min(Math.max(fMax, dataMin + span), Math.max(dataMax, dataMin + span));
       const fMin = fMax - span;
       const fTicks = [];
