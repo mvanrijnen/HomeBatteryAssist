@@ -1006,10 +1006,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         plan = data.selected_plan
         if plan is None or not plan.slots:
             return
+        if data.battery:
+            # Tell the plan as it is used: with the periodic full charges.
+            plan = replace(plan, slots=data.battery)
         now = dt_util.utcnow()
         states = list(self.battery_states())
+        reserve = self.rules.reserve_soc
         min_soc_reached = bool(states) and all(
-            s.soc is not None and s.soc <= s.config.min_soc + 0.5 for s in states
+            s.soc is not None and s.soc <= max(s.config.min_soc, reserve) + 0.5
+            for s in states
         )
         text = plan_story(
             plan,

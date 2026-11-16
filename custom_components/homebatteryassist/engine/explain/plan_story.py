@@ -370,7 +370,11 @@ def plan_story(
             (s.price for s in slots if s.start > now and s.price is not None),
             default=None,
         )
-        if later is not None and later * efficiency - cycle_cost <= price_now:
+        # Wear is paid on the kWh charged and on the kWh discharged.
+        if (
+            later is not None
+            and later * efficiency - cycle_cost * (1 + efficiency) <= price_now
+        ):
             sentences.append(
                 t["now_idle_no_gain"].format(
                     until=until, price=per_kwh(price_now), later=per_kwh(later)
@@ -412,7 +416,11 @@ def plan_story(
                 gain = (
                     block.energy_wh
                     / 1000
-                    * (use_price * efficiency - block.price - cycle_cost)
+                    * (
+                        use_price * efficiency
+                        - block.price
+                        - cycle_cost * (1 + efficiency)
+                    )
                 )
                 sentences.append(
                     t["next_grid"].format(

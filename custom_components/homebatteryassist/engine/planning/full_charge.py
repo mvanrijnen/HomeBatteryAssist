@@ -139,7 +139,7 @@ def schedule_full_charges(
                 when += step
             return True
 
-        best: tuple[float, int] | None = None
+        best: tuple[float, int, float] | None = None  # (rank, index, cost)
         for i in range(len(slots) - count + 1):
             block = slots[i : i + count]
             start, end = block[0][0], block[-1][0] + step
@@ -153,13 +153,14 @@ def schedule_full_charges(
                 slot_price(when, price, power) if slot_price else price
                 for when, price in block
             )
+            rank = cost
             if (
                 preferred_day is not None
                 and dt_util.as_local(start).weekday() != preferred_day
             ):
-                cost += 1000  # only when the preferred day is not possible
-            if best is None or cost < best[0]:
-                best = (cost, i)
+                rank += 1000  # only when the preferred day is not possible
+            if best is None or rank < best[0]:
+                best = (rank, i, cost)
         if best is None:
             continue
         start = slots[best[1]][0]
@@ -174,7 +175,7 @@ def schedule_full_charges(
                 deadline,
                 last_full.get(config.id),
                 power,
-                round((best[0] % 1000) / count, 5),
+                round(best[2] / count, 5),
                 round(sum(candidates) / len(candidates), 5) if candidates else None,
             )
         )

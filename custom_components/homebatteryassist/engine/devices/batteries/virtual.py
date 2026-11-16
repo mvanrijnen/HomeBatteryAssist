@@ -298,7 +298,9 @@ class VirtualBatterySimulator:
         for index, event in list(self.relief.items()):
             if index not in relieved and now - event["seen"] >= RELIEF_END_AFTER:
                 del self.relief[index]
-                minutes = max(round((event["seen"] - event["start"]).seconds / 60), 1)
+                minutes = max(
+                    round((event["seen"] - event["start"]).total_seconds() / 60), 1
+                )
                 self._decisions.async_log(
                     "battery",
                     "phase_relief_ended",
@@ -360,7 +362,9 @@ class VirtualBatterySimulator:
             self._decisions.async_log(
                 "battery",
                 "peak_shaving_ended",
-                minutes=max(round((event["seen"] - event["start"]).seconds / 60), 1),
+                minutes=max(
+                    round((event["seen"] - event["start"]).total_seconds() / 60), 1
+                ),
                 energy=f"{event['wh'] / 1000:.2f}".replace(".", "," if dutch else "."),
             )
         return result
@@ -414,9 +418,11 @@ class VirtualBatterySimulator:
         few batteries at low power, more when more power is needed.
         """
         data = self._forecast.data
-        if data is not None and data.plan_mode != MODE_NOM and data.battery:
-            # Arbitrage: the virtual batteries' share of the planned power.
-            slot = next((s for s in data.battery if s.start <= now < s.end), None)
+        plan = data.selected_plan if data is not None else None
+        if data is not None and data.plan_mode != MODE_NOM and plan and plan.slots:
+            # Arbitrage: the virtual batteries' share of the planned power (the
+            # plan without full charges: those are run per battery).
+            slot = next((s for s in plan.slots if s.start <= now < s.end), None)
             states = [s for s in self._batteries.states.values() if s.soc is not None]
             capacity = sum(s.config.capacity_kwh for s in states)
             virtual_capacity = sum(
