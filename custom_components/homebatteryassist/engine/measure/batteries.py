@@ -468,7 +468,10 @@ class BatteryInput:
         if (
             state.soc is not None
             and state.soc >= FULL_CHARGE_SOC
-            and (previous.soc is None or previous.soc < FULL_CHARGE_SOC)
+            # Only a rise to full counts: not the first value after start-up
+            # or after the sensor was unavailable.
+            and previous.soc is not None
+            and previous.soc < FULL_CHARGE_SOC
         ):
             self.stats[config.id]["last_full_charge"] = when.isoformat()
             self._decisions.async_log(

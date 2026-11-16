@@ -354,6 +354,18 @@ class MeasurementInput:
     def _watts(self, entity_id: str) -> float | None:
         return state_to_watts(self.hass.states.get(entity_id))
 
+    @property
+    def has_pv(self) -> bool:
+        """PV is measured (sensors or meters read directly)."""
+        return bool(self.pv_sensors or self.pv_meters)
+
+    @property
+    def pv_known(self) -> bool:
+        """Every PV source has a value now (unknown PV is not 0 W measured)."""
+        return all(self._watts(e) is not None for e in self.pv_sensors) and all(
+            meter.available for meter, _ in self.pv_meters
+        )
+
     def _sum_abs(self, entity_ids: list[str]) -> float:
         values = (self._watts(e) for e in entity_ids)
         return sum(abs(v) for v in values if v is not None)

@@ -142,6 +142,7 @@ from .sources.prices import (
     split_key,
 )
 from .sources.prices.points import (
+    MARKET_ATTRIBUTES,
     PricePoint,
     calibrate,
     merge_price_forecasts,
@@ -347,11 +348,14 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             CONF_PRICE_EXTENSION, PRICE_EXTENSION_NONE
         )
         self.export_mode: str = options.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE)
+        self._export_market_only = False
         self.export_entities: list[str] = list(options.get(CONF_EXPORT_ENTITIES) or [])
         if self.export_mode == EXPORT_MARKET and not self.export_entities:
             # The bare price from the price sensor itself (market attributes);
             # with a price driver: its market prices (see _read_export_prices).
             self.export_entities = [self.price_entity] if self.price_entity else []
+            # Only its market attributes: an all-in price is no export price.
+            self._export_market_only = True
         if self.export_mode == EXPORT_FACTOR:
             self.export_entities = []
         self.pv_entries: list[str] = list(options.get(CONF_PV_FORECAST) or [])
@@ -411,8 +415,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         rows: list[list[Any]] = []
         for key, (end, price, export) in sorted(self.price_log.items()):
             start = dt_util.parse_datetime(key)
-            if start is not None and start < window_start:
-                rows.append([start, dt_util.parse_datetime(end), price, export, False])
+            end_at = dt_util.parse_datetime(end)
+            # Only periods that ended before the window (the current one comes
+            # from the window's prices).
+            if start is not None and end_at is not None and end_at <= window_start:
+                rows.append([start, end_at, price, export, False])
         if data:
             export = {s.start: s.export_price for s in data.battery}
             rows.extend(
@@ -851,7 +858,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         driver, source = split_key(key)
         if driver is None:
             return PriceData([])
-        return await driver.async_read(self.hass, source, role)
+        try:
+            return await driver.async_read(self.hass, source, role)
+        except Exception:  # an unverified source must not stop the whole cycle
+            _LOGGER.exception("Price source %s (%s) failed", key, role)
+            return PriceData([])
 
     async def _async_read_prices(
         self, now: datetime
@@ -901,11 +912,17 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 return [p for p in data.points if p.end > now]
         if not self.export_entities:
             return []
-        parse = (
-            parse_market_forecast
-            if self.export_mode == EXPORT_MARKET
-            else parse_price_forecast
-        )
+        if self._export_market_only:
+            # The price sensor itself: only real market attributes; without
+            # them the export price is the import price x the export factor.
+            def parse(state):
+                return parse_price_forecast(state, MARKET_ATTRIBUTES)
+        else:
+            parse = (
+                parse_market_forecast
+                if self.export_mode == EXPORT_MARKET
+                else parse_price_forecast
+            )
         return [
             p
             for p in merge_price_forecasts(

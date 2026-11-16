@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
 from ...user_modules import async_load_modules, load_modules_from
 from .base import MAX_WH, PvForecastOption, PvForecastSource
@@ -118,5 +119,7 @@ async def async_read_pv_forecasts(
                 or not 0 <= value <= MAX_WH
             ):
                 continue
-            total[start] = total.get(start, 0.0) + value
+            # Clock hours in UTC, whatever the source used.
+            hour = dt_util.as_utc(start).replace(minute=0, second=0, microsecond=0)
+            total[hour] = total.get(hour, 0.0) + value
     return dict(sorted(total.items()))

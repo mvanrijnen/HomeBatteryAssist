@@ -212,11 +212,24 @@ class ForecastAccuracy:
             acc = hours.setdefault(hour, [0.0, 0.0])
             acc[0] += r["pv_w"] * measured / 60
             acc[1] += measured
+        # Only hours that are over (recorded up to their end), so a short
+        # interval does not settle an hour before its last records.
+        latest = max(
+            (
+                start + timedelta(minutes=r["minutes"])
+                for r in records
+                if (start := dt_util.parse_datetime(r["start"])) is not None
+            ),
+            default=None,
+        )
         actuals = {
             # scale up for missing minutes, only when well covered
             hour: energy * 60 / minutes
             for hour, (energy, minutes) in hours.items()
             if minutes >= 60 * MIN_COVERAGE
+            and latest is not None
+            and (h := dt_util.parse_datetime(hour)) is not None
+            and latest >= h + timedelta(hours=1)
         }
         # Skip night hours: nothing to learn from 0 vs 0.
         pending = self.predictions["pv"]

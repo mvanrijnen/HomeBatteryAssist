@@ -7,7 +7,8 @@ HomeBatteryAssist (``raw_forecast``).
 
 Per slot: forecaster (``base_w``) -> learned or manual correction (``accuracy``)
 -> user adjustments (``adjustments``, applied last because they are intent).
-``raw_w`` (profile + adjustments, without correction) is what accuracy learns
+``raw_w`` (the forecaster's value, without correction and without the user's
+adjustments — those are intent, not a forecast error) is what accuracy learns
 from. Like every forward calculation, it only calculates within the planning
 window.
 """
@@ -145,8 +146,7 @@ def forecast_consumption(
     for start, end, base, method in raw_forecast(
         forecaster, records, window, step, now or window.start
     ):
-        raw, applied = apply_adjustments(base, start, end, adjustments)
         corrected = round(correct(base, start), 1) if correct else base
-        power, _ = apply_adjustments(corrected, start, end, adjustments)
-        slots.append(ForecastSlot(start, end, power, base, method, applied, raw))
+        power, applied = apply_adjustments(corrected, start, end, adjustments)
+        slots.append(ForecastSlot(start, end, power, base, method, applied, base))
     return slots

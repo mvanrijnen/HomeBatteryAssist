@@ -63,7 +63,8 @@ def formula_terms(
             terms.append(Term(ret, -1.0, absolute=True, required=True))
     terms += [Term(e, 1.0, absolute=True) for e in data.measurements.pv_sensors]
     terms += [Term(e, -1.0, absolute=True) for e in data.measurements.excluded_sensors]
-    for index, battery in enumerate(data.batteries.configs):
+    real = [b for b in data.batteries.configs if not b.virtual]
+    for index, battery in enumerate(real):
         # house -= charging; charging = -sensor if the sensor is + discharging.
         weight = 1.0 if battery.power_sign == SIGN_DISCHARGING_POSITIVE else -1.0
         terms.append(Term(battery.power_sensor, weight))
