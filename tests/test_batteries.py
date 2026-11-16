@@ -412,7 +412,19 @@ async def test_activity_explained(
         "discharging": (NOW + timedelta(hours=3), "empty"),
         "idle": (NOW + timedelta(hours=20), "resume_charging"),
     }.get(activity)
-    decisions = entry.runtime_data.decisions
+    log = entry.runtime_data.decisions
+
+    class _Latest:
+        """The latest battery decision (forecast cycles may log in between)."""
+
+        @property
+        def latest(self) -> dict:
+            return next(
+                (d for d in reversed(log.entries) if d["category"] == "battery"),
+                {},
+            )
+
+    decisions = _Latest()
 
     async def later(minutes: int) -> None:
         freezer.tick(timedelta(minutes=minutes))
@@ -421,8 +433,15 @@ async def test_activity_explained(
 
     _set(hass, "sensor.grid", "0", "W")
     _set(hass, "sensor.marstek_soc", "50", "%")
-    _set(hass, "sensor.marstek_power", "0", "W")  # first state: not explained
+    _set(hass, "sensor.marstek_power", "0", "W")  # first state
     await hass.async_block_till_done()
+    # After start-up, what the battery does is told once, a minute later.
+    await later(1)
+    assert decisions.latest["key"] == "battery_now_idle"
+    assert decisions.latest["message"] == (
+        "Venus is idle now; solar power covers the house, expected until about "
+        "17-11 09:00, when it charges again. That matches the plan."
+    )
     before = decisions.latest
 
     # A short swing (2 minutes) is not explained.
@@ -434,19 +453,19 @@ async def test_activity_explained(
     await later(6)
     assert decisions.latest == before
 
-    # Lasting discharging (from 13:08), while the plan said idle.
+    # Lasting discharging (from 13:09), while the plan said idle.
     _set(hass, "sensor.marstek_power", "500", "W")
     await hass.async_block_till_done()
     await later(6)
     assert decisions.latest["key"] == "battery_discharging"
     assert decisions.latest["message"] == (
-        "Since 13:08 Venus has been supplying the house, so less power comes from "
+        "Since 13:09 Venus has been supplying the house, so less power comes from "
         "the grid, expected until about 16:00, when it is empty. The plan said: "
         "neither charge nor supply now. The battery follows its own control; "
         "HomeBatteryAssist only advises."
     )
 
-    # It stops at 14:08 at its lower limit: the period is summed up, and the
+    # It stops at 14:09 at its lower limit: the period is summed up, and the
     # idle period that follows is explained (the house runs on the grid).
     await later(54)
     _set(hass, "sensor.grid", "400", "W")
@@ -456,7 +475,7 @@ async def test_activity_explained(
     await later(6)
     assert decisions.latest["key"] == "battery_stopped_discharging"
     assert decisions.latest["message"] == (
-        "Venus supplied power from 13:08 to 14:08: 0.5 kWh — it is empty "
+        "Venus supplied power from 13:09 to 14:09: 0.5 kWh — it is empty "
         "(set lower limit). Now it is idle and the house runs on the grid, "
         "expected until about 17-11 09:00, when it charges again. That matches "
         "the plan."
@@ -469,6 +488,6 @@ async def test_activity_explained(
     await hass.async_block_till_done()
     await later(6)
     assert decisions.latest["message"] == (
-        "Since 14:14 Venus has been charging with power from the grid. "
+        "Since 14:15 Venus has been charging with power from the grid. "
         "That matches the plan."
     )

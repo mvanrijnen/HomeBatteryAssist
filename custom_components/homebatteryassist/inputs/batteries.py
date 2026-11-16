@@ -77,6 +77,7 @@ SAVE_DELAY = 60  # seconds
 # A real battery's activity (charging / discharging / idle) is explained once
 # it has lasted this long, so short swings are not logged.
 ACTIVITY_SETTLE = timedelta(minutes=5)
+STARTUP_DELAY = timedelta(minutes=1)  # then tell what each battery is doing
 ACTIVITY_THRESHOLD_W = 50.0  # |power| above this counts as charging/discharging
 
 
@@ -357,6 +358,7 @@ class BatteryInput:
         self._pending: dict[str, tuple[str, datetime, CALLBACK_TYPE]] = {}
         # battery id -> start of the current period with the counters then
         self._began: dict[str, tuple[datetime, float, float]] = {}
+        self._startup: dict[str, CALLBACK_TYPE] = {}  # the one message after start-up
         # When the current activity is expected to end and why
         # (``empty``/``full``/``pv_end``/``pv_covers``), if known.
         self.expected_until: Callable[[str, str], tuple[datetime, str] | None] = (
@@ -381,7 +383,8 @@ class BatteryInput:
             ) | stored.get(config.id, {})
             stats = self.stats[config.id]
             if stats.get("value_basis") != VALUE_BASIS:
-                # Older counters assumed net metering: start again.
+                # Older counters (net metering, or without the energy for the
+                # wear): start again.
                 stats.pop("value", None)
                 stats.pop("value_since", None)
                 stats.pop("value_kwh", None)
@@ -415,6 +418,9 @@ class BatteryInput:
         for _activity, _began, cancel in self._pending.values():
             cancel()
         self._pending.clear()
+        for cancel in self._startup.values():
+            cancel()
+        self._startup.clear()
         await self._store.async_save(self._data())
 
     @callback
@@ -527,14 +533,23 @@ class BatteryInput:
     def _follow_activity(self, config: BatteryConfig, power: float | None) -> None:
         """Explain what a real battery does (its own control) as periods: when a
         change has lasted ``ACTIVITY_SETTLE``, since when, with what and until
-        when it is expected to go on; when it stops, the period it ran. Not the
-        first state after start-up."""
+        when it is expected to go on; when it stops, the period it ran. After
+        start-up, what it is doing is told once (``STARTUP_DELAY`` later, when
+        the meter and the plan are there)."""
         if power is None:
             return
         activity = activity_of(power)
         if config.id not in self._activity:
             self._activity[config.id] = activity
             self._began[config.id] = self._period_start(config.id, dt_util.utcnow())
+
+            @callback
+            def _told(_now: datetime) -> None:
+                self._startup.pop(config.id, None)
+                if config.id not in self._pending:
+                    self._explain_now(config)
+
+            self._startup[config.id] = async_call_later(self.hass, STARTUP_DELAY, _told)
             return
         pending = self._pending.get(config.id)
         if pending is not None and pending[0] == activity:
@@ -569,9 +584,47 @@ class BatteryInput:
         stats = self.stats[battery_id]
         return when, stats["charged_kwh"], stats["discharged_kwh"]
 
+    def _explain_now(self, config: BatteryConfig) -> None:
+        """What a real battery is doing right now (once after start-up)."""
+        activity = self._activity.get(config.id)
+        if activity is None:
+            return
+        if activity != "idle":
+            self._explain_start(config, activity, None)
+            return
+        grid = self.grid_now()
+        if grid is None:
+            idle = "none"
+        elif grid > ACTIVITY_THRESHOLD_W:
+            idle = "grid"
+        elif grid < -ACTIVITY_THRESHOLD_W:
+            idle = "export"
+        else:
+            idle = "pv"
+        state = self.states[config.id]
+        why = "none"
+        if state.soc is not None and state.soc >= config.max_soc - 1:
+            why = "full"
+        elif state.soc is not None and state.soc <= config.min_soc + 1:
+            why = "empty"
+        expected = self.expected_until(config.id, "idle")
+        until, until_why = expected if expected else (None, "none")
+        self._decisions.async_log(
+            "battery",
+            "battery_now_idle",
+            name=config.name,
+            why=f"@now_{why}",
+            idle=f"@now_idle_{idle}",
+            until="@until_none" if until is None else f"@until_{until_why}",
+            time=clock(until) if until else "",
+            plan=f"@plan_{plan_comparison('idle', self.planned_now())}",
+        )
+
     def _explain_start(
-        self, config: BatteryConfig, activity: str, began: datetime
+        self, config: BatteryConfig, activity: str, began: datetime | None
     ) -> None:
+        """A real battery started charging / discharging at ``began`` (None:
+        it is doing so now, right after start-up)."""
         grid = self.grid_now()
         if activity == "charging":
             power = self.states[config.id].power_w or 0.0
@@ -589,9 +642,9 @@ class BatteryInput:
         planned = self.planned_now()
         self._decisions.async_log(
             "battery",
-            f"battery_{activity}",
+            f"battery_{activity}" if began else f"battery_now_{activity}",
             name=config.name,
-            since=clock(began),
+            since=clock(began) if began else "",
             extra=extra,
             until="@until_none" if until is None else f"@until_{why}",
             time=clock(until) if until else "",
