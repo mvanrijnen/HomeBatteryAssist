@@ -132,6 +132,9 @@ SUBENTRY_PV_SOURCE: Final = "pv_source"
 SUBENTRY_EXCLUDED_LOAD: Final = "excluded_load"
 CONF_SENSOR: Final = "sensor"
 CONF_PHASE: Final = "phase"
+CONF_PV_DRIVER: Final = "pv_driver"  # "sensor" or a meter driver key
+CONF_PV_ADDRESS: Final = "pv_address"  # address of a directly read PV meter
+PV_DRIVER_SENSOR: Final = "sensor"
 # Optional per-phase sensors of a 3-phase device (PV inverter, EV charger)
 CONF_DEVICE_PHASE_SENSORS: Final = (
     "phase_sensor_l1",

@@ -363,6 +363,11 @@
         "full_charge": "Volladen",
         "measurement": "Meting weggevallen / terug"
       }
+    },
+    "pv_driver": {
+      "options": {
+        "sensor": "Een sensor (hieronder kiezen)"
+      }
     }
   },
   "options": {
@@ -585,12 +590,16 @@
             "phase": "Fase",
             "phase_sensor_l1": "Vermogen L1 (optioneel, 3-fase)",
             "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
-            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)"
+            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)",
+            "pv_driver": "Gemeten door",
+            "pv_address": "IP-adres meter"
           },
           "data_description": {
             "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
             "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt.",
-            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken."
+            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken.",
+            "pv_driver": "Een sensor van een andere integratie, of een meter die rechtstreeks wordt uitgelezen (ongeveer elke seconde, alleen lezen), bijv. een HomeWizard kWh-meter op de groep van de omvormer.",
+            "pv_address": "Alleen bij een rechtstreeks uitgelezen meter."
           }
         },
         "reconfigure": {
@@ -602,18 +611,24 @@
             "phase": "Fase",
             "phase_sensor_l1": "Vermogen L1 (optioneel, 3-fase)",
             "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
-            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)"
+            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)",
+            "pv_driver": "Gemeten door",
+            "pv_address": "IP-adres meter"
           },
           "data_description": {
             "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
             "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt.",
-            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken."
+            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken.",
+            "pv_driver": "Een sensor van een andere integratie, of een meter die rechtstreeks wordt uitgelezen (ongeveer elke seconde, alleen lezen), bijv. een HomeWizard kWh-meter op de groep van de omvormer.",
+            "pv_address": "Alleen bij een rechtstreeks uitgelezen meter."
           }
         }
       },
       "error": {
         "sensor_is_phase_sensor": "Deze sensor wordt al gebruikt als netmeting van een fase.",
-        "sensor_in_use": "Deze sensor wordt al door een ander apparaat gebruikt."
+        "sensor_in_use": "Deze sensor wordt al door een ander apparaat gebruikt.",
+        "sensor_required": "Kies de sensor.",
+        "address_required": "Vul het IP-adres van de meter in."
       },
       "abort": {
         "reconfigure_successful": "Instellingen opgeslagen."

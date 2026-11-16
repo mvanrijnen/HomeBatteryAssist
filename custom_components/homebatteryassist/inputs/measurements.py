@@ -43,9 +43,12 @@ from ..const import (
     CONF_METER_SOURCE,
     CONF_PHASE,
     CONF_PHASES,
+    CONF_PV_ADDRESS,
+    CONF_PV_DRIVER,
     CONF_SENSOR,
     NOMINAL_VOLTAGE,
     PHASE_NONE,
+    PV_DRIVER_SENSOR,
     SUBENTRY_EXCLUDED_LOAD,
     SUBENTRY_PV_SOURCE,
     phase_index,
@@ -55,6 +58,7 @@ from ..const import (
 from ..explain import DecisionLog
 from .batteries import battery_configs, battery_power
 from .direct import DIRECT_SOURCES, SOURCE_SENSORS, DirectMeter, create_meter
+from .meter_drivers import get_driver as get_meter_driver
 from .units import state_to_watts
 
 _LOGGER = logging.getLogger(__name__)
@@ -132,6 +136,11 @@ class MeasurementInput:
         self._unsub_direct: CALLBACK_TYPE | None = None
         self.pv_sources = _subentry_devices(entry, SUBENTRY_PV_SOURCE)
         self.excluded_loads = _subentry_devices(entry, SUBENTRY_EXCLUDED_LOAD)
+        # PV sources read directly by a meter driver (e.g. a kWh meter)
+        self.pv_meters: list[tuple[DirectMeter, str]] = []
+        for driver_key, address, phase in _pv_meters(entry):
+            if (driver := get_meter_driver(driver_key)) is not None:
+                self.pv_meters.append((driver.create(hass, address), phase))
         self.pv_sensors = [sensor for sensor, _, _ in self.pv_sources]
         self.excluded_sensors = [sensor for sensor, _, _ in self.excluded_loads]
         # per-phase sensors also trigger a recalculation
@@ -173,12 +182,15 @@ class MeasurementInput:
         _LOGGER.debug("Following %s", self.source_entity_ids)
         if self.direct is not None:
             self._unsub_direct = self.direct.async_add_listener(self._update)
+        self._unsub_pv = [m.async_add_listener(self._update) for m, _ in self.pv_meters]
         self._update(dt_util.utcnow())
 
     async def async_start_meter(self) -> None:
-        """Start reading the direct meter (if any)."""
+        """Start reading the direct meters (grid and PV, if any)."""
         if self.direct is not None:
             await self.direct.async_start()
+        for meter, _ in self.pv_meters:
+            await meter.async_start()
 
     @callback
     def async_stop(self) -> None:
@@ -189,14 +201,19 @@ class MeasurementInput:
         if self._unsub_direct is not None:
             self._unsub_direct()
             self._unsub_direct = None
+        for unsub in getattr(self, "_unsub_pv", []):
+            unsub()
+        self._unsub_pv = []
         for cancel in self._pending.values():
             cancel()
         self._pending.clear()
 
     async def async_stop_meter(self) -> None:
-        """Stop reading the direct meter (if any)."""
+        """Stop reading the direct meters (if any)."""
         if self.direct is not None:
             await self.direct.async_stop()
+        for meter, _ in self.pv_meters:
+            await meter.async_stop()
 
     @callback
     def async_add_listener(
@@ -261,7 +278,15 @@ class MeasurementInput:
         if missing:
             return None, missing
         grid = round(sum(phase_w), 1)
-        pv = round(self._sum_abs(self.pv_sensors), 1)
+        pv = round(
+            self._sum_abs(self.pv_sensors)
+            + sum(
+                abs(sum(m.phase_w))
+                for m, _ in self.pv_meters
+                if m.available and m.phase_w
+            ),
+            1,
+        )
         excluded = round(self._sum_abs(self.excluded_sensors), 1)
         battery = round(
             sum(battery_power(self.hass, b) or 0.0 for b in self.batteries), 1
@@ -290,6 +315,17 @@ class MeasurementInput:
 
         for sensor, phase, sensors in self.pv_sources:
             for part, value in per_phase(sensor, phase, sensors):
+                add(phase_pv, part, value)
+                add(phase_house, part, value)
+        for meter, phase in self.pv_meters:
+            if not meter.available or not meter.phase_w:
+                continue
+            values = meter.phase_w
+            if count > 1 and len(values) == count:
+                parts = [(f"l{i + 1}", abs(v)) for i, v in enumerate(values)]
+            else:
+                parts = [(phase, abs(sum(values)))]
+            for part, value in parts:
                 add(phase_pv, part, value)
                 add(phase_house, part, value)
         for sensor, phase, sensors in self.excluded_loads:
@@ -350,6 +386,26 @@ class MeasurementInput:
 def _subentry_devices(
     entry: ConfigEntry, subentry_type: str
 ) -> list[tuple[str, str, tuple[str | None, ...]]]:
+    """Devices measured by sensors (directly read PV meters: ``_pv_meters``)."""
+    return [
+        device
+        for device, driver, _ in _subentry_devices_all(entry, subentry_type)
+        if driver == PV_DRIVER_SENSOR
+    ]
+
+
+def _pv_meters(entry: ConfigEntry) -> list[tuple[str, str, str]]:
+    """(driver, address, phase) of PV sources read directly by a meter driver."""
+    return [
+        (driver, address, device[1])
+        for device, driver, address in _subentry_devices_all(entry, SUBENTRY_PV_SOURCE)
+        if driver != PV_DRIVER_SENSOR and address
+    ]
+
+
+def _subentry_devices_all(
+    entry: ConfigEntry, subentry_type: str
+) -> list[tuple[tuple[str, str, tuple[str | None, ...]], str, str]]:
     """(sensor, phase, per-phase sensors) of every subentry of the type.
 
     A device on one phase has ``phase`` l1-l3; a 3-phase device has phase
@@ -357,9 +413,15 @@ def _subentry_devices(
     """
     return [
         (
-            subentry.data[CONF_SENSOR],
-            subentry.data.get(CONF_PHASE, PHASE_NONE),
-            tuple(subentry.data.get(key) or None for key in CONF_DEVICE_PHASE_SENSORS),
+            (
+                subentry.data.get(CONF_SENSOR) or "",
+                subentry.data.get(CONF_PHASE, PHASE_NONE),
+                tuple(
+                    subentry.data.get(key) or None for key in CONF_DEVICE_PHASE_SENSORS
+                ),
+            ),
+            subentry.data.get(CONF_PV_DRIVER, PV_DRIVER_SENSOR),
+            subentry.data.get(CONF_PV_ADDRESS, ""),
         )
         for subentry in entry.subentries.values()
         if subentry.subentry_type == subentry_type

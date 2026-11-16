@@ -56,6 +56,7 @@ async def test_add_device_three_phase(hass: HomeAssistant, kind: str) -> None:
         (entry.entry_id, kind), context={"source": SOURCE_USER}
     )
     assert result["type"] is FlowResultType.FORM
+    pv = {"pv_driver", "pv_address"} if kind == SUBENTRY_PV_SOURCE else set()
     assert set(result["data_schema"].schema) == {
         CONF_NAME,
         CONF_SENSOR,
@@ -63,6 +64,7 @@ async def test_add_device_three_phase(hass: HomeAssistant, kind: str) -> None:
         "phase_sensor_l1",
         "phase_sensor_l2",
         "phase_sensor_l3",
+        *pv,
     }
 
     result = await hass.config_entries.subentries.async_configure(
@@ -78,6 +80,7 @@ async def test_add_device_three_phase(hass: HomeAssistant, kind: str) -> None:
         CONF_NAME: "Device",
         CONF_SENSOR: "sensor.device",
         CONF_PHASE: "l2",
+        **({"pv_driver": "sensor"} if kind == SUBENTRY_PV_SOURCE else {}),
     }
 
 
@@ -89,7 +92,12 @@ async def test_single_phase_has_no_phase_field(hass: HomeAssistant) -> None:
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, SUBENTRY_PV_SOURCE), context={"source": SOURCE_USER}
     )
-    assert set(result["data_schema"].schema) == {CONF_NAME, CONF_SENSOR}
+    assert set(result["data_schema"].schema) == {
+        CONF_NAME,
+        CONF_SENSOR,
+        "pv_driver",
+        "pv_address",
+    }
 
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {CONF_NAME: "Roof", CONF_SENSOR: "sensor.pv"}
@@ -166,3 +174,33 @@ async def test_reconfigure_device(hass: HomeAssistant) -> None:
     subentry = entry.subentries[subentry_id]
     assert subentry.title == "EV charger"
     assert subentry.data[CONF_PHASE] == "l3"
+
+
+async def test_pv_source_read_directly(hass: HomeAssistant) -> None:
+    """A PV source can be a meter read directly instead of a sensor."""
+    from unittest.mock import AsyncMock, patch
+
+    entry = await _entry(hass, THREE_PHASE)
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_PV_SOURCE), context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {CONF_NAME: "Roof", "pv_driver": "homewizard"}
+    )
+    assert result["errors"] == {"pv_address": "address_required"}
+    with patch(
+        "custom_components.homebatteryassist.inputs.direct.HomeWizardP1.async_start",
+        AsyncMock(),
+    ):
+        result = await hass.config_entries.subentries.async_configure(
+            result["flow_id"],
+            {CONF_NAME: "Roof", "pv_driver": "homewizard", "pv_address": "192.0.2.21"},
+        )
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+        await hass.async_block_till_done()
+        measurements = entry.runtime_data.measurements
+        (meter, _phase) = measurements.pv_meters[0]
+        meter._set((1200.0,))  # the kWh meter on the inverter: 1.2 kW
+        measurements._update(meter.updated)
+        assert measurements.flow is None or measurements.flow.pv_w in (0.0, 1200.0)
+        assert await hass.config_entries.async_unload(entry.entry_id)

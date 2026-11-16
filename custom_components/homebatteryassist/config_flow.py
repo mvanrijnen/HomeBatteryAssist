@@ -114,7 +114,9 @@ from .const import (
     CONF_PRICE_EXTENSION,
     CONF_PRICE_FORECAST,
     CONF_PRICE_SOURCE,
+    CONF_PV_ADDRESS,
     CONF_PV_CORRECTION,
+    CONF_PV_DRIVER,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
     CONF_RESERVE_SOC,
@@ -166,6 +168,7 @@ from .const import (
     PRICE_SOURCE_SENSOR,
     PV_CORRECTION_BOTH,
     PV_CORRECTION_MODES,
+    PV_DRIVER_SENSOR,
     SIGN_CHARGING_POSITIVE,
     SIGN_DISCHARGING_POSITIVE,
     SOURCE_MANUAL,
@@ -188,6 +191,7 @@ from .inputs.direct import (
     discover_speedwire,
     find_direct_meters,
 )
+from .inputs.meter_drivers import DRIVERS as METER_DRIVERS
 from .inputs.meters import MeterCandidate, find_meter_candidates
 from .inputs.price_drivers import find_sources, get_driver
 from .inputs.profiles import BatteryCandidate, find_battery_candidates
@@ -1155,6 +1159,8 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
 class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):
     """Add or change a named device with a power/current sensor and phase."""
 
+    allow_direct = False  # PV sources: also a directly read meter
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
@@ -1175,12 +1181,23 @@ class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):
         current = self._get_reconfigure_subentry() if step_id == "reconfigure" else None
         errors: dict[str, str] = {}
 
+        direct = self.allow_direct
         if user_input is not None:
+            driver = user_input.get(CONF_PV_DRIVER, PV_DRIVER_SENSOR)
+            address = (user_input.get(CONF_PV_ADDRESS) or "").strip()
             data = {
                 CONF_NAME: user_input[CONF_NAME],
-                CONF_SENSOR: user_input[CONF_SENSOR],
+                CONF_SENSOR: user_input.get(CONF_SENSOR) or "",
                 CONF_PHASE: user_input.get(CONF_PHASE, PHASE_NONE),
             }
+            if direct:
+                data[CONF_PV_DRIVER] = driver
+                if driver != PV_DRIVER_SENSOR:
+                    data[CONF_PV_ADDRESS] = address
+            if driver == PV_DRIVER_SENSOR and not data[CONF_SENSOR]:
+                errors = {CONF_SENSOR: "sensor_required"}
+            elif driver != PV_DRIVER_SENSOR and not address:
+                errors = {CONF_PV_ADDRESS: "address_required"}
             phase_sensors = {
                 key: user_input[key]
                 for key in CONF_DEVICE_PHASE_SENSORS
@@ -1190,27 +1207,49 @@ class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):
                 # Measured per phase: a 3-phase device, not bound to one phase.
                 data.update(phase_sensors)
                 data[CONF_PHASE] = PHASE_NONE
-            errors = self._validate_sensor(entry, data[CONF_SENSOR], current)
+            if not errors and data[CONF_SENSOR]:
+                errors = self._validate_sensor(entry, data[CONF_SENSOR], current)
             for key, sensor in phase_sensors.items():
                 if not errors and (error := sensor_conflict(entry, sensor, current)):
                     errors = {key: error}
             if not errors:
+                unique = data[CONF_SENSOR] or f"{driver}:{address}"
                 if current is None:
                     return self.async_create_entry(
-                        title=data[CONF_NAME], data=data, unique_id=data[CONF_SENSOR]
+                        title=data[CONF_NAME], data=data, unique_id=unique
                     )
                 return self.async_update_and_abort(
                     entry,
                     current,
                     title=data[CONF_NAME],
                     data=data,
-                    unique_id=data[CONF_SENSOR],
+                    unique_id=unique,
                 )
 
-        schema: dict[Any, Any] = {
-            vol.Required(CONF_NAME): TextSelector(),
-            vol.Required(CONF_SENSOR): PHASE_SENSOR_SELECTOR,
-        }
+        schema: dict[Any, Any] = {vol.Required(CONF_NAME): TextSelector()}
+        if direct:
+            schema[vol.Required(CONF_PV_DRIVER, default=PV_DRIVER_SENSOR)] = (
+                SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            SelectOptionDict(
+                                value=PV_DRIVER_SENSOR, label=PV_DRIVER_SENSOR
+                            ),
+                            *(
+                                SelectOptionDict(value=d.key, label=d.name)
+                                for d in METER_DRIVERS
+                                if d.pv_capable
+                            ),
+                        ],
+                        mode=SelectSelectorMode.DROPDOWN,
+                        translation_key=CONF_PV_DRIVER,
+                    )
+                )
+            )
+            schema[vol.Optional(CONF_SENSOR)] = PHASE_SENSOR_SELECTOR
+            schema[vol.Optional(CONF_PV_ADDRESS)] = TextSelector()
+        else:
+            schema[vol.Required(CONF_SENSOR)] = PHASE_SENSOR_SELECTOR
         if three_phase:
             schema[vol.Required(CONF_PHASE, default=PHASE_NONE)] = phase_selector()
             for key in CONF_DEVICE_PHASE_SENSORS:
@@ -1234,6 +1273,8 @@ class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):
 
 
 class PvSourceSubentryFlow(_MeasuredDeviceSubentryFlow):
+    allow_direct = True  # a PV meter may also be read directly
+
     """Add or change a PV production measurement."""
 
 
