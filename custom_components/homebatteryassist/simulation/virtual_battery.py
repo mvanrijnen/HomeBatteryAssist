@@ -324,7 +324,8 @@ class VirtualBatterySimulator:
         result, shaved = shave_peak(
             wanted,
             devices,
-            flow.grid_w,
+            flow.grid_w
+            - (0.0 if self._forecast.peak_include_excluded else flow.excluded_w),
             peak,
             [
                 c.id
@@ -419,9 +420,24 @@ class VirtualBatterySimulator:
                 slot.power_w * virtual_capacity / capacity if slot and capacity else 0.0
             )
         else:
-            # NOM: the real surplus (+) / shortage (-) on the grid right now.
+            # NOM: the real surplus (+) / shortage (-) on the grid right now,
+            # around the target grid power.
             flow = self._measurements.flow
-            total = -flow.grid_w if flow is not None else 0.0
+            rules = self._forecast.rules
+            total = -(flow.grid_w - rules.nom_target_w) if flow is not None else 0.0
+            price = self._batteries.price_now()
+            if (
+                total < 0
+                and rules.min_discharge_price is not None
+                and price is not None
+                and price < rules.min_discharge_price
+            ):
+                total = 0.0  # discharging only at a high enough price
+        rules = self._forecast.rules
+        if total > 0 and rules.max_charge_w > 0:
+            total = min(total, rules.max_charge_w)
+        if total < 0 and rules.max_discharge_w > 0:
+            total = max(total, -rules.max_discharge_w)
 
         candidates = []
         for config in virtual:
@@ -430,7 +446,10 @@ class VirtualBatterySimulator:
                 Candidate(
                     config.id,
                     state.soc if state.soc is not None else config.initial_soc,
-                    config.min_soc,
+                    min(
+                        max(config.min_soc, self._forecast.rules.reserve_soc),
+                        config.max_soc,
+                    ),
                     config.max_soc,
                     config.max_charge_w,
                     config.max_discharge_w,

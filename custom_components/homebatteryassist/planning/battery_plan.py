@@ -117,6 +117,30 @@ class BatteryPlan:
 
 
 @dataclass(frozen=True, slots=True)
+class PlanRules:
+    """User rules every plan respects (all optional; 0 / None = off).
+
+    - ``reserve_soc``: never plan below this state of charge (%), e.g. as backup
+      reserve; on top of each battery's own minimum;
+    - ``max_charge_w`` / ``max_discharge_w``: all batteries together;
+    - ``nom_target_w``: zero on the meter aims at this grid power (+ import);
+    - ``min_discharge_price``: discharge only at or above this price;
+    - ``max_charge_price``: charge from the grid only at or below this price
+      (charging with surplus solar power is always fine);
+    - ``min_margin``: an arbitrage cycle must bring at least this per kWh
+      (on top of the wear cost).
+    """
+
+    reserve_soc: float = 0.0
+    max_charge_w: float = 0.0
+    max_discharge_w: float = 0.0
+    nom_target_w: float = 0.0
+    min_discharge_price: float | None = None
+    max_charge_price: float | None = None
+    min_margin: float = 0.0
+
+
+@dataclass(frozen=True, slots=True)
 class _Pack:
     capacity: float  # Wh
     stored: float  # Wh now
@@ -125,20 +149,39 @@ class _Pack:
     max_charge: float  # W
     max_discharge: float  # W
     eff: float  # one-way efficiency
+    rules: PlanRules = PlanRules()
 
 
-def _pack(states: Iterable[BatteryState]) -> _Pack | None:
+def _pack(
+    states: Iterable[BatteryState], rules: PlanRules = PlanRules()
+) -> _Pack | None:
     usable = [s for s in states if s.soc is not None and s.config.capacity_kwh > 0]
     if not usable:
         return None
     capacity = sum(s.config.capacity_kwh for s in usable) * 1000
+    max_charge = sum(
+        s.config.max_charge_w * getattr(s, "charge_factor", 1.0) for s in usable
+    )
+    max_discharge = sum(
+        s.config.max_discharge_w * getattr(s, "discharge_factor", 1.0) for s in usable
+    )
+    if rules.max_charge_w > 0:
+        max_charge = min(max_charge, rules.max_charge_w)
+    if rules.max_discharge_w > 0:
+        max_discharge = min(max_discharge, rules.max_discharge_w)
     return _Pack(
         capacity=capacity,
         stored=sum(s.soc * s.config.capacity_kwh * 10 for s in usable),
-        floor=sum(s.config.min_soc * s.config.capacity_kwh * 10 for s in usable),
+        floor=sum(
+            min(max(s.config.min_soc, rules.reserve_soc), s.config.max_soc)
+            * s.config.capacity_kwh
+            * 10
+            for s in usable
+        ),
         ceiling=sum(s.config.max_soc * s.config.capacity_kwh * 10 for s in usable),
-        max_charge=sum(s.config.max_charge_w for s in usable),
-        max_discharge=sum(s.config.max_discharge_w for s in usable),
+        max_charge=max_charge,
+        max_discharge=max_discharge,
+        rules=rules,
         eff=math.sqrt(
             sum(s.config.efficiency * s.config.capacity_kwh for s in usable)
             / (capacity / 1000)
@@ -172,13 +215,14 @@ def plan_batteries(
     max_cycles_per_day: float = 0.0,
     peak_w: float = 0.0,
     target: Callable[[datetime], Target | None] | None = None,
+    rules: PlanRules = PlanRules(),
 ) -> BatteryPlan | None:
     """Plan the batteries in ``mode`` over the consumption slots; None without batteries.
 
     ``export_prices``: what exported energy earns per period; where it is not
     known, the import price x ``export_factor``.
     """
-    pack = _pack(states)
+    pack = _pack(states, rules)
     if pack is None or not consumption:
         return None
 
@@ -224,6 +268,12 @@ def plan_batteries(
     if mode in FIXED_MODES:
         return _nom(pack, slots, cycle_cost, mode, priced, target)
     return _nom(pack, slots, cycle_cost, mode, priced)
+
+
+def _may_discharge(pack: _Pack, price: float | None) -> bool:
+    """Discharging is allowed at this price (the minimum discharge price)."""
+    threshold = pack.rules.min_discharge_price
+    return threshold is None or price is None or price >= threshold
 
 
 def cycles_per_day(plan: BatteryPlan) -> dict[date, float]:
@@ -288,7 +338,8 @@ def _nom(
     stored = pack.stored
     result: list[PlanSlot] = []
     cost_with = cost_without = 0.0
-    for slot, hours, net, price, max_c, max_d, export in slots:
+    for slot, hours, net_raw, price, max_c, max_d, export in slots:
+        net = net_raw
         power = 0.0
         fixed = target(slot.start) if target else None
         if fixed is not None:
@@ -306,14 +357,15 @@ def _nom(
                 available = max(stored - bottom, 0.0)
                 power = -min(-fixed.power_w, max_d, available * pack.eff / hours)
                 stored += power * hours / pack.eff
-        elif net < 0:
+        elif (net := net_raw - pack.rules.nom_target_w) < 0:
             room = max(pack.ceiling - stored, 0.0)
             power = min(-net, max_c, room / (hours * pack.eff))
             stored += power * hours * pack.eff
-        elif net > 0:
+        elif net > 0 and _may_discharge(pack, price):
             available = max(stored - pack.floor, 0.0)
             power = -min(net, max_d, available * pack.eff / hours)
             stored += power * hours / pack.eff
+        net = net_raw
         if priced:
             cost_with += _grid_cost(net + power, hours, price, export)
             cost_with += abs(power) * hours / 1000 * cycle_cost
@@ -364,6 +416,8 @@ def _optimise(
     span = max(pack.ceiling - pack.floor, 0.0)
     if span <= 0:
         return _nom(pack, slots, cycle_cost, mode, True)
+    rules = pack.rules
+    extra = penalty + rules.min_margin  # per kWh discharged, steering only
     step = span / SOC_STEPS
     levels = SOC_STEPS + 1
     energy = [pack.floor + i * step for i in range(levels)]
@@ -394,10 +448,18 @@ def _optimise(
                 # Own use: never discharge more than the house needs (no export).
                 if not allow_export and power < 0 and power < -max(net, 0.0) - 1e-6:
                     continue
+                if power < 0 and not _may_discharge(pack, price):
+                    continue
+                if (
+                    power > max(-net, 0.0) + 1e-6
+                    and rules.max_charge_price is not None
+                    and price > rules.max_charge_price
+                ):
+                    continue  # charging from the grid only when cheap enough
                 cost = (
                     _grid_cost(net + power, hours, price, export)
                     + abs(power) * hours / 1000 * cycle_cost
-                    + (-power * hours / 1000 * penalty if power < 0 else 0.0)
+                    + (-power * hours / 1000 * extra if power < 0 else 0.0)
                     + (
                         max(net + power - peak_w, 0.0) * hours / 1000 * PEAK_PENALTY
                         if peak_w > 0

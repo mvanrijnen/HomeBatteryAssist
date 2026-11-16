@@ -66,6 +66,14 @@ PV_CORRECTION_MODES: Final = (
     PV_CORRECTION_OFF,
 )
 CONF_PEAK_LIMIT: Final = "peak_limit_w"
+CONF_PEAK_INCLUDE_EXCLUDED: Final = "peak_include_excluded"
+CONF_RESERVE_SOC: Final = "reserve_soc"  # % never planned below (backup reserve)
+CONF_SYSTEM_MAX_CHARGE: Final = "system_max_charge_w"  # all batteries, 0 = off
+CONF_SYSTEM_MAX_DISCHARGE: Final = "system_max_discharge_w"
+CONF_NOM_TARGET: Final = "nom_target_w"  # grid power NOM aims at
+CONF_MIN_DISCHARGE_PRICE: Final = "min_discharge_price"  # optional
+CONF_MAX_CHARGE_PRICE: Final = "max_charge_price"  # optional
+CONF_MIN_MARGIN: Final = "min_arbitrage_margin"  # per kWh
 CONF_MANUAL_POWER: Final = "manual_power_w"  # + charge / - discharge
 DEFAULT_MANUAL_POWER: Final = 0
 SUBENTRY_TIME_SLOT: Final = "time_slot"

@@ -66,7 +66,15 @@
           "manual_power_w": "Handmatig vermogen",
           "pv_correction": "Correctie zonvoorspelling",
           "price_source": "Prijsbron",
-          "price_extension": "Extra prijsvoorspelling"
+          "price_extension": "Extra prijsvoorspelling",
+          "reserve_soc": "Reserve laadniveau",
+          "system_max_charge_w": "Max. laadvermogen alle batterijen",
+          "system_max_discharge_w": "Max. ontlaadvermogen alle batterijen",
+          "nom_target_w": "Doelnetvermogen (nul op de meter)",
+          "min_discharge_price": "Pas ontladen vanaf prijs",
+          "max_charge_price": "Uit het net laden tot prijs",
+          "min_arbitrage_margin": "Min. arbitragemarge",
+          "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -89,7 +97,15 @@
           "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
           "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet.",
           "price_source": "Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest.",
-          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld."
+          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld.",
+          "reserve_soc": "De plannen gaan nooit onder dit laadniveau (bijv. als noodreserve), bovenop het eigen minimum van elke batterij. Piekafvlakking en fasebeveiliging mogen het nog wel gebruiken. 0 = uit.",
+          "system_max_charge_w": "Alle batterijen samen laden nooit met meer dan dit vermogen. 0 = geen grens.",
+          "system_max_discharge_w": "Alle batterijen samen ontladen nooit met meer dan dit vermogen. 0 = geen grens.",
+          "nom_target_w": "Nul op de meter mikt op dit netvermogen in plaats van precies 0 W, bijv. +50 W zodat er altijd een beetje wordt afgenomen.",
+          "min_discharge_price": "Optioneel: de batterijen ontladen alleen als stroom minstens dit kost (ook bij nul op de meter).",
+          "max_charge_price": "Optioneel: arbitrage laadt alleen uit het net als stroom hoogstens dit kost (laden met zonne-overschot mag altijd).",
+          "min_arbitrage_margin": "Arbitrage laadt alleen om later te ontladen als dat minstens zoveel per kWh oplevert, bovenop de slijtagekosten.",
+          "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens."
         }
       }
     },
@@ -278,7 +294,15 @@
           "manual_power_w": "Handmatig vermogen",
           "pv_correction": "Correctie zonvoorspelling",
           "price_source": "Prijsbron",
-          "price_extension": "Extra prijsvoorspelling"
+          "price_extension": "Extra prijsvoorspelling",
+          "reserve_soc": "Reserve laadniveau",
+          "system_max_charge_w": "Max. laadvermogen alle batterijen",
+          "system_max_discharge_w": "Max. ontlaadvermogen alle batterijen",
+          "nom_target_w": "Doelnetvermogen (nul op de meter)",
+          "min_discharge_price": "Pas ontladen vanaf prijs",
+          "max_charge_price": "Uit het net laden tot prijs",
+          "min_arbitrage_margin": "Min. arbitragemarge",
+          "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee"
         },
         "data_description": {
           "history_interval": "Een korter interval is nauwkeuriger, maar slaat meer gegevens op.",
@@ -301,7 +325,15 @@
           "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
           "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet.",
           "price_source": "Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest.",
-          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld."
+          "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld.",
+          "reserve_soc": "De plannen gaan nooit onder dit laadniveau (bijv. als noodreserve), bovenop het eigen minimum van elke batterij. Piekafvlakking en fasebeveiliging mogen het nog wel gebruiken. 0 = uit.",
+          "system_max_charge_w": "Alle batterijen samen laden nooit met meer dan dit vermogen. 0 = geen grens.",
+          "system_max_discharge_w": "Alle batterijen samen ontladen nooit met meer dan dit vermogen. 0 = geen grens.",
+          "nom_target_w": "Nul op de meter mikt op dit netvermogen in plaats van precies 0 W, bijv. +50 W zodat er altijd een beetje wordt afgenomen.",
+          "min_discharge_price": "Optioneel: de batterijen ontladen alleen als stroom minstens dit kost (ook bij nul op de meter).",
+          "max_charge_price": "Optioneel: arbitrage laadt alleen uit het net als stroom hoogstens dit kost (laden met zonne-overschot mag altijd).",
+          "min_arbitrage_margin": "Arbitrage laadt alleen om later te ontladen als dat minstens zoveel per kWh oplevert, bovenop de slijtagekosten.",
+          "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens."
         }
       },
       "meter": {

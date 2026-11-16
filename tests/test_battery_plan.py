@@ -227,3 +227,51 @@ def test_makes_room_before_negative_export_price() -> None:
     assert sum(s.power_w for s in plan.slots[:3]) < -1000  # makes room first
     assert plan.slots[3].power_w > 1500  # stores the surplus
     assert plan.slots[3].grid_w > -1000  # little export at the negative price
+
+
+def test_plan_rules() -> None:
+    """Reserve, discharge price, grid charge price and the NOM target."""
+    from custom_components.homebatteryassist.planning.battery_plan import PlanRules
+
+    slots = _slots([1000.0] * 4)
+    prices = _prices([0.10, 0.10, 0.40, 0.20])
+    # Reserve: never below 60 % in the plan (battery at 70 %).
+    nom = plan_batteries(
+        [_battery(soc=70.0)],
+        slots,
+        {},
+        prices,
+        mode=MODE_NOM,
+        rules=PlanRules(reserve_soc=60.0),
+    )
+    assert min(s.soc for s in nom.slots) >= 59.9
+    # Discharge only from 0.30: only in the expensive slot.
+    nom = plan_batteries(
+        [_battery(soc=90.0)],
+        slots,
+        {},
+        prices,
+        mode=MODE_NOM,
+        rules=PlanRules(min_discharge_price=0.30),
+    )
+    assert [s.power_w < 0 for s in nom.slots] == [False, False, True, False]
+    # Arbitrage may not charge from the grid above 0.05: it cannot buy cheap.
+    arb = plan_batteries(
+        [_battery(soc=10.0)],
+        slots,
+        {},
+        prices,
+        mode=MODE_ARBITRAGE,
+        rules=PlanRules(max_charge_price=0.05),
+    )
+    assert all(s.power_w <= 0 for s in arb.slots)
+    # NOM aims at +200 W import: it discharges 800 W of the 1000 W shortage.
+    nom = plan_batteries(
+        [_battery(soc=90.0)],
+        slots,
+        {},
+        prices,
+        mode=MODE_NOM,
+        rules=PlanRules(nom_target_w=200.0),
+    )
+    assert nom.slots[0].power_w == -800.0

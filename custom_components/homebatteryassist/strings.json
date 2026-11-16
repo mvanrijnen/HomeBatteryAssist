@@ -66,7 +66,15 @@
           "manual_power_w": "Manual power",
           "pv_correction": "Correction of the PV forecast",
           "price_source": "Price source",
-          "price_extension": "Extra price forecast"
+          "price_extension": "Extra price forecast",
+          "reserve_soc": "Reserve state of charge",
+          "system_max_charge_w": "Max. charge power, all batteries",
+          "system_max_discharge_w": "Max. discharge power, all batteries",
+          "nom_target_w": "Target grid power (zero on the meter)",
+          "min_discharge_price": "Discharge only from price",
+          "max_charge_price": "Charge from the grid up to price",
+          "min_arbitrage_margin": "Min. arbitrage margin",
+          "peak_include_excluded": "Peak limit includes excluded devices"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -89,7 +97,15 @@
           "manual_power_w": "Used in the plan mode “Manual”: the batteries always charge (positive) or discharge (negative) at this power, within their limits.",
           "pv_correction": "How the PV forecast is corrected before planning: automatically (learned from how accurate past forecasts were), with a fixed margin (below), both, or not at all.",
           "price_source": "Where the power prices come from. Sources found in Home Assistant are listed (* = not yet tested on a real installation); 'Price sensor' uses the sensor chosen below.",
-          "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated."
+          "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated.",
+          "reserve_soc": "The plans never go below this state of charge (e.g. as backup reserve), on top of each battery's own minimum. Peak shaving and phase protection may still use it. 0 = off.",
+          "system_max_charge_w": "All batteries together never charge at more than this power. 0 = no limit.",
+          "system_max_discharge_w": "All batteries together never discharge at more than this power. 0 = no limit.",
+          "nom_target_w": "Zero on the meter aims at this grid power instead of exactly 0 W, e.g. +50 W so a little is always imported.",
+          "min_discharge_price": "Optional: the batteries only discharge when power costs at least this much (also in zero on the meter).",
+          "max_charge_price": "Optional: arbitrage only charges from the grid when power costs at most this much (charging with surplus solar power is always allowed).",
+          "min_arbitrage_margin": "Arbitrage only charges to discharge later when that brings at least this much per kWh, on top of the wear cost.",
+          "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit."
         }
       }
     },
@@ -278,7 +294,15 @@
           "manual_power_w": "Manual power",
           "pv_correction": "Correction of the PV forecast",
           "price_source": "Price source",
-          "price_extension": "Extra price forecast"
+          "price_extension": "Extra price forecast",
+          "reserve_soc": "Reserve state of charge",
+          "system_max_charge_w": "Max. charge power, all batteries",
+          "system_max_discharge_w": "Max. discharge power, all batteries",
+          "nom_target_w": "Target grid power (zero on the meter)",
+          "min_discharge_price": "Discharge only from price",
+          "max_charge_price": "Charge from the grid up to price",
+          "min_arbitrage_margin": "Min. arbitrage margin",
+          "peak_include_excluded": "Peak limit includes excluded devices"
         },
         "data_description": {
           "history_interval": "A shorter interval is more precise but stores more data.",
@@ -301,7 +325,15 @@
           "manual_power_w": "Used in the plan mode “Manual”: the batteries always charge (positive) or discharge (negative) at this power, within their limits.",
           "pv_correction": "How the PV forecast is corrected before planning: automatically (learned from how accurate past forecasts were), with a fixed margin (below), both, or not at all.",
           "price_source": "Where the power prices come from. Sources found in Home Assistant are listed (* = not yet tested on a real installation); 'Price sensor' uses the sensor chosen below.",
-          "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated."
+          "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated.",
+          "reserve_soc": "The plans never go below this state of charge (e.g. as backup reserve), on top of each battery's own minimum. Peak shaving and phase protection may still use it. 0 = off.",
+          "system_max_charge_w": "All batteries together never charge at more than this power. 0 = no limit.",
+          "system_max_discharge_w": "All batteries together never discharge at more than this power. 0 = no limit.",
+          "nom_target_w": "Zero on the meter aims at this grid power instead of exactly 0 W, e.g. +50 W so a little is always imported.",
+          "min_discharge_price": "Optional: the batteries only discharge when power costs at least this much (also in zero on the meter).",
+          "max_charge_price": "Optional: arbitrage only charges from the grid when power costs at most this much (charging with surplus solar power is always allowed).",
+          "min_arbitrage_margin": "Arbitrage only charges to discharge later when that brings at least this much per kWh, on top of the wear cost.",
+          "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit."
         }
       },
       "meter": {

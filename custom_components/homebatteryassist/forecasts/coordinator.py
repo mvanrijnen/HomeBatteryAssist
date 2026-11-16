@@ -40,9 +40,14 @@ from ..const import (
     CONF_FORECAST_INTERVAL,
     CONF_FULL_CHARGE_WINDOW,
     CONF_MANUAL_POWER,
+    CONF_MAX_CHARGE_PRICE,
     CONF_MAX_CURRENT,
     CONF_MAX_CYCLES,
     CONF_MIN_BATTERY_POWER,
+    CONF_MIN_DISCHARGE_PRICE,
+    CONF_MIN_MARGIN,
+    CONF_NOM_TARGET,
+    CONF_PEAK_INCLUDE_EXCLUDED,
     CONF_PEAK_LIMIT,
     CONF_PHASE_MARGIN,
     CONF_PHASES,
@@ -54,6 +59,9 @@ from ..const import (
     CONF_PV_CORRECTION,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
+    CONF_RESERVE_SOC,
+    CONF_SYSTEM_MAX_CHARGE,
+    CONF_SYSTEM_MAX_DISCHARGE,
     DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
     DEFAULT_EXPORT_FACTOR,
@@ -102,6 +110,7 @@ from ..planning.battery_plan import (
     MODE_TIME_SLOTS,
     PLAN_MODES,
     BatteryPlan,
+    PlanRules,
     PlanSlot,
     plan_batteries,
 )
@@ -217,6 +226,19 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             else 0
         )
         self.peak_w: float = entry.options.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT)
+        self.peak_include_excluded: bool = entry.options.get(
+            CONF_PEAK_INCLUDE_EXCLUDED, True
+        )
+        opts = entry.options
+        self.rules = PlanRules(
+            reserve_soc=float(opts.get(CONF_RESERVE_SOC, 0)),
+            max_charge_w=float(opts.get(CONF_SYSTEM_MAX_CHARGE, 0)),
+            max_discharge_w=float(opts.get(CONF_SYSTEM_MAX_DISCHARGE, 0)),
+            nom_target_w=float(opts.get(CONF_NOM_TARGET, 0)),
+            min_discharge_price=opts.get(CONF_MIN_DISCHARGE_PRICE),
+            max_charge_price=opts.get(CONF_MAX_CHARGE_PRICE),
+            min_margin=float(opts.get(CONF_MIN_MARGIN, 0)),
+        )
         self.manual_power: float = entry.options.get(
             CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER
         )
@@ -388,6 +410,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                     max_cycles_per_day=self.max_cycles,
                     peak_w=self.peak_w,
                     target=self._target(m),
+                    rules=self.rules,
                 )
             )
             if plan is not None:

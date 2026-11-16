@@ -48,6 +48,7 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.selector import (
+    BooleanSelector,
     EntitySelector,
     EntitySelectorConfig,
     NumberSelector,
@@ -80,6 +81,7 @@ from .const import (
     CONF_LOSS_MIN,
     CONF_MANUAL_POWER,
     CONF_MAX_CHARGE_POWER,
+    CONF_MAX_CHARGE_PRICE,
     CONF_MAX_CURRENT,
     CONF_MAX_CYCLES,
     CONF_MAX_DISCHARGE_POWER,
@@ -87,7 +89,11 @@ from .const import (
     CONF_METER_ADDRESS,
     CONF_METER_SOURCE,
     CONF_MIN_BATTERY_POWER,
+    CONF_MIN_DISCHARGE_PRICE,
+    CONF_MIN_MARGIN,
     CONF_MIN_SOC,
+    CONF_NOM_TARGET,
+    CONF_PEAK_INCLUDE_EXCLUDED,
     CONF_PEAK_LIMIT,
     CONF_PHASE,
     CONF_PHASE_MARGIN,
@@ -104,9 +110,12 @@ from .const import (
     CONF_PV_CORRECTION,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
+    CONF_RESERVE_SOC,
     CONF_SENSOR,
     CONF_SOC_SENSOR,
     CONF_SOURCE,
+    CONF_SYSTEM_MAX_CHARGE,
+    CONF_SYSTEM_MAX_DISCHARGE,
     DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
     DEFAULT_EFFICIENCY,
@@ -335,6 +344,28 @@ async def settings_schema(
             default=current.get(CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER),
         ): _number(-20000, 20000, 50, "W"),
         vol.Required(
+            CONF_RESERVE_SOC, default=current.get(CONF_RESERVE_SOC, 0)
+        ): _number(0, 100, 1, "%", slider=True),
+        vol.Required(
+            CONF_SYSTEM_MAX_CHARGE, default=current.get(CONF_SYSTEM_MAX_CHARGE, 0)
+        ): _number(0, 100000, 100, "W"),
+        vol.Required(
+            CONF_SYSTEM_MAX_DISCHARGE,
+            default=current.get(CONF_SYSTEM_MAX_DISCHARGE, 0),
+        ): _number(0, 100000, 100, "W"),
+        vol.Required(CONF_NOM_TARGET, default=current.get(CONF_NOM_TARGET, 0)): _number(
+            -2000, 2000, 10, "W"
+        ),
+        vol.Optional(CONF_MIN_DISCHARGE_PRICE): _number(-1, 5, 0.001, ""),
+        vol.Optional(CONF_MAX_CHARGE_PRICE): _number(-1, 5, 0.001, ""),
+        vol.Required(CONF_MIN_MARGIN, default=current.get(CONF_MIN_MARGIN, 0)): _number(
+            0, 1, 0.005, ""
+        ),
+        vol.Required(
+            CONF_PEAK_INCLUDE_EXCLUDED,
+            default=current.get(CONF_PEAK_INCLUDE_EXCLUDED, True),
+        ): BooleanSelector(),
+        vol.Required(
             CONF_PEAK_LIMIT,
             default=current.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT),
         ): _number(0, 60000, 100, "W"),
@@ -486,6 +517,19 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     options[CONF_MANUAL_POWER] = int(
         user_input.get(CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER)
     )
+    options[CONF_RESERVE_SOC] = int(user_input.get(CONF_RESERVE_SOC, 0))
+    options[CONF_SYSTEM_MAX_CHARGE] = int(user_input.get(CONF_SYSTEM_MAX_CHARGE, 0))
+    options[CONF_SYSTEM_MAX_DISCHARGE] = int(
+        user_input.get(CONF_SYSTEM_MAX_DISCHARGE, 0)
+    )
+    options[CONF_NOM_TARGET] = int(user_input.get(CONF_NOM_TARGET, 0))
+    options[CONF_MIN_MARGIN] = float(user_input.get(CONF_MIN_MARGIN, 0))
+    options[CONF_PEAK_INCLUDE_EXCLUDED] = bool(
+        user_input.get(CONF_PEAK_INCLUDE_EXCLUDED, True)
+    )
+    for key in (CONF_MIN_DISCHARGE_PRICE, CONF_MAX_CHARGE_PRICE):
+        if user_input.get(key) is not None:
+            options[key] = float(user_input[key])
     options[CONF_PEAK_LIMIT] = int(user_input.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT))
     options[CONF_PV_CORRECTION] = user_input.get(CONF_PV_CORRECTION, PV_CORRECTION_BOTH)
     options[CONF_PV_MARGIN] = int(user_input.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN))
