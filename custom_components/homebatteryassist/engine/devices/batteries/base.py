@@ -10,7 +10,9 @@ Two building blocks:
 - ``BatteryReader`` — how batteries are read through another integration's
   entities (``integrations/``, e.g. Omnibattery or Marstek Modbus). A reader
   recognises the batteries of its integration (``profile``), adds live details
-  (``telemetry``) and describes how a battery *would* be controlled (write
+  (``telemetry``), says whether it also serves as the battery's meter
+  (``is_meter``: the integration gives the battery's own power) and describes
+  how a battery *would* be controlled (write
   methods). **HomeBatteryAssist never calls the write methods** while it is
   read-only; ``can_write`` says whether a reader implements them.
 
@@ -119,6 +121,9 @@ class BatteryReader:
     name: str = ""
     verified: bool = False  # reading tested on a real installation
     can_write: bool = False  # write methods implemented (never used yet)
+    # Serves as the battery's meter: its integration gives the battery's own
+    # power (and energy). Without it the battery needs an external meter.
+    is_meter: bool = True
     profile: BatteryProfile | None = None  # recognising its batteries
 
     def telemetry(self, hass: HomeAssistant, config: BatteryConfig) -> BatteryTelemetry:

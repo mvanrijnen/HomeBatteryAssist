@@ -71,6 +71,7 @@ class TemplateBatteryReader(EntityReader):
     name = "My battery"
     verified = False  # reading tested on a real installation?
     can_write = False  # write methods implemented?
+    is_meter = True  # does the integration give the battery's own power?
     profile = BatteryProfile(
         platform="my_battery",
         label="My battery",

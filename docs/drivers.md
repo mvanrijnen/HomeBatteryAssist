@@ -23,7 +23,7 @@ A battery driver has two parts (`base.py`):
    ```
 
    A type only sets what it knows for sure: capacity, charge/discharge power, usable part, rated cycles, warranty, and the model names integrations report for it (`models`). When a battery is linked, these are starting values for what its integration does not tell. Add a new type to `MODELS` in `__init__.py`.
-2. **Reader** — how the battery is *read*, one per integration in `integrations/`: its `profile` recognises the batteries of that integration (state of charge and power sensor, starting values) and `telemetry` adds live details (temperature, voltages, cell voltages, cycles, energy today, efficiency). Add a new reader to `READERS` in `integrations/__init__.py`.
+2. **Reader** — how the battery is *read*, one per integration in `integrations/`: its `profile` recognises the batteries of that integration (state of charge and power sensor, starting values) and `telemetry` adds live details (temperature, voltages, cell voltages, cycles, energy today, efficiency). A reader also says whether it **serves as the battery's meter** (`is_meter`): whether its integration gives the battery's own power. Omnibattery and Marstek Modbus do (`ac_power`); a battery whose integration does not, needs an external meter. Add a new reader to `READERS` in `integrations/__init__.py`.
 
 One battery type can be read through several integrations; the model and the reader are chosen separately. `template.py` shows both. The **virtual battery** (`virtual.py`) is a simulated device that follows the plan.
 

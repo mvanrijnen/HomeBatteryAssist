@@ -29,6 +29,11 @@ def test_template_not_registered() -> None:
     assert not any(isinstance(m, ExampleHome10) for m in MODELS)
 
 
+def test_readers_serve_as_meter() -> None:
+    """The verified readers give the battery's own power."""
+    assert all(r.is_meter for r in READERS)
+
+
 def test_models_inherit_brand_and_range() -> None:
     """Brand -> type range -> type: a type inherits what it does not set."""
     venus = model_for("Venus E v3")

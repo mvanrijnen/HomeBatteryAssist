@@ -24,6 +24,7 @@ class OmnibatteryReader(EntityReader):
     name = "Omnibattery"
     verified = True
     can_write = True
+    is_meter = True  # ac_power: the battery's own power at its AC side
     profile = BatteryProfile(
         platform="omnibattery",
         label="Omnibattery",

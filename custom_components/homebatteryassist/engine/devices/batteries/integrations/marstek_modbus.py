@@ -23,6 +23,7 @@ class MarstekModbusReader(EntityReader):
     name = "Marstek Modbus"
     verified = True
     can_write = True
+    is_meter = True  # ac_power: the battery's own power at its AC side
     profile = BatteryProfile(
         platform="marstek_modbus",
         label="Marstek Modbus",
