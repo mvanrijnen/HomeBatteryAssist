@@ -56,6 +56,7 @@ class SensorAttributeDriver(PriceDriver):
                     f"{self.name}: {name}",
                     self.roles,
                     self.days_ahead,
+                    forecast_only=self.forecast_only,
                 )
             )
         return sources

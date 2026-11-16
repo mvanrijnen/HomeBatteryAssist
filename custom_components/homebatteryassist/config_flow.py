@@ -275,14 +275,26 @@ def phase_selector() -> SelectSelector:
     )
 
 
-def _price_source_selector(hass: HomeAssistant, first: str, key: str) -> SelectSelector:
-    """The price sources found by the price drivers, after ``first``."""
+def _price_source_selector(
+    hass: HomeAssistant, first: str, key: str, *, forecasts: bool = True
+) -> SelectSelector:
+    """The price sources found by the price drivers, after ``first``.
+
+    Forecast-only sources are only offered as extra forecast (``forecasts``).
+    """
+    dutch = (hass.config.language or "").startswith("nl")
+    only = " (alleen voorspelling)" if dutch else " (forecast only)"
     options = [SelectOptionDict(value=first, label=first)]
     for source in find_sources(hass):
+        if source.forecast_only and not forecasts:
+            continue
         driver = get_driver(source.driver)
         untested = "" if driver is None or driver.verified else " *"
+        suffix = only if source.forecast_only else ""
         options.append(
-            SelectOptionDict(value=source.key, label=f"{source.title}{untested}")
+            SelectOptionDict(
+                value=source.key, label=f"{source.title}{suffix}{untested}"
+            )
         )
     return SelectSelector(
         SelectSelectorConfig(
@@ -409,7 +421,9 @@ async def _flat_settings_schema(
         vol.Required(
             CONF_PRICE_SOURCE,
             default=current.get(CONF_PRICE_SOURCE, PRICE_SOURCE_SENSOR),
-        ): _price_source_selector(hass, PRICE_SOURCE_SENSOR, CONF_PRICE_SOURCE),
+        ): _price_source_selector(
+            hass, PRICE_SOURCE_SENSOR, CONF_PRICE_SOURCE, forecasts=False
+        ),
         vol.Required(
             CONF_PRICE_EXTENSION,
             default=current.get(CONF_PRICE_EXTENSION, PRICE_EXTENSION_NONE),
@@ -523,7 +537,9 @@ async def _flat_settings_schema(
             CONF_EXPORT_FACTOR,
             default=current.get(CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR),
         ): NumberSelector(
-            NumberSelectorConfig(min=0, max=1.5, step=0.05, mode=NumberSelectorMode.BOX)
+            NumberSelectorConfig(
+                min=0, max=1.5, step=0.001, mode=NumberSelectorMode.BOX
+            )
         ),
         vol.Required(
             CONF_MIN_BATTERY_POWER,
@@ -567,7 +583,7 @@ async def _flat_settings_schema(
             CONF_CYCLE_COST, default=current.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
         ): NumberSelector(
             NumberSelectorConfig(
-                min=0, max=0.5, step=0.005, mode=NumberSelectorMode.BOX
+                min=0, max=0.5, step=0.001, mode=NumberSelectorMode.BOX
             )
         ),
     }

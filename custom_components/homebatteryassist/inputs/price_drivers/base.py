@@ -42,6 +42,9 @@ class PriceSource:
     title: str  # shown to the user
     roles: frozenset[str] = field(default_factory=lambda: frozenset({ROLE_IMPORT}))
     days_ahead: float | None = None  # how far it typically reaches
+    # Only a prediction, not the valid tariffs: usable as extra forecast next
+    # to a real price source, never as the price source itself.
+    forecast_only: bool = False
 
     @property
     def key(self) -> str:
@@ -63,6 +66,7 @@ class PriceDriver(ABC):
     key: str = ""  # stable id, stored in the options
     name: str = ""  # shown to the user
     verified: bool = False  # tested on a real installation
+    forecast_only: bool = False  # only predictions (see PriceSource)
 
     @abstractmethod
     def find(self, hass: HomeAssistant) -> list[PriceSource]:

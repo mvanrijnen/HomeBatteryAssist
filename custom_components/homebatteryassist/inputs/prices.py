@@ -167,3 +167,33 @@ def parse_market_forecast(state: State | None) -> list[PricePoint]:
     """Bare market prices of a sensor: its market attributes if it has them,
     otherwise its normal price attributes (a sensor of the market price)."""
     return parse_price_forecast(state, MARKET_ATTRIBUTES) or parse_price_forecast(state)
+
+
+def calibrate(
+    forecast: list[PricePoint], reference: list[PricePoint], minimum: int = 8
+) -> list[PricePoint]:
+    """Put a (bare market) forecast on the level of the real prices.
+
+    Fits ``reference = a x forecast + b`` on the periods both know (least
+    squares; ``a`` kept between 0.5 and 2), e.g. adding surcharges and VAT to
+    a bare EPEX forecast. Too little overlap: only the average difference.
+    The result is always marked as estimated.
+    """
+    pairs = []
+    for point in forecast:
+        ref = next((r.price for r in reference if r.start <= point.start < r.end), None)
+        if ref is not None:
+            pairs.append((point.price, ref))
+    a, b = 1.0, 0.0
+    if pairs:
+        xs = [x for x, _ in pairs]
+        ys = [y for _, y in pairs]
+        mean_x, mean_y = sum(xs) / len(xs), sum(ys) / len(ys)
+        var = sum((x - mean_x) ** 2 for x in xs)
+        if len(pairs) >= minimum and var > 1e-9:
+            a = sum((x - mean_x) * (y - mean_y) for x, y in pairs) / var
+            a = min(max(a, 0.5), 2.0)
+        b = mean_y - a * mean_x
+    return [
+        PricePoint(p.start, p.end, round(a * p.price + b, 5), True) for p in forecast
+    ]

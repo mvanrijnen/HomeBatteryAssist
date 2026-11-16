@@ -111,3 +111,51 @@ async def test_action_driver(hass: HomeAssistant) -> None:
     )
     data = await EnergyZeroDriver().async_read(hass, entry.entry_id, ROLE_IMPORT)
     assert len(data.points) == 48 and data.points[0].price == 0.2
+
+
+def test_calibrate_forecast_to_real_prices() -> None:
+    """A bare forecast is lifted to the level of the real (all-in) prices."""
+    from custom_components.homebatteryassist.inputs.prices import (
+        PricePoint,
+        calibrate,
+    )
+
+    start = dt_util.start_of_local_day()
+    h = timedelta(hours=1)
+    bare = [
+        PricePoint(start + i * h, start + (i + 1) * h, 0.05 + i / 100)
+        for i in range(30)
+    ]
+    real = [  # all-in = 1.21 x bare + 0.13 for the first 24 hours
+        PricePoint(p.start, p.end, round(1.21 * p.price + 0.13, 5)) for p in bare[:24]
+    ]
+    result = calibrate(bare, real)
+    assert result[29].estimated
+    assert abs(result[29].price - (1.21 * bare[29].price + 0.13)) < 0.001
+
+
+async def test_forecast_only_sources(hass: HomeAssistant) -> None:
+    """EpexPredictor is offered for NL, as forecast only."""
+    await hass.config.async_update(country="NL")
+    sources = [s for s in find_sources(hass) if s.driver == "epexpredictor"]
+    assert len(sources) == 1 and sources[0].forecast_only
+    await hass.config.async_update(country="FR")
+    assert not [s for s in find_sources(hass) if s.driver == "epexpredictor"]
+
+
+def test_epexpredictor_parse() -> None:
+    from custom_components.homebatteryassist.inputs.price_drivers.forecasts import (
+        EpexPredictorDriver,
+    )
+
+    data = EpexPredictorDriver().parse(
+        {
+            "prices": [
+                {"startsAt": "2026-11-16T01:15:00+01:00", "total": 0.1218},
+                {"startsAt": "2026-11-16T01:30:00+01:00", "total": 0.1189},
+            ],
+            "knownUntil": "2026-11-17T00:00:00+01:00",
+        }
+    )
+    assert [p.price for p in data.points] == [0.1218, 0.1189]
+    assert data.points[0].end == data.points[1].start

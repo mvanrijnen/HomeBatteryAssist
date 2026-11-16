@@ -107,6 +107,7 @@ from ..inputs.price_drivers import (
 )
 from ..inputs.prices import (
     PricePoint,
+    calibrate,
     merge_price_forecasts,
     parse_market_forecast,
     parse_price_forecast,
@@ -630,10 +631,21 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             return [], None
         if self.price_extension != PRICE_EXTENSION_NONE:
             # A longer forecast after the source's own prices; always estimated.
-            extra = await self._async_read_driver(self.price_extension, ROLE_IMPORT)
-            prices = merge_price_forecasts(
-                [prices, [replace(p, estimated=True) for p in extra.points]]
+            # A market-only forecast is first put on the level of the real prices.
+            driver, _source = split_key(self.price_extension)
+            offered = {
+                s.key: s for s in (driver.find(self.hass) if driver else [])
+            }.get(self.price_extension)
+            market_only = offered is not None and ROLE_IMPORT not in offered.roles
+            extra = await self._async_read_driver(
+                self.price_extension, ROLE_MARKET if market_only else ROLE_IMPORT
             )
+            points = (
+                calibrate(extra.points, prices)
+                if market_only
+                else [replace(p, estimated=True) for p in extra.points]
+            )
+            prices = merge_price_forecasts([prices, points])
         return [p for p in prices if p.end > now], unit
 
     async def _async_read_export_prices(self, now: datetime) -> list[PricePoint]:
