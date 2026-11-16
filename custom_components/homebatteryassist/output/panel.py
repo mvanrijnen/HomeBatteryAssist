@@ -354,6 +354,10 @@ def websocket_history(
                 for t, wh in sorted(forecast.data.pv_wh.items())
             ],
             "plan_mode": forecast.data.plan_mode,
+            # Names of own planner modules (built-in modes are translated).
+            "planner_names": {
+                key: planner.name or key for key, planner in forecast.planners.items()
+            },
             "plans": {
                 mode: {
                     "strategy": plan.strategy,

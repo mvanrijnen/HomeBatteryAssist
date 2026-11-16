@@ -41,6 +41,7 @@ from .inputs.measurements import MeasurementInput
 from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
 from .output.panel import async_setup_panel
 from .planning.battery_plan import MODE_NOM
+from .planning.planners import async_load_user_planners
 from .planning.verification import PlanVerification
 from .services import async_setup_services
 from .simulation.virtual_battery import VirtualBatterySimulator
@@ -95,6 +96,7 @@ async def async_setup_entry(
         adjustments,
         accuracy,
         lambda: batteries.states.values(),
+        await async_load_user_planners(hass),
     )
     forecast.last_full = lambda battery_id: batteries.stats.get(battery_id, {}).get(
         "last_full_charge"

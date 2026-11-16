@@ -118,6 +118,7 @@ from ..inputs.solar import PV_PERIOD, async_get_pv_forecast
 from ..planning.battery_plan import (
     DEFAULT_PLAN_MODE,
     MODE_MANUAL,
+    MODE_NOM,
     MODE_TIME_SLOTS,
     PLAN_MODES,
     BatteryPlan,
@@ -132,6 +133,7 @@ from ..planning.phase_limit import (
     max_power,
     phase_limit_w,
 )
+from ..planning.planners import BUILTIN, Planner
 from ..planning.schedule import WEEKDAYS, Target, TimeSlot, slot_target
 from .accuracy import KINDS, ForecastAccuracy
 from .adjustments import AdjustmentStore
@@ -205,6 +207,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         adjustments: AdjustmentStore,
         accuracy: ForecastAccuracy,
         battery_states: Callable[[], Iterable[BatteryState]] = lambda: (),
+        planners: Mapping[str, Planner] | None = None,
     ) -> None:
         """Initialize."""
         super().__init__(
@@ -225,6 +228,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.accuracy = accuracy
         self.battery_states = battery_states
         self.plan_mode: str = entry.options.get(CONF_PLAN_MODE, DEFAULT_PLAN_MODE)
+        # Own planner modules (key custom_<key>), next to the built-in modes.
+        self.planners: dict[str, Planner] = dict(planners or {})
+        self._failed_planners: set[str] = set()
         self.export_factor: float = entry.options.get(
             CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR
         )
@@ -481,27 +487,43 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         limits = self._phase_limits(states, consumption, pv_plan)
         plans: dict[str, BatteryPlan] = {}
         derated = [self._derated(s) for s in states]
-        for mode in PLAN_MODES:
-            plan = await self.hass.async_add_executor_job(
-                lambda m=mode: plan_batteries(
-                    derated,
-                    consumption,
-                    pv_plan,
-                    prices,
-                    mode=m,
-                    export_factor=self.export_factor,
-                    cycle_cost=self.cycle_cost,
-                    limits=limits,
-                    export_prices=export_prices,
-                    max_cycles_per_day=self.max_cycles,
-                    peak_w=self.peak_w,
-                    target=self._target(m),
-                    rules=self.rules,
+        for mode in (*PLAN_MODES, *self.planners):
+            planner = self.planners.get(mode) or BUILTIN.get(mode)
+            try:
+                plan = await self.hass.async_add_executor_job(
+                    lambda m=mode, p=planner: plan_batteries(
+                        derated,
+                        consumption,
+                        pv_plan,
+                        prices,
+                        mode=m,
+                        export_factor=self.export_factor,
+                        cycle_cost=self.cycle_cost,
+                        limits=limits,
+                        export_prices=export_prices,
+                        max_cycles_per_day=self.max_cycles,
+                        peak_w=self.peak_w,
+                        target=self._target(m),
+                        rules=self.rules,
+                        planner=p,
+                        now=now,
+                    )
                 )
-            )
+            except Exception:  # an own planner module may fail in any way
+                _LOGGER.exception("Planner %s failed", mode)
+                if mode not in self._failed_planners:
+                    self._failed_planners.add(mode)
+                    self._decisions.async_log(
+                        "planning", "planner_failed", name=self.planner_name(mode)
+                    )
+                continue
+            self._failed_planners.discard(mode)
             if plan is not None:
                 plans[mode] = plan
         selected = plans.get(self.plan_mode)
+        if selected is None and self.plan_mode not in PLAN_MODES:
+            # The chosen own planner is gone or failed: zero on the meter.
+            selected = plans.get(MODE_NOM)
         battery = selected.slots if selected else []
 
         # 7. Periodic full charges at the cheapest moment, added to the plan.
@@ -550,6 +572,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.hass.bus.async_fire(EVENT_FORECAST_UPDATED, summarise(data))
         return data
+
+    def planner_name(self, mode: str) -> str:
+        """Name of a plan mode / planner for the user."""
+        planner = self.planners.get(mode)
+        return planner.name or mode if planner is not None else mode
 
     def _phase_limits(
         self,

@@ -126,3 +126,4 @@ set_plan_mode:
         select:
           options: [nom, arbitrage, arbitrage_full, time_slots, manual]
           translation_key: plan_mode
+          custom_value: true

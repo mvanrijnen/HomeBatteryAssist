@@ -1,47 +1,19 @@
-"""Battery plan over the planning window, per mode (advice; no control yet).
+"""Battery plan over the planning window (advice; no control yet).
 
-Modes (more will follow):
-
-- ``nom`` (nul op de meter / zero on the meter): charge with PV surplus,
-  discharge on shortage, never from or to the grid on purpose.
-- ``arbitrage`` (for own use): cost-optimal; may also charge from the grid when
-  cheap, and discharges to cover the own consumption when expensive, but never
-  exports battery energy to the grid.
-- ``arbitrage_full`` (maximum profit): like arbitrage, but may also discharge
-  to the grid when the export price makes that worthwhile.
-
-- ``manual``: always a fixed power (``planning.schedule``);
-- ``time_slots``: the actions of the configured time slots, zero on the meter
-  outside them.
-
-Peak shaving (``peak_w`` > 0, arbitrage modes): grid import above ``peak_w``
-(all phases together) gets a high extra cost, so the plan keeps energy in
-reserve for expected peaks and does not charge into a peak.
-
-Both arbitrage modes respect ``max_cycles_per_day`` (full cycles = energy
-discharged / capacity, per local day): when the cheapest plan cycles more,
-discharging gets an extra cost per kWh, raised (bisection) until every day is
-within the limit; the reported costs stay the real ones.
-
-Both are always calculated, with the expected cost compared with no battery,
-so their returns can be compared. For arbitrage the planner chooses per slot
-the battery power that minimises the expected energy cost over the window:
-
-    cost = sum(grid import * price - grid export * export price)
-         + cycle_cost * energy through the battery
-         - value of the energy left at the end
-
-with grid = house - PV + battery power (+ charging). Solved exactly by dynamic
-programming over the stored energy, discretised in ``SOC_STEPS`` steps, within
-the batteries' power limits, min/max state of charge and round-trip efficiency
-(split evenly over charging and discharging). All batteries are planned
-together as one.
+The plan itself is made by a planner module (``planning/planners``): the
+built-in ones (``nom``, ``arbitrage``, ``arbitrage_full``, ``time_slots``,
+``manual``) or the user's own from ``/config/homebatteryassist/planners``.
+This module prepares the planner's input (consumption, PV, prices and the
+limits per slot, all batteries as one) and keeps the final say: ``finalise``
+cuts every requested power back to what the batteries, the phase limits, the
+minimum/maximum state of charge and the user's price rules allow, and works
+out the state of charge, the grid exchange and the expected cost compared
+with no battery. Periodic full charges are inserted after that
+(``full_charge``).
 
 Optional ``limits`` per slot (charge, discharge in W) keep the grid
 connection's phases within their maximum current (``phase_limit``); a slot
 where they made the batteries charge or discharge less is marked ``limited``.
-
-Without prices arbitrage is not possible and falls back to nom.
 The plan is designed so it can later be turned into battery commands 1:1.
 """
 
@@ -57,9 +29,11 @@ from homeassistant.util import dt as dt_util
 from ..forecasts.consumption import ForecastSlot
 from ..inputs.batteries import BatteryState
 from ..inputs.prices import PricePoint
+from .planners import BUILTIN, Planner, PlannerBattery, PlannerInput, PlannerResult
+from .planners import PlannerSlot as _InSlot
+from .planners.base import grid_cost, may_discharge
 from .schedule import Target
 
-SOC_STEPS = 100  # resolution of the stored energy (1 % of the usable range)
 DEFAULT_EXPORT_FACTOR = 1.0  # export earns the import price (net metering)
 DEFAULT_CYCLE_COST = 0.02  # per kWh through the battery (wear)
 MODE_NOM = "nom"
@@ -76,8 +50,6 @@ PLAN_MODES = (
 )
 FIXED_MODES = (MODE_MANUAL, MODE_TIME_SLOTS)
 ARBITRAGE_MODES = (MODE_ARBITRAGE, MODE_ARBITRAGE_FULL)
-CYCLE_SEARCH_STEPS = 6  # bisection steps for the cycle limit
-PEAK_PENALTY = 5.0  # extra cost per kWh imported above the peak limit
 DEFAULT_PLAN_MODE = MODE_NOM
 
 
@@ -218,11 +190,6 @@ def _price_at(prices: Sequence[PricePoint], when: datetime) -> float | None:
     return None
 
 
-def _grid_cost(grid_w: float, hours: float, price: float, export_price: float) -> float:
-    kwh = grid_w * hours / 1000
-    return kwh * price if kwh >= 0 else kwh * export_price
-
-
 def plan_batteries(
     states: Iterable[BatteryState],
     consumption: Sequence[ForecastSlot],
@@ -238,23 +205,63 @@ def plan_batteries(
     peak_w: float = 0.0,
     target: Callable[[datetime], Target | None] | None = None,
     rules: PlanRules = PlanRules(),
+    planner: Planner | None = None,
+    now: datetime | None = None,
 ) -> BatteryPlan | None:
-    """Plan the batteries in ``mode`` over the consumption slots; None without batteries.
+    """Plan the batteries with ``planner`` (default: the built-in planner of
+    ``mode``) over the consumption slots, checked by ``finalise``; None
+    without batteries.
 
     ``export_prices``: what exported energy earns per period; where it is not
     known, the import price x ``export_factor``.
     """
+    data = planner_input(
+        states,
+        consumption,
+        pv_wh,
+        prices,
+        export_factor=export_factor,
+        cycle_cost=cycle_cost,
+        limits=limits,
+        export_prices=export_prices,
+        max_cycles_per_day=max_cycles_per_day,
+        peak_w=peak_w,
+        target=target,
+        rules=rules,
+        now=now,
+    )
+    if data is None:
+        return None
+    planner = planner or BUILTIN.get(mode) or BUILTIN[MODE_NOM]
+    return finalise(data, planner.plan(data), mode)
+
+
+def planner_input(
+    states: Iterable[BatteryState],
+    consumption: Sequence[ForecastSlot],
+    pv_wh: Mapping[datetime, float],
+    prices: Sequence[PricePoint],
+    *,
+    export_factor: float = DEFAULT_EXPORT_FACTOR,
+    cycle_cost: float = DEFAULT_CYCLE_COST,
+    limits: Mapping[datetime, tuple[float, float]] | None = None,
+    export_prices: Sequence[PricePoint] = (),
+    max_cycles_per_day: float = 0.0,
+    peak_w: float = 0.0,
+    target: Callable[[datetime], Target | None] | None = None,
+    rules: PlanRules = PlanRules(),
+    now: datetime | None = None,
+) -> PlannerInput | None:
+    """What a planner gets; None without batteries or slots."""
     pack = _pack(states, rules)
     if pack is None or not consumption:
         return None
-
-    slots = []
+    slots: list[_InSlot] = []
     for slot in consumption:
         hours = (slot.end - slot.start).total_seconds() / 3600
         if hours <= 0:
             continue
         hour = slot.start.replace(minute=0, second=0, microsecond=0)
-        net = slot.power_w - pv_wh.get(hour, 0.0)  # + shortage / - surplus
         max_c, max_d = (limits or {}).get(
             slot.start, (pack.max_charge, pack.max_discharge)
         )
@@ -263,39 +270,127 @@ def plan_batteries(
         if export is None and price is not None:
             export = price * export_factor
         slots.append(
-            (
-                slot,
+            _InSlot(
+                slot.start,
+                slot.end,
                 hours,
-                net,
+                slot.power_w,
+                pv_wh.get(hour, 0.0),
                 price,
+                export,
                 max(min(max_c, pack.max_charge), 0.0),
                 max(min(max_d, pack.max_discharge), 0.0),
-                export,
             )
         )
-
     if not slots:
         return None
-    priced = all(s[3] is not None for s in slots)
-    if mode in ARBITRAGE_MODES and priced:
-        return _optimise_limited(
-            pack,
-            slots,
-            cycle_cost,
-            mode,
-            mode == MODE_ARBITRAGE_FULL,
-            max_cycles_per_day,
-            peak_w,
+    return PlannerInput(
+        now or slots[0].start,
+        slots,
+        PlannerBattery(
+            pack.capacity,
+            pack.stored,
+            pack.floor,
+            pack.ceiling,
+            pack.eff,
+            pack.max_charge,
+            pack.max_discharge,
+        ),
+        rules,
+        cycle_cost,
+        max_cycles_per_day,
+        peak_w,
+        target,
+    )
+
+
+def finalise(
+    data: PlannerInput, result: PlannerResult | list[float], mode: str
+) -> BatteryPlan:
+    """HomeBatteryAssist's final check of a planner's requested powers.
+
+    Every power is cut back to the slot's charge/discharge limit (batteries
+    and phases), to the room up to the maximum and the energy above the
+    minimum state of charge, and to the price rules (no discharging below the
+    minimum discharge price, no charging from the grid above the maximum
+    charge price) except for fixed actions the user set (manual / time
+    slots). Then state of charge, grid exchange and costs are worked out.
+    """
+    if not isinstance(result, PlannerResult):
+        result = PlannerResult(list(result))
+    battery = data.battery
+    rules = data.rules
+    eff = battery.efficiency
+    stored = battery.stored_wh
+    reasons = result.reasons or []
+    out: list[PlanSlot] = []
+    cost_with = cost_without = 0.0
+    for index, slot in enumerate(data.slots):
+        try:
+            requested = float(result.powers[index])
+        except (IndexError, TypeError, ValueError):
+            requested = 0.0
+        if not math.isfinite(requested):
+            requested = 0.0
+        reason = reasons[index] if index < len(reasons) else None
+        hours = slot.hours
+        power = 0.0
+        if requested > 0:
+            power = min(
+                requested,
+                slot.max_charge_w,
+                max(battery.ceiling_wh - stored, 0.0) / (hours * eff),
+            )
+            if (
+                reason is None
+                and rules.max_charge_price is not None
+                and slot.price is not None
+                and slot.price > rules.max_charge_price
+            ):
+                power = min(power, max(-slot.net_w, 0.0))  # only surplus PV
+        elif requested < 0 and (reason is not None or may_discharge(rules, slot.price)):
+            power = -min(
+                -requested,
+                slot.max_discharge_w,
+                max(stored - battery.floor_wh, 0.0) * eff / hours,
+            )
+        power = max(power, 0.0) if requested > 0 else min(power, 0.0)
+        stored += power * hours * eff if power >= 0 else power * hours / eff
+        grid = slot.net_w + power
+        if data.priced:
+            export = slot.export_price if slot.export_price is not None else slot.price
+            cost_with += grid_cost(grid, hours, slot.price, export)
+            cost_with += abs(power) * hours / 1000 * data.cycle_cost
+            cost_without += grid_cost(slot.net_w, hours, slot.price, export)
+        out.append(
+            PlanSlot(
+                slot.start,
+                slot.end,
+                round(power, 1) + 0.0,  # no "-0.0"
+                round(stored / battery.capacity_wh * 100, 1),
+                round(grid, 1),
+                slot.price,
+                _limited(battery, power, slot.max_charge_w, slot.max_discharge_w),
+                slot.export_price,
+                reason,
+            )
         )
-    if mode in FIXED_MODES:
-        return _nom(pack, slots, cycle_cost, mode, priced, target)
-    return _nom(pack, slots, cycle_cost, mode, priced)
-
-
-def _may_discharge(pack: _Pack, price: float | None) -> bool:
-    """Discharging is allowed at this price (the minimum discharge price)."""
-    threshold = pack.rules.min_discharge_price
-    return threshold is None or price is None or price >= threshold
+    strategy = result.strategy or mode
+    if not data.priced:
+        return BatteryPlan(mode, strategy, out, None, None)
+    avg_price = sum(s.price for s in data.slots) / len(data.slots)
+    # Count the change in stored energy at its value, so "with" and "without"
+    # are comparable over the same window.
+    cost_with += (battery.stored_wh - stored) / 1000 * avg_price * eff
+    return BatteryPlan(
+        mode,
+        strategy,
+        out,
+        round(cost_with, 4),
+        round(cost_without, 4),
+        battery.capacity_wh / 1000,
+        avg_price * eff,
+    )
 
 
 def cycles_per_day(plan: BatteryPlan) -> dict[date, float]:
@@ -311,256 +406,12 @@ def cycles_per_day(plan: BatteryPlan) -> dict[date, float]:
     return {d: kwh / plan.capacity_kwh for d, kwh in days.items()}
 
 
-def _optimise_limited(
-    pack: _Pack,
-    slots: list,
-    cycle_cost: float,
-    mode: str,
-    allow_export: bool,
-    max_cycles: float,
-    peak_w: float = 0.0,
-) -> BatteryPlan:
-    """The cheapest plan within ``max_cycles`` full cycles per day (0 = no limit)."""
-    plan = _optimise(pack, slots, cycle_cost, mode, allow_export, peak_w=peak_w)
-
-    def within(p: BatteryPlan) -> bool:
-        return max(cycles_per_day(p).values(), default=0.0) <= max_cycles + 0.01
-
-    if max_cycles <= 0 or within(plan):
-        return plan
-    low, high = 0.0, 0.5  # extra cost per kWh discharged
-    best = _optimise(pack, slots, cycle_cost, mode, allow_export, high, peak_w)
-    while not within(best) and high < 8:
-        low, high = high, high * 2
-        best = _optimise(pack, slots, cycle_cost, mode, allow_export, high, peak_w)
-    for _ in range(CYCLE_SEARCH_STEPS):
-        middle = (low + high) / 2
-        candidate = _optimise(
-            pack, slots, cycle_cost, mode, allow_export, middle, peak_w
-        )
-        if within(candidate):
-            high, best = middle, candidate
-        else:
-            low = middle
-    return best
-
-
-def _nom(
-    pack: _Pack,
-    slots: list,
-    cycle_cost: float,
-    mode: str,
-    priced: bool,
-    target: Callable[[datetime], Target | None] | None = None,
-) -> BatteryPlan:
-    """Zero on the meter: charge with surplus, discharge on shortage.
-
-    With ``target`` (manual / time slots): its fixed action where it gives one.
-    """
-    stored = pack.stored
-    result: list[PlanSlot] = []
-    cost_with = cost_without = 0.0
-    # Charge hysteresis: once full, charge again only after dropping this much.
-    hysteresis = pack.rules.charge_hysteresis * pack.capacity / 100
-    full = hysteresis > 0 and stored >= pack.ceiling - 1
-    for slot, hours, net_raw, price, max_c, max_d, export in slots:
-        net = net_raw
-        power = 0.0
-        fixed = target(slot.start) if target else None
-        if full and stored < pack.ceiling - hysteresis:
-            full = False
-        hold = full
-        if fixed is not None:
-            if fixed.power_w > 0:
-                top = pack.ceiling
-                if fixed.soc_limit is not None:
-                    top = min(top, fixed.soc_limit * pack.capacity / 100)
-                room = max(top - stored, 0.0)
-                power = min(fixed.power_w, max_c, room / (hours * pack.eff))
-                stored += power * hours * pack.eff
-            elif fixed.power_w < 0:
-                bottom = pack.floor
-                if fixed.soc_limit is not None:
-                    bottom = max(bottom, fixed.soc_limit * pack.capacity / 100)
-                available = max(stored - bottom, 0.0)
-                power = -min(-fixed.power_w, max_d, available * pack.eff / hours)
-                stored += power * hours / pack.eff
-        elif (net := net_raw - pack.rules.nom_target_w) < 0 and not hold:
-            room = max(pack.ceiling - stored, 0.0)
-            power = min(-net, max_c, room / (hours * pack.eff))
-            stored += power * hours * pack.eff
-        elif net > 0 and _may_discharge(pack, price):
-            available = max(stored - pack.floor, 0.0)
-            power = -min(net, max_d, available * pack.eff / hours)
-            stored += power * hours / pack.eff
-        net = net_raw
-        if hysteresis > 0 and stored >= pack.ceiling - 1:
-            full = True
-        if priced:
-            cost_with += _grid_cost(net + power, hours, price, export)
-            cost_with += abs(power) * hours / 1000 * cycle_cost
-            cost_without += _grid_cost(net, hours, price, export)
-        result.append(
-            PlanSlot(
-                slot.start,
-                slot.end,
-                round(power, 1) + 0.0,  # no "-0.0"
-                round(stored / pack.capacity * 100, 1),
-                round(net + power, 1),
-                price,
-                _limited(pack, power, max_c, max_d),
-                export,
-                fixed.reason if fixed is not None else None,
-            )
-        )
-    strategy = mode if mode in FIXED_MODES else MODE_NOM
-    if not priced:
-        return BatteryPlan(mode, strategy, result, None, None)
-    avg_price = sum(s[3] for s in slots) / len(slots)
-    cost_with += (pack.stored - stored) / 1000 * avg_price * pack.eff
-    return BatteryPlan(
-        mode,
-        strategy,
-        result,
-        round(cost_with, 4),
-        round(cost_without, 4),
-        pack.capacity / 1000,
-        avg_price * pack.eff,
-    )
-
-
-def _optimise(
-    pack: _Pack,
-    slots: list,
-    cycle_cost: float,
-    mode: str,
-    allow_export: bool = False,
-    penalty: float = 0.0,
-    peak_w: float = 0.0,
-) -> BatteryPlan:
-    """Dynamic programming over the stored energy (backward), then forward.
-
-    ``penalty``: extra cost per kWh discharged, only to steer the choices
-    (cycle limit); it is not part of the reported costs.
-    """
-    span = max(pack.ceiling - pack.floor, 0.0)
-    if span <= 0:
-        return _nom(pack, slots, cycle_cost, mode, True)
-    rules = pack.rules
-    extra = penalty + rules.min_margin  # per kWh discharged, steering only
-    step = span / SOC_STEPS
-    levels = SOC_STEPS + 1
-    energy = [pack.floor + i * step for i in range(levels)]
-    count = len(slots)
-
-    # Value of energy left at the end: what it saves later, at the average price.
-    avg_price = sum(s[3] for s in slots) / count
-    terminal = [-(e - pack.floor) / 1000 * avg_price * pack.eff for e in energy]
-
-    # Charge hysteresis: a charge may not *start* in the top band below the
-    # maximum; the state remembers whether the previous slot was charging.
-    band = rules.charge_hysteresis * pack.capacity / 100
-    top = (
-        levels if band <= 0 else max(int((pack.ceiling - band - pack.floor) / step), 0)
-    )
-    flags = (0, 1) if band > 0 else (0,)
-    best_next: list[list[list[int]]] = [
-        [[0] * levels for _ in flags] for _ in range(count)
-    ]
-    future = [terminal for _ in flags]
-    for t in range(count - 1, -1, -1):
-        _slot, hours, net, price, max_c, max_d, export = slots[t]
-        up = int(max_c * hours * pack.eff / step)
-        down = int(max_d * hours / pack.eff / step)
-        current = [[0.0] * levels for _ in flags]
-        for flag in flags:
-            choice = best_next[t][flag]
-            for i in range(levels):
-                best = math.inf
-                best_j = i
-                for j in range(max(0, i - down), min(levels - 1, i + up) + 1):
-                    if j > i and i > top and not flag:
-                        continue  # no top-up charge inside the hysteresis band
-                    delta = (j - i) * step  # Wh stored
-                    power = (
-                        delta / (hours * pack.eff)
-                        if delta >= 0
-                        else delta * pack.eff / hours
-                    )
-                    # Own use: never discharge more than the house needs (no export).
-                    if not allow_export and power < 0 and power < -max(net, 0.0) - 1e-6:
-                        continue
-                    if power < 0 and not _may_discharge(pack, price):
-                        continue
-                    if (
-                        power > max(-net, 0.0) + 1e-6
-                        and rules.max_charge_price is not None
-                        and price > rules.max_charge_price
-                    ):
-                        continue  # charging from the grid only when cheap enough
-                    cost = (
-                        _grid_cost(net + power, hours, price, export)
-                        + abs(power) * hours / 1000 * cycle_cost
-                        + (-power * hours / 1000 * extra if power < 0 else 0.0)
-                        + (
-                            max(net + power - peak_w, 0.0) * hours / 1000 * PEAK_PENALTY
-                            if peak_w > 0
-                            else 0.0
-                        )
-                        + future[1 if (j > i and band > 0) else 0][j]
-                    )
-                    if cost < best:
-                        best, best_j = cost, j
-                current[flag][i] = best
-                choice[i] = best_j
-        future = current
-
-    # Forward pass from the current state of charge (nearest level).
-    i = min(max(round((pack.stored - pack.floor) / step), 0), levels - 1)
-    flag = 0
-    result: list[PlanSlot] = []
-    cost_with = cost_without = 0.0
-    for t, (slot, hours, net, price, max_c, max_d, export) in enumerate(slots):
-        j = best_next[t][flag][i]
-        flag = 1 if (j > i and band > 0) else 0
-        delta = (j - i) * step
-        power = delta / (hours * pack.eff) if delta >= 0 else delta * pack.eff / hours
-        cost_with += _grid_cost(net + power, hours, price, export)
-        cost_with += abs(power) * hours / 1000 * cycle_cost
-        cost_without += _grid_cost(net, hours, price, export)
-        result.append(
-            PlanSlot(
-                slot.start,
-                slot.end,
-                round(power, 1) + 0.0,  # no "-0.0"
-                round(energy[j] / pack.capacity * 100, 1),
-                round(net + power, 1),
-                price,
-                _limited(pack, power, max_c, max_d),
-                export,
-            )
-        )
-        i = j
-    # Count the change in stored energy at its value, so "with" and "without"
-    # are comparable over the same window.
-    cost_with += (pack.stored - energy[i]) / 1000 * avg_price * pack.eff
-    return BatteryPlan(
-        mode,
-        mode,
-        result,
-        round(cost_with, 4),
-        round(cost_without, 4),
-        pack.capacity / 1000,
-        avg_price * pack.eff,
-    )
-
-
-def _limited(pack: _Pack, power: float, max_c: float, max_d: float) -> bool:
+def _limited(battery: PlannerBattery, power: float, max_c: float, max_d: float) -> bool:
     """Whether the phase limits held the power back in this slot."""
     if power > 0:
-        return max_c < pack.max_charge - 1 and power >= max_c - 50
+        return max_c < battery.max_charge_w - 1 and power >= max_c - 50
     if power < 0:
-        return max_d < pack.max_discharge - 1 and -power >= max_d - 50
+        return max_d < battery.max_discharge_w - 1 and -power >= max_d - 50
     return False
 
 
@@ -578,7 +429,7 @@ def slot_costs(
                 if slot.export_price is not None
                 else slot.price * export_factor
             )
-            cost += _grid_cost(slot.grid_w, hours, slot.price, export)
+            cost += grid_cost(slot.grid_w, hours, slot.price, export)
         costs.append(cost)
     return costs
 

@@ -197,6 +197,7 @@ from .inputs.price_drivers import find_sources, get_driver
 from .inputs.profiles import BatteryCandidate, find_battery_candidates
 from .inputs.solar import async_solar_forecast_entries
 from .planning.battery_plan import DEFAULT_PLAN_MODE, PLAN_MODES
+from .planning.planners import async_load_user_planners
 from .planning.schedule import ACTION_CHARGE, ACTIONS, WEEKDAYS
 
 PHASES_SCHEMA = vol.Schema(
@@ -433,6 +434,7 @@ async def _flat_settings_schema(
 ) -> vol.Schema:
     """All settings fields (setup step 4 and options), not grouped."""
     current = current or {}
+    own_planners = await async_load_user_planners(hass)
     schema: dict[Any, Any] = {
         vol.Required(
             CONF_HISTORY_INTERVAL,
@@ -483,7 +485,13 @@ async def _flat_settings_schema(
             CONF_PLAN_MODE, default=current.get(CONF_PLAN_MODE, DEFAULT_PLAN_MODE)
         ): SelectSelector(
             SelectSelectorConfig(
-                options=list(PLAN_MODES),
+                options=[
+                    *(SelectOptionDict(value=m, label=m) for m in PLAN_MODES),
+                    *(
+                        SelectOptionDict(value=key, label=p.name or key)
+                        for key, p in own_planners.items()
+                    ),
+                ],
                 mode=SelectSelectorMode.LIST,
                 translation_key=CONF_PLAN_MODE,
             )

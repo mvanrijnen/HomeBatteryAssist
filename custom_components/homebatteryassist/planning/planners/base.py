@@ -1,0 +1,117 @@
+"""The interface of a planner module.
+
+A planner decides per slot how much the batteries should charge (+) or
+discharge (-), in W. HomeBatteryAssist keeps the final say: it checks every
+requested power against the batteries' power, the phase limits, the minimum
+and maximum state of charge and the user's price rules, and cuts it back where
+needed (``battery_plan.finalise``). Periodic full charges are inserted after
+that. A planner therefore cannot plan anything the batteries or the grid
+connection cannot do.
+
+A planner only *advises*: HomeBatteryAssist never controls a battery.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
+
+
+@dataclass(frozen=True, slots=True)
+class PlannerSlot:
+    """One slot of the planning window (the history interval, e.g. 15 min)."""
+
+    start: datetime
+    end: datetime
+    hours: float  # length of the slot
+    house_w: float  # expected house consumption (average W)
+    pv_w: float  # expected PV production (average W, after the safety margin)
+    price: float | None  # what a kWh from the grid costs (all-in); None = unknown
+    export_price: float | None  # what a kWh to the grid earns
+    max_charge_w: float  # most the batteries may charge (power and phase limits)
+    max_discharge_w: float  # most the batteries may discharge
+
+    @property
+    def net_w(self) -> float:
+        """Shortage (+) or surplus (-) of the house without batteries."""
+        return self.house_w - self.pv_w
+
+
+@dataclass(frozen=True, slots=True)
+class PlannerBattery:
+    """All batteries together, as one."""
+
+    capacity_wh: float
+    stored_wh: float  # now
+    floor_wh: float  # lowest allowed (minimum state of charge / reserve)
+    ceiling_wh: float  # highest allowed (maximum state of charge)
+    efficiency: float  # one way (charging or discharging), e.g. 0.92
+    max_charge_w: float  # most the batteries can charge together
+    max_discharge_w: float  # most the batteries can discharge together
+
+
+@dataclass(frozen=True, slots=True)
+class PlannerInput:
+    """Everything a planner gets.
+
+    ``rules`` are the user's plan rules (``battery_plan.PlanRules``: reserve,
+    minimum discharge price, maximum charge price, ...); HomeBatteryAssist
+    enforces the price rules afterwards anyway. ``target(start)`` gives the
+    fixed action of manual / time slot settings for a slot, if any.
+    """
+
+    now: datetime
+    slots: list[PlannerSlot]
+    battery: PlannerBattery
+    rules: Any
+    cycle_cost: float = 0.0  # wear per kWh through the battery (price unit)
+    max_cycles_per_day: float = 0.0  # 0 = no limit
+    peak_w: float = 0.0  # grid import to stay below (all phases), 0 = off
+    target: Callable[[datetime], Any] | None = None
+    priced: bool = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "priced", all(s.price is not None for s in self.slots))
+
+
+@dataclass(slots=True)
+class PlannerResult:
+    """What a planner returns: the requested power per slot (W, + charging),
+    optionally a reason per slot (shown in the explanation) and the strategy
+    it actually used (e.g. arbitrage falls back to nom without prices)."""
+
+    powers: list[float]
+    reasons: list[str | None] | None = None
+    strategy: str | None = None
+
+
+class Planner:
+    """Base class of a planner module.
+
+    Subclasses set ``key`` (unique, lowercase), ``name`` (shown to the user)
+    and implement ``plan``. ``plan`` runs outside the event loop; it must not
+    do I/O and should finish within a second.
+    """
+
+    key: str = ""
+    name: str = ""
+    description: str = ""
+
+    def plan(self, data: PlannerInput) -> PlannerResult | list[float]:
+        """Requested battery power per slot of ``data.slots``, in W
+        (+ charging / - discharging). Missing values count as 0 (idle)."""
+        raise NotImplementedError
+
+
+def may_discharge(rules: Any, price: float | None) -> bool:
+    """Discharging is allowed at this price (the minimum discharge price)."""
+    threshold = getattr(rules, "min_discharge_price", None)
+    return threshold is None or price is None or price >= threshold
+
+
+def grid_cost(grid_w: float, hours: float, price: float, export_price: float) -> float:
+    """Cost of a grid exchange (+ import at the price, - export at the export price)."""
+    kwh = grid_w * hours / 1000
+    return kwh * price if kwh >= 0 else kwh * export_price

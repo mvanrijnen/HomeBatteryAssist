@@ -995,7 +995,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
   _planText(h, t) {
     const money = (v) => (v == null ? "–" : `${v.toFixed(2)} ${h.price_unit?.split("/")[0] || ""}`.trim());
     const plan = h.plans?.[h.plan_mode];
-    const name = (mode) => t.planModes[mode] || mode;
+    const name = (mode) => t.planModes[mode] || h.planner_names?.[mode] || mode;
     const others = Object.entries(h.plans || {})
       .filter(([mode]) => mode !== h.plan_mode)
       .map(([mode, p]) => t.planOther.replace("{mode}", name(mode)).replace("{saving}", money(p.saving)));

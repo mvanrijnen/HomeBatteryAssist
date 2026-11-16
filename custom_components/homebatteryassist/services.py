@@ -235,6 +235,12 @@ def async_setup_services(hass: HomeAssistant) -> None:
     async def _set_plan_mode(call: ServiceCall) -> None:
         entry = _loaded_entries(hass)[0]
         mode = call.data[ATTR_MODE]
+        if mode not in PLAN_MODES and mode not in entry.runtime_data.forecast.planners:
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="unknown_plan_mode",
+                translation_placeholders={"mode": mode},
+            )
         if entry.options.get(CONF_PLAN_MODE) == mode:
             return
         entry.runtime_data.decisions.async_log("planning", "plan_mode_set", mode=mode)
@@ -247,7 +253,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
         DOMAIN,
         SERVICE_SET_PLAN_MODE,
         _set_plan_mode,
-        schema=vol.Schema({vol.Required(ATTR_MODE): vol.In(PLAN_MODES)}),
+        schema=vol.Schema({vol.Required(ATTR_MODE): cv.string}),
     )
 
     async def _set_correction(call: ServiceCall) -> ServiceResponse:

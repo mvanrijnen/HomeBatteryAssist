@@ -61,7 +61,7 @@
           "price_forecast_entity": "Used with the price source 'Price sensor': a sensor of another integration with the price forecast in its attributes.",
           "pv_forecast_entries": "Integrations providing a solar forecast (e.g. Forecast.Solar, Solcast). Selected forecasts are added up to the total for your home.",
           "forecast_interval": "How often the forecasts are recalculated automatically.",
-          "plan_mode": "How HomeBatteryAssist would control the batteries (advice only for now). Both modes are always calculated for comparison.",
+          "plan_mode": "How HomeBatteryAssist would control the batteries (advice only for now). All modes are always calculated for comparison. Own planner modules from /config/homebatteryassist/planners appear here too (after a reload).",
           "price_source": "Where the power prices come from. Sources found in Home Assistant are listed (* = not yet tested on a real installation); 'Price sensor' uses the sensor chosen below.",
           "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated."
         },
@@ -399,7 +399,7 @@
           "price_forecast_entity": "Used with the price source 'Price sensor': a sensor of another integration with the price forecast in its attributes.",
           "pv_forecast_entries": "Integrations providing a solar forecast (e.g. Forecast.Solar, Solcast). Selected forecasts are added up to the total for your home.",
           "forecast_interval": "How often the forecasts are recalculated automatically.",
-          "plan_mode": "How HomeBatteryAssist would control the batteries (advice only for now). Both modes are always calculated for comparison.",
+          "plan_mode": "How HomeBatteryAssist would control the batteries (advice only for now). All modes are always calculated for comparison. Own planner modules from /config/homebatteryassist/planners appear here too (after a reload).",
           "price_source": "Where the power prices come from. Sources found in Home Assistant are listed (* = not yet tested on a real installation); 'Price sensor' uses the sensor chosen below.",
           "price_extension": "Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated."
         },
@@ -1110,6 +1110,9 @@
     }
   },
   "exceptions": {
+    "unknown_plan_mode": {
+      "message": "Unknown plan mode {mode}: use a built-in mode or the key of an own planner (custom_...)."
+    },
     "not_loaded": {
       "message": "HomeBatteryAssist is not loaded."
     },

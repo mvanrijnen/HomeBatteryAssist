@@ -49,6 +49,7 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
   - **Full arbitrage**: like arbitrage, but may also discharge to the grid when the export price makes that worthwhile;
   - **Time slots**: your own slots (days, times, charge/discharge/idle, power, until a state of charge), zero on the meter outside them;
   - **Manual**: a fixed charge or discharge power.
+  - **Your own planner**: see [Own planner modules](#own-planner-modules).
 - **Max. cycles per day** for arbitrage, to spare the batteries.
 - **Your own rules**: a reserve state of charge (backup), max. charge/discharge power of all batteries together, a target grid power for zero on the meter, discharge only from a price, charge from the grid only up to a price, a minimum arbitrage margin, and a charge hysteresis.
 - **Warm batteries**: with an optional temperature sensor per battery the plans use less power above a temperature limit.
@@ -59,7 +60,7 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
 - **Phase protection** (virtual batteries): when a phase is overloaded, batteries on that phase take load off it within seconds.
 - **Periodic full charge** per battery (for the battery management's calibration), at the cheapest moment, optionally on a preferred weekday and preferably with solar power; batteries charge fully at the same time when the grid connection allows it.
 - **Distribution over several batteries**: as few batteries as possible at a sensible minimum power, kept in balance.
-- **Plain-language explanation**, e.g. *"The batteries do not discharge now, because power is not expensive enough now (€ 0.31 per kWh): they keep their energy for Mon 07:00-12:00, when power costs € 0.40 per kWh, and charge tonight at € 0.27 per kWh."*
+- **Plain-language explanation** of the plan as periods, e.g. *"Until 17:00 the batteries do not discharge and the house runs on the grid, because power is not expensive enough now (€ 0.31 per kWh): they keep their energy for Mon 17:00-20:00, when power costs € 0.46 per kWh."* — and of what each real battery does by its own control (since when, with what, until when).
 
 ### Dashboard
 
@@ -122,6 +123,20 @@ HomeBatteryAssist never controls anything, so it can run next to any battery or 
 ## Notifications
 
 Choose in the settings which decisions you want to be told about — the plan changes, new prices or a changed forecast reach, phase protection / limits / peak shaving, full charges, a lost or restored measurement — and send them to notify services (e.g. the companion app) and/or as a notification in Home Assistant.
+
+## Own planner modules
+
+Every plan mode is a *planner module*: the built-in ones live in the integration (`planning/planners/`, updated with it), your own are Python files in `/config/homebatteryassist/planners/`. A planner gets the forecast per slot (house consumption, PV, price, export price, how much the batteries may charge and discharge) and the batteries as one (stored energy, minimum, maximum, efficiency), and returns the requested battery power per slot.
+
+**HomeBatteryAssist keeps the final say**: every requested power is cut back to what the batteries and the phases allow, to the minimum/maximum state of charge and to your price rules; periodic full charges are inserted after that. A planner cannot plan anything the batteries or the grid connection cannot do — and, like everything here, a plan is advice only.
+
+To make one:
+
+1. Copy `planning/planners/template.py` (an example: charge in the cheapest hours, use in the most expensive) — or a built-in planner such as `nom.py` or `arbitrage.py` — to `/config/homebatteryassist/planners/`, e.g. with the File editor.
+2. Give the class its own `key` and `name`; in a copied built-in, change the relative imports (`from .base import ...`) to `from custom_components.homebatteryassist.planning.planners.base import ...`.
+3. Reload HomeBatteryAssist. The planner appears as plan mode `custom_<key>` in the settings, is always calculated next to the other modes for comparison, and can be chosen with the action `set_plan_mode`.
+
+A file that does not load is skipped (see the log). If the chosen planner fails, the explanation says so and zero on the meter is used. Planner files are code that runs inside Home Assistant: only use files you trust.
 
 ## Drivers: adding a device or price source
 

@@ -26,7 +26,8 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, VALUE_BASIS
-from .battery_plan import PlanSlot, _grid_cost
+from .battery_plan import PlanSlot
+from .planners.base import grid_cost as _grid_cost
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -61,7 +61,7 @@
           "price_forecast_entity": "Bij de prijsbron 'Prijssensor': een sensor van een andere integratie met de prijsvoorspelling in zijn attributen.",
           "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
-          "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
+          "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Alle modi worden altijd ter vergelijking doorgerekend. Eigen planningsmodules uit /config/homebatteryassist/planners verschijnen hier ook (na herladen).",
           "price_source": "Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest.",
           "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld."
         },
@@ -399,7 +399,7 @@
           "price_forecast_entity": "Bij de prijsbron 'Prijssensor': een sensor van een andere integratie met de prijsvoorspelling in zijn attributen.",
           "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
-          "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Beide modi worden altijd ter vergelijking doorgerekend.",
+          "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Alle modi worden altijd ter vergelijking doorgerekend. Eigen planningsmodules uit /config/homebatteryassist/planners verschijnen hier ook (na herladen).",
           "price_source": "Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest.",
           "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld."
         },
@@ -1110,6 +1110,9 @@
     }
   },
   "exceptions": {
+    "unknown_plan_mode": {
+      "message": "Onbekende planmodus {mode}: kies een ingebouwde modus of de sleutel van een eigen planningsmodule (custom_...)."
+    },
     "not_loaded": {
       "message": "HomeBatteryAssist is niet geladen."
     },
