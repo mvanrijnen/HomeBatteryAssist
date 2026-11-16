@@ -5,15 +5,15 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.homebatteryassist.inputs.batteries import BatteryConfig
-from custom_components.homebatteryassist.inputs.battery_drivers import (
+from custom_components.homebatteryassist.engine.drivers.batteries import (
     DRIVERS,
     driver_for,
     telemetry,
 )
-from custom_components.homebatteryassist.inputs.battery_drivers.template import (
+from custom_components.homebatteryassist.engine.drivers.batteries.template import (
     TemplateBatteryDriver,
 )
+from custom_components.homebatteryassist.engine.inputs.batteries import BatteryConfig
 
 
 def test_template_not_registered() -> None:

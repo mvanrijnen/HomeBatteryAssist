@@ -6,23 +6,25 @@ from types import SimpleNamespace
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from custom_components.homebatteryassist.forecasts.consumption import ForecastSlot
-from custom_components.homebatteryassist.forecasts.phases import PhaseProfile
-from custom_components.homebatteryassist.history.consumption import (
+from custom_components.homebatteryassist.engine.forecasts.consumption import (
+    ForecastSlot,
+)
+from custom_components.homebatteryassist.engine.forecasts.phases import PhaseProfile
+from custom_components.homebatteryassist.engine.history.consumption import (
     ConsumptionHistory,
 )
-from custom_components.homebatteryassist.inputs.prices import PricePoint
-from custom_components.homebatteryassist.planning.battery_plan import (
+from custom_components.homebatteryassist.engine.inputs.prices import PricePoint
+from custom_components.homebatteryassist.engine.planning.battery_plan import (
     MODE_ARBITRAGE,
     plan_batteries,
 )
-from custom_components.homebatteryassist.planning.phase_limit import (
+from custom_components.homebatteryassist.engine.planning.phase_limit import (
     PhaseDevice,
     cap_powers,
     max_power,
     phase_limit_w,
 )
-from custom_components.homebatteryassist.simulation.virtual_battery import (
+from custom_components.homebatteryassist.engine.simulation.virtual_battery import (
     VirtualBatterySimulator,
 )
 
@@ -178,7 +180,7 @@ def test_margin_is_configurable() -> None:
 
 def test_relieve_overloaded_phase() -> None:
     """Batteries on an overloaded phase discharge to bring it back to the limit."""
-    from custom_components.homebatteryassist.planning.phase_limit import (
+    from custom_components.homebatteryassist.engine.planning.phase_limit import (
         overloaded,
         relieve,
     )
@@ -248,7 +250,9 @@ def test_simulator_phase_protection(hass: HomeAssistant) -> None:
 
 def test_shave_peak_total() -> None:
     """Total import above the peak limit: charging stops, then batteries discharge."""
-    from custom_components.homebatteryassist.planning.phase_limit import shave_peak
+    from custom_components.homebatteryassist.engine.planning.phase_limit import (
+        shave_peak,
+    )
 
     devices = [PhaseDevice("a", 0, 2500, 2500), PhaseDevice("b", 1, 2500, 2500)]
     # 6 kW import + 1 kW charging, limit 5 kW: stop charging, discharge 1 kW.

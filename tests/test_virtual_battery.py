@@ -142,7 +142,7 @@ def test_random_loss_within_range() -> None:
     """Each step loses a random share between the minimum and maximum."""
     from types import SimpleNamespace
 
-    from custom_components.homebatteryassist.simulation.virtual_battery import (
+    from custom_components.homebatteryassist.engine.simulation.virtual_battery import (
         limit_power,
         random_efficiency,
     )

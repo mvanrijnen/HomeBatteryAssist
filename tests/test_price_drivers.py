@@ -7,18 +7,18 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.homebatteryassist.inputs.price_drivers import (
+from custom_components.homebatteryassist.engine.drivers.prices import (
     DRIVERS,
     ROLE_IMPORT,
     ROLE_MARKET,
     find_sources,
     split_key,
 )
-from custom_components.homebatteryassist.inputs.price_drivers.actions import (
+from custom_components.homebatteryassist.engine.drivers.prices.actions import (
     EnergyZeroDriver,
     points_from,
 )
-from custom_components.homebatteryassist.inputs.price_drivers.template import (
+from custom_components.homebatteryassist.engine.drivers.prices.template import (
     TemplatePriceDriver,
 )
 
@@ -115,7 +115,7 @@ async def test_action_driver(hass: HomeAssistant) -> None:
 
 def test_calibrate_forecast_to_real_prices() -> None:
     """A bare forecast is lifted to the level of the real (all-in) prices."""
-    from custom_components.homebatteryassist.inputs.prices import (
+    from custom_components.homebatteryassist.engine.inputs.prices import (
         PricePoint,
         calibrate,
     )
@@ -144,7 +144,7 @@ async def test_forecast_only_sources(hass: HomeAssistant) -> None:
 
 
 def test_epexpredictor_parse() -> None:
-    from custom_components.homebatteryassist.inputs.price_drivers.forecasts import (
+    from custom_components.homebatteryassist.engine.drivers.prices.forecasts import (
         EpexPredictorDriver,
     )
 
@@ -165,10 +165,10 @@ async def test_pvpc_and_amber_formats(hass: HomeAssistant) -> None:
     """PVPC hourly attributes and Amber's forecasts list."""
     from homeassistant.core import State
 
-    from custom_components.homebatteryassist.inputs.price_drivers.regional import (
+    from custom_components.homebatteryassist.engine.drivers.prices.regional import (
         pvpc_points,
     )
-    from custom_components.homebatteryassist.inputs.prices import (
+    from custom_components.homebatteryassist.engine.inputs.prices import (
         parse_price_forecast,
     )
 

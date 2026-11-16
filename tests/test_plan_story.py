@@ -5,8 +5,8 @@ from datetime import datetime, timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from custom_components.homebatteryassist.explain.plan_story import plan_story
-from custom_components.homebatteryassist.planning.battery_plan import (
+from custom_components.homebatteryassist.engine.explain.plan_story import plan_story
+from custom_components.homebatteryassist.engine.planning.battery_plan import (
     BatteryPlan,
     PlanSlot,
 )

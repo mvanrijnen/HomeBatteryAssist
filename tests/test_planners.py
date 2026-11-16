@@ -5,18 +5,20 @@ from pathlib import Path
 
 from homeassistant.util import dt as dt_util
 
-from custom_components.homebatteryassist.forecasts.consumption import ForecastSlot
-from custom_components.homebatteryassist.inputs.prices import PricePoint
-from custom_components.homebatteryassist.planning.battery_plan import (
-    PlanRules,
-    plan_batteries,
+from custom_components.homebatteryassist.engine.forecasts.consumption import (
+    ForecastSlot,
 )
-from custom_components.homebatteryassist.planning.planners import (
+from custom_components.homebatteryassist.engine.inputs.prices import PricePoint
+from custom_components.homebatteryassist.engine.modules.planners import (
     BUILTIN,
     Planner,
     PlannerInput,
     PlannerResult,
     load_planners_from,
+)
+from custom_components.homebatteryassist.engine.planning.battery_plan import (
+    PlanRules,
+    plan_batteries,
 )
 
 from .test_battery_plan import _battery
@@ -25,7 +27,7 @@ T0 = datetime(2026, 11, 16, 0, 0, tzinfo=dt_util.UTC)
 H = timedelta(hours=1)
 TEMPLATE = (
     Path(__file__).parent.parent
-    / "custom_components/homebatteryassist/planning/planners/template.py"
+    / "custom_components/homebatteryassist/engine/modules/planners/template.py"
 )
 
 

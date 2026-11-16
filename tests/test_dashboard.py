@@ -225,7 +225,7 @@ def test_prices_now(hass: HomeAssistant) -> None:
 
     from homeassistant.util import dt as dt_util
 
-    from custom_components.homebatteryassist.inputs.prices import PricePoint
+    from custom_components.homebatteryassist.engine.inputs.prices import PricePoint
     from custom_components.homebatteryassist.output.panel import _prices_now
 
     hour = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)

@@ -7,15 +7,15 @@ from types import SimpleNamespace
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from custom_components.homebatteryassist.forecasts.consumption import (
+from custom_components.homebatteryassist.engine.forecasts.consumption import (
     forecast_consumption,
 )
-from custom_components.homebatteryassist.forecasts.horizon import (
+from custom_components.homebatteryassist.engine.forecasts.horizon import (
     HorizonLimit,
     PlanningWindow,
 )
-from custom_components.homebatteryassist.inputs.prices import PricePoint
-from custom_components.homebatteryassist.planning.battery_plan import (
+from custom_components.homebatteryassist.engine.inputs.prices import PricePoint
+from custom_components.homebatteryassist.engine.planning.battery_plan import (
     MODE_ARBITRAGE,
     MODE_NOM,
     plan_batteries,
@@ -92,7 +92,7 @@ async def test_invalid_history_records_are_skipped(
     hass: HomeAssistant, hass_storage: dict
 ) -> None:
     """Damaged stored records do not break every forecast afterwards."""
-    from custom_components.homebatteryassist.history import ConsumptionHistory
+    from custom_components.homebatteryassist.engine.history import ConsumptionHistory
 
     good = {
         "start": "2026-11-16T10:00:00+00:00",
@@ -150,7 +150,7 @@ async def test_direct_meter_goes_stale(hass: HomeAssistant, freezer) -> None:
     measurement becomes unknown instead of keeping the last value."""
     from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-    from custom_components.homebatteryassist.inputs.direct import DirectMeter
+    from custom_components.homebatteryassist.engine.inputs.direct import DirectMeter
 
     freezer.move_to(DST_END)
     meter = DirectMeter(hass, "192.0.2.1")

@@ -6,9 +6,11 @@ from types import SimpleNamespace
 import pytest
 from homeassistant.util import dt as dt_util
 
-from custom_components.homebatteryassist.forecasts.consumption import ForecastSlot
-from custom_components.homebatteryassist.inputs.prices import PricePoint
-from custom_components.homebatteryassist.planning.battery_plan import (
+from custom_components.homebatteryassist.engine.forecasts.consumption import (
+    ForecastSlot,
+)
+from custom_components.homebatteryassist.engine.inputs.prices import PricePoint
+from custom_components.homebatteryassist.engine.planning.battery_plan import (
     MODE_ARBITRAGE,
     MODE_NOM,
     PlanSlot,
@@ -114,7 +116,9 @@ def test_arbitrage_for_own_use_never_exports_battery_energy() -> None:
 
 def test_compare_modes_cumulative_advantage() -> None:
     """Cumulative advantage of arbitrage over NOM per slot; ends at the difference."""
-    from custom_components.homebatteryassist.planning.battery_plan import compare_modes
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        compare_modes,
+    )
 
     slots = _slots([500.0] * 4)
     prices = _prices([0.10, 0.10, 0.50, 0.50])
@@ -132,7 +136,7 @@ def test_compare_modes_cumulative_advantage() -> None:
 
 def test_export_price_per_slot() -> None:
     """A separate export price is used for PV surplus; else import x factor."""
-    from custom_components.homebatteryassist.inputs.prices import (
+    from custom_components.homebatteryassist.engine.inputs.prices import (
         merge_price_forecasts,
     )
 
@@ -158,7 +162,7 @@ def test_export_price_per_slot() -> None:
 
 def test_full_arbitrage_exports_when_it_pays() -> None:
     """Full arbitrage may discharge to the grid; own-use arbitrage never does."""
-    from custom_components.homebatteryassist.planning.battery_plan import (
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
         MODE_ARBITRAGE_FULL,
     )
 
@@ -176,7 +180,7 @@ def test_full_arbitrage_exports_when_it_pays() -> None:
 
 def test_cycle_limit_per_day() -> None:
     """Arbitrage stays within the maximum number of full cycles per day."""
-    from custom_components.homebatteryassist.planning.battery_plan import (
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
         MODE_ARBITRAGE_FULL,
         cycles_per_day,
     )
@@ -212,7 +216,7 @@ def test_charges_at_negative_import_price() -> None:
 def test_makes_room_before_negative_export_price() -> None:
     """Full battery and PV surplus at a negative export price: it discharges
     beforehand, so the surplus can be stored instead of exported at a loss."""
-    from custom_components.homebatteryassist.inputs.prices import PricePoint
+    from custom_components.homebatteryassist.engine.inputs.prices import PricePoint
 
     slots = _slots([500.0, 500.0, 500.0, 500.0])
     pv = {T0 + 3 * H: 3000.0}  # 2.5 kW surplus in the last hour
@@ -233,7 +237,9 @@ def test_makes_room_before_negative_export_price() -> None:
 
 def test_plan_rules() -> None:
     """Reserve, discharge price, grid charge price and the NOM target."""
-    from custom_components.homebatteryassist.planning.battery_plan import PlanRules
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        PlanRules,
+    )
 
     slots = _slots([1000.0] * 4)
     prices = _prices([0.10, 0.10, 0.40, 0.20])
@@ -281,7 +287,9 @@ def test_plan_rules() -> None:
 
 def test_charge_hysteresis() -> None:
     """Full battery: no top-up charging until it dropped below the hysteresis."""
-    from custom_components.homebatteryassist.planning.battery_plan import PlanRules
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        PlanRules,
+    )
 
     slots = _slots([300.0, -200.0, 300.0, -200.0])
     plan = plan_batteries(
@@ -301,7 +309,7 @@ def test_temperature_derating_in_pack() -> None:
     """A warm battery plans with less charge power."""
     from types import SimpleNamespace
 
-    from custom_components.homebatteryassist.planning.battery_plan import _pack
+    from custom_components.homebatteryassist.engine.planning.battery_plan import _pack
 
     battery = _battery()
     warm = SimpleNamespace(
@@ -313,7 +321,9 @@ def test_temperature_derating_in_pack() -> None:
 
 def test_hysteresis_in_arbitrage() -> None:
     """Arbitrage does not top up a nearly full battery inside the band."""
-    from custom_components.homebatteryassist.planning.battery_plan import PlanRules
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        PlanRules,
+    )
 
     slots = _slots([0.0] * 3)
     prices = _prices([0.10, 0.10, 0.60])

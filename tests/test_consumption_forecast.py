@@ -17,15 +17,15 @@ from custom_components.homebatteryassist.const import (
     CONF_PLANNING_HORIZON,
     DOMAIN,
 )
-from custom_components.homebatteryassist.forecasts.adjustments import (
+from custom_components.homebatteryassist.engine.forecasts.adjustments import (
     Adjustment,
     apply_adjustments,
 )
-from custom_components.homebatteryassist.forecasts.consumption import (
+from custom_components.homebatteryassist.engine.forecasts.consumption import (
     ConsumptionProfile,
     forecast_consumption,
 )
-from custom_components.homebatteryassist.forecasts.horizon import (
+from custom_components.homebatteryassist.engine.forecasts.horizon import (
     HorizonLimit,
     PlanningWindow,
 )

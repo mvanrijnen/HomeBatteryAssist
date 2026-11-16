@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from custom_components.homebatteryassist.history import ConsumptionHistory
+from custom_components.homebatteryassist.engine.history import ConsumptionHistory
 
 T0 = datetime(2026, 11, 16, 10, 0, tzinfo=dt_util.UTC)
 

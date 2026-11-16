@@ -24,13 +24,17 @@ from custom_components.homebatteryassist.const import (
     CONF_PV_FORECAST,
     DOMAIN,
 )
-from custom_components.homebatteryassist.forecasts.horizon import (
+from custom_components.homebatteryassist.engine.forecasts.horizon import (
     HorizonLimit,
     PlanningWindow,
     planning_horizon,
 )
-from custom_components.homebatteryassist.inputs.prices import parse_price_forecast
-from custom_components.homebatteryassist.inputs.solar import async_get_pv_forecast
+from custom_components.homebatteryassist.engine.inputs.prices import (
+    parse_price_forecast,
+)
+from custom_components.homebatteryassist.engine.inputs.solar import (
+    async_get_pv_forecast,
+)
 
 NOW = datetime(2026, 11, 16, 12, 0, tzinfo=dt_util.UTC)
 H = timedelta(hours=1)
@@ -210,7 +214,7 @@ async def test_pv_forecast_is_summed(hass: HomeAssistant) -> None:
         async_get_solar_forecast=AsyncMock(side_effect=lambda h, eid: forecasts[eid])
     )
     with patch(
-        "custom_components.homebatteryassist.inputs.solar._async_solar_forecast_platform",
+        "custom_components.homebatteryassist.engine.inputs.solar._async_solar_forecast_platform",
         AsyncMock(return_value=platform),
     ):
         total = await async_get_pv_forecast(hass, [e.entry_id for e in entries])
@@ -241,7 +245,7 @@ async def test_planning_horizon_sensor(
     )
     entry.add_to_hass(hass)
     with patch(
-        "custom_components.homebatteryassist.inputs.pv_forecasts.energy.async_get_pv_forecast",
+        "custom_components.homebatteryassist.engine.modules.pv_forecasts.energy.async_get_pv_forecast",
         AsyncMock(return_value={NOW + h * H: 100.0 for h in range(24)}),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
@@ -307,7 +311,7 @@ async def test_settings_step_lists_pv_forecasts(hass: HomeAssistant) -> None:
             result["flow_id"], {"sensor_l1": "sensor.l1"}
         )
 
-    target = "custom_components.homebatteryassist.inputs.pv_forecasts.energy.async_solar_forecast_entries"
+    target = "custom_components.homebatteryassist.engine.modules.pv_forecasts.energy.async_solar_forecast_entries"
     with patch(target, AsyncMock(return_value=[])):
         result = await _to_settings()
     assert CONF_PV_FORECAST not in result["data_schema"].schema

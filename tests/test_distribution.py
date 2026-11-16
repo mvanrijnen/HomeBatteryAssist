@@ -1,6 +1,6 @@
 """Tests for spreading battery power over several batteries."""
 
-from custom_components.homebatteryassist.planning.distribution import (
+from custom_components.homebatteryassist.engine.planning.distribution import (
     Candidate,
     distribute,
 )
@@ -48,7 +48,9 @@ def test_distributor_keeps_battery_until_balance_check() -> None:
     """No flapping: the battery in use stays until the hourly balance check."""
     from datetime import datetime, timedelta
 
-    from custom_components.homebatteryassist.planning.distribution import Distributor
+    from custom_components.homebatteryassist.engine.planning.distribution import (
+        Distributor,
+    )
 
     t0 = datetime(2026, 11, 16, 0, 0)
     distributor = Distributor(timedelta(hours=1))

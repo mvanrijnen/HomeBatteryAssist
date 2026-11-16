@@ -19,23 +19,28 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME, NOMINAL_VOLTAGE
-from ..forecasts.accuracy import BUCKET_KEYS, KINDS
-from ..forecasts.forecasters import BUILTIN as FORECASTERS
-from ..history.profile import day_profile, days_covered, hourly_series, week_profiles
-from ..inputs.battery_drivers import telemetry as battery_telemetry
-from ..inputs.direct import SOURCE_NAMES, find_direct_meters
-from ..inputs.measurements import MeasurementInput
-from ..inputs.meters import find_meter_candidates
-from ..models import HomeBatteryAssistConfigEntry
-from ..planning.battery_plan import (
+from ..engine.drivers.batteries import telemetry as battery_telemetry
+from ..engine.forecasts.accuracy import BUCKET_KEYS, KINDS
+from ..engine.history.profile import (
+    day_profile,
+    days_covered,
+    hourly_series,
+    week_profiles,
+)
+from ..engine.inputs.direct import SOURCE_NAMES, find_direct_meters
+from ..engine.inputs.measurements import MeasurementInput
+from ..engine.inputs.meters import find_meter_candidates
+from ..engine.modules.forecasters import BUILTIN as FORECASTERS
+from ..engine.planning.battery_plan import (
     ARBITRAGE_MODES,
     MODE_ARBITRAGE,
     MODE_NOM,
     compare_modes,
     reach_times,
 )
-from ..planning.phase_limit import phase_limit_w
-from ..planning.verification import slot_saving
+from ..engine.planning.phase_limit import phase_limit_w
+from ..engine.planning.verification import slot_saving
+from ..models import HomeBatteryAssistConfigEntry
 from .batteries import BATTERY_SENSORS, TOTAL_SENSORS
 
 _LOGGER = logging.getLogger(__name__)

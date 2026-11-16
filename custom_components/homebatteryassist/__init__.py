@@ -30,24 +30,24 @@ from .const import (
     DEFAULT_HISTORY_INTERVAL,
     DOMAIN,
 )
-from .explain import DecisionLog
-from .explain.notify import Notifier
-from .forecasts.accuracy import ForecastAccuracy
-from .forecasts.adjustments import AdjustmentStore
-from .forecasts.coordinator import ForecastCoordinator
-from .forecasts.forecasters import async_load_user_forecasters
-from .history import ConsumptionHistory
-from .inputs.batteries import ACTIVITY_THRESHOLD_W, BatteryInput, activity_of
-from .inputs.measurements import MeasurementInput
-from .inputs.pv_forecasts import async_load_user_pv_sources
-from .inputs.tariffs import async_load_user_tariffs
+from .engine.explain import DecisionLog
+from .engine.explain.notify import Notifier
+from .engine.forecasts.accuracy import ForecastAccuracy
+from .engine.forecasts.adjustments import AdjustmentStore
+from .engine.forecasts.coordinator import ForecastCoordinator
+from .engine.history import ConsumptionHistory
+from .engine.inputs.batteries import ACTIVITY_THRESHOLD_W, BatteryInput, activity_of
+from .engine.inputs.measurements import MeasurementInput
+from .engine.modules.forecasters import async_load_user_forecasters
+from .engine.modules.planners import async_load_user_planners
+from .engine.modules.pv_forecasts import async_load_user_pv_sources
+from .engine.modules.tariffs import async_load_user_tariffs
+from .engine.planning.battery_plan import MODE_NOM
+from .engine.planning.verification import PlanVerification
+from .engine.simulation.virtual_battery import VirtualBatterySimulator
 from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
 from .output.panel import async_setup_panel
-from .planning.battery_plan import MODE_NOM
-from .planning.planners import async_load_user_planners
-from .planning.verification import PlanVerification
 from .services import async_setup_services
-from .simulation.virtual_battery import VirtualBatterySimulator
 
 PLATFORMS: list[Platform] = [Platform.BUTTON, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)

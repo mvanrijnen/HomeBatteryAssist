@@ -17,12 +17,12 @@ from custom_components.homebatteryassist.const import (
     CONF_PHASES,
     DOMAIN,
 )
-from custom_components.homebatteryassist.explain import DecisionLog
-from custom_components.homebatteryassist.explain.decision_log import (
+from custom_components.homebatteryassist.engine.explain import DecisionLog
+from custom_components.homebatteryassist.engine.explain.decision_log import (
     EVENT_DECISION,
     MAX_ENTRIES,
 )
-from custom_components.homebatteryassist.explain.messages import (
+from custom_components.homebatteryassist.engine.explain.messages import (
     KIND_NAMES,
     MESSAGES,
     TERMS,
@@ -150,8 +150,11 @@ async def test_notifications(hass: HomeAssistant) -> None:
     """Chosen kinds of decisions go to the chosen notify services."""
     from homeassistant.core import ServiceCall
 
-    from custom_components.homebatteryassist.explain import DecisionLog
-    from custom_components.homebatteryassist.explain.notify import Notifier, kind_of
+    from custom_components.homebatteryassist.engine.explain import DecisionLog
+    from custom_components.homebatteryassist.engine.explain.notify import (
+        Notifier,
+        kind_of,
+    )
 
     assert kind_of("horizon_price") == "prices"
     assert kind_of("phase_relief") == "protection"
