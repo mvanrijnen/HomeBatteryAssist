@@ -345,7 +345,8 @@
         "title": "Configure HomeBatteryAssist",
         "menu_options": {
           "settings": "Settings (forecasts, planning, batteries)",
-          "grid": "Grid connection and meter (meter, phases, connection size)"
+          "grid": "Grid connection and meter (meter, phases, connection size)",
+          "defaults": "Back to default settings"
         }
       },
       "settings": {
@@ -520,6 +521,10 @@
           "sensor_l3": "Phase L3",
           "return_l3": "Phase L3 return (optional)"
         }
+      },
+      "defaults": {
+        "title": "Back to the default settings",
+        "description": "All settings go back to their default values. The chosen price source, extra price forecast, price sensor, export price sensors and PV forecast are kept; the grid connection, batteries and other devices are not changed."
       }
     },
     "error": {

@@ -235,7 +235,7 @@ async def test_options_flow_changes_settings(hass: HomeAssistant) -> None:
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
     assert result["type"] is FlowResultType.MENU
-    assert result["menu_options"] == ["settings", "grid"]
+    assert result["menu_options"] == ["settings", "grid", "defaults"]
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {"next_step_id": "settings"}
     )
@@ -580,3 +580,45 @@ async def _direct_meter_by_address(hass: HomeAssistant) -> None:
         "meter_source": "iammeter",
         "meter_address": "192.0.2.50",
     }
+
+
+async def test_options_back_to_defaults(hass: HomeAssistant) -> None:
+    """Back to the defaults keeps where the prices come from."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_PHASES: 1, CONF_MAX_CURRENT: 35, "sensor_l1": "sensor.power_l1"},
+        options={
+            CONF_HISTORY_INTERVAL: 60,
+            CONF_PLANNING_HORIZON: 7,
+            CONF_PRICE_FORECAST: "sensor.prices",
+            "reserve_soc": 50,
+        },
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    # The settings form shows the defaults where nothing is stored yet.
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "settings"}
+    )
+    limits = next(k for k in result["data_schema"].schema if str(k) == "limits")
+    shown = {
+        str(k): k.description.get("suggested_value")
+        for k in result["data_schema"].schema[limits].schema.schema
+        if k.description
+    }
+    assert shown["phase_margin"] == 10 and shown["reserve_soc"] == 50
+    hass.config_entries.options.async_abort(result["flow_id"])
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "defaults"}
+    )
+    assert result["step_id"] == "defaults"
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {})
+    await hass.async_block_till_done()
+    assert entry.options[CONF_HISTORY_INTERVAL] == 15
+    assert entry.options["reserve_soc"] == 0
+    assert entry.options[CONF_PRICE_FORECAST] == "sensor.prices"

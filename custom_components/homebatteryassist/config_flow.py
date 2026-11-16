@@ -357,6 +357,42 @@ async def settings_schema(
     return vol.Schema(top)
 
 
+# Kept when going back to the defaults: where the inputs come from.
+KEEP_ON_RESET = (
+    CONF_PRICE_SOURCE,
+    CONF_PRICE_EXTENSION,
+    CONF_PRICE_FORECAST,
+    CONF_PV_FORECAST,
+    CONF_EXPORT_ENTITIES,
+)
+
+
+async def settings_defaults(hass: HomeAssistant) -> dict[str, Any]:
+    """The default of every setting that has one."""
+    flat = await _flat_settings_schema(hass, {})
+    return {
+        str(marker): marker.default()
+        for marker in flat.schema
+        if marker.default is not vol.UNDEFINED
+    }
+
+
+async def settings_form_values(
+    hass: HomeAssistant, current: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Values shown in the form: the defaults, overridden by the current ones.
+
+    Select fields hold strings; stored options may be numbers.
+    """
+    values = {**await settings_defaults(hass), **current}
+    return nest_settings(
+        {
+            key: str(value) if key in SELECT_OPTIONS and value is not None else value
+            for key, value in values.items()
+        }
+    )
+
+
 def nest_settings(values: Mapping[str, Any]) -> dict[str, Any]:
     """Flat options -> the form's nested values (for suggested values)."""
     where = {key: name for name, keys in SETTINGS_SECTIONS.items() for key in keys}
@@ -992,8 +1028,12 @@ class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
                 title=NAME, data=self._data, options=settings_from_input(user_input)
             )
 
+        schema = await settings_schema(self.hass)
         return self.async_show_form(
-            step_id="settings", data_schema=await settings_schema(self.hass)
+            step_id="settings",
+            data_schema=self.add_suggested_values_to_schema(
+                schema, await settings_form_values(self.hass, {})
+            ),
         )
 
     @classmethod
@@ -1028,7 +1068,9 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Choose what to change."""
-        return self.async_show_menu(step_id="init", menu_options=["settings", "grid"])
+        return self.async_show_menu(
+            step_id="init", menu_options=["settings", "grid", "defaults"]
+        )
 
     async def async_step_settings(
         self, user_input: dict[str, Any] | None = None
@@ -1039,17 +1081,28 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
 
         current = self.config_entry.options
         schema = await settings_schema(self.hass, current)
-        # Select fields hold strings; stored options may be numbers.
-        suggested = {
-            key: str(value) if key in SELECT_OPTIONS and value is not None else value
-            for key, value in current.items()
-        }
         return self.async_show_form(
             step_id="settings",
             data_schema=self.add_suggested_values_to_schema(
-                schema, nest_settings(suggested)
+                schema, await settings_form_values(self.hass, current)
             ),
         )
+
+    async def async_step_defaults(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Back to the default settings (the chosen inputs are kept)."""
+        if user_input is not None:
+            defaults = await settings_defaults(self.hass)
+            kept = {
+                key: value
+                for key, value in self.config_entry.options.items()
+                if key in KEEP_ON_RESET
+            }
+            return self.async_create_entry(
+                data=settings_from_input({**defaults, **kept})
+            )
+        return self.async_show_form(step_id="defaults", data_schema=vol.Schema({}))
 
     async def async_step_grid(
         self, user_input: dict[str, Any] | None = None

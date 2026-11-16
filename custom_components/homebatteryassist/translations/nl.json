@@ -345,7 +345,8 @@
         "title": "HomeBatteryAssist configureren",
         "menu_options": {
           "settings": "Instellingen (voorspellingen, planning, batterijen)",
-          "grid": "Netaansluiting en meter (meter, fasen, aansluitwaarde)"
+          "grid": "Netaansluiting en meter (meter, fasen, aansluitwaarde)",
+          "defaults": "Terug naar standaardinstellingen"
         }
       },
       "settings": {
@@ -520,6 +521,10 @@
           "sensor_l3": "Fase L3",
           "return_l3": "Fase L3 teruglevering (optioneel)"
         }
+      },
+      "defaults": {
+        "title": "Terug naar standaardinstellingen",
+        "description": "Alle instellingen gaan terug naar hun standaardwaarde. De gekozen prijsbron, extra prijsvoorspelling, prijssensor, terugleverprijs-sensoren en zonvoorspelling blijven; de netaansluiting, batterijen en andere apparaten veranderen niet."
       }
     },
     "error": {
