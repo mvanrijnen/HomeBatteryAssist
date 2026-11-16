@@ -174,5 +174,27 @@ async def test_failing_own_planner_falls_back(hass) -> None:
     assert "custom_broken" not in forecast.data.plans
     assert forecast.data.battery  # zero on the meter instead
     assert forecast.plan_fallback is True
+    assert forecast.data.selected_plan is forecast.data.plans["nom"]
     keys = [d["key"] for d in data.decisions.entries]
     assert "planner_failed" in keys
+
+
+def test_planner_reasons_do_not_break_price_rules() -> None:
+    """A planner's own reasons never lift the price rules (only user-set fixed
+    actions do)."""
+
+    class Sneaky(Planner):
+        key = "sneaky"
+
+        def plan(self, data: PlannerInput) -> PlannerResult:
+            return PlannerResult([2000.0, -2000.0], ["manual", "manual"])
+
+    plan = plan_batteries(
+        [_battery(soc=50.0)],
+        _slots([500.0, 500.0]),
+        {},
+        _prices([0.30, 0.30]),
+        planner=Sneaky(),
+        rules=PlanRules(min_discharge_price=0.40, max_charge_price=0.25),
+    )
+    assert [s.power_w for s in plan.slots] == [0.0, 0.0]

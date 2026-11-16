@@ -241,6 +241,7 @@ def test_prices_now(hass: HomeAssistant) -> None:
         price_unit="EUR/kWh",
         plans={"arbitrage": SimpleNamespace(slots=[slot])},
         plan_mode="arbitrage",
+        selected_plan=SimpleNamespace(slots=[slot]),
     )
     result = _prices_now(hass, SimpleNamespace(forecast=SimpleNamespace(data=forecast)))
     assert result["now"] == 0.30

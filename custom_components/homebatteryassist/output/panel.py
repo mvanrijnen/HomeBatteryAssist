@@ -130,7 +130,7 @@ def _expected_reach(data: Any, battery_id: str) -> dict[str, str | None]:
 
 
 def _planner_info(forecast: Any) -> dict[str, Any]:
-    plan = forecast.data.plans.get(forecast.plan_mode)
+    plan = forecast.data.selected_plan
     return {
         "key": forecast.plan_mode,
         "name": forecast.planner_name(forecast.plan_mode),
@@ -196,7 +196,7 @@ def _protection(data: Any) -> dict[str, Any] | None:
 
 
 def _vs_none(forecast: Any) -> list[list[float]]:
-    plan = forecast.data.plans.get(forecast.data.plan_mode)
+    plan = forecast.data.selected_plan
     if plan is None or not plan.slots or plan.cost is None:
         return []
     start_soc = plan.slots[0].soc
@@ -226,7 +226,7 @@ def _prices_now(hass: HomeAssistant, data: Any) -> dict[str, Any] | None:
         ),
         None,
     )
-    plan = forecast.plans.get(forecast.plan_mode)
+    plan = forecast.selected_plan
     slot = next(
         (s for s in (plan.slots if plan else []) if s.start <= now < s.end), None
     )
@@ -443,8 +443,7 @@ def websocket_history(
                 ),
                 "expected": (
                     round(plan.saving, 2)
-                    if (plan := forecast.data.plans.get(forecast.data.plan_mode))
-                    and plan.saving is not None
+                    if (plan := forecast.data.selected_plan) and plan.saving is not None
                     else None
                 ),
                 # The selected mode compared with the other mode(s): expected
@@ -452,7 +451,7 @@ def websocket_history(
                 "expected_vs": {
                     mode: round(plan.saving - other.saving, 2)
                     for mode, other in forecast.data.plans.items()
-                    if (plan := forecast.data.plans.get(forecast.data.plan_mode))
+                    if (plan := forecast.data.selected_plan)
                     and mode != forecast.data.plan_mode
                     and plan.saving is not None
                     and other.saving is not None

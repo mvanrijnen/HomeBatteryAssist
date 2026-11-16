@@ -346,7 +346,7 @@ class BatteryForecastSensor(
         """The plan per slot, its expected saving and the other modes."""
         data = self.coordinator.data
         slots = data.battery
-        plan = data.plans.get(data.plan_mode)
+        plan = data.selected_plan
         return {
             "mode": data.plan_mode,
             "strategy": plan.strategy if plan else None,

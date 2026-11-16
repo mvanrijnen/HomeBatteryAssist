@@ -333,6 +333,9 @@ def finalise(
         if not math.isfinite(requested):
             requested = 0.0
         reason = reasons[index] if index < len(reasons) else None
+        # Only a fixed action the user set (manual / time slot) may break the
+        # price rules; a planner's own reason never does.
+        fixed = data.target is not None and data.target(slot.start) is not None
         hours = slot.hours
         power = 0.0
         if requested > 0:
@@ -342,13 +345,13 @@ def finalise(
                 max(battery.ceiling_wh - stored, 0.0) / (hours * eff),
             )
             if (
-                reason is None
+                not fixed
                 and rules.max_charge_price is not None
                 and slot.price is not None
                 and slot.price > rules.max_charge_price
             ):
                 power = min(power, max(-slot.net_w, 0.0))  # only surplus PV
-        elif requested < 0 and (reason is not None or may_discharge(rules, slot.price)):
+        elif requested < 0 and (fixed or may_discharge(rules, slot.price)):
             power = -min(
                 -requested,
                 slot.max_discharge_w,

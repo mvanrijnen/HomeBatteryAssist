@@ -179,6 +179,12 @@ class ForecastData:
     # Planned (forced) full charges, earliest first.
     full_charges: list[FullCharge] = field(default_factory=list)
 
+    @property
+    def selected_plan(self) -> BatteryPlan | None:
+        """The plan in use: the chosen mode's, or zero on the meter when the
+        chosen own planner failed or is gone."""
+        return self.plans.get(self.plan_mode) or self.plans.get(MODE_NOM)
+
     def full_charge_now(self, battery_id: str, when: datetime) -> FullCharge | None:
         """The full charge of ``battery_id`` running at ``when``, if any."""
         return next(
@@ -968,7 +974,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
 
     def _explain_plan(self, data: ForecastData) -> None:
         """Explain the plan in plain language when it changes noticeably."""
-        plan = data.plans.get(data.plan_mode)
+        plan = data.selected_plan
         if plan is None or not plan.slots:
             return
         now = dt_util.utcnow()
