@@ -436,58 +436,72 @@ def _optimise(
     avg_price = sum(s[3] for s in slots) / count
     terminal = [-(e - pack.floor) / 1000 * avg_price * pack.eff for e in energy]
 
-    best_next: list[list[int]] = [[0] * levels for _ in range(count)]
-    future = terminal
+    # Charge hysteresis: a charge may not *start* in the top band below the
+    # maximum; the state remembers whether the previous slot was charging.
+    band = rules.charge_hysteresis * pack.capacity / 100
+    top = (
+        levels if band <= 0 else max(int((pack.ceiling - band - pack.floor) / step), 0)
+    )
+    flags = (0, 1) if band > 0 else (0,)
+    best_next: list[list[list[int]]] = [
+        [[0] * levels for _ in flags] for _ in range(count)
+    ]
+    future = [terminal for _ in flags]
     for t in range(count - 1, -1, -1):
         _slot, hours, net, price, max_c, max_d, export = slots[t]
         up = int(max_c * hours * pack.eff / step)
         down = int(max_d * hours / pack.eff / step)
-        current = [0.0] * levels
-        choice = best_next[t]
-        for i in range(levels):
-            best = math.inf
-            best_j = i
-            for j in range(max(0, i - down), min(levels - 1, i + up) + 1):
-                delta = (j - i) * step  # Wh stored
-                power = (
-                    delta / (hours * pack.eff)
-                    if delta >= 0
-                    else delta * pack.eff / hours
-                )
-                # Own use: never discharge more than the house needs (no export).
-                if not allow_export and power < 0 and power < -max(net, 0.0) - 1e-6:
-                    continue
-                if power < 0 and not _may_discharge(pack, price):
-                    continue
-                if (
-                    power > max(-net, 0.0) + 1e-6
-                    and rules.max_charge_price is not None
-                    and price > rules.max_charge_price
-                ):
-                    continue  # charging from the grid only when cheap enough
-                cost = (
-                    _grid_cost(net + power, hours, price, export)
-                    + abs(power) * hours / 1000 * cycle_cost
-                    + (-power * hours / 1000 * extra if power < 0 else 0.0)
-                    + (
-                        max(net + power - peak_w, 0.0) * hours / 1000 * PEAK_PENALTY
-                        if peak_w > 0
-                        else 0.0
+        current = [[0.0] * levels for _ in flags]
+        for flag in flags:
+            choice = best_next[t][flag]
+            for i in range(levels):
+                best = math.inf
+                best_j = i
+                for j in range(max(0, i - down), min(levels - 1, i + up) + 1):
+                    if j > i and i > top and not flag:
+                        continue  # no top-up charge inside the hysteresis band
+                    delta = (j - i) * step  # Wh stored
+                    power = (
+                        delta / (hours * pack.eff)
+                        if delta >= 0
+                        else delta * pack.eff / hours
                     )
-                    + future[j]
-                )
-                if cost < best:
-                    best, best_j = cost, j
-            current[i] = best
-            choice[i] = best_j
+                    # Own use: never discharge more than the house needs (no export).
+                    if not allow_export and power < 0 and power < -max(net, 0.0) - 1e-6:
+                        continue
+                    if power < 0 and not _may_discharge(pack, price):
+                        continue
+                    if (
+                        power > max(-net, 0.0) + 1e-6
+                        and rules.max_charge_price is not None
+                        and price > rules.max_charge_price
+                    ):
+                        continue  # charging from the grid only when cheap enough
+                    cost = (
+                        _grid_cost(net + power, hours, price, export)
+                        + abs(power) * hours / 1000 * cycle_cost
+                        + (-power * hours / 1000 * extra if power < 0 else 0.0)
+                        + (
+                            max(net + power - peak_w, 0.0) * hours / 1000 * PEAK_PENALTY
+                            if peak_w > 0
+                            else 0.0
+                        )
+                        + future[1 if (j > i and band > 0) else 0][j]
+                    )
+                    if cost < best:
+                        best, best_j = cost, j
+                current[flag][i] = best
+                choice[i] = best_j
         future = current
 
     # Forward pass from the current state of charge (nearest level).
     i = min(max(round((pack.stored - pack.floor) / step), 0), levels - 1)
+    flag = 0
     result: list[PlanSlot] = []
     cost_with = cost_without = 0.0
     for t, (slot, hours, net, price, max_c, max_d, export) in enumerate(slots):
-        j = best_next[t][i]
+        j = best_next[t][flag][i]
+        flag = 1 if (j > i and band > 0) else 0
         delta = (j - i) * step
         power = delta / (hours * pack.eff) if delta >= 0 else delta * pack.eff / hours
         cost_with += _grid_cost(net + power, hours, price, export)

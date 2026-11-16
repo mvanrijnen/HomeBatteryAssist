@@ -307,3 +307,22 @@ def test_temperature_derating_in_pack() -> None:
     )
     assert _pack([warm]).max_charge == 1250.0
     assert _pack([warm]).max_discharge == 2500.0
+
+
+def test_hysteresis_in_arbitrage() -> None:
+    """Arbitrage does not top up a nearly full battery inside the band."""
+    from custom_components.homebatteryassist.planning.battery_plan import PlanRules
+
+    slots = _slots([0.0] * 3)
+    prices = _prices([0.10, 0.10, 0.60])
+    free = plan_batteries([_battery(soc=96.0)], slots, {}, prices, mode=MODE_ARBITRAGE)
+    held = plan_batteries(
+        [_battery(soc=96.0)],
+        slots,
+        {},
+        prices,
+        mode=MODE_ARBITRAGE,
+        rules=PlanRules(charge_hysteresis=10.0),
+    )
+    assert max(s.soc for s in free.slots) > 99  # tops up to full
+    assert held.slots[0].power_w == 0.0 and held.slots[1].power_w == 0.0
