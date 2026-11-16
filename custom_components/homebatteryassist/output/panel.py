@@ -430,8 +430,15 @@ def websocket_history(
             # Realised value of all batteries so far, and the expected value
             # of the selected plan until the end of the planning window.
             "value": {
+                # After wear (cycle cost per kWh through the batteries), like
+                # the expected saving.
                 "realized": round(
-                    sum(s.get("value", 0.0) for s in batteries.stats.values()), 2
+                    sum(
+                        s.get("value", 0.0)
+                        - s.get("value_kwh", 0.0) * forecast.cycle_cost
+                        for s in batteries.stats.values()
+                    ),
+                    2,
                 ),
                 "since": min(
                     (

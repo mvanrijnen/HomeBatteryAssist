@@ -291,6 +291,8 @@ class BatteryStats(TypedDict):
     virtual_soc: NotRequired[float]  # simulated state of charge (virtual batteries)
     value: NotRequired[float]  # realised value: + saved / - cost, in the price unit
     value_since: NotRequired[str]  # ISO 8601: when the value counter started
+    value_kwh: NotRequired[float]  # energy through the battery behind the value
+    value_basis: NotRequired[int]  # how the value is counted (VALUE_BASIS)
 
 
 def realised_value(
@@ -382,6 +384,7 @@ class BatteryInput:
                 # Older counters assumed net metering: start again.
                 stats.pop("value", None)
                 stats.pop("value_since", None)
+                stats.pop("value_kwh", None)
                 stats["value_basis"] = VALUE_BASIS
         entity_ids = [
             e
@@ -491,6 +494,8 @@ class BatteryInput:
                 hours = max((when - since).total_seconds(), 0.0) / 3600
                 grid_kwh = self._grid_with_batteries(battery_id, last_power)
                 stats.setdefault("value_since", when.isoformat())
+                # Energy through the battery behind the value (for its wear).
+                stats["value_kwh"] = round(stats.get("value_kwh", 0.0) + abs(kwh), 4)
                 stats["value"] = round(
                     stats.get("value", 0.0)
                     + realised_value(
