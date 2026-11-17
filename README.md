@@ -17,7 +17,7 @@ HomeBatteryAssist measures, forecasts and plans your home batteries, and is buil
 - **Forecasts** the house consumption from your own history, optionally following the weather forecast (a weather entity, KNMI, Weerlive or Open-Meteo) for electric heating or cooling (per room, learning the desired room temperature per day of the week), and takes prices and the PV forecast from your integrations — assuming **no net metering** (as in the Netherlands from 2027). Every forecast is checked afterwards and corrected where it is consistently off. → [Forecasting](docs/forecasting.md)
 - **Plans** what the batteries could best do — zero on the meter, arbitrage, time slots, manual or your own planner — within the batteries' and the grid connection's limits, with a periodic full charge, and compares every plan with no battery. For now as advice (virtual batteries follow it). → [Planning](docs/planning.md)
 - **Explains** every plan and every change in plain language, as periods: what happens until when, and why — also what your real battery does by its own control. → [Planning: explanation](docs/planning.md#explanation)
-- **Shows** it all on a dashboard in the sidebar. → [Dashboard](docs/dashboard.md)
+- **Shows** it all on a dashboard in the sidebar. → [Dashboard](docs/dashboard.md) · [Screenshots](docs/screenshots/README.md)
 - **Can be made your own**: the planner, the consumption forecaster, the tariff, the PV forecast source, the PV correction and the spike filter (short peaks such as a kettle: not discharged for, left out of the average) are *modules* — choose a built-in one or add your own, while HomeBatteryAssist keeps the final say. → [Modules](docs/modules.md)
 
 ## Installation
@@ -56,6 +56,7 @@ For dynamic energy prices HomeBatteryAssist reads a price integration you alread
 | [Forecasting](docs/forecasting.md) | Planning window, consumption, prices, export price and tariff, PV, accuracy |
 | [Planning](docs/planning.md) | Plan modes, rules and limits, full charge, explanations, plan check |
 | [Dashboard](docs/dashboard.md) | What each tab shows |
+| [Screenshots](docs/screenshots/README.md) | Every screen of the dashboard and the configuration |
 | [Modules](docs/modules.md) | Planners, consumption forecasters, price sources, tariffs, PV forecast sources and PV corrections — built-in and your own |
 | [Drivers](docs/drivers.md) | Devices: battery models and readers, meters per brand |
 | [Working with other integrations](docs/integration.md) | Sensors, actions, events, logging, notifications |
