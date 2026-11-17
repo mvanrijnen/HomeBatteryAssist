@@ -583,9 +583,9 @@ const STYLE = `
   .chart svg { touch-action: pan-y; cursor: crosshair; }
   .chart .cursor { stroke: var(--secondary-text-color); stroke-width: 1; }
   .tip { position: absolute; top: 28px; pointer-events: none; z-index: 2; min-width: 120px;
-    background: var(--card-background-color); color: var(--primary-text-color);
-    border: 1px solid var(--divider-color); border-radius: 8px; padding: 8px 10px; font-size: 14px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
+    background: color-mix(in srgb, var(--card-background-color, #1c1c1c) 97%, transparent); color: var(--primary-text-color);
+    border: 1px solid var(--divider-color); border-radius: 8px; padding: 5px 8px; font-size: 12px; line-height: 1.35;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .25); }
   .tip .t { font-weight: 500; margin-bottom: 2px; }
   .tip .r { display: flex; justify-content: space-between; gap: 12px; }
   .tip i { display: inline-block; width: 10px; height: 10px; border-radius: 5px; margin-right: 6px; }
@@ -1552,6 +1552,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const px = box.left - parent.left + (sx(anchor[0]) / c.W) * box.width;
     const width = tip.offsetWidth;
     tip.style.left = `${px + 12 + width > parent.width ? Math.max(0, px - width - 12) : px + 12}px`;
+    // Small charts: under the chart, so it never covers the lines; wide
+    // charts have room beside the cursor.
+    const small = box.width < 700;
+    tip.style.top = small ? `${box.bottom - parent.top + 4}px` : "28px";
   }
 
   _consumption(t) {
