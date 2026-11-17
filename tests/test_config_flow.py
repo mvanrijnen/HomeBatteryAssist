@@ -675,6 +675,9 @@ async def test_options_back_to_defaults(hass: HomeAssistant) -> None:
         if k.description
     }
     assert shown["phase_margin"] == 10 and shown["reserve_soc"] == 50
+    # The frontend shows a section from its default: it holds the values too.
+    assert limits.default()["reserve_soc"] == 50
+    assert limits.default()["phase_margin"] == 10
     hass.config_entries.options.async_abort(result["flow_id"])
 
     result = await hass.config_entries.options.async_init(entry.entry_id)

@@ -459,9 +459,16 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
 
 
 async def settings_schema(
-    hass: HomeAssistant, current: Mapping[str, Any] | None = None
+    hass: HomeAssistant,
+    current: Mapping[str, Any] | None = None,
+    values: Mapping[str, Any] | None = None,
 ) -> vol.Schema:
-    """The settings form: main fields on top, the rest in collapsed sections."""
+    """The settings form: main fields on top, the rest in collapsed sections.
+
+    ``values``: the form's nested values (``settings_form_values``); each
+    section gets its part as default, because the frontend shows a section
+    from its default (an empty one would show every field in it empty).
+    """
     flat = await _flat_settings_schema(hass, current)
     top: dict[Any, Any] = {}
     grouped: dict[str, dict[Any, Any]] = {name: {} for name in SETTINGS_SECTIONS}
@@ -471,10 +478,24 @@ async def settings_schema(
         (grouped[name] if name else top)[marker] = validator
     for name, fields in grouped.items():
         if fields:
-            top[vol.Required(name, default={})] = section(
+            shown = (values or {}).get(name) or _section_values(fields)
+            top[vol.Required(name, default=dict(shown))] = section(
                 vol.Schema(fields), {"collapsed": True}
             )
     return vol.Schema(top)
+
+
+def _section_values(fields: Mapping[Any, Any]) -> dict[str, Any]:
+    """The values a section's fields start with: the suggested value, else
+    the default."""
+    values: dict[str, Any] = {}
+    for marker in fields:
+        description = getattr(marker, "description", None) or {}
+        if "suggested_value" in description:
+            values[str(marker)] = description["suggested_value"]
+        elif marker.default is not vol.UNDEFINED:
+            values[str(marker)] = marker.default()
+    return {k: v for k, v in values.items() if v is not None}
 
 
 # Kept when going back to the defaults: where the inputs come from.
@@ -1377,12 +1398,11 @@ class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
                 title=NAME, data=self._data, options=settings_from_input(user_input)
             )
 
-        schema = await settings_schema(self.hass)
+        values = await settings_form_values(self.hass, {})
+        schema = await settings_schema(self.hass, None, values)
         return self.async_show_form(
             step_id="settings",
-            data_schema=self.add_suggested_values_to_schema(
-                schema, await settings_form_values(self.hass, {})
-            ),
+            data_schema=self.add_suggested_values_to_schema(schema, values),
         )
 
     @classmethod
@@ -1430,12 +1450,11 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
             return self.async_create_entry(data=settings_from_input(user_input))
 
         current = self.config_entry.options
-        schema = await settings_schema(self.hass, current)
+        values = await settings_form_values(self.hass, current)
+        schema = await settings_schema(self.hass, current, values)
         return self.async_show_form(
             step_id="settings",
-            data_schema=self.add_suggested_values_to_schema(
-                schema, await settings_form_values(self.hass, current)
-            ),
+            data_schema=self.add_suggested_values_to_schema(schema, values),
         )
 
     async def async_step_defaults(
