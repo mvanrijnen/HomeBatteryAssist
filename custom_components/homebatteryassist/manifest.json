@@ -15,11 +15,11 @@
   "dependencies": [
     "websocket_api"
   ],
-  "documentation": "https://github.com/mvanrijnen/HomeBatteryAssist",
+  "documentation": "https://mvanrijnen.github.io/HomeBatteryAssist/",
   "integration_type": "service",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/mvanrijnen/HomeBatteryAssist/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.75.1"
+  "version": "0.75.2"
 }

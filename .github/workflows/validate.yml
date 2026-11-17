@@ -32,3 +32,18 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest
+
+  docs:
+    runs-on: ubuntu-latest
+    env:
+      NO_MKDOCS_2_WARNING: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements_docs.txt
+      # The settings reference is generated from the translations: keep it current.
+      - run: python scripts/docs_reference.py
+      - run: git diff --exit-code docs/reference.md docs/reference.nl.md
+      - run: mkdocs build

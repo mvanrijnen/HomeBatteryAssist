@@ -1,0 +1,130 @@
+site_name: HomeBatteryAssist
+site_description: Insight, forecasts and plans for your home batteries in Home Assistant.
+site_url: https://mvanrijnen.github.io/HomeBatteryAssist/
+repo_url: https://github.com/mvanrijnen/HomeBatteryAssist
+repo_name: mvanrijnen/HomeBatteryAssist
+edit_uri: edit/main/docs/
+copyright: HomeBatteryAssist — MIT license
+# Pages as page.html: images next to a page keep the same relative paths as on GitHub.
+use_directory_urls: false
+
+theme:
+  name: material
+  logo: assets/icon.png
+  favicon: assets/icon.png
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Light / dark
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Dark
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Automatic
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.action.edit
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      reconfigure_material: true
+      reconfigure_search: true
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: nl
+          name: Nederlands
+          build: true
+          site_description: Inzicht, voorspellingen en plannen voor je thuisbatterijen in Home Assistant.
+          nav_translations:
+            Home: Start
+            Getting started: Aan de slag
+            User guide: Handleiding
+            Measuring: Meten
+            Forecasting: Voorspellen
+            Planning: Planning
+            Dashboard: Dashboard
+            Screenshots: Screenshots
+            Settings reference: Instellingen
+            FAQ: Veelgestelde vragen
+            Advanced: Gevorderd
+            Modules: Modules
+            Working with other integrations: Werken met andere integraties
+            Drivers: Drivers
+            Architecture: Architectuur
+            Development: Ontwikkeling
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - User guide:
+      - Measuring: measuring.md
+      - Forecasting: forecasting.md
+      - Planning: planning.md
+      - Dashboard: dashboard.md
+      - Screenshots: screenshots.md
+      - Settings reference: reference.md
+      - FAQ: faq.md
+  - Advanced:
+      - Modules: modules.md
+      - Working with other integrations: integration.md
+      - Drivers: drivers.md
+      - Architecture: architecture.md
+      - Development: development.md
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      # GitHub-style anchors, so the same links work on GitHub and on the site.
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+extra_css:
+  - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/language.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mvanrijnen/HomeBatteryAssist

@@ -55,6 +55,10 @@ engine/explain (8) is used by all; engine/coordinator.py runs one forecast cycle
 - Any options or subentry change reloads the entry (update listener). Unload awaits `HouseConsumption.async_stop()` so history is saved before the reload reads it.
 - Every new config text must be added to `strings.json`, `translations/en.json` (identical copy) and `translations/nl.json`. Custom integrations can't use `[%key:...%]` references — write literal text.
 
+## Documentation site
+
+`docs/` is also a bilingual MkDocs Material site (`mkdocs.yml`, mkdocs-static-i18n, suffix structure): every page exists as `page.md` (English, also read on GitHub) and `page.nl.md` (Dutch). **Change both languages together.** Dutch headings keep the English anchor (`## Uitleg {#explanation}`); anchors are GitHub-style (`pymdownx.slugs`), so links work on GitHub and on the site. Use Markdown images (not raw HTML) so the Dutch pages resolve them. `docs/reference*.md` is generated from the translations by `scripts/docs_reference.py` (CI fails when it is stale: rerun after changing a text). `docs/javascripts/language.js` opens the reader's language (browser language, then the remembered choice). `.github/workflows/docs.yml` publishes to GitHub Pages on every push to `main` (https://mvanrijnen.github.io/HomeBatteryAssist/); `validate.yml` builds it as a check. Build locally: `pip install -r requirements_docs.txt && mkdocs serve`.
+
 ## Commands
 
 Home Assistant's test harness does not run on native Windows (`fcntl`); on Windows, lint and test in WSL. Machine-specific paths and live-instance details are in `CLAUDE.local.md` (not committed).

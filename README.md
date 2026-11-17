@@ -9,6 +9,8 @@ A Home Assistant custom integration that gives insight into your home batteries 
 >
 > **In this phase of development** HomeBatteryAssist does not control any physical battery (or any other device): it reads, forecasts and advises. Only *virtual* batteries follow its plans, as a simulation. Controlling batteries itself is the goal; the control layer is already built, but not active.
 
+📖 **Documentation (English / Nederlands): https://mvanrijnen.github.io/HomeBatteryAssist/** — with a [step-by-step guide](https://mvanrijnen.github.io/HomeBatteryAssist/getting-started.html).
+
 HomeBatteryAssist measures, forecasts and plans your home batteries, and is built to control them. **For now it only reads, forecasts and advises**, so it runs next to the integration that controls your battery (e.g. Omnibattery) without interfering. It uses the price and PV forecasts you already have, and checks every forecast afterwards against what really happened.
 
 <a href="docs/screenshots.md"><img src="docs/screenshots/overview.jpg" alt="The HomeBatteryAssist dashboard" width="900"></a>
@@ -53,8 +55,13 @@ For dynamic energy prices HomeBatteryAssist reads a price integration you alread
 
 ## Documentation
 
+The full documentation, in English and Dutch, is at **https://mvanrijnen.github.io/HomeBatteryAssist/**: a [step-by-step guide](https://mvanrijnen.github.io/HomeBatteryAssist/getting-started.html), the [settings reference](https://mvanrijnen.github.io/HomeBatteryAssist/reference.html) and an [FAQ](https://mvanrijnen.github.io/HomeBatteryAssist/faq.html). The same pages are in [`docs/`](docs):
+
 | Page | About |
 |---|---|
+| [Getting started](docs/getting-started.md) | Step-by-step installation and setup |
+| [Settings reference](docs/reference.md) | Every screen, field and explanation, entities and actions |
+| [FAQ](docs/faq.md) | Frequently asked questions |
 | [Architecture](docs/architecture.md) | Layers, drivers and modules, and where everything is in the code |
 | [Measuring](docs/measuring.md) | Grid meters, batteries, virtual batteries, PV sources, excluded devices, house consumption |
 | [Forecasting](docs/forecasting.md) | Planning window, consumption, prices, export price and tariff, PV, accuracy |

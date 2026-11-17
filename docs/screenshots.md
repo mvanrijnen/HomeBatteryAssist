@@ -9,136 +9,192 @@ Every screen of HomeBatteryAssist (Dutch interface, dark theme), taken from a li
 
 ### Overview
 
-<a href="screenshots/overview.jpg"><img src="screenshots/overview.jpg" alt="Overview" width="900"></a>
+[![Overview](screenshots/overview.jpg)](screenshots/overview.jpg)
 
 **Active modules**
 
-<a href="screenshots/overview-modules.png"><img src="screenshots/overview-modules.png" alt="Active modules" width="900"></a>
+[![Active modules](screenshots/overview-modules.png)](screenshots/overview-modules.png)
 
 **Now**
 
-<a href="screenshots/overview-now.png"><img src="screenshots/overview-now.png" alt="Now" width="900"></a>
+[![Now](screenshots/overview-now.png)](screenshots/overview-now.png)
 
 **Energy flows**
 
-<a href="screenshots/overview-energy-flows.png"><img src="screenshots/overview-energy-flows.png" alt="Energy flows" width="900"></a>
+[![Energy flows](screenshots/overview-energy-flows.png)](screenshots/overview-energy-flows.png)
 
 **Grid connection**
 
-<a href="screenshots/overview-grid-connection.png"><img src="screenshots/overview-grid-connection.png" alt="Grid connection" width="900"></a>
+[![Grid connection](screenshots/overview-grid-connection.png)](screenshots/overview-grid-connection.png)
 
 **Why**
 
-<a href="screenshots/overview-why.png"><img src="screenshots/overview-why.png" alt="Why" width="900"></a>
+[![Why](screenshots/overview-why.png)](screenshots/overview-why.png)
 
 ### Forecast
 
-<a href="screenshots/forecast.jpg"><img src="screenshots/forecast.jpg" alt="Forecast" width="900"></a>
+[![Forecast](screenshots/forecast.jpg)](screenshots/forecast.jpg)
 
 **Energy flows and expected consumption**
 
-<a href="screenshots/forecast-energy-chart.png"><img src="screenshots/forecast-energy-chart.png" alt="Energy flows and expected consumption" width="900"></a>
+[![Energy flows and expected consumption](screenshots/forecast-energy-chart.png)](screenshots/forecast-energy-chart.png)
 
 **Battery fill**
 
-<a href="screenshots/forecast-battery-fill.png"><img src="screenshots/forecast-battery-fill.png" alt="Battery fill" width="900"></a>
+[![Battery fill](screenshots/forecast-battery-fill.png)](screenshots/forecast-battery-fill.png)
 
 **Temperature and heating/cooling**
 
-<a href="screenshots/forecast-temperature.png"><img src="screenshots/forecast-temperature.png" alt="Temperature and heating/cooling" width="900"></a>
+[![Temperature and heating/cooling](screenshots/forecast-temperature.png)](screenshots/forecast-temperature.png)
 
 **Past 7 days and average day**
 
-<a href="screenshots/forecast-history.png"><img src="screenshots/forecast-history.png" alt="Past 7 days and average day" width="900"></a>
+[![Past 7 days and average day](screenshots/forecast-history.png)](screenshots/forecast-history.png)
 
 **Planning window**
 
-<a href="screenshots/forecast-planning-window.png"><img src="screenshots/forecast-planning-window.png" alt="Planning window" width="900"></a>
+[![Planning window](screenshots/forecast-planning-window.png)](screenshots/forecast-planning-window.png)
 
 ### Return
 
-<a href="screenshots/return.jpg"><img src="screenshots/return.jpg" alt="Return" width="900"></a>
+[![Return](screenshots/return.jpg)](screenshots/return.jpg)
 
 **Modes compared**
 
-<a href="screenshots/return-compare.png"><img src="screenshots/return-compare.png" alt="Modes compared" width="900"></a>
+[![Modes compared](screenshots/return-compare.png)](screenshots/return-compare.png)
 
 **Plan against reality**
 
-<a href="screenshots/return-plan-check.png"><img src="screenshots/return-plan-check.png" alt="Plan against reality" width="900"></a>
+[![Plan against reality](screenshots/return-plan-check.png)](screenshots/return-plan-check.png)
 
 ### Batteries
 
-<a href="screenshots/batteries.jpg"><img src="screenshots/batteries.jpg" alt="Batteries" width="900"></a>
+[![Batteries](screenshots/batteries.jpg)](screenshots/batteries.jpg)
 
 **Battery cards**
 
-<a href="screenshots/batteries-cards.png"><img src="screenshots/batteries-cards.png" alt="Battery cards" width="900"></a>
+[![Battery cards](screenshots/batteries-cards.png)](screenshots/batteries-cards.png)
 
 ### Accuracy
 
-<a href="screenshots/accuracy.jpg"><img src="screenshots/accuracy.jpg" alt="Accuracy" width="900"></a>
+[![Accuracy](screenshots/accuracy.jpg)](screenshots/accuracy.jpg)
 
 **Forecast accuracy**
 
-<a href="screenshots/accuracy-forecasts.png"><img src="screenshots/accuracy-forecasts.png" alt="Forecast accuracy" width="900"></a>
+[![Forecast accuracy](screenshots/accuracy-forecasts.png)](screenshots/accuracy-forecasts.png)
 
 **Consumption forecasters**
 
-<a href="screenshots/accuracy-forecasters.png"><img src="screenshots/accuracy-forecasters.png" alt="Consumption forecasters" width="900"></a>
+[![Consumption forecasters](screenshots/accuracy-forecasters.png)](screenshots/accuracy-forecasters.png)
 
 **PV corrections**
 
-<a href="screenshots/accuracy-pv-corrections.png"><img src="screenshots/accuracy-pv-corrections.png" alt="PV corrections" width="900"></a>
+[![PV corrections](screenshots/accuracy-pv-corrections.png)](screenshots/accuracy-pv-corrections.png)
 
 ## Configuration
 
 ### Integration page and menu
 
-<a href="screenshots/config-integration.jpg"><img src="screenshots/config-integration.jpg" alt="Integration page and menu" width="900"></a>
+[![Integration page and menu](screenshots/config-integration.jpg)](screenshots/config-integration.jpg)
 
-<a href="screenshots/config-menu.png"><img src="screenshots/config-menu.png" alt="Integration page and menu Configure menu" width="290"></a>
+<div class="shots" markdown>
+
+[![Integration page and menu Configure menu](screenshots/config-menu.png)](screenshots/config-menu.png)
+
+</div>
 
 ### Settings
 
-<a href="screenshots/config-settings.jpg"><img src="screenshots/config-settings.jpg" alt="Settings" width="900"></a>
+[![Settings](screenshots/config-settings.jpg)](screenshots/config-settings.jpg)
 
-<a href="screenshots/config-settings-main-1.png"><img src="screenshots/config-settings-main-1.png" alt="Settings Main fields" width="290"></a> <a href="screenshots/config-settings-main-2.png"><img src="screenshots/config-settings-main-2.png" alt="Settings Main fields (2)" width="290"></a> <a href="screenshots/config-settings-main-3.png"><img src="screenshots/config-settings-main-3.png" alt="Settings Main fields (3)" width="290"></a>
+<div class="shots" markdown>
 
-<a href="screenshots/config-settings-export.png"><img src="screenshots/config-settings-export.png" alt="Settings Export price" width="290"></a> <a href="screenshots/config-settings-solar.png"><img src="screenshots/config-settings-solar.png" alt="Settings Solar forecast" width="290"></a> <a href="screenshots/config-settings-planning-1.png"><img src="screenshots/config-settings-planning-1.png" alt="Settings Planning" width="290"></a>
+[![Settings Main fields](screenshots/config-settings-main-1.png)](screenshots/config-settings-main-1.png) [![Settings Main fields (2)](screenshots/config-settings-main-2.png)](screenshots/config-settings-main-2.png) [![Settings Main fields (3)](screenshots/config-settings-main-3.png)](screenshots/config-settings-main-3.png)
 
-<a href="screenshots/config-settings-planning-2.png"><img src="screenshots/config-settings-planning-2.png" alt="Settings Planning (2)" width="290"></a> <a href="screenshots/config-settings-limits-1.png"><img src="screenshots/config-settings-limits-1.png" alt="Settings Limits and reserve" width="290"></a> <a href="screenshots/config-settings-limits-2.png"><img src="screenshots/config-settings-limits-2.png" alt="Settings Limits and reserve (2)" width="290"></a>
+</div>
 
-<a href="screenshots/config-settings-spikes.png"><img src="screenshots/config-settings-spikes.png" alt="Settings Short peaks" width="290"></a> <a href="screenshots/config-settings-reaction.png"><img src="screenshots/config-settings-reaction.png" alt="Settings Reaction on the meter" width="290"></a> <a href="screenshots/config-settings-full-charge.png"><img src="screenshots/config-settings-full-charge.png" alt="Settings Full charge" width="290"></a>
+<div class="shots" markdown>
 
-<a href="screenshots/config-settings-notifications.png"><img src="screenshots/config-settings-notifications.png" alt="Settings Notifications" width="290"></a> <a href="screenshots/config-settings-weather.png"><img src="screenshots/config-settings-weather.png" alt="Settings Weather" width="290"></a> <a href="screenshots/config-settings-temperature.png"><img src="screenshots/config-settings-temperature.png" alt="Settings Battery temperature" width="290"></a>
+[![Settings Export price](screenshots/config-settings-export.png)](screenshots/config-settings-export.png) [![Settings Solar forecast](screenshots/config-settings-solar.png)](screenshots/config-settings-solar.png) [![Settings Planning](screenshots/config-settings-planning-1.png)](screenshots/config-settings-planning-1.png)
+
+</div>
+
+<div class="shots" markdown>
+
+[![Settings Planning (2)](screenshots/config-settings-planning-2.png)](screenshots/config-settings-planning-2.png) [![Settings Limits and reserve](screenshots/config-settings-limits-1.png)](screenshots/config-settings-limits-1.png) [![Settings Limits and reserve (2)](screenshots/config-settings-limits-2.png)](screenshots/config-settings-limits-2.png)
+
+</div>
+
+<div class="shots" markdown>
+
+[![Settings Short peaks](screenshots/config-settings-spikes.png)](screenshots/config-settings-spikes.png) [![Settings Reaction on the meter](screenshots/config-settings-reaction.png)](screenshots/config-settings-reaction.png) [![Settings Full charge](screenshots/config-settings-full-charge.png)](screenshots/config-settings-full-charge.png)
+
+</div>
+
+<div class="shots" markdown>
+
+[![Settings Notifications](screenshots/config-settings-notifications.png)](screenshots/config-settings-notifications.png) [![Settings Weather](screenshots/config-settings-weather.png)](screenshots/config-settings-weather.png) [![Settings Battery temperature](screenshots/config-settings-temperature.png)](screenshots/config-settings-temperature.png)
+
+</div>
 
 ### Grid connection and meter (also the first setup steps)
 
-<a href="screenshots/config-grid-meter.png"><img src="screenshots/config-grid-meter.png" alt="Grid connection and meter (also the first setup steps) Meter" width="290"></a> <a href="screenshots/config-grid-direct-meter.png"><img src="screenshots/config-grid-direct-meter.png" alt="Grid connection and meter (also the first setup steps) Meter read directly" width="290"></a> <a href="screenshots/config-grid-phases.png"><img src="screenshots/config-grid-phases.png" alt="Grid connection and meter (also the first setup steps) Phases" width="290"></a>
+<div class="shots" markdown>
 
-<a href="screenshots/config-grid-connection-size.png"><img src="screenshots/config-grid-connection-size.png" alt="Grid connection and meter (also the first setup steps) Connection size" width="290"></a> <a href="screenshots/config-grid-sensors-1.png"><img src="screenshots/config-grid-sensors-1.png" alt="Grid connection and meter (also the first setup steps) Sensors per phase" width="290"></a> <a href="screenshots/config-grid-sensors-2.png"><img src="screenshots/config-grid-sensors-2.png" alt="Grid connection and meter (also the first setup steps) Sensors per phase (2)" width="290"></a>
+[![Grid connection and meter (also the first setup steps) Meter](screenshots/config-grid-meter.png)](screenshots/config-grid-meter.png) [![Grid connection and meter (also the first setup steps) Meter read directly](screenshots/config-grid-direct-meter.png)](screenshots/config-grid-direct-meter.png) [![Grid connection and meter (also the first setup steps) Phases](screenshots/config-grid-phases.png)](screenshots/config-grid-phases.png)
+
+</div>
+
+<div class="shots" markdown>
+
+[![Grid connection and meter (also the first setup steps) Connection size](screenshots/config-grid-connection-size.png)](screenshots/config-grid-connection-size.png) [![Grid connection and meter (also the first setup steps) Sensors per phase](screenshots/config-grid-sensors-1.png)](screenshots/config-grid-sensors-1.png) [![Grid connection and meter (also the first setup steps) Sensors per phase (2)](screenshots/config-grid-sensors-2.png)](screenshots/config-grid-sensors-2.png)
+
+</div>
 
 ### Battery
 
-<a href="screenshots/config-battery-1.png"><img src="screenshots/config-battery-1.png" alt="Battery 1" width="290"></a> <a href="screenshots/config-battery-2.png"><img src="screenshots/config-battery-2.png" alt="Battery 2" width="290"></a> <a href="screenshots/config-battery-3.png"><img src="screenshots/config-battery-3.png" alt="Battery 3" width="290"></a>
+<div class="shots" markdown>
+
+[![Battery 1](screenshots/config-battery-1.png)](screenshots/config-battery-1.png) [![Battery 2](screenshots/config-battery-2.png)](screenshots/config-battery-2.png) [![Battery 3](screenshots/config-battery-3.png)](screenshots/config-battery-3.png)
+
+</div>
 
 ### Virtual battery
 
-<a href="screenshots/config-virtual-battery-1.png"><img src="screenshots/config-virtual-battery-1.png" alt="Virtual battery 1" width="290"></a> <a href="screenshots/config-virtual-battery-2.png"><img src="screenshots/config-virtual-battery-2.png" alt="Virtual battery 2" width="290"></a>
+<div class="shots" markdown>
+
+[![Virtual battery 1](screenshots/config-virtual-battery-1.png)](screenshots/config-virtual-battery-1.png) [![Virtual battery 2](screenshots/config-virtual-battery-2.png)](screenshots/config-virtual-battery-2.png)
+
+</div>
 
 ### PV source
 
-<a href="screenshots/config-pv-source-1.png"><img src="screenshots/config-pv-source-1.png" alt="PV source 1" width="290"></a> <a href="screenshots/config-pv-source-2.png"><img src="screenshots/config-pv-source-2.png" alt="PV source 2" width="290"></a>
+<div class="shots" markdown>
+
+[![PV source 1](screenshots/config-pv-source-1.png)](screenshots/config-pv-source-1.png) [![PV source 2](screenshots/config-pv-source-2.png)](screenshots/config-pv-source-2.png)
+
+</div>
 
 ### Excluded device
 
-<a href="screenshots/config-excluded-device.png"><img src="screenshots/config-excluded-device.png" alt="Excluded device " width="290"></a>
+<div class="shots" markdown>
+
+[![Excluded device](screenshots/config-excluded-device.png)](screenshots/config-excluded-device.png)
+
+</div>
 
 ### Heating/cooling
 
-<a href="screenshots/config-heating-cooling-1.png"><img src="screenshots/config-heating-cooling-1.png" alt="Heating/cooling 1" width="290"></a> <a href="screenshots/config-heating-cooling-2.png"><img src="screenshots/config-heating-cooling-2.png" alt="Heating/cooling 2" width="290"></a>
+<div class="shots" markdown>
+
+[![Heating/cooling 1](screenshots/config-heating-cooling-1.png)](screenshots/config-heating-cooling-1.png) [![Heating/cooling 2](screenshots/config-heating-cooling-2.png)](screenshots/config-heating-cooling-2.png)
+
+</div>
 
 ### Time slot
 
-<a href="screenshots/config-time-slot-1.png"><img src="screenshots/config-time-slot-1.png" alt="Time slot 1" width="290"></a> <a href="screenshots/config-time-slot-2.png"><img src="screenshots/config-time-slot-2.png" alt="Time slot 2" width="290"></a>
+<div class="shots" markdown>
+
+[![Time slot 1](screenshots/config-time-slot-1.png)](screenshots/config-time-slot-1.png) [![Time slot 2](screenshots/config-time-slot-2.png)](screenshots/config-time-slot-2.png)
+
+</div>
