@@ -40,6 +40,8 @@ class ConsumptionRecord(TypedDict):
     # per heating/cooling zone (subentry id): average power "w" and, when
     # measured, room temperature "in" and own outdoor temperature "out"
     zones: NotRequired[dict[str, dict[str, float]]]
+    # average power of short peaks that ended in this interval (part of avg_w)
+    spike_w: NotRequired[float]
 
 
 def _valid(record: object) -> bool:
@@ -93,6 +95,7 @@ class ConsumptionHistory:
         # zone -> [sum w*s, s, sum in*s, s, sum out*s, s]
         self._zone_sums: dict[str, list[float]] = {}
         self._last_zones: Mapping[str, tuple[float | None, ...]] | None = None
+        self._spike_wh = 0.0
         self._pv_ws = 0.0
         self._pv_s = 0.0
         self._battery_ws = 0.0
@@ -157,6 +160,7 @@ class ConsumptionHistory:
         heating: float | None = None,
         temperature: float | None = None,
         zones: Mapping[str, tuple[float | None, ...]] | None = None,
+        spike_wh: float = 0.0,
     ) -> None:
         """Register new values (W): house consumption and excluded devices.
 
@@ -178,6 +182,7 @@ class ConsumptionHistory:
         self._last_heating = heating
         self._last_temp = temperature
         self._last_zones = zones
+        self._spike_wh += spike_wh
 
     @callback
     def close_interval(self, when: datetime) -> ConsumptionRecord | None:
@@ -235,6 +240,10 @@ class ConsumptionHistory:
                 record["temp_c"] = round(self._temp_cs / self._temp_s, 1)
             if zones := self._zone_record():
                 record["zones"] = zones
+            if self._spike_wh > 0:
+                record["spike_w"] = round(
+                    min(self._spike_wh * 3600 / self._measured_s, record["avg_w"]), 1
+                )
             if self._phase_s > 0:
                 record["phase_house_w"] = [
                     round(v / self._phase_s, 1) for v in self._phase_house_ws
@@ -254,6 +263,7 @@ class ConsumptionHistory:
         self._temp_cs = 0.0
         self._temp_s = 0.0
         self._zone_sums = {}
+        self._spike_wh = 0.0
         self._pv_ws = 0.0
         self._pv_s = 0.0
         self._battery_ws = 0.0

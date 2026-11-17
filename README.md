@@ -18,7 +18,7 @@ HomeBatteryAssist **only reads, forecasts and advises — it never controls your
 - **Plans** what the batteries could best do — zero on the meter, arbitrage, time slots, manual or your own planner — within the batteries' and the grid connection's limits, with a periodic full charge, and compares every plan with no battery. Advice only. → [Planning](docs/planning.md)
 - **Explains** every plan and every change in plain language, as periods: what happens until when, and why — also what your real battery does by its own control. → [Planning: explanation](docs/planning.md#explanation)
 - **Shows** it all on a dashboard in the sidebar. → [Dashboard](docs/dashboard.md)
-- **Can be made your own**: the planner, the consumption forecaster, the tariff, the PV forecast source and the PV correction are *modules* — choose a built-in one or add your own, while HomeBatteryAssist keeps the final say. → [Modules](docs/modules.md)
+- **Can be made your own**: the planner, the consumption forecaster, the tariff, the PV forecast source, the PV correction and the spike filter (short peaks such as a kettle: not discharged for, left out of the average) are *modules* — choose a built-in one or add your own, while HomeBatteryAssist keeps the final say. → [Modules](docs/modules.md)
 
 ## Installation
 

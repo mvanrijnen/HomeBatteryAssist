@@ -130,6 +130,11 @@ from .const import (
     CONF_SENSOR,
     CONF_SOC_SENSOR,
     CONF_SOURCE,
+    CONF_SPIKE_BATTERY,
+    CONF_SPIKE_DURATION,
+    CONF_SPIKE_FILTER,
+    CONF_SPIKE_HISTORY,
+    CONF_SPIKE_THRESHOLD,
     CONF_SYSTEM_MAX_CHARGE,
     CONF_SYSTEM_MAX_DISCHARGE,
     CONF_TARIFF,
@@ -162,6 +167,8 @@ from .const import (
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
     DEFAULT_PV_MARGIN,
+    DEFAULT_SPIKE_DURATION,
+    DEFAULT_SPIKE_THRESHOLD,
     DOMAIN,
     EXPORT_MODES,
     FORECAST_INTERVAL_OPTIONS,
@@ -219,6 +226,11 @@ from .engine.forecast.forecasters import BUILTIN as FORECASTERS
 from .engine.forecast.forecasters import (
     DEFAULT_FORECASTER,
     async_load_user_forecasters,
+)
+from .engine.measure.spike_filters import BUILTIN as SPIKE_FILTERS
+from .engine.measure.spike_filters import (
+    DEFAULT_SPIKE_FILTER,
+    async_load_user_spike_filters,
 )
 from .engine.planning.battery_plan import DEFAULT_PLAN_MODE, PLAN_MODES
 from .engine.planning.planners import async_load_user_planners
@@ -377,6 +389,13 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "peak_limit_w",
         "peak_include_excluded",
         "phase_margin",
+    ),
+    "spikes": (
+        "spike_no_discharge",
+        "spike_exclude_average",
+        "spike_threshold_w",
+        "spike_max_minutes",
+        "spike_filter",
     ),
     "full_charge": ("full_charge_window_days", "full_charge_day", "full_charge_solar"),
     "notifications": ("notify_targets", "notify_kinds"),
@@ -663,6 +682,36 @@ async def _flat_settings_schema(
             CONF_TEMP_DISCHARGE, default=current.get(CONF_TEMP_DISCHARGE, False)
         ): BooleanSelector(),
         vol.Required(
+            CONF_SPIKE_BATTERY, default=current.get(CONF_SPIKE_BATTERY, True)
+        ): BooleanSelector(),
+        vol.Required(
+            CONF_SPIKE_HISTORY, default=current.get(CONF_SPIKE_HISTORY, True)
+        ): BooleanSelector(),
+        vol.Required(
+            CONF_SPIKE_THRESHOLD,
+            default=current.get(CONF_SPIKE_THRESHOLD, DEFAULT_SPIKE_THRESHOLD),
+        ): _number(500, 10000, 100, "W"),
+        vol.Required(
+            CONF_SPIKE_DURATION,
+            default=current.get(CONF_SPIKE_DURATION, DEFAULT_SPIKE_DURATION),
+        ): _number(1, 60, 1, "min"),
+        vol.Required(
+            CONF_SPIKE_FILTER,
+            default=current.get(CONF_SPIKE_FILTER, DEFAULT_SPIKE_FILTER),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    *(SelectOptionDict(value=k, label=k) for k in SPIKE_FILTERS),
+                    *(
+                        SelectOptionDict(value=k, label=f.name or k)
+                        for k, f in (await async_load_user_spike_filters(hass)).items()
+                    ),
+                ],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_SPIKE_FILTER,
+            )
+        ),
+        vol.Required(
             CONF_PEAK_INCLUDE_EXCLUDED,
             default=current.get(CONF_PEAK_INCLUDE_EXCLUDED, True),
         ): BooleanSelector(),
@@ -863,6 +912,15 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     options[CONF_TEMP_BAND] = int(user_input.get(CONF_TEMP_BAND, 10))
     options[CONF_TEMP_MIN_POWER] = int(user_input.get(CONF_TEMP_MIN_POWER, 40))
     options[CONF_TEMP_DISCHARGE] = bool(user_input.get(CONF_TEMP_DISCHARGE, False))
+    options[CONF_SPIKE_BATTERY] = bool(user_input.get(CONF_SPIKE_BATTERY, True))
+    options[CONF_SPIKE_HISTORY] = bool(user_input.get(CONF_SPIKE_HISTORY, True))
+    options[CONF_SPIKE_THRESHOLD] = int(
+        user_input.get(CONF_SPIKE_THRESHOLD, DEFAULT_SPIKE_THRESHOLD)
+    )
+    options[CONF_SPIKE_DURATION] = int(
+        user_input.get(CONF_SPIKE_DURATION, DEFAULT_SPIKE_DURATION)
+    )
+    options[CONF_SPIKE_FILTER] = user_input.get(CONF_SPIKE_FILTER, DEFAULT_SPIKE_FILTER)
     options[CONF_PEAK_INCLUDE_EXCLUDED] = bool(
         user_input.get(CONF_PEAK_INCLUDE_EXCLUDED, True)
     )

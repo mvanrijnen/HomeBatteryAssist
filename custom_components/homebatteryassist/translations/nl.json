@@ -148,6 +148,24 @@
               "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie."
             }
           },
+          "spikes": {
+            "name": "Korte pieken",
+            "description": "Korte, hoge verbruikspieken op willekeurige momenten (waterkoker, magnetron, inductie) worden herkend door een piekfiltermodule. Een piek die regelmatig terugkomt (op de meeste dagen van die weekdag, op hetzelfde uur) telt als normaal verbruik. Apparaten met een eigen vermogenssensor kun je ook als uitgesloten apparaat toevoegen: daarvoor ontlaadt de batterij nooit.",
+            "data": {
+              "spike_no_discharge": "Niet ontladen voor willekeurige pieken",
+              "spike_exclude_average": "Willekeurige pieken niet meetellen in het gemiddelde verbruik",
+              "spike_threshold_w": "Piek: minstens zoveel boven het gebruikelijke verbruik",
+              "spike_max_minutes": "Piek: duurt hoogstens",
+              "spike_filter": "Piekfilter"
+            },
+            "data_description": {
+              "spike_no_discharge": "Nul op de meter ontlaadt niet (extra) voor een herkende piek: die komt uit het net.",
+              "spike_exclude_average": "Van de energie van willekeurige pieken wordt niet geleerd: de verbruiksvoorspelling (en het batterijplan) rekent er niet op.",
+              "spike_threshold_w": "Een stijging van minstens zoveel boven het gebruikelijke verbruik kan een piek zijn. Standaard 2000 W.",
+              "spike_max_minutes": "Een stijging die langer duurt is normaal verbruik (bijvoorbeeld een oven) en wordt vanaf dan gevolgd. Standaard 5 minuten.",
+              "spike_filter": "De module die pieken herkent. Eigen filters uit /config/homebatteryassist/spike_filters staan hier ook (na herladen)."
+            }
+          },
           "full_charge": {
             "name": "Volladen",
             "description": "Het periodiek volladen van de batterijen.",
@@ -408,6 +426,11 @@
       "options": {
         "none": "Geen externe meter"
       }
+    },
+    "spike_filter": {
+      "options": {
+        "short_peaks": "Korte pieken boven een drempel"
+      }
     }
   },
   "options": {
@@ -524,6 +547,24 @@
               "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
               "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
               "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie."
+            }
+          },
+          "spikes": {
+            "name": "Korte pieken",
+            "description": "Korte, hoge verbruikspieken op willekeurige momenten (waterkoker, magnetron, inductie) worden herkend door een piekfiltermodule. Een piek die regelmatig terugkomt (op de meeste dagen van die weekdag, op hetzelfde uur) telt als normaal verbruik. Apparaten met een eigen vermogenssensor kun je ook als uitgesloten apparaat toevoegen: daarvoor ontlaadt de batterij nooit.",
+            "data": {
+              "spike_no_discharge": "Niet ontladen voor willekeurige pieken",
+              "spike_exclude_average": "Willekeurige pieken niet meetellen in het gemiddelde verbruik",
+              "spike_threshold_w": "Piek: minstens zoveel boven het gebruikelijke verbruik",
+              "spike_max_minutes": "Piek: duurt hoogstens",
+              "spike_filter": "Piekfilter"
+            },
+            "data_description": {
+              "spike_no_discharge": "Nul op de meter ontlaadt niet (extra) voor een herkende piek: die komt uit het net.",
+              "spike_exclude_average": "Van de energie van willekeurige pieken wordt niet geleerd: de verbruiksvoorspelling (en het batterijplan) rekent er niet op.",
+              "spike_threshold_w": "Een stijging van minstens zoveel boven het gebruikelijke verbruik kan een piek zijn. Standaard 2000 W.",
+              "spike_max_minutes": "Een stijging die langer duurt is normaal verbruik (bijvoorbeeld een oven) en wordt vanaf dan gevolgd. Standaard 5 minuten.",
+              "spike_filter": "De module die pieken herkent. Eigen filters uit /config/homebatteryassist/spike_filters staan hier ook (na herladen)."
             }
           },
           "full_charge": {

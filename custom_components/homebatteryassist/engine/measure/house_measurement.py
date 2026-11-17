@@ -66,6 +66,7 @@ from ..devices.meters.discovery import (
 from ..explain import DecisionLog
 from ..units import state_to_watts
 from .battery_monitor import battery_configs, battery_meter, battery_power
+from .spike_filters import SpikeFilter, SpikeState, checked
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -171,6 +172,10 @@ class MeasurementInput:
         self._listeners: list[MeasurementListener] = []
         self._pending: dict[int, CALLBACK_TYPE] = {}
         self._unsub: CALLBACK_TYPE | None = None
+        # Short peaks: the chosen spike filter (None = off) and what it says.
+        self.spike_filter: SpikeFilter | None = None
+        self.spike = SpikeState()
+        self.spike_wh_pending = 0.0
 
     @property
     def source_entity_ids(self) -> list[str]:
@@ -393,9 +398,35 @@ class MeasurementInput:
     def _update(self, when: datetime) -> None:
         self.flow, self.missing = self.calculate()
         self.power = self.flow.house_w if self.flow else None
+        self._run_spike_filter(when)
         self._explain_availability()
         for listener in list(self._listeners):
             listener(when, self.power)
+
+    def _run_spike_filter(self, when: datetime) -> None:
+        """Let the spike filter see the new consumption (when one is set)."""
+        spike_filter = self.spike_filter
+        if spike_filter is None:
+            return
+        try:
+            state = spike_filter.update(when, self.power)
+        except Exception:  # an own module may fail in any way
+            _LOGGER.exception("Spike filter %s failed", spike_filter.key)
+            self.spike_filter = None
+            self.spike = SpikeState()
+            self._decisions.async_log(
+                "measurement",
+                "spike_filter_failed",
+                name=spike_filter.name or spike_filter.key,
+            )
+            return
+        self.spike = checked(state, self.power)
+        self.spike_wh_pending += self.spike.ended_wh
+
+    def take_spike_wh(self) -> float:
+        """Energy of peaks that ended since the last call (for the history)."""
+        wh, self.spike_wh_pending = self.spike_wh_pending, 0.0
+        return wh
 
     def _explain_availability(self) -> None:
         """Record why the consumption became unknown, or that it is back.
@@ -460,3 +491,17 @@ def _subentry_devices_all(
         for subentry in entry.subentries.values()
         if subentry.subentry_type == subentry_type
     ]
+
+
+def nom_balance(flow: PowerFlow, target_w: float, ignore_w: float = 0.0) -> float:
+    """What zero on the meter asks of the batteries now (W, + charge /
+    - discharge), around the grid target ``target_w``.
+
+    A surplus on the grid is charged. A shortage is discharged, but never for
+    excluded devices (e.g. an EV charger: the grid supplies them) nor for
+    ``ignore_w`` (a short peak the spike filter recognised).
+    """
+    need = flow.grid_w - target_w
+    if need <= 0:
+        return -need
+    return -max(need - flow.excluded_w - max(ignore_w, 0.0), 0.0)

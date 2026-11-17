@@ -76,6 +76,15 @@ PV_CORRECTION_MODES: Final = (
 )
 CONF_PEAK_LIMIT: Final = "peak_limit_w"
 CONF_PEAK_INCLUDE_EXCLUDED: Final = "peak_include_excluded"
+# Short peaks (kettle, microwave): a spike filter module recognises them;
+# random ones are left out of the average and/or not covered by the battery.
+CONF_SPIKE_FILTER: Final = "spike_filter"
+CONF_SPIKE_HISTORY: Final = "spike_exclude_average"
+CONF_SPIKE_BATTERY: Final = "spike_no_discharge"
+CONF_SPIKE_THRESHOLD: Final = "spike_threshold_w"
+CONF_SPIKE_DURATION: Final = "spike_max_minutes"
+DEFAULT_SPIKE_THRESHOLD: Final = 2000  # W above the usual consumption
+DEFAULT_SPIKE_DURATION: Final = 5  # minutes at most
 CONF_RESERVE_SOC: Final = "reserve_soc"  # % never planned below (backup reserve)
 CONF_SYSTEM_MAX_CHARGE: Final = "system_max_charge_w"  # all batteries, 0 = off
 CONF_SYSTEM_MAX_DISCHARGE: Final = "system_max_discharge_w"

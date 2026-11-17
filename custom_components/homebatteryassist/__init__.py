@@ -27,8 +27,13 @@ from .const import (
     CONF_HISTORY_INTERVAL,
     CONF_NOTIFY_KINDS,
     CONF_NOTIFY_TARGETS,
+    CONF_SPIKE_DURATION,
+    CONF_SPIKE_FILTER,
+    CONF_SPIKE_THRESHOLD,
     CONF_VACATION,
     DEFAULT_HISTORY_INTERVAL,
+    DEFAULT_SPIKE_DURATION,
+    DEFAULT_SPIKE_THRESHOLD,
     DOMAIN,
 )
 from .engine.coordinator import ForecastCoordinator
@@ -48,6 +53,11 @@ from .engine.measure.battery_monitor import (
     activity_of,
 )
 from .engine.measure.house_measurement import MeasurementInput
+from .engine.measure.spike_filters import (
+    DEFAULT_SPIKE_FILTER,
+    async_load_user_spike_filters,
+    create_spike_filter,
+)
 from .engine.planning.battery_plan import MODE_NOM
 from .engine.planning.planners import async_load_user_planners
 from .engine.sources.pv_forecasts import async_load_user_pv_sources
@@ -222,6 +232,13 @@ async def async_setup_entry(
         )
 
     measurements = MeasurementInput(hass, entry, decisions)
+    if forecast.spike_history or forecast.spike_battery:
+        measurements.spike_filter = create_spike_filter(
+            entry.options.get(CONF_SPIKE_FILTER, DEFAULT_SPIKE_FILTER),
+            await async_load_user_spike_filters(hass),
+            entry.options.get(CONF_SPIKE_THRESHOLD, DEFAULT_SPIKE_THRESHOLD),
+            entry.options.get(CONF_SPIKE_DURATION, DEFAULT_SPIKE_DURATION) * 60,
+        )
 
     @callback
     def _record(when: datetime, power: float | None) -> None:
@@ -238,6 +255,7 @@ async def async_setup_entry(
             flow.heating_w if flow and measurements.heating_sensors else None,
             forecast.outdoor_temperature(),
             {zone.zone_id: zone.read(hass) for zone in forecast.zones} or None,
+            measurements.take_spike_wh(),
         )
 
     measurements.async_add_listener(_record)

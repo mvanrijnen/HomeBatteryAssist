@@ -1,7 +1,7 @@
 """Loading the user's own modules from ``/config/homebatteryassist/<kind>/``.
 
 Every kind of module (planners, consumption forecasters, tariffs, PV forecast
-sources, PV corrections) has a base class with a ``key``. Own modules are Python files in the
+sources, PV corrections, spike filters) has a base class with a ``key``. Own modules are Python files in the
 kind's folder; every subclass of the base class defined in such a file (with
 a ``key``) is loaded and keyed ``custom_<key>``. A file that fails to load is
 skipped and logged. Files whose name starts with ``_`` are ignored.

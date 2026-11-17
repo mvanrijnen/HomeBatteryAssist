@@ -134,6 +134,7 @@ async def async_get_config_entry_diagnostics(
             "pv_corrector": data.forecast.pv_corrector_key,
             "pv_corrector_fallback": data.forecast.pv_corrector_fallback,
             "pv_corrector_learned": _pv_details(data.forecast),
+            "spike_filter": _spike_details(data),
             "tariff": data.forecast.tariff_key,
             "tariff_fallback": data.forecast.tariff_fallback,
             "own": {
@@ -176,3 +177,23 @@ def _pv_details(forecast: Any) -> dict[str, Any] | None:
         return corrector.details()
     except Exception:  # an own module may fail in any way
         return None
+
+
+def _spike_details(data: Any) -> dict[str, Any] | None:
+    """The spike filter: which one, its settings, what it saw."""
+    spike_filter = data.measurements.spike_filter
+    if spike_filter is None:
+        return None
+    try:
+        seen = spike_filter.details()
+    except Exception:  # an own module may fail in any way
+        seen = None
+    return {
+        "key": spike_filter.key,
+        "threshold_w": spike_filter.threshold_w,
+        "max_duration_s": spike_filter.max_duration_s,
+        "exclude_from_average": data.forecast.spike_history,
+        "no_discharge": data.forecast.spike_battery,
+        "regular_peak_hours": sorted(data.forecast.regular_peaks),
+        "seen": seen,
+    }

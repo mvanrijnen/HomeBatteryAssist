@@ -1,6 +1,6 @@
 # Modules: make HomeBatteryAssist your own
 
-The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [drivers](drivers.md); see [Architecture](architecture.md)). You choose between the built-in ones, and advanced users can add their own without changing the integration. Five kinds can be added as own modules today:
+The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [drivers](drivers.md); see [Architecture](architecture.md)). You choose between the built-in ones, and advanced users can add their own without changing the integration. Six kinds can be added as own modules today:
 
 | Kind | What it does | Built-in | Own modules in | Choose in the settings |
 |---|---|---|---|---|
@@ -9,6 +9,7 @@ The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [dr
 | **Tariff** | Turns the source's prices into what a kWh really costs and earns | As the price source gives them (default) | `/config/homebatteryassist/tariffs/` | Tariff |
 | **PV forecast source** | Reads a solar forecast | Solar forecast integrations (Forecast.Solar, Solcast, …) | `/config/homebatteryassist/pv_forecasts/` | PV forecast |
 | **PV correction** | Adjusts the PV forecast with what was learned from past forecasts and measured PV | Per lead time, hour and level (default), Per lead time (the original) | `/config/homebatteryassist/pv_corrections/` | PV correction (section *Solar forecast*) |
+| **Spike filter** | Recognises short consumption peaks while they happen | Short peaks above a threshold | `/config/homebatteryassist/spike_filters/` | Spike filter (section *Short peaks*) |
 
 The built-in modules live in the integration and are updated with it; your own modules live in their own folder under `/config`, so an update never touches them.
 
@@ -22,6 +23,7 @@ Whatever a module returns, HomeBatteryAssist checks it before it is used:
 - **Consumption forecaster**: a missing, negative or absurd value is replaced by the built-in profile's prediction. The temperature step (optional), the learned (or manual) correction and your own adjustments are applied afterwards.
 - **Tariff**: a missing or absurd price (more than 10 per kWh either way) is replaced by the price the source gave. The accuracy of the price *forecast* is still measured on the source's prices.
 - **PV forecast source**: negative, non-finite or absurd values and hours without a time zone are dropped. The PV correction and the safety margin are applied afterwards.
+- **Spike filter**: the part of the consumption not discharged for stays between 0 and the consumption, a peak's energy between 0 and 5 kWh; anything else counts as no peak. A failing filter is switched off until the next reload (*Why* says so). Regular peaks are always treated as normal consumption, whatever the filter says.
 - **PV correction**: a missing, negative, non-finite or absurd value (more than 3 × the forecast + 100 Wh) is replaced by the correction per lead time. Accuracy is always learned on the *raw* forecast, so a correction never feeds back on itself. When the correction is set by hand or switched off (action `set_forecast_correction`), only the correction per lead time is used, as set.
 
 If a chosen module fails, the explanation (*Why*) says so once, the log has the details, and the built-in fallback is used: zero on the meter for a planner, the profile for a forecaster, the source's prices for a tariff. The dashboard's overview shows which planner, forecaster and tariff are active, and marks a fallback.
@@ -32,6 +34,7 @@ Everything stays **advice**: no module controls a battery or any other device.
 
 - **Planners**: every planner, also your own, is calculated every cycle; the dashboard compares their expected saving with no battery.
 - **Consumption forecasters**: every forecaster runs every cycle and its own accuracy (before corrections) is tracked per lead time. The *Accuracy* tab shows them side by side, the best in bold — so after a week you see which forecaster suits your house, and switch.
+- **Spike filters**: the diagnostics show what the chosen filter saw (peaks, their energy) and the hours with regular peaks.
 - **PV corrections**: every correction runs every cycle and the PV forecast after it is checked against the measured PV per lead time. The *Accuracy* tab shows them side by side, with the uncorrected forecast for reference.
 
 ## Making your own
@@ -46,6 +49,7 @@ Everything stays **advice**: no module controls a battery or any other device.
    | Tariff | `engine/sources/tariffs/template.py` (a dynamic contract from the market price — fill in your own numbers); `as_price_source.py` |
    | PV forecast source | `engine/sources/pv_forecasts/template.py` (a sensor with a `wh_hours` attribute); `solar_forecast_integrations.py` |
    | PV correction | `engine/evaluation/pv_corrections/template.py` (less in the morning, e.g. a tree); `hour_and_level.py`, `lead_time.py` |
+   | Spike filter | `engine/measure/spike_filters/template.py` (never discharge above a level during the day); `short_peaks.py` |
 
 3. Give the class its own `key` and `name`. In a copied built-in module, change the relative imports (`from .base import ...`) into absolute ones (`from custom_components.homebatteryassist.<package>.base import ...`), as in the templates.
 4. Reload HomeBatteryAssist (Settings → Devices & services → HomeBatteryAssist → ⋮ → Reload). Your module appears in the settings as `custom_<key>`.
@@ -112,6 +116,21 @@ class PvForecastSource:
 ```
 
 `async_find` lists the forecasts the source offers (shown in the settings); `async_read` returns one as Wh per clock hour (timezone-aware hour starts). Only read — never control a device; use Home Assistant's shared HTTP session for web services and cache, because the forecast is read every cycle.
+
+### Spike filter — `engine/measure/spike_filters/base.py`
+
+```python
+class SpikeFilter:
+    key = "my_filter"
+    name = "My spike filter"
+    threshold_w: float  # from the settings
+    max_duration_s: float  # from the settings
+
+    def update(self, when, house_w) -> SpikeState: ...
+    def details(self) -> dict: ...  # optional: what it saw (diagnostics)
+```
+
+`update` gets every new house consumption value (W, None = unknown; about every 1 to 10 s) and keeps its own state; a fresh instance is made at every start. Return `SpikeState(ignore_w, ended_wh)`: the part of the consumption now that is a peak (not discharged for), and once, when a peak ended, its energy (left out of the average). Quick, no I/O.
 
 ### PV correction — `engine/evaluation/pv_corrections/base.py`
 

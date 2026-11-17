@@ -148,6 +148,24 @@
               "phase_margin": "Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation."
             }
           },
+          "spikes": {
+            "name": "Short peaks",
+            "description": "Short, high consumption peaks at random moments (a kettle, a microwave, an induction hob) are recognised by a spike filter module. A peak that comes back regularly (on most days of that day of the week, at the same hour) counts as normal consumption. Devices with their own power sensor can also be added as an excluded device: the battery never discharges for those.",
+            "data": {
+              "spike_no_discharge": "Do not discharge for random peaks",
+              "spike_exclude_average": "Leave random peaks out of the average consumption",
+              "spike_threshold_w": "Peak: at least this much above the usual consumption",
+              "spike_max_minutes": "Peak: lasting at most",
+              "spike_filter": "Spike filter"
+            },
+            "data_description": {
+              "spike_no_discharge": "Zero on the meter does not discharge (extra) for a recognised peak: the grid supplies it.",
+              "spike_exclude_average": "The energy of random peaks is not learned from: the consumption forecast (and the battery plan) does not count on them.",
+              "spike_threshold_w": "A rise of at least this much above the usual consumption can be a peak. Default 2000 W.",
+              "spike_max_minutes": "A rise that lasts longer is normal consumption (e.g. an oven) and is followed from then on. Default 5 minutes.",
+              "spike_filter": "The module that recognises peaks. Own filters from /config/homebatteryassist/spike_filters appear here too (after a reload)."
+            }
+          },
           "full_charge": {
             "name": "Full charge",
             "description": "The periodic full charge of the batteries.",
@@ -408,6 +426,11 @@
       "options": {
         "none": "No external meter"
       }
+    },
+    "spike_filter": {
+      "options": {
+        "short_peaks": "Short peaks above a threshold"
+      }
     }
   },
   "options": {
@@ -524,6 +547,24 @@
               "peak_limit_w": "Peak shaving on the total grid import (all phases together): the arbitrage plans keep energy in reserve to stay below this power, and virtual batteries take load off when it is exceeded. Next to the per-phase protection of the main fuse. 0 = off.",
               "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit.",
               "phase_margin": "Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation."
+            }
+          },
+          "spikes": {
+            "name": "Short peaks",
+            "description": "Short, high consumption peaks at random moments (a kettle, a microwave, an induction hob) are recognised by a spike filter module. A peak that comes back regularly (on most days of that day of the week, at the same hour) counts as normal consumption. Devices with their own power sensor can also be added as an excluded device: the battery never discharges for those.",
+            "data": {
+              "spike_no_discharge": "Do not discharge for random peaks",
+              "spike_exclude_average": "Leave random peaks out of the average consumption",
+              "spike_threshold_w": "Peak: at least this much above the usual consumption",
+              "spike_max_minutes": "Peak: lasting at most",
+              "spike_filter": "Spike filter"
+            },
+            "data_description": {
+              "spike_no_discharge": "Zero on the meter does not discharge (extra) for a recognised peak: the grid supplies it.",
+              "spike_exclude_average": "The energy of random peaks is not learned from: the consumption forecast (and the battery plan) does not count on them.",
+              "spike_threshold_w": "A rise of at least this much above the usual consumption can be a peak. Default 2000 W.",
+              "spike_max_minutes": "A rise that lasts longer is normal consumption (e.g. an oven) and is followed from then on. Default 5 minutes.",
+              "spike_filter": "The module that recognises peaks. Own filters from /config/homebatteryassist/spike_filters appear here too (after a reload)."
             }
           },
           "full_charge": {

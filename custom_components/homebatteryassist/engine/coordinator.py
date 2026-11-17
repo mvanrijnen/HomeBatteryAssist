@@ -68,6 +68,8 @@ from ..const import (
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
     CONF_RESERVE_SOC,
+    CONF_SPIKE_BATTERY,
+    CONF_SPIKE_HISTORY,
     CONF_SYSTEM_MAX_CHARGE,
     CONF_SYSTEM_MAX_DISCHARGE,
     CONF_TARIFF,
@@ -136,6 +138,7 @@ from .forecast.temperature_effect import (
 )
 from .forecast.user_adjustments import AdjustmentStore
 from .history.consumption_history import ConsumptionHistory
+from .history.spikes import is_regular, regular_peak_hours, without_spikes
 from .measure.battery_monitor import BatteryState
 from .measure.heating_zones import heating_zones
 from .planning.battery_plan import (
@@ -303,6 +306,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.pv_corrector_fallback = False
         self._failed_pv_correctors: set[str] = set()
+        # Short peaks: random ones out of the average / not discharged for.
+        self.spike_history: bool = entry.options.get(CONF_SPIKE_HISTORY, True)
+        self.spike_battery: bool = entry.options.get(CONF_SPIKE_BATTERY, True)
+        self.regular_peaks: set[tuple[int, int]] = set()
         self.export_factor: float = entry.options.get(
             CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR
         )
@@ -476,6 +483,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
     async def _async_update_data(self) -> ForecastData:
         now = dt_util.utcnow()
         await self._async_load_price_log()
+        if self.spike_history or self.spike_battery:
+            self.regular_peaks = regular_peak_hours(self.history.records, now)
 
         # 1. Inputs
         prices, price_unit = await self._async_read_prices(now)
@@ -507,7 +516,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
 
         # 3. Check earlier predictions; update the running accuracy.
         accuracy = self.accuracy
-        accuracy.evaluate_consumption(self.history.records)
+        accuracy.evaluate_consumption(self.forecast_records())
         accuracy.evaluate_pv(self.history.records)
         accuracy.evaluate_prices(
             {p.start.isoformat(): p.price for p in prices if not p.estimated}
@@ -572,7 +581,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         try:
             consumption = forecast_consumption(
-                self.history.records,
+                self.forecast_records(),
                 window,
                 step,
                 self.adjustments.items,
@@ -588,7 +597,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             self._forecaster_failed(self.forecaster_key)
             self.forecaster_fallback = True
             consumption = forecast_consumption(
-                self.history.records,
+                self.forecast_records(),
                 window,
                 step,
                 self.adjustments.items,
@@ -701,7 +710,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self, window: PlanningWindow, step: timedelta, now: datetime
     ) -> None:
         """Each forecaster's own prediction, for the comparison of accuracy."""
-        records = self.history.records
+        records = self.forecast_records()
         for key, forecaster in (*FORECASTERS.items(), *self.forecasters.items()):
             try:
                 slots = raw_forecast(
@@ -720,6 +729,20 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             kind = f"{FORECASTER_KIND}{key}"
             self.accuracy.track(kind)
             self.accuracy.record(kind, [(a, b, v) for a, b, v, _m in slots], now)
+
+    def forecast_records(self) -> list:
+        """The history the forecasts learn from: without random short peaks
+        when that is switched on (regular ones stay)."""
+        if not self.spike_history:
+            return self.history.records
+        return without_spikes(self.history.records, self.regular_peaks)
+
+    def spike_ignore_w(self, ignore_w: float, now: datetime) -> float:
+        """The part of the consumption zero on the meter does not discharge
+        for: a random short peak (when switched on; regular peaks are covered)."""
+        if not self.spike_battery or is_regular(self.regular_peaks, now):
+            return 0.0
+        return ignore_w
 
     def _correct_pv(self, raw: dict[datetime, float], now: datetime) -> dict:
         """The PV forecast after the chosen PV correction module (when the
@@ -1185,7 +1208,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             self.temperature_model = self.temperatures = None
             return
         self.temperature_model = fit_effect(
-            self.history.records, now, {z.zone_id: z.name for z in self.zones}
+            self.forecast_records(), now, {z.zone_id: z.name for z in self.zones}
         )
         try:
             hourly = await self.weather.async_forecast(self.hass)

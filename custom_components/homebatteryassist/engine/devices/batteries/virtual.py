@@ -50,7 +50,7 @@ from ....const import NOMINAL_VOLTAGE
 from ...coordinator import ForecastCoordinator
 from ...explain import DecisionLog
 from ...measure.battery_monitor import BatteryConfig, BatteryInput
-from ...measure.house_measurement import MeasurementInput
+from ...measure.house_measurement import MeasurementInput, nom_balance
 from ...planning.battery_distribution import Candidate, Distributor
 from ...planning.battery_plan import MODE_NOM
 from ...planning.phase_limit import (
@@ -436,7 +436,14 @@ class VirtualBatterySimulator:
             # around the target grid power.
             flow = self._measurements.flow
             rules = self._forecast.rules
-            total = -(flow.grid_w - rules.nom_target_w) if flow is not None else 0.0
+            ignore = self._forecast.spike_ignore_w(
+                self._measurements.spike.ignore_w, now
+            )
+            total = (
+                nom_balance(flow, rules.nom_target_w, ignore)
+                if flow is not None
+                else 0.0
+            )
             price = self._batteries.price_now()
             if (
                 total < 0
