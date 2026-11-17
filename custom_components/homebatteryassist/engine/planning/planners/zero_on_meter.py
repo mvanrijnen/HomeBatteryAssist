@@ -1,7 +1,10 @@
 """Built-in planners: zero on the meter, manual and time slots.
 
 - ``nom`` (nul op de meter / zero on the meter): charge with PV surplus,
-  discharge on shortage, never from or to the grid on purpose.
+  discharge on shortage, never from or to the grid on purpose. The night
+  reserve is kept (not discharged below until the sun is up; never charged
+  from the grid for it); below the peak reserve only import above the peak
+  limit is discharged for.
 - ``manual``: always a fixed power (``planning.schedule``).
 - ``time_slots``: the actions of the configured time slots, zero on the meter
   outside them.
@@ -14,7 +17,13 @@ To make your own variant: copy this file to
 
 from __future__ import annotations
 
-from .base import Planner, PlannerInput, PlannerResult, may_discharge
+from .base import (
+    Planner,
+    PlannerInput,
+    PlannerResult,
+    discharge_room,
+    may_discharge,
+)
 
 
 def follow(data: PlannerInput, fixed_actions: bool) -> PlannerResult:
@@ -44,7 +53,7 @@ def follow(data: PlannerInput, fixed_actions: bool) -> PlannerResult:
                 room = max(top - stored, 0.0)
                 power = min(fixed.power_w, slot.max_charge_w, room / (hours * eff))
             elif fixed.power_w < 0:
-                bottom = battery.floor_wh
+                bottom = max(battery.floor_wh, slot.reserve_wh)
                 if fixed.soc_limit is not None:
                     bottom = max(bottom, fixed.soc_limit * battery.capacity_wh / 100)
                 available = max(stored - bottom, 0.0)
@@ -55,8 +64,7 @@ def follow(data: PlannerInput, fixed_actions: bool) -> PlannerResult:
             room = max(battery.ceiling_wh - stored, 0.0)
             power = min(-net, slot.max_charge_w, room / (hours * eff))
         elif net > 0 and may_discharge(rules, slot.price):
-            available = max(stored - battery.floor_wh, 0.0)
-            power = -min(net, slot.max_discharge_w, available * eff / hours)
+            power = -min(net, slot.max_discharge_w, discharge_room(data, slot, stored))
         stored += power * hours * eff if power >= 0 else power * hours / eff
         if hysteresis > 0 and stored >= battery.ceiling_wh - 1:
             full = True

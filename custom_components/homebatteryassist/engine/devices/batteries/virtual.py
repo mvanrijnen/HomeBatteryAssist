@@ -714,6 +714,14 @@ class VirtualBatterySimulator:
 
         candidates = []
         hysteresis = self._forecast.rules.charge_hysteresis
+        # Lowest state of charge for the normal targets: the reserve, the
+        # night reserve at night, the peak reserve (below it only peak
+        # shaving discharges, in its own step).
+        floor = max(
+            rules.reserve_soc,
+            rules.night_reserve_soc if data is not None and data.night_at(now) else 0.0,
+            rules.peak_reserve_soc if self._forecast.peak_w > 0 else 0.0,
+        )
         for config in virtual:
             state = self._batteries.states[config.id]
             soc_now = state.soc if state.soc is not None else config.initial_soc
@@ -725,10 +733,7 @@ class VirtualBatterySimulator:
                 Candidate(
                     config.id,
                     state.soc if state.soc is not None else config.initial_soc,
-                    min(
-                        max(config.min_soc, self._forecast.rules.reserve_soc),
-                        config.max_soc,
-                    ),
+                    min(max(config.min_soc, floor), config.max_soc),
                     soc_now if config.id in self._full else config.max_soc,
                     config.max_charge_w,
                     config.max_discharge_w,

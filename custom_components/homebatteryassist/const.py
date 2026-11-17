@@ -101,6 +101,10 @@ CONF_SPIKE_DURATION: Final = "spike_max_minutes"
 DEFAULT_SPIKE_THRESHOLD: Final = 2000  # W above the usual consumption
 DEFAULT_SPIKE_DURATION: Final = 5  # minutes at most
 CONF_RESERVE_SOC: Final = "reserve_soc"  # % never planned below (backup reserve)
+# % kept from the evening until the sun is up again (night reserve)
+CONF_NIGHT_RESERVE_SOC: Final = "night_reserve_soc"
+# % below which only import above the peak limit is discharged for
+CONF_PEAK_RESERVE_SOC: Final = "peak_reserve_soc"
 CONF_SYSTEM_MAX_CHARGE: Final = "system_max_charge_w"  # all batteries, 0 = off
 CONF_SYSTEM_MAX_DISCHARGE: Final = "system_max_discharge_w"
 CONF_NOM_TARGET: Final = "nom_target_w"  # grid power NOM aims at

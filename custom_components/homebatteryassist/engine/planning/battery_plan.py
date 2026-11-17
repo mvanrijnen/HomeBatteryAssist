@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 
 from homeassistant.util import dt as dt_util
@@ -37,7 +37,7 @@ from .planners import (
     PlannerResult,
 )
 from .planners import PlannerSlot as _InSlot
-from .planners.base import grid_cost, may_discharge
+from .planners.base import discharge_room, grid_cost, may_discharge
 from .time_slots import Target
 
 DEFAULT_EXPORT_FACTOR = 1.0  # export earns the import price (net metering)
@@ -100,6 +100,12 @@ class PlanRules:
 
     - ``reserve_soc``: never plan below this state of charge (%), e.g. as backup
       reserve; on top of each battery's own minimum;
+    - ``night_reserve_soc``: from the evening (the sun gone) until the sun is
+      up again (``night_starts``) not below this state of charge; arbitrage
+      charges from the grid for it before sunrise when needed, zero on the
+      meter only keeps it;
+    - ``peak_reserve_soc``: below this state of charge only discharge for
+      grid import above the peak limit (with a peak limit);
     - ``max_charge_w`` / ``max_discharge_w``: all batteries together;
     - ``nom_target_w``: zero on the meter aims at this grid power (+ import);
     - ``min_discharge_price``: discharge only at or above this price;
@@ -110,6 +116,8 @@ class PlanRules:
     """
 
     reserve_soc: float = 0.0
+    night_reserve_soc: float = 0.0
+    peak_reserve_soc: float = 0.0
     max_charge_w: float = 0.0
     max_discharge_w: float = 0.0
     nom_target_w: float = 0.0
@@ -129,6 +137,8 @@ class _Pack:
     max_discharge: float  # W
     eff: float  # one-way efficiency
     rules: PlanRules = PlanRules()
+    night_floor: float = 0.0  # Wh at the night reserve (0 = off)
+    peak_floor: float = 0.0  # Wh at the peak reserve (0 = off)
 
 
 def _pack(
@@ -148,6 +158,18 @@ def _pack(
         max_charge = min(max_charge, rules.max_charge_w)
     if rules.max_discharge_w > 0:
         max_discharge = min(max_discharge, rules.max_discharge_w)
+
+    def at(soc: float) -> float:
+        """Wh over all batteries at ``soc`` (each within its own min/max)."""
+        if soc <= 0:
+            return 0.0
+        return sum(
+            min(max(s.config.min_soc, rules.reserve_soc, soc), s.config.max_soc)
+            * s.config.capacity_kwh
+            * 10
+            for s in usable
+        )
+
     return _Pack(
         capacity=capacity,
         stored=sum(s.soc * s.config.capacity_kwh * 10 for s in usable),
@@ -161,6 +183,8 @@ def _pack(
         max_charge=max_charge,
         max_discharge=max_discharge,
         rules=rules,
+        night_floor=at(rules.night_reserve_soc),
+        peak_floor=at(rules.peak_reserve_soc),
         eff=math.sqrt(
             sum(s.config.efficiency * s.config.capacity_kwh for s in usable)
             / (capacity / 1000)
@@ -187,6 +211,34 @@ def reach_times(
             break
         soc = slot.soc
     return empty, full
+
+
+SUN_W = 100.0  # expected PV (average W in the hour) from which the sun is up
+
+
+def night_starts(
+    consumption: Sequence[ForecastSlot], pv_wh: Mapping[datetime, float]
+) -> set[datetime]:
+    """The slots (by start) of the night reserve: per local day outside the
+    first to the last slot with sun (expected PV >= ``SUN_W``), so from the
+    evening until the sun is up again. Empty without a PV forecast (when the
+    sun comes up is not known then)."""
+    if not pv_wh:
+        return set()
+    days: dict[date, list[ForecastSlot]] = {}
+    for slot in consumption:
+        days.setdefault(dt_util.as_local(slot.start).date(), []).append(slot)
+    result: set[datetime] = set()
+    for slots in days.values():
+        sun = [
+            i
+            for i, s in enumerate(slots)
+            if pv_wh.get(s.start.replace(minute=0, second=0, microsecond=0), 0.0)
+            >= SUN_W
+        ]
+        first, last = (sun[0], sun[-1]) if sun else (len(slots), -1)
+        result.update(s.start for i, s in enumerate(slots) if i < first or i > last)
+    return result
 
 
 def _price_at(prices: Sequence[PricePoint], when: datetime) -> float | None:
@@ -262,6 +314,7 @@ def planner_input(
     pack = _pack(states, rules)
     if pack is None or not consumption:
         return None
+    night = night_starts(consumption, pv_wh) if pack.night_floor > 0 else set()
     slots: list[_InSlot] = []
     for slot in consumption:
         hours = (slot.end - slot.start).total_seconds() / 3600
@@ -286,10 +339,21 @@ def planner_input(
                 export,
                 max(min(max_c, pack.max_charge), 0.0),
                 max(min(max_d, pack.max_discharge), 0.0),
+                pack.night_floor if slot.start in night else 0.0,
             )
         )
     if not slots:
         return None
+    # The night reserve should be there when the sun comes up: at the end of
+    # the last night slot before a slot with sun.
+    slots = [
+        replace(s, reserve_due=True)
+        if s.reserve_wh > 0
+        and index + 1 < len(slots)
+        and not slots[index + 1].reserve_wh
+        else s
+        for index, s in enumerate(slots)
+    ]
     return PlannerInput(
         now or slots[0].start,
         slots,
@@ -301,6 +365,7 @@ def planner_input(
             pack.eff,
             pack.max_charge,
             pack.max_discharge,
+            pack.peak_floor,
         ),
         rules,
         cycle_cost,
@@ -317,7 +382,8 @@ def finalise(
 
     Every power is cut back to the slot's charge/discharge limit (batteries
     and phases), to the room up to the maximum and the energy above the
-    minimum state of charge, and to the price rules (no discharging below the
+    minimum state of charge and the reserves (night reserve; below the peak
+    reserve only import above the peak limit), and to the price rules (no discharging below the
     minimum discharge price, no charging from the grid above the maximum
     charge price) except for fixed actions the user set (manual / time
     slots). Then state of charge, grid exchange and costs are worked out.
@@ -359,9 +425,7 @@ def finalise(
                 power = min(power, max(-slot.net_w, 0.0))  # only surplus PV
         elif requested < 0 and (fixed or may_discharge(rules, slot.price)):
             power = -min(
-                -requested,
-                slot.max_discharge_w,
-                max(stored - battery.floor_wh, 0.0) * eff / hours,
+                -requested, slot.max_discharge_w, discharge_room(data, slot, stored)
             )
         power = max(power, 0.0) if requested > 0 else min(power, 0.0)
         stored += power * hours * eff if power >= 0 else power * hours / eff

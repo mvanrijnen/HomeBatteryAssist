@@ -32,6 +32,12 @@ class PlannerSlot:
     export_price: float | None  # what a kWh to the grid earns
     max_charge_w: float  # most the batteries may charge (power and phase limits)
     max_discharge_w: float  # most the batteries may discharge
+    # Night reserve: the stored energy (Wh) not to discharge below in this
+    # slot (0 = only the battery floor); ``reserve_due``: the sun comes up
+    # after this slot, the reserve should be there at its end (charge from
+    # the grid before, when needed and allowed).
+    reserve_wh: float = 0.0
+    reserve_due: bool = False
 
     @property
     def net_w(self) -> float:
@@ -50,6 +56,9 @@ class PlannerBattery:
     efficiency: float  # one way (charging or discharging), e.g. 0.92
     max_charge_w: float  # most the batteries can charge together
     max_discharge_w: float  # most the batteries can discharge together
+    # Peak reserve: below this stored energy (Wh) only grid import above the
+    # peak limit is discharged for (0 = off; only with a peak limit).
+    peak_floor_wh: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +118,21 @@ def may_discharge(rules: Any, price: float | None) -> bool:
     """Discharging is allowed at this price (the minimum discharge price)."""
     threshold = getattr(rules, "min_discharge_price", None)
     return threshold is None or price is None or price >= threshold
+
+
+def discharge_room(data: PlannerInput, slot: PlannerSlot, stored: float) -> float:
+    """The most a slot may discharge (W) with ``stored`` Wh in the batteries:
+    down to the battery floor and the slot's night reserve; below the peak
+    reserve only for the grid import above the peak limit."""
+    battery = data.battery
+    eff = battery.efficiency
+    floor = max(battery.floor_wh, slot.reserve_wh)
+    normal = max(floor, battery.peak_floor_wh) if data.peak_w > 0 else floor
+    room = max(stored - normal, 0.0) * eff / slot.hours
+    if normal > floor:
+        deep = max(min(stored, normal) - floor, 0.0) * eff / slot.hours
+        room += min(deep, max(slot.net_w - data.peak_w - room, 0.0))
+    return room
 
 
 def grid_cost(grid_w: float, hours: float, price: float, export_price: float) -> float:

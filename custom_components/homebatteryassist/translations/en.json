@@ -140,22 +140,26 @@
             "description": "Reserve, power limits, peak limit and phase margin.",
             "data": {
               "reserve_soc": "Reserve state of charge",
+              "night_reserve_soc": "Night reserve state of charge",
               "system_max_charge_w": "Max. charge power, all batteries",
               "system_max_discharge_w": "Max. discharge power, all batteries",
               "min_battery_power": "Minimum power per battery",
               "balance_interval": "Balance check every",
               "peak_limit_w": "Peak limit grid import",
               "peak_include_excluded": "Peak limit includes excluded devices",
+              "peak_reserve_soc": "Peak reserve state of charge",
               "phase_margin": "Safety margin per phase"
             },
             "data_description": {
               "reserve_soc": "The plans never go below this state of charge (e.g. as backup reserve), on top of each battery's own minimum. Peak shaving and phase protection may still use it. 0 = off.",
+              "night_reserve_soc": "From the evening (the sun gone) until the sun is up again (per the PV forecast) the plans do not go below this state of charge. Arbitrage charges from the grid for it at the cheapest moment before sunrise when needed; zero on the meter only keeps it. Peak shaving and phase protection may still use it. 0 = off.",
               "system_max_charge_w": "All batteries together never charge at more than this power. 0 = no limit.",
               "system_max_discharge_w": "All batteries together never discharge at more than this power. 0 = no limit.",
               "min_battery_power": "Below this power the conversion losses of a battery are high: a request is spread over as few batteries as possible, each running at least at this power, and over more batteries when more power is needed.",
               "balance_interval": "How often to check whether another battery should take over, so the batteries stay equally full. In between, the batteries in use are kept.",
               "peak_limit_w": "Peak shaving on the total grid import (all phases together): the arbitrage plans keep energy in reserve to stay below this power, and virtual batteries take load off when it is exceeded. Next to the per-phase protection of the main fuse. 0 = off.",
               "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit.",
+              "peak_reserve_soc": "Below this state of charge the batteries only discharge for grid import above the peak limit, so energy stays for peaks. Only with a peak limit. 0 = off.",
               "phase_margin": "Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation."
             }
           },
@@ -580,22 +584,26 @@
             "description": "Reserve, power limits, peak limit and phase margin.",
             "data": {
               "reserve_soc": "Reserve state of charge",
+              "night_reserve_soc": "Night reserve state of charge",
               "system_max_charge_w": "Max. charge power, all batteries",
               "system_max_discharge_w": "Max. discharge power, all batteries",
               "min_battery_power": "Minimum power per battery",
               "balance_interval": "Balance check every",
               "peak_limit_w": "Peak limit grid import",
               "peak_include_excluded": "Peak limit includes excluded devices",
+              "peak_reserve_soc": "Peak reserve state of charge",
               "phase_margin": "Safety margin per phase"
             },
             "data_description": {
               "reserve_soc": "The plans never go below this state of charge (e.g. as backup reserve), on top of each battery's own minimum. Peak shaving and phase protection may still use it. 0 = off.",
+              "night_reserve_soc": "From the evening (the sun gone) until the sun is up again (per the PV forecast) the plans do not go below this state of charge. Arbitrage charges from the grid for it at the cheapest moment before sunrise when needed; zero on the meter only keeps it. Peak shaving and phase protection may still use it. 0 = off.",
               "system_max_charge_w": "All batteries together never charge at more than this power. 0 = no limit.",
               "system_max_discharge_w": "All batteries together never discharge at more than this power. 0 = no limit.",
               "min_battery_power": "Below this power the conversion losses of a battery are high: a request is spread over as few batteries as possible, each running at least at this power, and over more batteries when more power is needed.",
               "balance_interval": "How often to check whether another battery should take over, so the batteries stay equally full. In between, the batteries in use are kept.",
               "peak_limit_w": "Peak shaving on the total grid import (all phases together): the arbitrage plans keep energy in reserve to stay below this power, and virtual batteries take load off when it is exceeded. Next to the per-phase protection of the main fuse. 0 = off.",
               "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit.",
+              "peak_reserve_soc": "Below this state of charge the batteries only discharge for grid import above the peak limit, so energy stays for peaks. Only with a peak limit. 0 = off.",
               "phase_margin": "Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation."
             }
           },

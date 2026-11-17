@@ -105,12 +105,14 @@ from .const import (
     CONF_MIN_DISCHARGE_PRICE,
     CONF_MIN_MARGIN,
     CONF_MIN_SOC,
+    CONF_NIGHT_RESERVE_SOC,
     CONF_NOM_TARGET,
     CONF_NOTIFY_KINDS,
     CONF_NOTIFY_TARGETS,
     CONF_OUTDOOR_TEMPERATURE,
     CONF_PEAK_INCLUDE_EXCLUDED,
     CONF_PEAK_LIMIT,
+    CONF_PEAK_RESERVE_SOC,
     CONF_PHASE,
     CONF_PHASE_CURRENT_SENSORS,
     CONF_PHASE_MARGIN,
@@ -420,12 +422,14 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
     ),
     "limits": (
         "reserve_soc",
+        "night_reserve_soc",
         "system_max_charge_w",
         "system_max_discharge_w",
         "min_battery_power",
         "balance_interval",
         "peak_limit_w",
         "peak_include_excluded",
+        "peak_reserve_soc",
         "phase_margin",
     ),
     "spikes": (
@@ -680,6 +684,12 @@ async def _flat_settings_schema(
         ): _number(-20000, 20000, 50, "W"),
         vol.Required(
             CONF_RESERVE_SOC, default=current.get(CONF_RESERVE_SOC, 0)
+        ): _number(0, 100, 1, "%", slider=True),
+        vol.Required(
+            CONF_NIGHT_RESERVE_SOC, default=current.get(CONF_NIGHT_RESERVE_SOC, 0)
+        ): _number(0, 100, 1, "%", slider=True),
+        vol.Required(
+            CONF_PEAK_RESERVE_SOC, default=current.get(CONF_PEAK_RESERVE_SOC, 0)
         ): _number(0, 100, 1, "%", slider=True),
         vol.Required(
             CONF_SYSTEM_MAX_CHARGE, default=current.get(CONF_SYSTEM_MAX_CHARGE, 0)
@@ -1004,6 +1014,8 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
         user_input.get(CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER)
     )
     options[CONF_RESERVE_SOC] = int(user_input.get(CONF_RESERVE_SOC, 0))
+    options[CONF_NIGHT_RESERVE_SOC] = int(user_input.get(CONF_NIGHT_RESERVE_SOC, 0))
+    options[CONF_PEAK_RESERVE_SOC] = int(user_input.get(CONF_PEAK_RESERVE_SOC, 0))
     options[CONF_SYSTEM_MAX_CHARGE] = int(user_input.get(CONF_SYSTEM_MAX_CHARGE, 0))
     options[CONF_SYSTEM_MAX_DISCHARGE] = int(
         user_input.get(CONF_SYSTEM_MAX_DISCHARGE, 0)

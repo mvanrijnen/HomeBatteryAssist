@@ -18,7 +18,12 @@ programming over the stored energy, discretised in ``SOC_STEPS`` steps, within
 the batteries' power limits, min/max state of charge and efficiency.
 
 Peak shaving (``peak_w`` > 0): grid import above ``peak_w`` gets a high extra
-cost, so energy is kept for expected peaks. ``max_cycles_per_day``: when the
+cost, so energy is kept for expected peaks; below the peak reserve
+(``peak_floor_wh``) only that import is discharged for. Night reserve
+(``reserve_wh`` per slot): never discharged below during the night; where it is
+not there when the sun comes up (``reserve_due``), the missing energy costs
+``RESERVE_PENALTY`` per kWh, so it is charged from the grid at the cheapest
+moment before. ``max_cycles_per_day``: when the
 cheapest plan cycles more, discharging gets an extra cost per kWh, raised
 (bisection) until every day is within the limit.
 
@@ -35,12 +40,20 @@ from datetime import date
 
 from homeassistant.util import dt as dt_util
 
-from .base import Planner, PlannerInput, PlannerResult, grid_cost, may_discharge
+from .base import (
+    Planner,
+    PlannerInput,
+    PlannerResult,
+    discharge_room,
+    grid_cost,
+    may_discharge,
+)
 from .zero_on_meter import follow
 
 SOC_STEPS = 100  # resolution of the stored energy (1 % of the usable range)
 CYCLE_SEARCH_STEPS = 6  # bisection steps for the cycle limit
 PEAK_PENALTY = 5.0  # extra cost per kWh imported above the peak limit
+RESERVE_PENALTY = 5.0  # per kWh of night reserve missing when the sun comes up
 MIN_GAIN_PER_KWH = 0.01  # a cycle must bring at least this per kWh discharged
 
 
@@ -74,6 +87,16 @@ def _optimise(
     levels = SOC_STEPS + 1
     count = len(slots)
 
+    def level(wh: float) -> int:
+        """The lowest level at or above ``wh`` stored."""
+        if step <= 0 or wh <= battery.floor_wh:
+            return 0
+        return min(math.ceil((wh - battery.floor_wh) / step - 1e-9), levels - 1)
+
+    # Night reserve per slot and the peak reserve, as levels.
+    night = [level(s.reserve_wh) for s in slots]
+    peak_level = level(battery.peak_floor_wh) if data.peak_w > 0 else 0
+
     # Value of energy left at the end: what it saves later, at the average price.
     avg_price = sum(s.price for s in slots) / count
     terminal = [-(i * step) / 1000 * avg_price * eff for i in range(levels)]
@@ -100,6 +123,9 @@ def _optimise(
         up = int(slot.max_charge_w * hours * eff / step)
         down = int(slot.max_discharge_w * hours / eff / step)
         current = [[0.0] * levels for _ in flags]
+        reserve = night[t]
+        normal = max(reserve, peak_level)  # discharging below: restricted
+        above_peak = max(net - data.peak_w, 0.0) if data.peak_w > 0 else 0.0
         for flag in flags:
             choice = best_next[t][flag]
             for i in range(levels):
@@ -115,6 +141,13 @@ def _optimise(
                         continue
                     if power < 0 and not may_discharge(rules, price):
                         continue
+                    if j < i and j < normal:
+                        if j < reserve:
+                            continue  # the night reserve stays
+                        # Below the peak reserve: only for import above the peak.
+                        deep = (min(i, normal) - j) * step * eff / hours
+                        if deep > max(above_peak - (-power - deep), 0.0) + 1e-6:
+                            continue
                     if (
                         power > max(-net, 0.0) + 1e-6
                         and rules.max_charge_price is not None
@@ -135,6 +168,8 @@ def _optimise(
                         )
                         + future[1 if (j > i and band > 0) else 0][j]
                     )
+                    if slot.reserve_due and j < reserve:
+                        cost += (reserve - j) * step / 1000 * RESERVE_PENALTY
                     if cost < best:
                         best, best_j = cost, j
                 # Covering a house load smaller than one level: discharge just
@@ -144,7 +179,7 @@ def _optimise(
                 part = need * hours / eff / step if need > 0 else 0.0
                 if (
                     0 < part < 1
-                    and i > 0
+                    and i > normal
                     and may_discharge(rules, price)
                     and need <= slot.max_discharge_w
                 ):
@@ -171,10 +206,7 @@ def _optimise(
         j = best_next[t][flag][i]
         if j != int(j):
             # Cover the house load with part of a level.
-            power = -min(
-                max(slot.net_w, 0.0),
-                max(stored - battery.floor_wh, 0.0) * eff / slot.hours,
-            )
+            power = -min(max(slot.net_w, 0.0), discharge_room(data, slot, stored))
             flag = 0
         else:
             flag = 1 if (j > i and band > 0) else 0

@@ -28,7 +28,12 @@ the dashboard simulates is what would be sent:
    surplus stored on top (``plan_balance``), or, for zero on the meter,
    ``nom_balance`` — surplus charged; a shortage discharged, but never for
    excluded devices nor for a random short peak (spike filter, when on).
-   Price rules: no discharging below the minimum discharge price.
+   Price rules: no discharging below the minimum discharge price. Lowest
+   state of charge for this target: max(min SoC, reserve SoC, night reserve
+   while ``ForecastData.night_at(now)``, peak reserve when a peak limit is
+   set); below the peak reserve only peak shaving (step 4) discharges, for
+   the import above the peak limit. Arbitrage plans already charge from the
+   grid for the night reserve before sunrise.
 3. **Spread** over the batteries (``Distributor``: few batteries at low power,
    more when more power is needed; per-battery min/max power, hysteresis).
 4. **Phase protection** (relieve an overloaded phase, never push a phase over

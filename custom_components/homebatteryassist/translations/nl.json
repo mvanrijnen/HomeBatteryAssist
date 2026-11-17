@@ -140,22 +140,26 @@
             "description": "Reserve, vermogensgrenzen, piekgrens en fasemarge.",
             "data": {
               "reserve_soc": "Reserve laadniveau",
+              "night_reserve_soc": "Nachtreserve laadniveau",
               "system_max_charge_w": "Max. laadvermogen alle batterijen",
               "system_max_discharge_w": "Max. ontlaadvermogen alle batterijen",
               "min_battery_power": "Minimaal vermogen per batterij",
               "balance_interval": "Balanscontrole elke",
               "peak_limit_w": "Piekgrens netafname",
               "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee",
+              "peak_reserve_soc": "Piekreserve laadniveau",
               "phase_margin": "Veiligheidsmarge per fase"
             },
             "data_description": {
               "reserve_soc": "De plannen gaan nooit onder dit laadniveau (bijv. als noodreserve), bovenop het eigen minimum van elke batterij. Piekafvlakking en fasebeveiliging mogen het nog wel gebruiken. 0 = uit.",
+              "night_reserve_soc": "Vanaf de avond (zon weg) tot de zon weer op is (volgens de PV-voorspelling) gaan de plannen niet onder dit laadniveau. Arbitrage laadt er zo nodig voor uit het net op het goedkoopste moment vóór zonsopkomst; nul op de meter houdt het alleen vast. Piekafvlakking en fasebeveiliging mogen het nog wel gebruiken. 0 = uit.",
               "system_max_charge_w": "Alle batterijen samen laden nooit met meer dan dit vermogen. 0 = geen grens.",
               "system_max_discharge_w": "Alle batterijen samen ontladen nooit met meer dan dit vermogen. 0 = geen grens.",
               "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is.",
               "balance_interval": "Hoe vaak gekeken wordt of een andere batterij het moet overnemen, zodat de batterijen gelijk gevuld blijven. Daartussen blijven de gebruikte batterijen actief.",
               "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
               "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
+              "peak_reserve_soc": "Onder dit laadniveau ontladen de batterijen alleen nog voor netafname boven de piekgrens, zodat er energie blijft voor pieken. Alleen met een piekgrens. 0 = uit.",
               "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie."
             }
           },
@@ -580,22 +584,26 @@
             "description": "Reserve, vermogensgrenzen, piekgrens en fasemarge.",
             "data": {
               "reserve_soc": "Reserve laadniveau",
+              "night_reserve_soc": "Nachtreserve laadniveau",
               "system_max_charge_w": "Max. laadvermogen alle batterijen",
               "system_max_discharge_w": "Max. ontlaadvermogen alle batterijen",
               "min_battery_power": "Minimaal vermogen per batterij",
               "balance_interval": "Balanscontrole elke",
               "peak_limit_w": "Piekgrens netafname",
               "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee",
+              "peak_reserve_soc": "Piekreserve laadniveau",
               "phase_margin": "Veiligheidsmarge per fase"
             },
             "data_description": {
               "reserve_soc": "De plannen gaan nooit onder dit laadniveau (bijv. als noodreserve), bovenop het eigen minimum van elke batterij. Piekafvlakking en fasebeveiliging mogen het nog wel gebruiken. 0 = uit.",
+              "night_reserve_soc": "Vanaf de avond (zon weg) tot de zon weer op is (volgens de PV-voorspelling) gaan de plannen niet onder dit laadniveau. Arbitrage laadt er zo nodig voor uit het net op het goedkoopste moment vóór zonsopkomst; nul op de meter houdt het alleen vast. Piekafvlakking en fasebeveiliging mogen het nog wel gebruiken. 0 = uit.",
               "system_max_charge_w": "Alle batterijen samen laden nooit met meer dan dit vermogen. 0 = geen grens.",
               "system_max_discharge_w": "Alle batterijen samen ontladen nooit met meer dan dit vermogen. 0 = geen grens.",
               "min_battery_power": "Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is.",
               "balance_interval": "Hoe vaak gekeken wordt of een andere batterij het moet overnemen, zodat de batterijen gelijk gevuld blijven. Daartussen blijven de gebruikte batterijen actief.",
               "peak_limit_w": "Piekafvlakking op de totale netafname (alle fasen samen): de arbitrageplannen houden energie achter de hand om hieronder te blijven, en virtuele batterijen vangen de piek op als hij toch wordt overschreden. Naast de beveiliging per fase van de hoofdzekering. 0 = uit.",
               "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
+              "peak_reserve_soc": "Onder dit laadniveau ontladen de batterijen alleen nog voor netafname boven de piekgrens, zodat er energie blijft voor pieken. Alleen met een piekgrens. 0 = uit.",
               "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie."
             }
           },

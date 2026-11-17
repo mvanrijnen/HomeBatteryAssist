@@ -52,10 +52,12 @@ from ..const import (
     CONF_MIN_BATTERY_POWER,
     CONF_MIN_DISCHARGE_PRICE,
     CONF_MIN_MARGIN,
+    CONF_NIGHT_RESERVE_SOC,
     CONF_NOM_TARGET,
     CONF_OUTDOOR_TEMPERATURE,
     CONF_PEAK_INCLUDE_EXCLUDED,
     CONF_PEAK_LIMIT,
+    CONF_PEAK_RESERVE_SOC,
     CONF_PHASE_MARGIN,
     CONF_PHASES,
     CONF_PLAN_MODE,
@@ -159,6 +161,7 @@ from .planning.battery_plan import (
     BatteryPlan,
     PlanRules,
     PlanSlot,
+    night_starts,
     plan_batteries,
 )
 from .planning.full_charge import FullCharge, schedule_full_charges
@@ -229,6 +232,8 @@ class ForecastData:
     plan_mode: str = DEFAULT_PLAN_MODE
     # Planned (forced) full charges, earliest first.
     full_charges: list[FullCharge] = field(default_factory=list)
+    # Slots (by start) of the night reserve: from the evening until sunrise.
+    night: set[datetime] = field(default_factory=set)
 
     @property
     def selected_plan(self) -> BatteryPlan | None:
@@ -252,6 +257,11 @@ class ForecastData:
         """Most used forecast method in the window."""
         methods = Counter(slot.method for slot in self.consumption)
         return methods.most_common(1)[0][0] if methods else None
+
+    def night_at(self, when: datetime) -> bool:
+        """Whether the night reserve holds at ``when``."""
+        slot = self.consumption_at(when)
+        return slot is not None and slot.start in self.night
 
     def consumption_at(self, when: datetime) -> ForecastSlot | None:
         """The forecast slot containing ``when``."""
@@ -364,6 +374,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         }
         self.rules = PlanRules(
             reserve_soc=float(opts.get(CONF_RESERVE_SOC, 0)),
+            night_reserve_soc=float(opts.get(CONF_NIGHT_RESERVE_SOC, 0)),
+            peak_reserve_soc=float(opts.get(CONF_PEAK_RESERVE_SOC, 0)),
             max_charge_w=float(opts.get(CONF_SYSTEM_MAX_CHARGE, 0)),
             max_discharge_w=float(opts.get(CONF_SYSTEM_MAX_DISCHARGE, 0)),
             nom_target_w=float(opts.get(CONF_NOM_TARGET, 0)),
@@ -736,6 +748,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             plans,
             self.plan_mode,
             full_charges,
+            night_starts(consumption, pv_plan)
+            if self.rules.night_reserve_soc
+            else set(),
         )
         self._explain_plan(data)
         self._explain_method(data)
