@@ -15,6 +15,8 @@ from homeassistant.core import HomeAssistant
 
 MIN_C = -60.0
 MAX_C = 60.0
+INDOOR_MIN_C = 5.0  # believable room temperatures
+INDOOR_MAX_C = 35.0
 
 
 def valid_temperature(value: object) -> float | None:
@@ -24,6 +26,14 @@ def valid_temperature(value: object) -> float | None:
     except (TypeError, ValueError):
         return None
     return number if math.isfinite(number) and MIN_C <= number <= MAX_C else None
+
+
+def valid_indoor(value: object) -> float | None:
+    """``value`` as °C if it is a believable room temperature."""
+    number = valid_temperature(value)
+    if number is None or not INDOOR_MIN_C <= number <= INDOOR_MAX_C:
+        return None
+    return number
 
 
 class WeatherSource:

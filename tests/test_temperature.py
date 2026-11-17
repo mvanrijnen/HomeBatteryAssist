@@ -194,15 +194,19 @@ async def test_cycle_with_weather_and_battery(hass: HomeAssistant) -> None:
     from pytest_homeassistant_custom_component.common import MockConfigEntry
 
     from custom_components.homebatteryassist.const import (
+        CONF_INDOOR_TEMPERATURE,
         CONF_OUTDOOR_TEMPERATURE,
         CONF_WEATHER_ENTITY,
         DOMAIN,
         SUBENTRY_BATTERY,
+        SUBENTRY_HEATING_COOLING,
     )
 
     from .test_batteries import BATTERY_INPUT, GRID
 
     hass.states.async_set("weather.home", "cloudy", {"temperature": 3.0})
+    hass.states.async_set("sensor.airco", "800", {"unit_of_measurement": "W"})
+    hass.states.async_set("sensor.room", "20.5", {"unit_of_measurement": "°C"})
     hass.states.async_set("sensor.outside", "2.5", {"unit_of_measurement": "°C"})
     entry = MockConfigEntry(
         domain=DOMAIN,
@@ -218,7 +222,18 @@ async def test_cycle_with_weather_and_battery(hass: HomeAssistant) -> None:
                 subentry_type=SUBENTRY_BATTERY,
                 title="Venus",
                 unique_id="sensor.marstek_power",
-            )
+            ),
+            ConfigSubentryData(
+                data={
+                    "name": "Woonkamer",
+                    "sensor": "sensor.airco",
+                    "phase": "none",
+                    CONF_INDOOR_TEMPERATURE: "sensor.room",
+                },
+                subentry_type=SUBENTRY_HEATING_COOLING,
+                title="Woonkamer",
+                unique_id="sensor.airco",
+            ),
         ],
     )
     entry.add_to_hass(hass)
@@ -231,4 +246,95 @@ async def test_cycle_with_weather_and_battery(hass: HomeAssistant) -> None:
     assert forecast.outdoor_temperature() == 2.5
     keys = [d["key"] for d in entry.runtime_data.decisions.entries]
     assert "temperature_no_forecast" in keys  # no weather service in tests
+    assert [z.name for z in forecast.zones] == ["Woonkamer"]
     await hass.config_entries.async_unload(entry.entry_id)
+
+
+def _zone_records(days: int, gain: float, slope: float) -> list:
+    """Hourly records of one zone: 21 °C by day, 17 °C at night, the outdoor
+    temperature one value per day; the zone heats ``slope`` W per degree
+    below ``room - gain``."""
+    from custom_components.homebatteryassist.engine.forecast.temperature_effect import (
+        DAY_HOURS,
+    )
+
+    records = []
+    start = dt_util.as_utc(dt_util.as_local(NOW - timedelta(days=days)).replace(hour=0))
+    for h in range(days * 24):
+        when = start + h * H
+        local = dt_util.as_local(when)
+        room = 21.0 if local.hour in DAY_HOURS else 17.0
+        outdoor = float(h // 24)  # 0 .. days-1 °C
+        power = slope * max(room - gain - outdoor, 0.0)
+        records.append(
+            {
+                "start": when.isoformat(),
+                "minutes": 60,
+                "avg_w": 300.0 + power,
+                "coverage": 1.0,
+                "temp_c": outdoor + 1.0,  # the weather reads a bit warmer
+                "zones": {"a": {"w": power, "in": room, "out": outdoor}},
+            }
+        )
+    return records
+
+
+def test_zone_learns_room_and_heating_point(hass: HomeAssistant) -> None:
+    """A zone with a room sensor: W per degree, the gain and the room
+    temperature by day and night are learned."""
+    model = fit_temperature(_zone_records(24, 3.0, 60.0), NOW, "a", "Woonkamer")
+    assert model is not None and model.target == "zone" and model.name == "Woonkamer"
+    assert model.gain_c == 3.0
+    assert abs(model.heat_w_per_deg - 60.0) < 1.0
+    assert model.room_temperature(day=True) == 21.0
+    assert model.room_temperature(day=False) == 17.0
+    assert model.heating_point == 18.0
+    # A night slot heats less than a day slot at the same outdoor temperature.
+    day = dt_util.as_utc(dt_util.as_local(NOW).replace(hour=12))
+    night = dt_util.as_utc(dt_util.as_local(NOW).replace(hour=3))
+    assert model.effect(day, 0.0) - model.effect(night, 0.0) > 200
+
+
+def test_zones_add_up_or_fall_back_to_house(hass: HomeAssistant) -> None:
+    """All zones learned: their effects add up; otherwise the house."""
+    from custom_components.homebatteryassist.engine.forecast.temperature_effect import (
+        ZoneModels,
+        fit_effect,
+    )
+
+    records = _zone_records(24, 3.0, 60.0)
+    for record in records:
+        record["zones"]["b"] = dict(record["zones"]["a"])
+    both = fit_effect(records, NOW, {"a": "Woonkamer", "b": "Slaapkamer"})
+    assert isinstance(both, ZoneModels) and len(both.models) == 2
+    noon = dt_util.as_utc(dt_util.as_local(NOW).replace(hour=12))
+    single = both.models[0].effect(noon, 0.0)
+    assert abs(both.effect(noon, 0.0) - 2 * single) < 1e-6
+    missing = fit_effect(records, NOW, {"a": "Woonkamer", "c": "Zolder"})
+    assert isinstance(missing, TemperatureModel) and missing.name == ""
+
+
+async def test_history_records_zones(hass: HomeAssistant) -> None:
+    """Per zone: power, room and outdoor temperature are averaged."""
+    history = ConsumptionHistory(hass, "test", 15)
+    history.add_sample(NOW, 1000.0, zones={"a": (400.0, 20.0, None)})
+    history.add_sample(
+        NOW + timedelta(minutes=5), 1000.0, zones={"a": (100.0, 21.5, 3.0)}
+    )
+    record = history.close_interval(NOW + timedelta(minutes=15))
+    assert record is not None
+    assert record["zones"] == {"a": {"w": 200.0, "in": 21.0, "out": 3.0}}
+
+
+def test_heating_zone_reads_its_sensors(hass: HomeAssistant) -> None:
+    """A zone reads its power and temperatures; nonsense is dropped."""
+    from custom_components.homebatteryassist.engine.measure.heating_zones import (
+        HeatingZone,
+    )
+
+    hass.states.async_set("sensor.airco", "-750", {"unit_of_measurement": "W"})
+    hass.states.async_set("sensor.room", "70", {"unit_of_measurement": "°F"})
+    hass.states.async_set("sensor.unit", "99", {"unit_of_measurement": "°C"})
+    zone = HeatingZone("a", "Woonkamer", "sensor.airco", "sensor.room", "sensor.unit")
+    power, indoor, outdoor = zone.read(hass)
+    assert power == 750.0 and abs(indoor - 21.1) < 0.1 and outdoor is None

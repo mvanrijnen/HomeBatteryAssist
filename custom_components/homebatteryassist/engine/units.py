@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from datetime import datetime
 from typing import Any
 
@@ -11,6 +12,7 @@ from homeassistant.const import (
     STATE_UNKNOWN,
     UnitOfElectricCurrent,
     UnitOfPower,
+    UnitOfTemperature,
 )
 from homeassistant.core import State
 from homeassistant.exceptions import HomeAssistantError
@@ -67,3 +69,15 @@ def parse_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def state_to_celsius(state: State | None) -> float | None:
+    """The state of a temperature sensor in °C (°F converted), or None."""
+    if state is None:
+        return None
+    value = parse_float(state.state)
+    if value is None or not math.isfinite(value):
+        return None
+    if state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) == UnitOfTemperature.FAHRENHEIT:
+        return (value - 32) / 1.8
+    return value

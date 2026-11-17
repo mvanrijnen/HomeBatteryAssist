@@ -46,6 +46,9 @@ CONF_PRICE_FORECAST: Final = "price_forecast_entity"
 # Optional: outdoor temperature for the consumption forecast.
 CONF_WEATHER_ENTITY: Final = "weather_entity"  # weather.* with a forecast
 CONF_OUTDOOR_TEMPERATURE: Final = "outdoor_temperature_sensor"  # sensor, °C/°F
+# Per heating/cooling device (a zone, e.g. a room): its room temperature, and
+# optionally its own outdoor temperature (CONF_OUTDOOR_TEMPERATURE).
+CONF_INDOOR_TEMPERATURE: Final = "indoor_temperature_sensor"
 CONF_PV_FORECAST: Final = "pv_forecast_entries"
 # Battery plan (advice): mode and cost assumptions.
 CONF_PLAN_MODE: Final = "plan_mode"

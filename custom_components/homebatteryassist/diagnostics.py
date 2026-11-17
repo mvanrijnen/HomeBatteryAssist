@@ -92,15 +92,35 @@ async def async_get_config_entry_diagnostics(
             ),
             "outdoor_temperature": data.forecast.outdoor_temperature(),
             "temperature_model": (
-                {
-                    "heat_w_per_deg": data.forecast.temperature_model.heat_w_per_deg,
-                    "cool_w_per_deg": data.forecast.temperature_model.cool_w_per_deg,
-                    "days": data.forecast.temperature_model.days,
-                    "target": data.forecast.temperature_model.target,
-                }
+                [
+                    {
+                        "zone": model.name or None,
+                        "target": model.target,
+                        "heat_w_per_deg": model.heat_w_per_deg,
+                        "cool_w_per_deg": model.cool_w_per_deg,
+                        "days": model.days,
+                        "gain_c": model.gain_c,
+                        "heating_point_c": model.heating_point,
+                        "room_day_c": model.room_temperature(day=True)
+                        if model.usual_indoor
+                        else None,
+                        "room_night_c": model.room_temperature(day=False)
+                        if model.usual_indoor
+                        else None,
+                    }
+                    for model in data.forecast.temperature_model.models
+                ]
                 if data.forecast.temperature_model
                 else None
             ),
+            "heating_zones": [
+                {
+                    "name": zone.name,
+                    "indoor_sensor": zone.indoor_sensor,
+                    "outdoor_sensor": zone.outdoor_sensor,
+                }
+                for zone in data.forecast.zones
+            ],
             "temperature_forecast_slots": sum(
                 t is not None for t in data.forecast.temperatures or []
             ),

@@ -56,7 +56,7 @@ custom_components/homebatteryassist/
     │   │                  energy_dashboard_platform.py
     │   ├── tariffs/       base.py, template.py, as_price_source.py
     │   └── weather/       base.py, template.py, ha_weather_entity.py (optional)
-    ├── measure/           3  house_measurement.py, battery_monitor.py
+    ├── measure/           3  house_measurement.py, battery_monitor.py, heating_zones.py
     ├── history/           4  consumption_history.py, history_import.py, chart_series.py,
     │                         temperature_import.py
     ├── forecast/          5  planning_window.py, consumption_forecast.py,

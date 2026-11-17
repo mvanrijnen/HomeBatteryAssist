@@ -942,36 +942,44 @@
       "step": {
         "user": {
           "title": "Heating/cooling",
-          "description": "A heat pump, electric heating or airco. Its consumption stays part of the house consumption, but is measured apart so the forecast can follow the outdoor temperature (set a weather entity in the settings).",
+          "description": "A heat pump, electric heating or airco. Its consumption stays part of the house consumption, but is measured apart so the forecast can follow the outdoor temperature (set a weather entity in the settings). Add the room temperature (and its own outdoor sensor) to learn this device as a zone of its own.",
           "data": {
             "name": "Name",
             "sensor": "Sensor",
             "phase": "Phase",
             "phase_sensor_l1": "Power L1 (optional, 3-phase)",
             "phase_sensor_l2": "Power L2 (optional, 3-phase)",
-            "phase_sensor_l3": "Power L3 (optional, 3-phase)"
+            "phase_sensor_l3": "Power L3 (optional, 3-phase)",
+            "indoor_temperature_sensor": "Room temperature (optional)",
+            "outdoor_temperature_sensor": "Own outdoor temperature (optional)"
           },
           "data_description": {
             "sensor": "Sensor measuring the power (W) or current (A) of this device.",
             "phase": "The phase this device is connected to, if it uses a single phase.",
-            "phase_sensor_l1": "For a 3-phase device: a sensor per phase gives the exact split over the phases. Leave empty to spread the total evenly (phase 'all phases') or to use the phase chosen above."
+            "phase_sensor_l1": "For a 3-phase device: a sensor per phase gives the exact split over the phases. Leave empty to spread the total evenly (phase 'all phases') or to use the phase chosen above.",
+            "indoor_temperature_sensor": "A temperature sensor in the room this device heats or cools. Learns the desired room temperature (e.g. lower at night) and when heating starts, for a more accurate forecast. A device per room gives a zone per room.",
+            "outdoor_temperature_sensor": "E.g. the outdoor unit's sensor of an airco; otherwise the outdoor temperature from the settings is used."
           }
         },
         "reconfigure": {
           "title": "Heating/cooling",
-          "description": "A heat pump, electric heating or airco. Its consumption stays part of the house consumption, but is measured apart so the forecast can follow the outdoor temperature (set a weather entity in the settings).",
+          "description": "A heat pump, electric heating or airco. Its consumption stays part of the house consumption, but is measured apart so the forecast can follow the outdoor temperature (set a weather entity in the settings). Add the room temperature (and its own outdoor sensor) to learn this device as a zone of its own.",
           "data": {
             "name": "Name",
             "sensor": "Sensor",
             "phase": "Phase",
             "phase_sensor_l1": "Power L1 (optional, 3-phase)",
             "phase_sensor_l2": "Power L2 (optional, 3-phase)",
-            "phase_sensor_l3": "Power L3 (optional, 3-phase)"
+            "phase_sensor_l3": "Power L3 (optional, 3-phase)",
+            "indoor_temperature_sensor": "Room temperature (optional)",
+            "outdoor_temperature_sensor": "Own outdoor temperature (optional)"
           },
           "data_description": {
             "sensor": "Sensor measuring the power (W) or current (A) of this device.",
             "phase": "The phase this device is connected to, if it uses a single phase.",
-            "phase_sensor_l1": "For a 3-phase device: a sensor per phase gives the exact split over the phases. Leave empty to spread the total evenly (phase 'all phases') or to use the phase chosen above."
+            "phase_sensor_l1": "For a 3-phase device: a sensor per phase gives the exact split over the phases. Leave empty to spread the total evenly (phase 'all phases') or to use the phase chosen above.",
+            "indoor_temperature_sensor": "A temperature sensor in the room this device heats or cools. Learns the desired room temperature (e.g. lower at night) and when heating starts, for a more accurate forecast. A device per room gives a zone per room.",
+            "outdoor_temperature_sensor": "E.g. the outdoor unit's sensor of an airco; otherwise the outdoor temperature from the settings is used."
           }
         }
       },

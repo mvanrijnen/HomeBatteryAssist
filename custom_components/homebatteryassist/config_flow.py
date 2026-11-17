@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import replace
-from typing import Any
+from typing import Any, ClassVar
 
 import voluptuous as vol
 from homeassistant.components.sensor import SensorDeviceClass
@@ -85,6 +85,7 @@ from .const import (
     CONF_FULL_CHARGE_SOLAR,
     CONF_FULL_CHARGE_WINDOW,
     CONF_HISTORY_INTERVAL,
+    CONF_INDOOR_TEMPERATURE,
     CONF_INITIAL_SOC,
     CONF_LOSS_MAX,
     CONF_LOSS_MIN,
@@ -1260,6 +1261,8 @@ class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):
     """Add or change a named device with a power/current sensor and phase."""
 
     allow_direct = False  # PV sources: also a directly read meter
+    # optional fields of this kind of device: key -> selector
+    extra_fields: ClassVar[dict[str, Any]] = {}
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -1290,6 +1293,13 @@ class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):
                 CONF_SENSOR: user_input.get(CONF_SENSOR) or "",
                 CONF_PHASE: user_input.get(CONF_PHASE, PHASE_NONE),
             }
+            data.update(
+                {
+                    key: user_input[key]
+                    for key in self.extra_fields
+                    if user_input.get(key)
+                }
+            )
             if direct:
                 data[CONF_PV_DRIVER] = driver
                 if driver != PV_DRIVER_SENSOR:
@@ -1354,6 +1364,8 @@ class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):
             schema[vol.Required(CONF_PHASE, default=PHASE_NONE)] = phase_selector()
             for key in CONF_DEVICE_PHASE_SENSORS:
                 schema[vol.Optional(key)] = PHASE_SENSOR_SELECTOR
+        for key, selector in self.extra_fields.items():
+            schema[vol.Optional(key)] = selector
         suggested = user_input or (dict(current.data) if current else None)
         return self.async_show_form(
             step_id=step_id,
@@ -1384,7 +1396,17 @@ class ExcludedLoadSubentryFlow(_MeasuredDeviceSubentryFlow):
 
 class HeatingCoolingSubentryFlow(_MeasuredDeviceSubentryFlow):
     """Add or change a heating/cooling device (part of the house consumption,
-    measured apart so the forecast can follow the outdoor temperature)."""
+    measured apart so the forecast can follow the outdoor temperature); with
+    the temperature of its room (and its own outdoor sensor) it is a zone."""
+
+    extra_fields: ClassVar[dict[str, Any]] = {
+        CONF_INDOOR_TEMPERATURE: EntitySelector(
+            EntitySelectorConfig(domain="sensor", device_class="temperature")
+        ),
+        CONF_OUTDOOR_TEMPERATURE: EntitySelector(
+            EntitySelectorConfig(domain="sensor", device_class="temperature")
+        ),
+    }
 
 
 def _number(

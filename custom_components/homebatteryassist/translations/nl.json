@@ -942,36 +942,44 @@
       "step": {
         "user": {
           "title": "Verwarming/koeling",
-          "description": "Een warmtepomp, elektrische verwarming of airco. Het verbruik blijft deel van het huisverbruik, maar wordt apart gemeten zodat de voorspelling de buitentemperatuur kan volgen (stel een weer-entiteit in bij de instellingen).",
+          "description": "Een warmtepomp, elektrische verwarming of airco. Het verbruik blijft deel van het huisverbruik, maar wordt apart gemeten zodat de voorspelling de buitentemperatuur kan volgen (stel een weer-entiteit in bij de instellingen). Voeg de kamertemperatuur (en een eigen buitensensor) toe om dit apparaat als eigen zone te leren.",
           "data": {
             "name": "Naam",
             "sensor": "Sensor",
             "phase": "Fase",
             "phase_sensor_l1": "Vermogen L1 (optioneel, 3-fase)",
             "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
-            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)"
+            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)",
+            "indoor_temperature_sensor": "Kamertemperatuur (optioneel)",
+            "outdoor_temperature_sensor": "Eigen buitentemperatuur (optioneel)"
           },
           "data_description": {
             "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
             "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt.",
-            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken."
+            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken.",
+            "indoor_temperature_sensor": "Een temperatuursensor in de kamer die dit apparaat verwarmt of koelt. Leert de gewenste kamertemperatuur (bijvoorbeeld 's nachts lager) en vanaf wanneer er verwarmd wordt, voor een nauwkeurigere voorspelling. Een apparaat per kamer geeft een zone per kamer.",
+            "outdoor_temperature_sensor": "Bijvoorbeeld de sensor van de buitenunit van een airco; anders wordt de buitentemperatuur uit de instellingen gebruikt."
           }
         },
         "reconfigure": {
           "title": "Verwarming/koeling",
-          "description": "Een warmtepomp, elektrische verwarming of airco. Het verbruik blijft deel van het huisverbruik, maar wordt apart gemeten zodat de voorspelling de buitentemperatuur kan volgen (stel een weer-entiteit in bij de instellingen).",
+          "description": "Een warmtepomp, elektrische verwarming of airco. Het verbruik blijft deel van het huisverbruik, maar wordt apart gemeten zodat de voorspelling de buitentemperatuur kan volgen (stel een weer-entiteit in bij de instellingen). Voeg de kamertemperatuur (en een eigen buitensensor) toe om dit apparaat als eigen zone te leren.",
           "data": {
             "name": "Naam",
             "sensor": "Sensor",
             "phase": "Fase",
             "phase_sensor_l1": "Vermogen L1 (optioneel, 3-fase)",
             "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
-            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)"
+            "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)",
+            "indoor_temperature_sensor": "Kamertemperatuur (optioneel)",
+            "outdoor_temperature_sensor": "Eigen buitentemperatuur (optioneel)"
           },
           "data_description": {
             "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
             "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt.",
-            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken."
+            "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken.",
+            "indoor_temperature_sensor": "Een temperatuursensor in de kamer die dit apparaat verwarmt of koelt. Leert de gewenste kamertemperatuur (bijvoorbeeld 's nachts lager) en vanaf wanneer er verwarmd wordt, voor een nauwkeurigere voorspelling. Een apparaat per kamer geeft een zone per kamer.",
+            "outdoor_temperature_sensor": "Bijvoorbeeld de sensor van de buitenunit van een airco; anders wordt de buitentemperatuur uit de instellingen gebruikt."
           }
         }
       },

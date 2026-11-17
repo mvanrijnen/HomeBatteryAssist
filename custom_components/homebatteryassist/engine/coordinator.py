@@ -27,7 +27,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT, UnitOfTemperature
+from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -114,13 +114,14 @@ from .forecast.forecasters import DEFAULT_FORECASTER, Forecaster
 from .forecast.phase_shares import PhaseProfile
 from .forecast.planning_window import HorizonLimit, PlanningWindow, planning_horizon
 from .forecast.temperature_effect import (
-    TemperatureModel,
-    fit_temperature,
+    TemperatureEffect,
+    fit_effect,
     slot_temperatures,
 )
 from .forecast.user_adjustments import AdjustmentStore
 from .history.consumption_history import ConsumptionHistory
 from .measure.battery_monitor import BatteryState
+from .measure.heating_zones import heating_zones
 from .planning.battery_plan import (
     DEFAULT_PLAN_MODE,
     MODE_MANUAL,
@@ -162,6 +163,7 @@ from .sources.tariffs import BUILTIN as TARIFFS
 from .sources.tariffs import DEFAULT_TARIFF, Tariff, apply_tariff
 from .sources.tariffs.as_price_source import SourceTariff
 from .sources.weather import WeatherEntitySource, valid_temperature
+from .units import state_to_celsius
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -354,7 +356,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             WeatherEntitySource(weather) if weather else None
         )
         self.outdoor_sensor: str | None = options.get(CONF_OUTDOOR_TEMPERATURE) or None
-        self.temperature_model: TemperatureModel | None = None
+        self.temperature_model: TemperatureEffect | None = None
+        # heating/cooling devices with their own temperatures: zones
+        self.zones = heating_zones(entry)
         self.temperatures: list[float | None] | None = None  # per slot
         self._last_temperature: str | None = None
         # Price driver ("<driver>:<source>") or the price sensor field.
@@ -1077,14 +1081,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         """The outdoor temperature now (°C): the sensor, else the weather
         entity; None when neither is set up or known."""
         if self.outdoor_sensor:
-            state = self.hass.states.get(self.outdoor_sensor)
-            if state is not None:
-                value = valid_temperature(state.state)
-                unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
-                if value is not None and unit == UnitOfTemperature.FAHRENHEIT:
-                    value = valid_temperature((value - 32) / 1.8)
-                if value is not None:
-                    return value
+            value = valid_temperature(
+                state_to_celsius(self.hass.states.get(self.outdoor_sensor))
+            )
+            if value is not None:
+                return value
         return self.weather.temperature_now(self.hass) if self.weather else None
 
     async def _async_read_temperature(
@@ -1095,7 +1096,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         if self.weather is None:
             self.temperature_model = self.temperatures = None
             return
-        self.temperature_model = fit_temperature(self.history.records, now)
+        self.temperature_model = fit_effect(
+            self.history.records, now, {z.zone_id: z.name for z in self.zones}
+        )
         try:
             hourly = await self.weather.async_forecast(self.hass)
         except Exception:  # a weather integration may fail in any way
@@ -1107,34 +1110,59 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self._explain_temperature(bool(hourly))
 
     def _explain_temperature(self, has_forecast: bool) -> None:
-        """Tell what was learned about the outdoor temperature (when it changes
-        noticeably)."""
-        model = self.temperature_model
+        """Tell what was learned about the temperature (when it changes
+        noticeably): for the house, or per zone."""
+        effect = self.temperature_model
+        messages: list[tuple[str, dict[str, Any]]] = []
         if not has_forecast:
-            key, params = "temperature_no_forecast", {}
-        elif model is None:
-            key, params = "temperature_learning", {}
-        elif not model.active:
-            key, params = "temperature_no_effect", {"days": model.days}
+            messages.append(("temperature_no_forecast", {}))
+        elif effect is None:
+            messages.append(("temperature_learning", {}))
+        elif not effect.active:
+            messages.append(("temperature_no_effect", {"days": effect.days}))
         else:
-            heat, cool = model.heat_w_per_deg > 0, model.cool_w_per_deg > 0
-            key, params = (
-                "temperature_effect"
-                if heat and cool
-                else "temperature_effect_heat"
-                if heat
-                else "temperature_effect_cool",
-                {
+            for model in effect.models:
+                heat, cool = model.heat_w_per_deg > 0, model.cool_w_per_deg > 0
+                key = (
+                    "temperature_effect"
+                    if heat and cool
+                    else "temperature_effect_heat"
+                    if heat
+                    else "temperature_effect_cool"
+                    if cool
+                    else "temperature_no_effect"
+                )
+                params: dict[str, Any] = {
                     "heat": round(model.heat_w_per_deg / 10) * 10,
                     "cool": round(model.cool_w_per_deg / 10) * 10,
                     "days": model.days,
-                },
-            )
-        gist = f"{key}|{params.get('heat')}|{params.get('cool')}"
+                    "base": _degrees(model.heating_point),
+                }
+                if model.name:
+                    key = key.replace("temperature_", "temperature_zone_", 1)
+                    params["name"] = model.name
+                messages.append((key, params))
+                if model.usual_indoor:
+                    messages.append(
+                        (
+                            "temperature_room",
+                            {
+                                "name": model.name,
+                                "day": _degrees(model.room_temperature(day=True)),
+                                "night": _degrees(model.room_temperature(day=False)),
+                            },
+                        )
+                    )
+        gist = "|".join(
+            f"{key}:{p.get('name')}:{p.get('heat')}:{p.get('cool')}:"
+            f"{p.get('base')}:{p.get('day')}:{p.get('night')}"
+            for key, p in messages
+        )
         if gist == self._last_temperature:
             return
         self._last_temperature = gist
-        self._decisions.async_log("forecast", key, **params)
+        for key, params in messages:
+            self._decisions.async_log("forecast", key, **params)
 
     def _explain_method(self, data: ForecastData) -> None:
         """Explain on which history the consumption forecast is based."""
@@ -1314,3 +1342,8 @@ def _plan_efficiency(states: Iterable[BatteryState]) -> float:
     if not capacity:
         return 1.0
     return sum(s.config.efficiency * s.config.capacity_kwh for s in usable) / capacity
+
+
+def _degrees(value: float) -> int:
+    """A temperature for a message: whole degrees."""
+    return round(value)

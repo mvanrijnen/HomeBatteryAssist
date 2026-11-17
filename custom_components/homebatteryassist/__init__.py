@@ -235,6 +235,7 @@ async def async_setup_entry(
             (flow.phase_house_w, flow.phase_pv_w) if flow else None,
             flow.heating_w if flow and measurements.heating_sensors else None,
             forecast.outdoor_temperature(),
+            {zone.zone_id: zone.read(hass) for zone in forecast.zones} or None,
         )
 
     measurements.async_add_listener(_record)

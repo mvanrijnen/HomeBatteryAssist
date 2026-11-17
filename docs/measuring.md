@@ -34,7 +34,7 @@ Simulated what-if batteries (capacity, power, state-of-charge limits, losses, ph
 
 **PV sources** and **excluded devices** (e.g. an EV charger): on one phase, on all phases (3-phase, spread evenly) or measured per phase with a sensor per phase. A PV source can also be a meter read directly (e.g. a HomeWizard kWh meter on the inverter's line).
 
-**Heating/cooling** (optional; a heat pump, electric heating or airco): measured like an excluded device, but its consumption **stays part of the house consumption**. It is recorded apart so the consumption forecast can follow the outdoor temperature — see [Forecasting](forecasting.md#outdoor-temperature-optional).
+**Heating/cooling** (optional; a heat pump, electric heating or airco): measured like an excluded device, but its consumption **stays part of the house consumption**. It is recorded apart so the consumption forecast can follow the outdoor temperature. Optionally give it the room temperature (and its own outdoor sensor): it then becomes a zone, learned on its own — see [Forecasting](forecasting.md#outdoor-temperature-optional).
 
 ## House consumption
 

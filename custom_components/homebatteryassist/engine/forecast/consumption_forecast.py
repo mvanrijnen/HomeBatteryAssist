@@ -36,7 +36,7 @@ from .forecasters.weekday_hour_profile import (
     ConsumptionProfile,
 )
 from .planning_window import PlanningWindow
-from .temperature_effect import TemperatureModel
+from .temperature_effect import TemperatureEffect
 from .user_adjustments import Adjustment, apply_adjustments
 
 __all__ = [
@@ -78,7 +78,7 @@ def raw_forecast(
     now: datetime,
     profile: list[tuple[float | None, str | None]] | None = None,
     temperatures: Sequence[float | None] | None = None,
-    temperature: TemperatureModel | None = None,
+    temperature: TemperatureEffect | None = None,
 ) -> list[tuple[datetime, datetime, float, str]]:
     """``forecaster``'s prediction per slot of ``window`` after
     HomeBatteryAssist's final check: a missing, negative, non-finite or absurd
@@ -151,7 +151,7 @@ def forecast_consumption(
     correct: Callable[[float, datetime], float] | None = None,
     forecaster: Forecaster | None = None,
     temperatures: Sequence[float | None] | None = None,
-    temperature: TemperatureModel | None = None,
+    temperature: TemperatureEffect | None = None,
 ) -> list[ForecastSlot]:
     """Expected consumption per slot of ``window`` (empty without history),
     by ``forecaster`` (default: the built-in profile).

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from typing import Any, NotRequired, TypedDict
 
@@ -36,6 +37,9 @@ class ConsumptionRecord(TypedDict):
     vacation: NotRequired[bool]  # measured in vacation mode: not learned from
     heating_w: NotRequired[float]  # average power of heating/cooling (part of house)
     temp_c: NotRequired[float]  # average outdoor temperature (°C)
+    # per heating/cooling zone (subentry id): average power "w" and, when
+    # measured, room temperature "in" and own outdoor temperature "out"
+    zones: NotRequired[dict[str, dict[str, float]]]
 
 
 def _valid(record: object) -> bool:
@@ -86,6 +90,9 @@ class ConsumptionHistory:
         self._temp_s = 0.0
         self._last_heating: float | None = None
         self._last_temp: float | None = None
+        # zone -> [sum w*s, s, sum in*s, s, sum out*s, s]
+        self._zone_sums: dict[str, list[float]] = {}
+        self._last_zones: Mapping[str, tuple[float | None, ...]] | None = None
         self._pv_ws = 0.0
         self._pv_s = 0.0
         self._battery_ws = 0.0
@@ -149,6 +156,7 @@ class ConsumptionHistory:
         phases: tuple[tuple[float, ...], tuple[float, ...]] | None = None,
         heating: float | None = None,
         temperature: float | None = None,
+        zones: Mapping[str, tuple[float | None, ...]] | None = None,
     ) -> None:
         """Register new values (W): house consumption and excluded devices.
 
@@ -169,6 +177,7 @@ class ConsumptionHistory:
         self._last_phases = phases if phases and phases[0] else None
         self._last_heating = heating
         self._last_temp = temperature
+        self._last_zones = zones
 
     @callback
     def close_interval(self, when: datetime) -> ConsumptionRecord | None:
@@ -224,6 +233,8 @@ class ConsumptionHistory:
                 record["heating_w"] = round(self._heating_ws / self._heating_s, 1)
             if self._temp_s > 0:
                 record["temp_c"] = round(self._temp_cs / self._temp_s, 1)
+            if zones := self._zone_record():
+                record["zones"] = zones
             if self._phase_s > 0:
                 record["phase_house_w"] = [
                     round(v / self._phase_s, 1) for v in self._phase_house_ws
@@ -242,6 +253,7 @@ class ConsumptionHistory:
         self._heating_s = 0.0
         self._temp_cs = 0.0
         self._temp_s = 0.0
+        self._zone_sums = {}
         self._pv_ws = 0.0
         self._pv_s = 0.0
         self._battery_ws = 0.0
@@ -267,6 +279,12 @@ class ConsumptionHistory:
             if self._last_temp is not None:
                 self._temp_cs += self._last_temp * seconds
                 self._temp_s += seconds
+            for zone, values in (self._last_zones or {}).items():
+                sums = self._zone_sums.setdefault(zone, [0.0] * 6)
+                for i, value in enumerate(values[:3]):
+                    if value is not None:
+                        sums[2 * i] += value * seconds
+                        sums[2 * i + 1] += seconds
             if self._last_battery is not None:
                 self._battery_ws += self._last_battery * seconds
                 self._battery_s += seconds
@@ -282,6 +300,18 @@ class ConsumptionHistory:
                     self._phase_pv_ws[i] += value * seconds
                 self._phase_s += seconds
         self._last_time = when
+
+    def _zone_record(self) -> dict[str, dict[str, float]]:
+        out: dict[str, dict[str, float]] = {}
+        for zone, sums in self._zone_sums.items():
+            if not sums[1]:
+                continue  # no power: nothing to learn from
+            values = {"w": round(sums[0] / sums[1], 1)}
+            for key, i in (("in", 2), ("out", 4)):
+                if sums[i + 1]:
+                    values[key] = round(sums[i] / sums[i + 1], 1)
+            out[zone] = values
+        return out
 
     def prune(self, now: datetime) -> None:
         """Drop records older than the retention period."""
