@@ -54,6 +54,12 @@ async def test_three_phase_flow(hass: HomeAssistant) -> None:
         "return_l1",
         "return_l2",
         "return_l3",
+        "current_l1",
+        "current_l2",
+        "current_l3",
+        "voltage_l1",
+        "voltage_l2",
+        "voltage_l3",
     }
 
     sensors = {
@@ -137,7 +143,12 @@ async def test_single_phase_flow(hass: HomeAssistant) -> None:
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {CONF_MAX_CURRENT: "35"}
     )
-    assert set(result["data_schema"].schema) == {"sensor_l1", "return_l1"}
+    assert set(result["data_schema"].schema) == {
+        "sensor_l1",
+        "return_l1",
+        "current_l1",
+        "voltage_l1",
+    }
 
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {"sensor_l1": "sensor.power_l1"}

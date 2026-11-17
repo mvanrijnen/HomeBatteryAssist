@@ -112,9 +112,11 @@ from .const import (
     CONF_PEAK_INCLUDE_EXCLUDED,
     CONF_PEAK_LIMIT,
     CONF_PHASE,
+    CONF_PHASE_CURRENT_SENSORS,
     CONF_PHASE_MARGIN,
     CONF_PHASE_RETURN_SENSORS,
     CONF_PHASE_SENSORS,
+    CONF_PHASE_VOLTAGE_SENSORS,
     CONF_PHASES,
     CONF_PLAN_MODE,
     CONF_PLANNING_HORIZON,
@@ -305,14 +307,27 @@ PHASE_SENSOR_SELECTOR = EntitySelector(
 )
 
 
+CURRENT_SENSOR_SELECTOR = EntitySelector(
+    EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.CURRENT)
+)
+VOLTAGE_SENSOR_SELECTOR = EntitySelector(
+    EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.VOLTAGE)
+)
+
+
 def sensors_schema(phases: int) -> vol.Schema:
-    """Build the sensor step schema for the given number of phases."""
+    """Build the sensor step schema for the given number of phases: power
+    (and return) per phase, then optional current and voltage per phase."""
     schema: dict[Any, Any] = {}
     for key, return_key in zip(
         phase_sensor_keys(phases), phase_return_sensor_keys(phases), strict=True
     ):
         schema[vol.Required(key)] = PHASE_SENSOR_SELECTOR
         schema[vol.Optional(return_key)] = PHASE_SENSOR_SELECTOR
+    for key in CONF_PHASE_CURRENT_SENSORS[:phases]:
+        schema[vol.Optional(key)] = CURRENT_SENSOR_SELECTOR
+    for key in CONF_PHASE_VOLTAGE_SENSORS[:phases]:
+        schema[vol.Optional(key)] = VOLTAGE_SENSOR_SELECTOR
     return vol.Schema(schema)
 
 

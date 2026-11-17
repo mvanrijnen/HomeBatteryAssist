@@ -162,6 +162,10 @@ FORECAST_UPDATE_INTERVAL: Final = timedelta(minutes=DEFAULT_FORECAST_INTERVAL)
 # plus an optional separate export (return) sensor.
 CONF_PHASE_SENSORS: Final = ("sensor_l1", "sensor_l2", "sensor_l3")
 CONF_PHASE_RETURN_SENSORS: Final = ("return_l1", "return_l2", "return_l3")
+# Optional per phase: the current (A) and voltage (V), for the phase limits
+# (the main fuse sees current; without them: power / 230 V).
+CONF_PHASE_CURRENT_SENSORS: Final = ("current_l1", "current_l2", "current_l3")
+CONF_PHASE_VOLTAGE_SENSORS: Final = ("voltage_l1", "voltage_l2", "voltage_l3")
 
 # Subentries (any number of each), each with a name, sensor and optional phase:
 # - a PV production measurement (added to the grid measurement)

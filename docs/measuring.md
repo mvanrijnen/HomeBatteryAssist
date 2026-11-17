@@ -54,3 +54,13 @@ A peak that **comes back regularly** — on at least half of the days of that da
 **House consumption** = grid + PV − excluded devices − battery charging, plus grid import/export, PV power and the load per phase as % of the main fuse.
 
 Consumption is kept as history (28 days) for the [consumption forecast](forecasting.md#consumption); past consumption can be imported once from Home Assistant's statistics.
+
+## Current per phase
+
+The main fuse protects against **current**, not power: with standby devices, chargers and motors (power factor below 1) more current flows than power / 230 V suggests — at night easily 1 A on a phase that uses 30 W. So HomeBatteryAssist uses the current per phase wherever it can:
+
+- **measured**: a directly read meter that sends it (SMA Home Manager, HomeWizard P1, Shelly 3EM, IAMMETER), or the optional **current sensors** per phase in the grid connection settings (with your own sensors);
+- else **power / (measured voltage × power factor)**, with a voltage sensor or a meter that sends the voltage;
+- else **power / 230 V**.
+
+The history keeps the measured current per phase; from it the current that flows besides the power is learned per phase, and the battery plan counts with it for the coming slots. The battery's own share is converted with the measured voltage of its phase.

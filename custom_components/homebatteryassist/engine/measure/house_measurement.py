@@ -49,6 +49,8 @@ from ...const import (
     CONF_METER_ADDRESS,
     CONF_METER_SOURCE,
     CONF_PHASE,
+    CONF_PHASE_CURRENT_SENSORS,
+    CONF_PHASE_VOLTAGE_SENSORS,
     CONF_PHASES,
     CONF_PV_ADDRESS,
     CONF_PV_DRIVER,
@@ -175,6 +177,13 @@ class MeasurementInput:
                 )
             ]
         )
+        # Optional current (A) and voltage (V) sensors per phase.
+        self.current_sensors = [
+            entry.data.get(k) or None for k in CONF_PHASE_CURRENT_SENSORS[:phases]
+        ]
+        self.voltage_sensors = [
+            entry.data.get(k) or None for k in CONF_PHASE_VOLTAGE_SENSORS[:phases]
+        ]
         self._unsub_direct: CALLBACK_TYPE | None = None
         self.pv_sources = _subentry_devices(entry, SUBENTRY_PV_SOURCE)
         self.excluded_loads = _subentry_devices(entry, SUBENTRY_EXCLUDED_LOAD)
@@ -346,6 +355,9 @@ class MeasurementInput:
                 phase_w.append(round(value - abs(returned), 1))
         if missing:
             return None, missing
+        if not self.direct:
+            phase_a = self._per_phase(self.current_sensors, len(phase_w)) or ()
+            phase_v = self._per_phase(self.voltage_sensors, len(phase_w)) or ()
         grid = round(sum(phase_w), 1)
         pv = round(
             self._sum_abs(self.pv_sensors)
@@ -416,6 +428,25 @@ class MeasurementInput:
             phase_v,
             phase_pf,
         ), []
+
+    def _per_phase(
+        self, sensors: list[str | None], count: int
+    ) -> tuple[float, ...] | None:
+        """Every phase's value of these sensors (A or V), or None when one is
+        missing or unknown."""
+        if len(sensors) != count or not all(sensors):
+            return None
+        values = []
+        for sensor in sensors:
+            state = self.hass.states.get(sensor)  # type: ignore[arg-type]
+            try:
+                value = float(state.state) if state else math.nan
+            except ValueError:
+                return None
+            if not math.isfinite(value) or value < 0:
+                return None
+            values.append(value)
+        return tuple(values)
 
     def _watts(self, entity_id: str) -> float | None:
         return state_to_watts(self.hass.states.get(entity_id))

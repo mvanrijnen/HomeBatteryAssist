@@ -16,7 +16,9 @@ from .direct_reading import (
     SOURCE_SHELLY,
     SOURCE_SHELLY_EM,
     DirectCandidate,
+    PhaseReading,
     PollingMeter,
+    per_phase,
 )
 
 # Shelly 1-phase energy meters: model id prefix
@@ -36,7 +38,7 @@ class ShellyMeter(PollingMeter):
         super().__init__(hass, address)
         self._gen1: bool | None = None  # found out on the first read
 
-    async def _async_read(self) -> tuple[float, ...] | None:
+    async def _async_read(self) -> PhaseReading | None:
         session = async_get_clientsession(self.hass)
         if self._gen1 is not True:
             async with asyncio.timeout(3):
@@ -46,12 +48,12 @@ class ShellyMeter(PollingMeter):
             if response.status != 404:
                 response.raise_for_status()
                 self._gen1 = False
-                return shelly_gen2_phases(await response.json(content_type=None))
+                return shelly_gen2_reading(await response.json(content_type=None))
             self._gen1 = True
         async with asyncio.timeout(3):
             response = await session.get(f"http://{self.address}/status")
             response.raise_for_status()
-            return shelly_gen1_phases(await response.json(content_type=None))
+            return shelly_gen1_reading(await response.json(content_type=None))
 
 
 class ShellyEmMeter(PollingMeter):
@@ -91,6 +93,41 @@ def shelly_gen2_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
     if any(v is None for v in values):
         return None
     return tuple(float(v) for v in values)
+
+
+def shelly_gen2_reading(data: dict[str, Any]) -> PhaseReading | None:
+    """Power, current, voltage and power factor per phase (``a_current``,
+    ``a_voltage``, ``a_pf``, ...) from ``EM.GetStatus``."""
+    power = shelly_gen2_phases(data)
+    if power is None:
+        return None
+    return PhaseReading(
+        power,
+        per_phase([data.get(f"{p}_current") for p in "abc"], 3),
+        per_phase([data.get(f"{p}_voltage") for p in "abc"], 3),
+        _factors([data.get(f"{p}_pf") for p in "abc"]),
+    )
+
+
+def shelly_gen1_reading(data: dict[str, Any], count: int = 3) -> PhaseReading | None:
+    """Power, current, voltage and power factor per phase from a Gen1
+    ``/status`` (``emeters``: ``power``, ``current``, ``voltage``, ``pf``)."""
+    power = shelly_gen1_phases(data, count)
+    if power is None:
+        return None
+    meters = (data.get("emeters") or [])[:count]
+    return PhaseReading(
+        power,
+        per_phase([m.get("current") for m in meters], count),
+        per_phase([m.get("voltage") for m in meters], count),
+        _factors([m.get("pf") for m in meters]),
+    )
+
+
+def _factors(values: list[Any]) -> tuple[float, ...] | None:
+    """Power factors as 0..1 (a sign only tells the direction)."""
+    numbers = per_phase(values, len(values))
+    return tuple(abs(v) for v in numbers) if numbers else None
 
 
 def shelly_gen1_phases(

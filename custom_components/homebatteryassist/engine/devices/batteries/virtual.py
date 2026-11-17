@@ -232,6 +232,35 @@ class VirtualBatterySimulator:
         ):
             self.step(when)
 
+    def _nominal_devices(
+        self, flow: Any, phases: int
+    ) -> tuple[list[PhaseDevice], dict[str, float]]:
+        """The batteries for the phase checks in current terms: the phase
+        limit and load are current x 230 V, so a battery's power counts as
+        power x 230 / (measured voltage of its phase(s)); ``factor`` per
+        battery (1 without a measured voltage), to convert back after."""
+        voltages = getattr(flow, "phase_v", ()) or ()
+        devices: list[PhaseDevice] = []
+        factor: dict[str, float] = {}
+        for config in self.virtual:
+            device = PhaseDevice.from_config(config, phases)
+            used = (
+                [voltages[device.phase]]
+                if device.phase is not None and device.phase < len(voltages)
+                else list(voltages[:phases])
+            )
+            used = [v for v in used if v > 100]
+            f = NOMINAL_VOLTAGE / (sum(used) / len(used)) if used else 1.0
+            factor[config.id] = f
+            devices.append(
+                replace(
+                    device,
+                    max_charge_w=device.max_charge_w * f,
+                    max_discharge_w=device.max_discharge_w * f,
+                )
+            )
+        return devices, factor
+
     def _hold_without_meter(self, wanted: dict[str, float]) -> dict[str, float]:
         """Without a known grid measurement (meter gone for 10 s, a grid
         sensor unknown) the phase load is unknown: nothing is done (with
@@ -455,9 +484,9 @@ class VirtualBatterySimulator:
         if flow is None or not flow.phase_w:
             return wanted
         phases = len(flow.phase_w)
-        devices = [PhaseDevice.from_config(c, phases) for c in self.virtual]
+        devices, factor = self._nominal_devices(flow, phases)
         result, relieved = relieve(
-            wanted,
+            {i: w * factor[i] for i, w in wanted.items()},
             devices,
             flow.phase_load_w,
             self._limit_w(),
@@ -468,6 +497,7 @@ class VirtualBatterySimulator:
             ],
             can_charge=[c.id for c in self.virtual if socs[c.id] < c.max_soc - 0.01],
         )
+        result = {i: w / factor[i] for i, w in result.items()}
         names = {c.id: c.name for c in self.virtual}
         dutch = (self.hass.config.language or "").startswith("nl")
         self.relief_now = dict(relieved)
@@ -585,13 +615,14 @@ class VirtualBatterySimulator:
             return wanted
         phases = len(flow.phase_w)
         max_current = self._measurements.max_current
-        devices = [PhaseDevice.from_config(c, phases) for c in self.virtual]
+        devices, factor = self._nominal_devices(flow, phases)
         capped, limited = cap_powers(
-            wanted,
+            {i: w * factor[i] for i, w in wanted.items()},
             devices,
             flow.phase_load_w,
             self._limit_w(),
         )
+        capped = {i: w / factor[i] for i, w in capped.items()}
         self.limited_phases = limited
         if limited:
             self._limit_seen = now

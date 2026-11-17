@@ -39,7 +39,16 @@
           "sensor_l2": "Phase L2",
           "return_l2": "Phase L2 return (optional)",
           "sensor_l3": "Phase L3",
-          "return_l3": "Phase L3 return (optional)"
+          "return_l3": "Phase L3 return (optional)",
+          "current_l1": "Phase L1 current (optional)",
+          "current_l2": "Phase L2 current (optional)",
+          "current_l3": "Phase L3 current (optional)",
+          "voltage_l1": "Phase L1 voltage (optional)",
+          "voltage_l2": "Phase L2 voltage (optional)",
+          "voltage_l3": "Phase L3 voltage (optional)"
+        },
+        "data_description": {
+          "current_l1": "Optional: the current (A) per phase, from the same meter. The main fuse sees current; without it the phase protection takes power / voltage (or / 230 V). The voltage (V) per phase makes that more precise."
         }
       },
       "settings": {
@@ -724,7 +733,16 @@
           "sensor_l2": "Phase L2",
           "return_l2": "Phase L2 return (optional)",
           "sensor_l3": "Phase L3",
-          "return_l3": "Phase L3 return (optional)"
+          "return_l3": "Phase L3 return (optional)",
+          "current_l1": "Phase L1 current (optional)",
+          "current_l2": "Phase L2 current (optional)",
+          "current_l3": "Phase L3 current (optional)",
+          "voltage_l1": "Phase L1 voltage (optional)",
+          "voltage_l2": "Phase L2 voltage (optional)",
+          "voltage_l3": "Phase L3 voltage (optional)"
+        },
+        "data_description": {
+          "current_l1": "Optional: the current (A) per phase, from the same meter. The main fuse sees current; without it the phase protection takes power / voltage (or / 230 V). The voltage (V) per phase makes that more precise."
         }
       },
       "defaults": {

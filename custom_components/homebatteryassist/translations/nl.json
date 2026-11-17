@@ -39,7 +39,16 @@
           "sensor_l2": "Fase L2",
           "return_l2": "Fase L2 teruglevering (optioneel)",
           "sensor_l3": "Fase L3",
-          "return_l3": "Fase L3 teruglevering (optioneel)"
+          "return_l3": "Fase L3 teruglevering (optioneel)",
+          "current_l1": "Fase L1 stroom (optioneel)",
+          "current_l2": "Fase L2 stroom (optioneel)",
+          "current_l3": "Fase L3 stroom (optioneel)",
+          "voltage_l1": "Fase L1 spanning (optioneel)",
+          "voltage_l2": "Fase L2 spanning (optioneel)",
+          "voltage_l3": "Fase L3 spanning (optioneel)"
+        },
+        "data_description": {
+          "current_l1": "Optioneel: de stroom (A) per fase, van dezelfde meter. De hoofdzekering ziet stroom; zonder deze sensoren rekent de fasebeveiliging met vermogen / spanning (of / 230 V). De spanning (V) per fase maakt dat preciezer."
         }
       },
       "settings": {
@@ -724,7 +733,16 @@
           "sensor_l2": "Fase L2",
           "return_l2": "Fase L2 teruglevering (optioneel)",
           "sensor_l3": "Fase L3",
-          "return_l3": "Fase L3 teruglevering (optioneel)"
+          "return_l3": "Fase L3 teruglevering (optioneel)",
+          "current_l1": "Fase L1 stroom (optioneel)",
+          "current_l2": "Fase L2 stroom (optioneel)",
+          "current_l3": "Fase L3 stroom (optioneel)",
+          "voltage_l1": "Fase L1 spanning (optioneel)",
+          "voltage_l2": "Fase L2 spanning (optioneel)",
+          "voltage_l3": "Fase L3 spanning (optioneel)"
+        },
+        "data_description": {
+          "current_l1": "Optioneel: de stroom (A) per fase, van dezelfde meter. De hoofdzekering ziet stroom; zonder deze sensoren rekent de fasebeveiliging met vermogen / spanning (of / 230 V). De spanning (V) per fase maakt dat preciezer."
         }
       },
       "defaults": {

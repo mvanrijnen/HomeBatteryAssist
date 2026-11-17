@@ -11,7 +11,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .direct_reading import SOURCE_HOMEWIZARD, DirectCandidate, PollingMeter
+from .direct_reading import (
+    SOURCE_HOMEWIZARD,
+    DirectCandidate,
+    PhaseReading,
+    PollingMeter,
+    per_phase,
+)
 
 # HomeWizard meters (product type = device model id) -> phases (None: depends
 # on the smart meter). Energy sockets and water meters are no grid meters.
@@ -29,8 +35,8 @@ class HomeWizardP1(PollingMeter):
 
     label = SOURCE_HOMEWIZARD
 
-    async def _async_read(self) -> tuple[float, ...] | None:
-        return homewizard_phases(await read_homewizard(self.hass, self.address))
+    async def _async_read(self) -> PhaseReading | None:
+        return homewizard_reading(await read_homewizard(self.hass, self.address))
 
 
 async def read_homewizard(hass: HomeAssistant, address: str) -> dict[str, Any]:
@@ -50,6 +56,21 @@ def homewizard_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
     if values[1] is None or values[2] is None:
         return (float(values[0]),)
     return tuple(float(v) for v in values)
+
+
+def homewizard_reading(data: dict[str, Any]) -> PhaseReading | None:
+    """Power, and current and voltage per phase when the meter gives them
+    (``active_current_l1_a``, ``active_voltage_l1_v``; a P1 meter)."""
+    power = homewizard_phases(data)
+    if power is None:
+        return None
+    count = len(power)
+    numbers = range(1, count + 1)
+    return PhaseReading(
+        power,
+        per_phase([data.get(f"active_current_l{n}_a") for n in numbers], count),
+        per_phase([data.get(f"active_voltage_l{n}_v") for n in numbers], count),
+    )
 
 
 def find_homewizard(hass: HomeAssistant) -> list[DirectCandidate]:

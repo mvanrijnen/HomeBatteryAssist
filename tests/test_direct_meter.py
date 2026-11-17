@@ -266,3 +266,77 @@ def test_phase_load_is_about_current() -> None:
         2000.0, 0.0, 0.0, 0.0, 2000.0, (2000.0,), phase_v=(200.0,), phase_pf=(0.8,)
     )
     assert voltage.phase_current(0) == 12.5  # 2000 / (200 x 0.8)
+
+
+def test_readings_with_current_and_voltage() -> None:
+    """HomeWizard P1, Shelly 3EM (Gen1 and Gen2) and IAMMETER: current and
+    voltage per phase too, when the meter gives them."""
+    from custom_components.homebatteryassist.engine.devices.meters.homewizard import (
+        homewizard_reading,
+    )
+    from custom_components.homebatteryassist.engine.devices.meters.iammeter import (
+        iammeter_reading,
+    )
+    from custom_components.homebatteryassist.engine.devices.meters.shelly import (
+        shelly_gen1_reading,
+        shelly_gen2_reading,
+    )
+
+    hw = homewizard_reading(
+        {
+            **{f"active_power_l{n}_w": 100.0 * n for n in (1, 2, 3)},
+            **{f"active_current_l{n}_a": 1.5 * n for n in (1, 2, 3)},
+            **{f"active_voltage_l{n}_v": 230.0 + n for n in (1, 2, 3)},
+        }
+    )
+    assert hw.phase_w == (100.0, 200.0, 300.0) and hw.phase_a == (1.5, 3.0, 4.5)
+    assert hw.phase_v == (231.0, 232.0, 233.0)
+    assert homewizard_reading({"active_power_l1_w": 5.0}).phase_a is None
+    gen2 = shelly_gen2_reading(
+        {
+            **{f"{p}_act_power": 10.0 for p in "abc"},
+            **{f"{p}_current": 0.5 for p in "abc"},
+            **{f"{p}_voltage": 229.0 for p in "abc"},
+            **{f"{p}_pf": -0.9 for p in "abc"},
+        }
+    )
+    assert gen2.phase_a == (0.5, 0.5, 0.5) and gen2.phase_pf == (0.9, 0.9, 0.9)
+    gen1 = shelly_gen1_reading(
+        {"emeters": [{"power": 50.0, "current": 0.3, "voltage": 231.0, "pf": 0.7}] * 3}
+    )
+    assert gen1.phase_w == (50.0, 50.0, 50.0) and gen1.phase_v == (231.0,) * 3
+    iam = iammeter_reading(
+        {"Datas": [[230.1, 2.5, 500.0], [231.0, 0.1, -20.0], [229.0, 1.0, 200.0]]}
+    )
+    assert iam.phase_a == (2.5, 0.1, 1.0) and iam.phase_v == (230.1, 231.0, 229.0)
+
+
+def test_reactive_current_learned_per_phase(hass: HomeAssistant) -> None:
+    """From measured power and current per phase: the current besides the
+    power (as W at 230 V); the plan's load counts with it."""
+    from datetime import datetime
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.homebatteryassist.engine.forecast.phase_shares import (
+        PhaseProfile,
+    )
+
+    start = datetime(2026, 11, 20, tzinfo=dt_util.UTC).isoformat()
+    records = [
+        {
+            "start": start,
+            "minutes": 15,
+            "avg_w": 300.0,
+            "coverage": 1.0,
+            "phase_grid_w": [300.0, 30.0],
+            # L1 power factor 1; L2: 30 W but 1 A (230 VA)
+            "phase_a": [300.0 / 230, 1.0],
+        }
+    ] * 4
+    profile = PhaseProfile(records, 2)
+    assert profile.reactive[0] == 0.0
+    assert abs(profile.reactive[1] - (230.0**2 - 30.0**2) ** 0.5) < 0.2
+    assert profile._with_reactive(0.0, 228.0) == 228.0  # nothing on, still current
+    assert profile._with_reactive(-500.0, 0.0) == -500.0
+    assert PhaseProfile(records[:3], 2).reactive == [0.0, 0.0]  # too little yet

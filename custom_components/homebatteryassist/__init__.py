@@ -277,6 +277,7 @@ async def async_setup_entry(
             forecast.outdoor_temperature(),
             {zone.zone_id: zone.read(hass) for zone in forecast.zones} or None,
             measurements.take_spike_wh(),
+            (flow.phase_w, flow.phase_a) if flow and flow.phase_a else None,
         )
 
     measurements.async_add_listener(_record)

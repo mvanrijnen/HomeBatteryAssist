@@ -58,7 +58,7 @@ One file per brand, sharing `direct_reading.py` (reading about once a second; a 
 | `shelly.py` | Shelly Pro 3EM / 3EM / EM / Pro EM, local API | from the API documentation |
 | `iammeter.py` | Iammeter WEM3080 / WEM3080T, local API | from the API documentation |
 
-`discovery.py` finds these meters in Home Assistant and creates the right reader; `__init__.py` lists them (`DRIVERS`). Meters can also be read through the sensors of their own integration (`via_ha_integration.py`, HomeWizard P1 recognised). `template.py` is an example of a new meter. The same drivers serve every role: the grid connection, a PV source (a kWh meter on the inverter's line) and a battery (a kWh meter on the battery's line, see below). The role is a setting; the folder follows brand and type.
+Besides the power per phase every meter driver also reads the **current, voltage and power factor per phase** when the meter gives them (SMA Home Manager: current, voltage and power factor, verified; HomeWizard P1: current and voltage; Shelly 3EM: current, voltage and power factor; IAMMETER: current and voltage), for the phase protection: the main fuse sees current, not power. `discovery.py` finds these meters in Home Assistant and creates the right reader; `__init__.py` lists them (`DRIVERS`). Meters can also be read through the sensors of their own integration (`via_ha_integration.py`, HomeWizard P1 recognised). `template.py` is an example of a new meter. The same drivers serve every role: the grid connection, a PV source (a kWh meter on the inverter's line) and a battery (a kWh meter on the battery's line, see below). The role is a setting; the folder follows brand and type.
 
 ## Supported now
 

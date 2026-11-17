@@ -55,6 +55,26 @@ class DirectCandidate:
     phases: int | None  # None: ask (or take it from the meter's sensors)
 
 
+@dataclass(frozen=True, slots=True)
+class PhaseReading:
+    """One reading: power per phase (W, + import / - export) and, when the
+    meter gives them, current (A), voltage (V) and power factor per phase."""
+
+    phase_w: tuple[float, ...]
+    phase_a: tuple[float, ...] | None = None
+    phase_v: tuple[float, ...] | None = None
+    phase_pf: tuple[float, ...] | None = None
+
+
+def per_phase(values: list[Any], count: int) -> tuple[float, ...] | None:
+    """``count`` numbers, or None when one is missing or not a number."""
+    try:
+        numbers = tuple(float(v) for v in values[:count])
+    except (TypeError, ValueError):
+        return None
+    return numbers if len(numbers) == count else None
+
+
 class DirectMeter:
     """Latest grid power per phase from a directly read meter."""
 
@@ -181,8 +201,12 @@ class PollingMeter(DirectMeter):
         if self._failed:
             _LOGGER.info("Reading %s again", self.address)
         self._failed = False
-        if phases:
+        if isinstance(phases, PhaseReading):
+            self.phase_v, self.phase_pf = phases.phase_v, phases.phase_pf
+            if phases.phase_w:
+                self._set(phases.phase_w, phases.phase_a)
+        elif phases:
             self._set(phases)
 
-    async def _async_read(self) -> tuple[float, ...] | None:
+    async def _async_read(self) -> tuple[float, ...] | PhaseReading | None:
         raise NotImplementedError

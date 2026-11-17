@@ -34,6 +34,10 @@ class ConsumptionRecord(TypedDict):
     battery_w: NotRequired[float]  # average battery power, + charging / - discharging
     phase_house_w: NotRequired[list[float]]  # average house consumption per phase
     phase_pv_w: NotRequired[list[float]]  # average PV production per phase
+    # With a meter that measures current: net grid power (W) and current (A)
+    # per phase, to learn the current that flows besides the power.
+    phase_grid_w: NotRequired[list[float]]
+    phase_a: NotRequired[list[float]]
     vacation: NotRequired[bool]  # measured in vacation mode: not learned from
     heating_w: NotRequired[float]  # average power of heating/cooling (part of house)
     temp_c: NotRequired[float]  # average outdoor temperature (°C)
@@ -104,6 +108,12 @@ class ConsumptionHistory:
         self._last_phases: tuple[tuple[float, ...], tuple[float, ...]] | None = None
         self._phase_house_ws: list[float] = []
         self._phase_pv_ws: list[float] = []
+        self._last_grid_phases: tuple[tuple[float, ...], tuple[float, ...]] | None = (
+            None
+        )
+        self._grid_ws: list[float] = []  # net grid W x s per phase
+        self._amp_s: list[float] = []  # A x s per phase
+        self._grid_s = 0.0
         self._phase_s = 0.0
         self._unsub_timer: CALLBACK_TYPE | None = None
 
@@ -161,6 +171,7 @@ class ConsumptionHistory:
         temperature: float | None = None,
         zones: Mapping[str, tuple[float | None, ...]] | None = None,
         spike_wh: float = 0.0,
+        grid_phases: tuple[tuple[float, ...], tuple[float, ...]] | None = None,
     ) -> None:
         """Register new values (W): house consumption and excluded devices.
 
@@ -182,6 +193,11 @@ class ConsumptionHistory:
         self._last_heating = heating
         self._last_temp = temperature
         self._last_zones = zones
+        self._last_grid_phases = (
+            grid_phases
+            if grid_phases and len(grid_phases[0]) == len(grid_phases[1])
+            else None
+        )
         self._spike_wh += spike_wh
 
     @callback
@@ -251,6 +267,11 @@ class ConsumptionHistory:
                 record["phase_pv_w"] = [
                     round(v / self._phase_s, 1) for v in self._phase_pv_ws
                 ]
+            if self._grid_s > 0:
+                record["phase_grid_w"] = [
+                    round(v / self._grid_s, 1) for v in self._grid_ws
+                ]
+                record["phase_a"] = [round(v / self._grid_s, 2) for v in self._amp_s]
             self.records.append(record)
             self.prune(self._interval_start)
             self._store.async_delay_save(self._data, SAVE_DELAY)
@@ -271,6 +292,9 @@ class ConsumptionHistory:
         self._measured_s = 0.0
         self._phase_house_ws = []
         self._phase_pv_ws = []
+        self._grid_ws = []
+        self._amp_s = []
+        self._grid_s = 0.0
         self._phase_s = 0.0
         return record
 
@@ -309,6 +333,16 @@ class ConsumptionHistory:
                 for i, value in enumerate(pv[: len(house)]):
                     self._phase_pv_ws[i] += value * seconds
                 self._phase_s += seconds
+            if self._last_grid_phases is not None:
+                grid, amps = self._last_grid_phases
+                if len(self._grid_ws) != len(grid):
+                    self._grid_ws = [0.0] * len(grid)
+                    self._amp_s = [0.0] * len(grid)
+                    self._grid_s = 0.0
+                for i, (watts, current) in enumerate(zip(grid, amps, strict=True)):
+                    self._grid_ws[i] += watts * seconds
+                    self._amp_s[i] += current * seconds
+                self._grid_s += seconds
         self._last_time = when
 
     def _zone_record(self) -> dict[str, dict[str, float]]:
