@@ -1180,6 +1180,214 @@
       },
       "battery_realized_value": {
         "name": "Gerealiseerd rendement"
+      },
+      "phase_discharge": {
+        "name": "Fase ontladen",
+        "state": {
+          "active": "Nu bezig",
+          "planned": "Gepland",
+          "none": "Niet gepland"
+        },
+        "state_attributes": {
+          "current_start": {
+            "name": "Nu: begin"
+          },
+          "current_end": {
+            "name": "Nu: einde"
+          },
+          "current_minutes": {
+            "name": "Nu: minuten"
+          },
+          "current_kwh": {
+            "name": "Nu: kWh"
+          },
+          "current_price": {
+            "name": "Nu: gemiddelde prijs"
+          },
+          "current_reason": {
+            "name": "Nu: waarom"
+          },
+          "current_batteries": {
+            "name": "Nu: kWh per batterij"
+          },
+          "next_start": {
+            "name": "Volgende: begin"
+          },
+          "next_end": {
+            "name": "Volgende: einde"
+          },
+          "next_minutes": {
+            "name": "Volgende: minuten"
+          },
+          "next_kwh": {
+            "name": "Volgende: kWh"
+          },
+          "next_price": {
+            "name": "Volgende: gemiddelde prijs"
+          },
+          "next_reason": {
+            "name": "Volgende: waarom"
+          },
+          "next_batteries": {
+            "name": "Volgende: kWh per batterij"
+          }
+        }
+      },
+      "phase_charge_grid": {
+        "name": "Fase laden (net)",
+        "state": {
+          "active": "Nu bezig",
+          "planned": "Gepland",
+          "none": "Niet gepland"
+        },
+        "state_attributes": {
+          "current_start": {
+            "name": "Nu: begin"
+          },
+          "current_end": {
+            "name": "Nu: einde"
+          },
+          "current_minutes": {
+            "name": "Nu: minuten"
+          },
+          "current_kwh": {
+            "name": "Nu: kWh"
+          },
+          "current_price": {
+            "name": "Nu: gemiddelde prijs"
+          },
+          "current_reason": {
+            "name": "Nu: waarom"
+          },
+          "current_batteries": {
+            "name": "Nu: kWh per batterij"
+          },
+          "next_start": {
+            "name": "Volgende: begin"
+          },
+          "next_end": {
+            "name": "Volgende: einde"
+          },
+          "next_minutes": {
+            "name": "Volgende: minuten"
+          },
+          "next_kwh": {
+            "name": "Volgende: kWh"
+          },
+          "next_price": {
+            "name": "Volgende: gemiddelde prijs"
+          },
+          "next_reason": {
+            "name": "Volgende: waarom"
+          },
+          "next_batteries": {
+            "name": "Volgende: kWh per batterij"
+          }
+        }
+      },
+      "phase_charge_pv": {
+        "name": "Fase laden (zon)",
+        "state": {
+          "active": "Nu bezig",
+          "planned": "Gepland",
+          "none": "Niet gepland"
+        },
+        "state_attributes": {
+          "current_start": {
+            "name": "Nu: begin"
+          },
+          "current_end": {
+            "name": "Nu: einde"
+          },
+          "current_minutes": {
+            "name": "Nu: minuten"
+          },
+          "current_kwh": {
+            "name": "Nu: kWh"
+          },
+          "current_price": {
+            "name": "Nu: gemiddelde prijs"
+          },
+          "current_reason": {
+            "name": "Nu: waarom"
+          },
+          "current_batteries": {
+            "name": "Nu: kWh per batterij"
+          },
+          "next_start": {
+            "name": "Volgende: begin"
+          },
+          "next_end": {
+            "name": "Volgende: einde"
+          },
+          "next_minutes": {
+            "name": "Volgende: minuten"
+          },
+          "next_kwh": {
+            "name": "Volgende: kWh"
+          },
+          "next_price": {
+            "name": "Volgende: gemiddelde prijs"
+          },
+          "next_reason": {
+            "name": "Volgende: waarom"
+          },
+          "next_batteries": {
+            "name": "Volgende: kWh per batterij"
+          }
+        }
+      },
+      "phase_grid_only": {
+        "name": "Fase alleen net",
+        "state": {
+          "active": "Nu bezig",
+          "planned": "Gepland",
+          "none": "Niet gepland"
+        },
+        "state_attributes": {
+          "current_start": {
+            "name": "Nu: begin"
+          },
+          "current_end": {
+            "name": "Nu: einde"
+          },
+          "current_minutes": {
+            "name": "Nu: minuten"
+          },
+          "current_kwh": {
+            "name": "Nu: kWh"
+          },
+          "current_price": {
+            "name": "Nu: gemiddelde prijs"
+          },
+          "current_reason": {
+            "name": "Nu: waarom"
+          },
+          "current_batteries": {
+            "name": "Nu: kWh per batterij"
+          },
+          "next_start": {
+            "name": "Volgende: begin"
+          },
+          "next_end": {
+            "name": "Volgende: einde"
+          },
+          "next_minutes": {
+            "name": "Volgende: minuten"
+          },
+          "next_kwh": {
+            "name": "Volgende: kWh"
+          },
+          "next_price": {
+            "name": "Volgende: gemiddelde prijs"
+          },
+          "next_reason": {
+            "name": "Volgende: waarom"
+          },
+          "next_batteries": {
+            "name": "Volgende: kWh per batterij"
+          }
+        }
       }
     },
     "button": {

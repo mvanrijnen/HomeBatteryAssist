@@ -104,6 +104,18 @@
       },
       "battery_realized_value": {
         "default": "mdi:cash-plus"
+      },
+      "phase_discharge": {
+        "default": "mdi:battery-arrow-down-outline"
+      },
+      "phase_charge_grid": {
+        "default": "mdi:transmission-tower-import"
+      },
+      "phase_charge_pv": {
+        "default": "mdi:solar-power-variant"
+      },
+      "phase_grid_only": {
+        "default": "mdi:transmission-tower"
       }
     },
     "button": {

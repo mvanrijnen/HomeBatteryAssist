@@ -23,6 +23,8 @@ from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME
 from ..engine.coordinator import ForecastCoordinator
+from ..engine.explain.plan_phases import KINDS as PHASE_KINDS
+from ..engine.explain.plan_phases import current_and_next, phase_attributes
 from ..engine.measure.house_measurement import MeasurementInput, PowerFlow
 from ..models import HomeBatteryAssistConfigEntry
 from .batteries import (
@@ -59,6 +61,8 @@ async def async_setup_entry(
     batteries = entry.runtime_data.batteries
     if batteries.configs:
         main.append(BatteryForecastSensor(entry))
+        # The plan as phases: discharging, charging (grid / solar), grid only.
+        main += [PlanPhaseSensor(entry, kind) for kind in PHASE_KINDS]
     if any(not c.virtual for c in batteries.configs):
         main += [
             BatteriesTotalSensor(entry, description, main_device_info(entry))
@@ -69,10 +73,18 @@ async def async_setup_entry(
     for config in batteries.configs:
         async_add_entities(
             [
-                BatterySensor(
-                    entry, config.id, d, source_device(hass, config.soc_sensor)
-                )
-                for d in BATTERY_SENSORS
+                *(
+                    BatterySensor(
+                        entry, config.id, d, source_device(hass, config.soc_sensor)
+                    )
+                    for d in BATTERY_SENSORS
+                ),
+                # Its share of the battery phases of the plan.
+                *(
+                    PlanPhaseSensor(entry, kind, config.id)
+                    for kind in PHASE_KINDS
+                    if kind != "grid_only"
+                ),
             ],
             config_subentry_id=config.id,
         )
@@ -372,6 +384,71 @@ class BatteryForecastSensor(
                 }
                 for s in slots
             ],
+        }
+
+
+class PlanPhaseSensor(
+    HomeBatteryAssistEntity, CoordinatorEntity[ForecastCoordinator], SensorEntity
+):
+    """One kind of phase of the plan (discharging, charging from the grid,
+    charging with solar, grid only): running now, planned or not; the current
+    and the next phase (start, end, minutes, kWh, price, reason) in the
+    attributes. With ``battery_id``: that battery's share, on its device."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+
+    def __init__(
+        self,
+        entry: HomeBatteryAssistConfigEntry,
+        kind: str,
+        battery_id: str | None = None,
+    ) -> None:
+        """Initialize."""
+        CoordinatorEntity.__init__(self, entry.runtime_data.forecast)
+        HomeBatteryAssistEntity.__init__(self, entry, f"phase_{kind}")
+        self._attr_options = ["active", "planned", "none"]
+        self._kind = kind
+        self._battery_id = battery_id
+        self._batteries = entry.runtime_data.batteries
+        if battery_id is not None:
+            self._attr_unique_id = f"{battery_id}_phase_{kind}"
+            self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, battery_id)})
+
+    def _phases(self):
+        data = self.coordinator.data
+        configs = self._batteries.configs
+        reserve = self.coordinator.rules.reserve_soc
+        capacity = sum(c.capacity_kwh for c in configs) or 1.0
+        floor = (
+            sum(max(c.min_soc, reserve) * c.capacity_kwh for c in configs) / capacity
+        )
+        current, following = current_and_next(
+            data.battery,
+            self._kind,
+            dt_util.utcnow(),
+            data.plan_mode,
+            floor,
+            self.hass.config.language if self.hass else None,
+        )
+        shares = {c.id: (c.name, c.capacity_kwh / capacity) for c in configs}
+        return current, following, shares
+
+    @property
+    def native_value(self) -> str:
+        """Running now, planned later, or not in the planning window."""
+        current, following, _ = self._phases()
+        return "active" if current else "planned" if following else "none"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The current and the next phase."""
+        current, following, shares = self._phases()
+        share = 1.0
+        if self._battery_id is not None:
+            share = shares.get(self._battery_id, ("", 0.0))[1]
+        return {
+            **phase_attributes(current, "current_", shares, share),
+            **phase_attributes(following, "next_", shares, share),
         }
 
 

@@ -1180,6 +1180,214 @@
       },
       "battery_realized_value": {
         "name": "Realised value"
+      },
+      "phase_discharge": {
+        "name": "Phase discharging",
+        "state": {
+          "active": "Running now",
+          "planned": "Planned",
+          "none": "Not planned"
+        },
+        "state_attributes": {
+          "current_start": {
+            "name": "Current: start"
+          },
+          "current_end": {
+            "name": "Current: end"
+          },
+          "current_minutes": {
+            "name": "Current: minutes"
+          },
+          "current_kwh": {
+            "name": "Current: kWh"
+          },
+          "current_price": {
+            "name": "Current: average price"
+          },
+          "current_reason": {
+            "name": "Current: why"
+          },
+          "current_batteries": {
+            "name": "Current: kWh per battery"
+          },
+          "next_start": {
+            "name": "Next: start"
+          },
+          "next_end": {
+            "name": "Next: end"
+          },
+          "next_minutes": {
+            "name": "Next: minutes"
+          },
+          "next_kwh": {
+            "name": "Next: kWh"
+          },
+          "next_price": {
+            "name": "Next: average price"
+          },
+          "next_reason": {
+            "name": "Next: why"
+          },
+          "next_batteries": {
+            "name": "Next: kWh per battery"
+          }
+        }
+      },
+      "phase_charge_grid": {
+        "name": "Phase charging (grid)",
+        "state": {
+          "active": "Running now",
+          "planned": "Planned",
+          "none": "Not planned"
+        },
+        "state_attributes": {
+          "current_start": {
+            "name": "Current: start"
+          },
+          "current_end": {
+            "name": "Current: end"
+          },
+          "current_minutes": {
+            "name": "Current: minutes"
+          },
+          "current_kwh": {
+            "name": "Current: kWh"
+          },
+          "current_price": {
+            "name": "Current: average price"
+          },
+          "current_reason": {
+            "name": "Current: why"
+          },
+          "current_batteries": {
+            "name": "Current: kWh per battery"
+          },
+          "next_start": {
+            "name": "Next: start"
+          },
+          "next_end": {
+            "name": "Next: end"
+          },
+          "next_minutes": {
+            "name": "Next: minutes"
+          },
+          "next_kwh": {
+            "name": "Next: kWh"
+          },
+          "next_price": {
+            "name": "Next: average price"
+          },
+          "next_reason": {
+            "name": "Next: why"
+          },
+          "next_batteries": {
+            "name": "Next: kWh per battery"
+          }
+        }
+      },
+      "phase_charge_pv": {
+        "name": "Phase charging (solar)",
+        "state": {
+          "active": "Running now",
+          "planned": "Planned",
+          "none": "Not planned"
+        },
+        "state_attributes": {
+          "current_start": {
+            "name": "Current: start"
+          },
+          "current_end": {
+            "name": "Current: end"
+          },
+          "current_minutes": {
+            "name": "Current: minutes"
+          },
+          "current_kwh": {
+            "name": "Current: kWh"
+          },
+          "current_price": {
+            "name": "Current: average price"
+          },
+          "current_reason": {
+            "name": "Current: why"
+          },
+          "current_batteries": {
+            "name": "Current: kWh per battery"
+          },
+          "next_start": {
+            "name": "Next: start"
+          },
+          "next_end": {
+            "name": "Next: end"
+          },
+          "next_minutes": {
+            "name": "Next: minutes"
+          },
+          "next_kwh": {
+            "name": "Next: kWh"
+          },
+          "next_price": {
+            "name": "Next: average price"
+          },
+          "next_reason": {
+            "name": "Next: why"
+          },
+          "next_batteries": {
+            "name": "Next: kWh per battery"
+          }
+        }
+      },
+      "phase_grid_only": {
+        "name": "Phase grid only",
+        "state": {
+          "active": "Running now",
+          "planned": "Planned",
+          "none": "Not planned"
+        },
+        "state_attributes": {
+          "current_start": {
+            "name": "Current: start"
+          },
+          "current_end": {
+            "name": "Current: end"
+          },
+          "current_minutes": {
+            "name": "Current: minutes"
+          },
+          "current_kwh": {
+            "name": "Current: kWh"
+          },
+          "current_price": {
+            "name": "Current: average price"
+          },
+          "current_reason": {
+            "name": "Current: why"
+          },
+          "current_batteries": {
+            "name": "Current: kWh per battery"
+          },
+          "next_start": {
+            "name": "Next: start"
+          },
+          "next_end": {
+            "name": "Next: end"
+          },
+          "next_minutes": {
+            "name": "Next: minutes"
+          },
+          "next_kwh": {
+            "name": "Next: kWh"
+          },
+          "next_price": {
+            "name": "Next: average price"
+          },
+          "next_reason": {
+            "name": "Next: why"
+          },
+          "next_batteries": {
+            "name": "Next: kWh per battery"
+          }
+        }
       }
     },
     "button": {
