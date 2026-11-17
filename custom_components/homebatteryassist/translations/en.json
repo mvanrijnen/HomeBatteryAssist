@@ -212,11 +212,17 @@
             "name": "Weather and outdoor temperature (optional)",
             "description": "For houses that heat or cool with electricity: the consumption forecast follows the weather forecast. Add a heating/cooling device for a cleaner signal.",
             "data": {
+              "weather_source": "Weather source",
               "weather_entity": "Weather entity",
+              "weather_api_key": "API key",
+              "weather_location": "Place",
               "outdoor_temperature_sensor": "Outdoor temperature sensor"
             },
             "data_description": {
-              "weather_entity": "A weather entity with a forecast (e.g. Buienradar, Met.no). Turns the temperature step in the consumption forecast on.",
+              "weather_source": "Where the temperature forecast comes from (a module): a weather entity of your choice, the KNMI integration (found by itself), Weerlive (KNMI, needs a free API key from weerlive.nl) or Open-Meteo (no key needed; best model or the KNMI model). Turns the temperature step in the consumption forecast on.",
+              "weather_entity": "For 'Weather entity': a weather entity with a forecast (e.g. Buienradar, Met.no, KNMI). Hourly forecast first, then the daily minimum/maximum for the days after.",
+              "weather_api_key": "For Weerlive (required) and Open-Meteo (only with a commercial plan). Stored in Home Assistant; only sent to that service.",
+              "weather_location": "For Weerlive and Open-Meteo: 'latitude,longitude' (Weerlive also takes a place name). Empty: the home location of Home Assistant, rounded to about 1 km.",
               "outdoor_temperature_sensor": "Optional, more accurate than the weather entity's current temperature; its history is used to learn right away."
             }
           }
@@ -362,6 +368,15 @@
         "auto": "Automatic (learned)",
         "fixed": "Fixed margin only",
         "off": "No correction"
+      }
+    },
+    "weather_source": {
+      "options": {
+        "weather_entity": "Weather entity (choose below)",
+        "knmi": "KNMI integration",
+        "weerlive": "Weerlive (KNMI, API key)",
+        "open_meteo": "Open-Meteo",
+        "open_meteo_knmi": "Open-Meteo, KNMI model"
       }
     },
     "pv_corrector": {
@@ -614,11 +629,17 @@
             "name": "Weather and outdoor temperature (optional)",
             "description": "For houses that heat or cool with electricity: the consumption forecast follows the weather forecast. Add a heating/cooling device for a cleaner signal.",
             "data": {
+              "weather_source": "Weather source",
               "weather_entity": "Weather entity",
+              "weather_api_key": "API key",
+              "weather_location": "Place",
               "outdoor_temperature_sensor": "Outdoor temperature sensor"
             },
             "data_description": {
-              "weather_entity": "A weather entity with a forecast (e.g. Buienradar, Met.no). Turns the temperature step in the consumption forecast on.",
+              "weather_source": "Where the temperature forecast comes from (a module): a weather entity of your choice, the KNMI integration (found by itself), Weerlive (KNMI, needs a free API key from weerlive.nl) or Open-Meteo (no key needed; best model or the KNMI model). Turns the temperature step in the consumption forecast on.",
+              "weather_entity": "For 'Weather entity': a weather entity with a forecast (e.g. Buienradar, Met.no, KNMI). Hourly forecast first, then the daily minimum/maximum for the days after.",
+              "weather_api_key": "For Weerlive (required) and Open-Meteo (only with a commercial plan). Stored in Home Assistant; only sent to that service.",
+              "weather_location": "For Weerlive and Open-Meteo: 'latitude,longitude' (Weerlive also takes a place name). Empty: the home location of Home Assistant, rounded to about 1 km.",
               "outdoor_temperature_sensor": "Optional, more accurate than the weather entity's current temperature; its history is used to learn right away."
             }
           }
@@ -994,7 +1015,7 @@
       "step": {
         "user": {
           "title": "Heating/cooling",
-          "description": "A heat pump, electric heating or airco. Its consumption stays part of the house consumption, but is measured apart so the forecast can follow the outdoor temperature (set a weather entity in the settings). Add the room temperature (and its own outdoor sensor) to learn this device as a zone of its own.",
+          "description": "A heat pump, electric heating or airco. Its consumption stays part of the house consumption, but is measured apart so the forecast can follow the outdoor temperature (set a weather source in the settings). Add the room temperature (and its own outdoor sensor) to learn this device as a zone of its own.",
           "data": {
             "name": "Name",
             "sensor": "Sensor",
@@ -1015,7 +1036,7 @@
         },
         "reconfigure": {
           "title": "Heating/cooling",
-          "description": "A heat pump, electric heating or airco. Its consumption stays part of the house consumption, but is measured apart so the forecast can follow the outdoor temperature (set a weather entity in the settings). Add the room temperature (and its own outdoor sensor) to learn this device as a zone of its own.",
+          "description": "A heat pump, electric heating or airco. Its consumption stays part of the house consumption, but is measured apart so the forecast can follow the outdoor temperature (set a weather source in the settings). Add the room temperature (and its own outdoor sensor) to learn this device as a zone of its own.",
           "data": {
             "name": "Name",
             "sensor": "Sensor",

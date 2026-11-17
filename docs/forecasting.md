@@ -20,12 +20,19 @@ All forecasters run every cycle; the *Accuracy* tab compares them, so you can ch
 
 A profile follows a sudden cold spell only after days. Houses that heat or cool with electricity (heat pump, electric heating, airco) can let the forecast follow the **weather forecast**:
 
-1. Choose a **weather entity** with a forecast (Buienradar, Met.no, OpenWeatherMap, …) in the settings section *Weather and outdoor temperature*. This turns the temperature step on.
-2. Optional: an **outdoor temperature sensor** — more accurate than the weather entity's current temperature, and its history in Home Assistant is used to learn right away instead of after a week. (The sensors of a zone, below, are not filled in from the history: a new zone learns from the moment it is added.)
+1. Choose a **weather source** in the settings section *Weather and outdoor temperature*. This turns the temperature step on. The weather source is a [module](modules.md):
+   - **Weather entity** — any weather entity with a forecast (Buienradar, Met.no, OpenWeatherMap, KNMI, …), chosen below it.
+   - **KNMI integration** ([golles/ha-knmi](https://github.com/golles/ha-knmi)) — its weather entity is found by itself.
+   - **Weerlive** — the KNMI data of [weerlive.nl](https://weerlive.nl/delen.php) directly, without an integration. Needs a free API key from weerlive.nl (field *API key*); at most 300 requests a day for private use. HomeBatteryAssist asks every 30 minutes (48 a day); an integration with the same key (e.g. KNMI) counts against the same limit.
+   - **Open-Meteo** / **Open-Meteo, KNMI model** — [open-meteo.com](https://open-meteo.com) directly, no key needed for non-commercial use (data CC BY 4.0, *Weather data by Open-Meteo.com*); per hour for 7 days. The KNMI model is HARMONIE for the first days, then ECMWF.
+   - Your own module (see [Modules](modules.md)).
+
+   Weerlive and Open-Meteo use the **home location of Home Assistant** (rounded to about 1 km); the field *Place* is only for another place (`latitude,longitude`; Weerlive also takes a place name). The hourly forecast of a weather entity or Weerlive often reaches only 24–48 hours; after it, the daily minimum and maximum are turned into an hourly course (coldest around 05:00, warmest around 15:00), so the forecast reaches as far as the planning.
+2. Optional: an **outdoor temperature sensor** — more accurate than the weather source's current temperature, and its history in Home Assistant is used to learn right away instead of after a week. (The sensors of a zone, below, are not filled in from the history: a new zone learns from the moment it is added.)
 3. Optional: add the heat pump or airco as a **heating/cooling** device (with its power sensor). It stays part of the house consumption, but is measured apart, which gives a cleaner signal.
 4. Optional, per heating/cooling device: the **room temperature** sensor of the room it heats or cools, and its **own outdoor temperature** sensor (e.g. the outdoor unit of an airco; without it the outdoor temperature of step 1–2 is used). A device with these is a **zone**; several devices (an airco per room) are several zones.
 
-Everything is optional: without a weather entity nothing changes.
+Everything is optional: without a weather source nothing changes.
 
 **What is learned.** Every history interval stores the outdoor temperature (and per zone its power, room and outdoor temperature). From whole days — days instead of hours keep the daily rhythm (cooking, sleeping) out of it — HomeBatteryAssist learns how many W the consumption rises per degree below the **heating point** (heating) and per degree above 22 °C (cooling, a fixed limit); at least 7 days with temperature are needed, and days that hardly differ teach nothing.
 

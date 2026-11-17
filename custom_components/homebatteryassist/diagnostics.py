@@ -88,8 +88,9 @@ async def async_get_config_entry_diagnostics(
             "planner_fallback": data.forecast.plan_fallback,
             "consumption_forecaster": data.forecast.forecaster_key,
             "forecaster_fallback": data.forecast.forecaster_fallback,
-            "weather_entity": (
-                data.forecast.weather.entity_id if data.forecast.weather else None
+            "weather_source": data.forecast.weather_key,
+            "weather": (
+                data.forecast.weather.describe() if data.forecast.weather else None
             ),
             "outdoor_temperature": data.forecast.outdoor_temperature(),
             "temperature_model": (

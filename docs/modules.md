@@ -1,6 +1,6 @@
 # Modules: make HomeBatteryAssist your own
 
-The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [drivers](drivers.md); see [Architecture](architecture.md)). You choose between the built-in ones, and advanced users can add their own without changing the integration. Six kinds can be added as own modules today:
+The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [drivers](drivers.md); see [Architecture](architecture.md)). You choose between the built-in ones, and advanced users can add their own without changing the integration. Seven kinds can be added as own modules today:
 
 | Kind | What it does | Built-in | Own modules in | Choose in the settings |
 |---|---|---|---|---|
@@ -10,10 +10,11 @@ The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [dr
 | **PV forecast source** | Reads a solar forecast | Solar forecast integrations (Forecast.Solar, Solcast, …) | `/config/homebatteryassist/pv_forecasts/` | PV forecast |
 | **PV correction** | Adjusts the PV forecast with what was learned from past forecasts and measured PV | Per lead time, hour and level (default), Per lead time (the original) | `/config/homebatteryassist/pv_corrections/` | PV correction (section *Solar forecast*) |
 | **Spike filter** | Recognises short consumption peaks while they happen | Short peaks above a threshold | `/config/homebatteryassist/spike_filters/` | Spike filter (section *Short peaks*) |
+| **Weather source** | Reads the outdoor temperature now and its forecast per hour | Weather entity, KNMI integration, Weerlive, Open-Meteo, Open-Meteo KNMI model | `/config/homebatteryassist/weather_sources/` | Weather source (section *Weather and outdoor temperature*) |
 
 The built-in modules live in the integration and are updated with it; your own modules live in their own folder under `/config`, so an update never touches them.
 
-The **price sources** (`engine/sources/prices/`: [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (verified), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, or any sensor with prices in its attributes) are modules too; new ones are added to the code for now (`template.py`). The same goes for **weather sources** (`engine/sources/weather/`: a Home Assistant weather entity; `template.py`). Sources still in development (e.g. Tibber) are kept apart in `in_development/` and not offered.
+The **price sources** (`engine/sources/prices/`: [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (verified), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, or any sensor with prices in its attributes) are modules too; new ones are added to the code for now (`template.py`). Sources still in development (e.g. Tibber) are kept apart in `in_development/` and not offered.
 
 ## HomeBatteryAssist keeps the final say
 
@@ -24,6 +25,7 @@ Whatever a module returns, HomeBatteryAssist checks it before it is used:
 - **Tariff**: a missing or absurd price (more than 10 per kWh either way) is replaced by the price the source gave. The accuracy of the price *forecast* is still measured on the source's prices.
 - **PV forecast source**: negative, non-finite or absurd values and hours without a time zone are dropped. The PV correction and the safety margin are applied afterwards.
 - **Spike filter**: the part of the consumption not discharged for stays between 0 and the consumption, a peak's energy between 0 and 5 kWh; anything else counts as no peak. A failing filter is switched off until the next reload (*Why* says so). Regular peaks are always treated as normal consumption, whatever the filter says.
+- **Weather source**: hours without a time zone and temperatures that are not believable (outside −60…60 °C) are dropped; a failing source counts as no forecast (the consumption forecast is then not adjusted for the weather).
 - **PV correction**: a missing, negative, non-finite or absurd value (more than 3 × the forecast + 100 Wh) is replaced by the correction per lead time. Accuracy is always learned on the *raw* forecast, so a correction never feeds back on itself. When the correction is set by hand or switched off (action `set_forecast_correction`), only the correction per lead time is used, as set.
 
 If a chosen module fails, the explanation (*Why*) says so once, the log has the details, and the built-in fallback is used: zero on the meter for a planner, the profile for a forecaster, the source's prices for a tariff. The dashboard's overview shows which planner, forecaster and tariff are active, and marks a fallback.
@@ -50,6 +52,7 @@ Everything stays **advice**: no module controls a battery or any other device.
    | PV forecast source | `engine/sources/pv_forecasts/template.py` (a sensor with a `wh_hours` attribute); `solar_forecast_integrations.py` |
    | PV correction | `engine/evaluation/pv_corrections/template.py` (less in the morning, e.g. a tree); `hour_and_level.py`, `lead_time.py` |
    | Spike filter | `engine/measure/spike_filters/template.py` (never discharge above a level during the day); `short_peaks.py` |
+   | Weather source | `engine/sources/weather/template.py` (a sensor plus day values); `ha_weather_entity.py`, `knmi_integration.py`, `weerlive_api.py`, `open_meteo.py` |
 
 3. Give the class its own `key` and `name`. In a copied built-in module, change the relative imports (`from .base import ...`) into absolute ones (`from custom_components.homebatteryassist.<package>.base import ...`), as in the templates.
 4. Reload HomeBatteryAssist (Settings → Devices & services → HomeBatteryAssist → ⋮ → Reload). Your module appears in the settings as `custom_<key>`.
@@ -87,7 +90,7 @@ class Forecaster:
     ) -> ForecasterResult | list[float | None]: ...
 ```
 
-`data.history` (the consumption records: `start`, `minutes`, `avg_w`, `coverage`, optionally `pv_w`, `excluded_w`, `battery_w`, `vacation`, `heating_w` (heating/cooling devices, part of `avg_w`), `temp_c` (outdoor temperature) and `zones` (per heating/cooling device: `w`, and when measured `in` = room and `out` = own outdoor temperature)), `data.slots` (start, end), `data.now`, `data.interval`, and `data.temperatures` (the forecast outdoor temperature per slot in °C, None where unknown; None without a weather entity). Return the expected consumption per slot in W, or None where you have no idea. Quick, no I/O.
+`data.history` (the consumption records: `start`, `minutes`, `avg_w`, `coverage`, optionally `pv_w`, `excluded_w`, `battery_w`, `vacation`, `heating_w` (heating/cooling devices, part of `avg_w`), `temp_c` (outdoor temperature) and `zones` (per heating/cooling device: `w`, and when measured `in` = room and `out` = own outdoor temperature)), `data.slots` (start, end), `data.now`, `data.interval`, and `data.temperatures` (the forecast outdoor temperature per slot in °C, None where unknown; None without a weather source). Return the expected consumption per slot in W, or None where you have no idea. Quick, no I/O.
 
 The optional [temperature step](forecasting.md#outdoor-temperature-optional) is added to your result afterwards; set `uses_temperature = True` on your class if your forecaster already takes the temperature into account.
 
@@ -116,6 +119,21 @@ class PvForecastSource:
 ```
 
 `async_find` lists the forecasts the source offers (shown in the settings); `async_read` returns one as Wh per clock hour (timezone-aware hour starts). Only read — never control a device; use Home Assistant's shared HTTP session for web services and cache, because the forecast is read every cycle.
+
+### Weather source — `engine/sources/weather/base.py`
+
+```python
+class WeatherSource:
+    key = "my_weather"
+    name = "My weather"
+    settings: WeatherSettings  # entity_id, api_key, location (what the user set)
+
+    def temperature_now(self, hass) -> float | None: ...
+    async def async_forecast(self, hass) -> dict[datetime, float]: ...
+    def describe(self) -> str: ...  # optional: what it reads (diagnostics)
+```
+
+`async_forecast` returns °C per hour (timezone-aware hour starts) as far ahead as it can, and is called every cycle: cache (the built-in ones ask a web service every 30 minutes). `daily_curve` and `combine` in `base.py` turn daily minimum / maximum temperatures into hours after an hourly forecast. Only read; use Home Assistant's shared HTTP session.
 
 ### Spike filter — `engine/measure/spike_filters/base.py`
 

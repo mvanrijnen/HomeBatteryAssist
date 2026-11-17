@@ -60,6 +60,8 @@ from homeassistant.helpers.selector import (
     SelectSelectorConfig,
     SelectSelectorMode,
     TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
     TimeSelector,
 )
 
@@ -144,7 +146,10 @@ from .const import (
     CONF_TEMP_MIN_POWER,
     CONF_TEMPERATURE_SENSOR,
     CONF_VACATION,
+    CONF_WEATHER_API_KEY,
     CONF_WEATHER_ENTITY,
+    CONF_WEATHER_LOCATION,
+    CONF_WEATHER_SOURCE,
     DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
     DEFAULT_EFFICIENCY,
@@ -242,6 +247,11 @@ from .engine.sources.pv_forecasts import (
 )
 from .engine.sources.tariffs import BUILTIN as TARIFFS
 from .engine.sources.tariffs import DEFAULT_TARIFF, async_load_user_tariffs
+from .engine.sources.weather import BUILTIN as WEATHER_SOURCES
+from .engine.sources.weather import (
+    DEFAULT_WEATHER_SOURCE,
+    async_load_user_weather_sources,
+)
 
 PHASES_SCHEMA = vol.Schema(
     {
@@ -399,7 +409,13 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
     ),
     "full_charge": ("full_charge_window_days", "full_charge_day", "full_charge_solar"),
     "notifications": ("notify_targets", "notify_kinds"),
-    "weather": ("weather_entity", "outdoor_temperature_sensor"),
+    "weather": (
+        "weather_source",
+        "weather_entity",
+        "weather_api_key",
+        "weather_location",
+        "outdoor_temperature_sensor",
+    ),
     "temperature": (
         "temperature_limit",
         "temperature_band",
@@ -437,7 +453,10 @@ KEEP_ON_RESET = (
     CONF_PRICE_FORECAST,
     CONF_PV_FORECAST,
     CONF_EXPORT_ENTITIES,
+    CONF_WEATHER_SOURCE,
     CONF_WEATHER_ENTITY,
+    CONF_WEATHER_API_KEY,
+    CONF_WEATHER_LOCATION,
     CONF_OUTDOOR_TEMPERATURE,
 )
 
@@ -552,9 +571,31 @@ async def _flat_settings_schema(
         vol.Optional(CONF_PRICE_FORECAST): EntitySelector(
             EntitySelectorConfig(domain="sensor")
         ),
+        vol.Required(
+            CONF_WEATHER_SOURCE,
+            default=current.get(CONF_WEATHER_SOURCE, DEFAULT_WEATHER_SOURCE),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    *(SelectOptionDict(value=k, label=k) for k in WEATHER_SOURCES),
+                    *(
+                        SelectOptionDict(value=k, label=c.name or k)
+                        for k, c in (
+                            await async_load_user_weather_sources(hass)
+                        ).items()
+                    ),
+                ],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_WEATHER_SOURCE,
+            )
+        ),
         vol.Optional(CONF_WEATHER_ENTITY): EntitySelector(
             EntitySelectorConfig(domain="weather")
         ),
+        vol.Optional(CONF_WEATHER_API_KEY): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.PASSWORD)
+        ),
+        vol.Optional(CONF_WEATHER_LOCATION): TextSelector(),
         vol.Optional(CONF_OUTDOOR_TEMPERATURE): EntitySelector(
             EntitySelectorConfig(domain="sensor", device_class="temperature")
         ),
@@ -884,7 +925,15 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     }
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]
-    for key in (CONF_WEATHER_ENTITY, CONF_OUTDOOR_TEMPERATURE):
+    options[CONF_WEATHER_SOURCE] = user_input.get(
+        CONF_WEATHER_SOURCE, DEFAULT_WEATHER_SOURCE
+    )
+    for key in (
+        CONF_WEATHER_ENTITY,
+        CONF_WEATHER_API_KEY,
+        CONF_WEATHER_LOCATION,
+        CONF_OUTDOOR_TEMPERATURE,
+    ):
         if user_input.get(key):
             options[key] = user_input[key]
     options[CONF_PRICE_SOURCE] = user_input.get(CONF_PRICE_SOURCE, PRICE_SOURCE_SENSOR)

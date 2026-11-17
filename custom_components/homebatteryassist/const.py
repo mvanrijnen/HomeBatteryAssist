@@ -46,6 +46,10 @@ CONF_PRICE_FORECAST: Final = "price_forecast_entity"
 # Optional: outdoor temperature for the consumption forecast.
 CONF_WEATHER_ENTITY: Final = "weather_entity"  # weather.* with a forecast
 CONF_OUTDOOR_TEMPERATURE: Final = "outdoor_temperature_sensor"  # sensor, °C/°F
+# The weather source module (engine/sources/weather) and its settings.
+CONF_WEATHER_SOURCE: Final = "weather_source"
+CONF_WEATHER_API_KEY: Final = "weather_api_key"  # e.g. Weerlive
+CONF_WEATHER_LOCATION: Final = "weather_location"  # "lat,lon"; empty = home
 # Per heating/cooling device (a zone, e.g. a room): its room temperature, and
 # optionally its own outdoor temperature (CONF_OUTDOOR_TEMPERATURE).
 CONF_INDOOR_TEMPERATURE: Final = "indoor_temperature_sensor"

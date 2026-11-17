@@ -77,7 +77,10 @@ from ..const import (
     CONF_TEMP_DISCHARGE,
     CONF_TEMP_LIMIT,
     CONF_TEMP_MIN_POWER,
+    CONF_WEATHER_API_KEY,
     CONF_WEATHER_ENTITY,
+    CONF_WEATHER_LOCATION,
+    CONF_WEATHER_SOURCE,
     DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
     DEFAULT_EXPORT_FACTOR,
@@ -181,7 +184,14 @@ from .sources.pv_forecasts.energy_dashboard_platform import PV_PERIOD
 from .sources.tariffs import BUILTIN as TARIFFS
 from .sources.tariffs import DEFAULT_TARIFF, Tariff, apply_tariff
 from .sources.tariffs.as_price_source import SourceTariff
-from .sources.weather import WeatherEntitySource, valid_temperature
+from .sources.weather import (
+    DEFAULT_WEATHER_SOURCE,
+    WeatherSettings,
+    WeatherSource,
+    checked_forecast,
+    create_weather_source,
+    valid_temperature,
+)
 from .units import state_to_celsius
 
 _LOGGER = logging.getLogger(__name__)
@@ -261,6 +271,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         tariffs: Mapping[str, Tariff] | None = None,
         pv_sources: Mapping[str, PvForecastSource] | None = None,
         pv_correctors: Mapping[str, PvCorrector] | None = None,
+        weather_sources: Mapping[str, type[WeatherSource]] | None = None,
     ) -> None:
         """Initialize."""
         super().__init__(
@@ -385,9 +396,18 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.price_entity: str | None = options.get(CONF_PRICE_FORECAST) or None
         # Optional: outdoor temperature (now and forecast) for the forecast.
-        weather = options.get(CONF_WEATHER_ENTITY) or None
-        self.weather: WeatherEntitySource | None = (
-            WeatherEntitySource(weather) if weather else None
+        # The weather source module (none when not set up).
+        self.weather_key: str = (
+            options.get(CONF_WEATHER_SOURCE) or DEFAULT_WEATHER_SOURCE
+        )
+        self.weather: WeatherSource | None = create_weather_source(
+            self.weather_key,
+            dict(weather_sources or {}),
+            WeatherSettings(
+                entity_id=options.get(CONF_WEATHER_ENTITY) or None,
+                api_key=options.get(CONF_WEATHER_API_KEY) or None,
+                location=options.get(CONF_WEATHER_LOCATION) or None,
+            ),
         )
         self.outdoor_sensor: str | None = options.get(CONF_OUTDOOR_TEMPERATURE) or None
         self.temperature_model: TemperatureEffect | None = None
@@ -1207,7 +1227,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             )
             if value is not None:
                 return value
-        return self.weather.temperature_now(self.hass) if self.weather else None
+        if self.weather is None:
+            return None
+        try:
+            return valid_temperature(self.weather.temperature_now(self.hass))
+        except Exception:  # an own weather source may fail in any way
+            _LOGGER.exception("Weather source %s failed", self.weather_key)
+            return None
 
     async def _async_read_temperature(
         self, window: PlanningWindow, step: timedelta, now: datetime
@@ -1221,9 +1247,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             self.forecast_records(), now, {z.zone_id: z.name for z in self.zones}
         )
         try:
-            hourly = await self.weather.async_forecast(self.hass)
-        except Exception:  # a weather integration may fail in any way
-            _LOGGER.exception("Weather forecast of %s failed", self.weather.entity_id)
+            hourly = checked_forecast(await self.weather.async_forecast(self.hass))
+        except Exception:  # a weather source may fail in any way
+            _LOGGER.exception("Weather forecast of %s failed", self.weather.describe())
             hourly = {}
         self.temperatures = (
             slot_temperatures(list(window.slots(step)), hourly) if hourly else None

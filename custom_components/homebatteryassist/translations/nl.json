@@ -212,11 +212,17 @@
             "name": "Weer en buitentemperatuur (optioneel)",
             "description": "Voor huizen die elektrisch verwarmen of koelen: de verbruiksvoorspelling volgt de weersverwachting. Voeg een apparaat voor verwarming/koeling toe voor een zuiverder signaal.",
             "data": {
+              "weather_source": "Weerbron",
               "weather_entity": "Weer-entiteit",
+              "weather_api_key": "API-sleutel",
+              "weather_location": "Plaats",
               "outdoor_temperature_sensor": "Sensor buitentemperatuur"
             },
             "data_description": {
-              "weather_entity": "Een weer-entiteit met een verwachting (bijv. Buienradar, Met.no). Zet de temperatuurstap in de verbruiksvoorspelling aan.",
+              "weather_source": "Waar de temperatuurverwachting vandaan komt (een module): een weer-entiteit naar keuze, de KNMI-integratie (zelf gevonden), Weerlive (KNMI, gratis API-sleutel van weerlive.nl nodig) of Open-Meteo (geen sleutel nodig; beste model of het KNMI-model). Zet de temperatuurstap in de verbruiksvoorspelling aan.",
+              "weather_entity": "Bij 'Weer-entiteit': een weer-entiteit met een verwachting (bijv. Buienradar, Met.no, KNMI). Eerst de verwachting per uur, daarna de minimum/maximum per dag voor de dagen erna.",
+              "weather_api_key": "Voor Weerlive (verplicht) en Open-Meteo (alleen met een commercieel abonnement). Bewaard in Home Assistant; alleen naar die dienst gestuurd.",
+              "weather_location": "Voor Weerlive en Open-Meteo: 'breedtegraad,lengtegraad' (Weerlive kan ook een plaatsnaam). Leeg: de thuislocatie van Home Assistant, afgerond op ongeveer 1 km.",
               "outdoor_temperature_sensor": "Optioneel, nauwkeuriger dan de huidige temperatuur van de weer-entiteit; de geschiedenis ervan wordt gebruikt om meteen te leren."
             }
           }
@@ -362,6 +368,15 @@
         "auto": "Automatisch (geleerd)",
         "fixed": "Alleen vaste marge",
         "off": "Geen correctie"
+      }
+    },
+    "weather_source": {
+      "options": {
+        "weather_entity": "Weer-entiteit (hieronder kiezen)",
+        "knmi": "KNMI-integratie",
+        "weerlive": "Weerlive (KNMI, API-sleutel)",
+        "open_meteo": "Open-Meteo",
+        "open_meteo_knmi": "Open-Meteo, KNMI-model"
       }
     },
     "pv_corrector": {
@@ -614,11 +629,17 @@
             "name": "Weer en buitentemperatuur (optioneel)",
             "description": "Voor huizen die elektrisch verwarmen of koelen: de verbruiksvoorspelling volgt de weersverwachting. Voeg een apparaat voor verwarming/koeling toe voor een zuiverder signaal.",
             "data": {
+              "weather_source": "Weerbron",
               "weather_entity": "Weer-entiteit",
+              "weather_api_key": "API-sleutel",
+              "weather_location": "Plaats",
               "outdoor_temperature_sensor": "Sensor buitentemperatuur"
             },
             "data_description": {
-              "weather_entity": "Een weer-entiteit met een verwachting (bijv. Buienradar, Met.no). Zet de temperatuurstap in de verbruiksvoorspelling aan.",
+              "weather_source": "Waar de temperatuurverwachting vandaan komt (een module): een weer-entiteit naar keuze, de KNMI-integratie (zelf gevonden), Weerlive (KNMI, gratis API-sleutel van weerlive.nl nodig) of Open-Meteo (geen sleutel nodig; beste model of het KNMI-model). Zet de temperatuurstap in de verbruiksvoorspelling aan.",
+              "weather_entity": "Bij 'Weer-entiteit': een weer-entiteit met een verwachting (bijv. Buienradar, Met.no, KNMI). Eerst de verwachting per uur, daarna de minimum/maximum per dag voor de dagen erna.",
+              "weather_api_key": "Voor Weerlive (verplicht) en Open-Meteo (alleen met een commercieel abonnement). Bewaard in Home Assistant; alleen naar die dienst gestuurd.",
+              "weather_location": "Voor Weerlive en Open-Meteo: 'breedtegraad,lengtegraad' (Weerlive kan ook een plaatsnaam). Leeg: de thuislocatie van Home Assistant, afgerond op ongeveer 1 km.",
               "outdoor_temperature_sensor": "Optioneel, nauwkeuriger dan de huidige temperatuur van de weer-entiteit; de geschiedenis ervan wordt gebruikt om meteen te leren."
             }
           }
@@ -994,7 +1015,7 @@
       "step": {
         "user": {
           "title": "Verwarming/koeling",
-          "description": "Een warmtepomp, elektrische verwarming of airco. Het verbruik blijft deel van het huisverbruik, maar wordt apart gemeten zodat de voorspelling de buitentemperatuur kan volgen (stel een weer-entiteit in bij de instellingen). Voeg de kamertemperatuur (en een eigen buitensensor) toe om dit apparaat als eigen zone te leren.",
+          "description": "Een warmtepomp, elektrische verwarming of airco. Het verbruik blijft deel van het huisverbruik, maar wordt apart gemeten zodat de voorspelling de buitentemperatuur kan volgen (stel een weerbron in bij de instellingen). Voeg de kamertemperatuur (en een eigen buitensensor) toe om dit apparaat als eigen zone te leren.",
           "data": {
             "name": "Naam",
             "sensor": "Sensor",
@@ -1015,7 +1036,7 @@
         },
         "reconfigure": {
           "title": "Verwarming/koeling",
-          "description": "Een warmtepomp, elektrische verwarming of airco. Het verbruik blijft deel van het huisverbruik, maar wordt apart gemeten zodat de voorspelling de buitentemperatuur kan volgen (stel een weer-entiteit in bij de instellingen). Voeg de kamertemperatuur (en een eigen buitensensor) toe om dit apparaat als eigen zone te leren.",
+          "description": "Een warmtepomp, elektrische verwarming of airco. Het verbruik blijft deel van het huisverbruik, maar wordt apart gemeten zodat de voorspelling de buitentemperatuur kan volgen (stel een weerbron in bij de instellingen). Voeg de kamertemperatuur (en een eigen buitensensor) toe om dit apparaat als eigen zone te leren.",
           "data": {
             "name": "Naam",
             "sensor": "Sensor",

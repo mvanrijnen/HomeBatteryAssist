@@ -1,20 +1,24 @@
 """Template for another weather source — an example, never registered.
 
-Copy it, give ``key`` and ``name`` a value and fill in both methods. Only
-read: a web service, a file, another integration's data.
+Copy it to ``/config/homebatteryassist/weather_sources/<name>.py``, give
+``key`` and ``name`` a value and fill in both methods. ``self.settings``
+holds what the user set up (``entity_id``, ``api_key``, ``location``). Only
+read: a web service, a file, another integration's data. The helpers
+``daily_curve`` and ``combine`` turn daily minimum / maximum temperatures
+into hourly values after an hourly forecast.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from homeassistant.core import HomeAssistant
 
-from .base import WeatherSource, valid_temperature
+from .base import WeatherSource, combine, daily_curve, valid_temperature
 
 
 class TemplateWeatherSource(WeatherSource):
-    """Example weather source."""
+    """Example weather source: an outdoor sensor plus fixed day values."""
 
     key = "template"
     name = "Template"
@@ -26,4 +30,6 @@ class TemplateWeatherSource(WeatherSource):
 
     async def async_forecast(self, hass: HomeAssistant) -> dict[datetime, float]:
         """°C per UTC clock hour start, e.g. read from a web service."""
-        return {}
+        hourly: dict[datetime, float] = {}  # e.g. the next 24 hours
+        days: dict[date, tuple[float, float]] = {}  # (minimum, maximum) per day
+        return combine(hourly, daily_curve(days))

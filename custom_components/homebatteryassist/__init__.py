@@ -63,6 +63,7 @@ from .engine.planning.battery_plan import MODE_NOM
 from .engine.planning.planners import async_load_user_planners
 from .engine.sources.pv_forecasts import async_load_user_pv_sources
 from .engine.sources.tariffs import async_load_user_tariffs
+from .engine.sources.weather import async_load_user_weather_sources
 from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
 from .output.panel import async_setup_panel
 from .services import async_setup_services
@@ -124,6 +125,7 @@ async def async_setup_entry(
         await async_load_user_tariffs(hass),
         await async_load_user_pv_sources(hass),
         await async_load_user_pv_correctors(hass),
+        await async_load_user_weather_sources(hass),
     )
     forecast.last_full = lambda battery_id: batteries.stats.get(battery_id, {}).get(
         "last_full_charge"
