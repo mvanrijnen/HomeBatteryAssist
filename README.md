@@ -11,6 +11,10 @@ A Home Assistant custom integration that gives insight into your home batteries 
 
 HomeBatteryAssist measures, forecasts and plans your home batteries, and is built to control them. **For now it only reads, forecasts and advises**, so it runs next to the integration that controls your battery (e.g. Omnibattery) without interfering. It uses the price and PV forecasts you already have, and checks every forecast afterwards against what really happened.
 
+<a href="docs/screenshots/README.md"><img src="docs/screenshots/overview.jpg" alt="The HomeBatteryAssist dashboard" width="900"></a>
+
+*The dashboard — [all screenshots](docs/screenshots/README.md) of the dashboard and the configuration.*
+
 ## What it does
 
 - **Measures** the grid connection per phase (meters read directly, e.g. HomeWizard P1 or SMA Home Manager, or your own sensors), your batteries (through their own integration; for now read-only), PV, excluded devices such as an EV charger and (optionally) heating/cooling, and from that the house consumption. *Virtual batteries* show what a (bigger) battery would bring. → [Measuring](docs/measuring.md)
