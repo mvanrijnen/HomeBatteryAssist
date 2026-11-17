@@ -835,9 +835,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
     // rows: [label, today Wh, expected Wh]
     const node = (key, cls, icon, label, value, rows = [], extra = "") => {
       const [x, y] = pos[key];
+      // No "expected" column for rows without one (excluded devices are
+      // not forecast).
+      const withExpected = rows.some((r) => r.length > 2);
       const table = rows.length
-        ? `<table><tr><th>kWh</th><th>${esc(t.fdToday)}</th><th>${esc(t.fdExpected)}</th></tr>${rows
-            .map(([name, a, b]) => `<tr><td>${esc(name)}</td><td>${hasHistory ? esc(num1(a)) : "–"}</td><td>${esc(num1(b))}</td></tr>`)
+        ? `<table><tr><th>kWh</th><th>${esc(t.fdToday)}</th>${withExpected ? `<th>${esc(t.fdExpected)}</th>` : ""}</tr>${rows
+            .map(([name, a, b]) => `<tr><td>${esc(name)}</td><td>${hasHistory ? esc(num1(a)) : "–"}</td>${withExpected ? `<td>${esc(num1(b))}</td>` : ""}</tr>`)
             .join("")}</table>`
         : "";
       return `<div class="fd-node ${cls}" style="left:${(x / 520) * 100}%;top:${(y / 460) * 100}%">
@@ -860,7 +863,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         : "",
       excluded !== null
         ? node("excluded", "fd-excluded", "mdi:ev-station", devices.length === 1 ? devices[0].name : t.fdExcluded, this._power(excluded),
-            [["", today.excluded, expected.excluded]],
+            [["", today.excluded]],
             devices.length > 1 ? devices.map((d) => `${d.name}: ${this._power(d.w)}`).join("\n") : "")
         : "",
       zones.length

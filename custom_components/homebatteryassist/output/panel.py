@@ -274,7 +274,7 @@ def _today_expected(data: Any) -> dict[str, float | None]:
     """The whole day as expected (Wh): measured so far plus the forecast
     until local midnight (house consumption, PV, heating/cooling zones) and
     the battery plan (charge / discharge, grid import / export). Excluded
-    devices are not forecast (None)."""
+    devices are not forecast."""
     now = dt_util.utcnow()
     end = dt_util.as_utc(
         dt_util.start_of_local_day(dt_util.as_local(now)) + timedelta(days=1)
@@ -320,7 +320,6 @@ def _today_expected(data: Any) -> dict[str, float | None]:
             key: round(today[key] + value) if planned else None
             for key, value in battery.items()
         },
-        "excluded": None,
     }
 
 
