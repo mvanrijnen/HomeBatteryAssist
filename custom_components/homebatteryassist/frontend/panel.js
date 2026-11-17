@@ -16,6 +16,10 @@ const TEXT = {
     fdTitle: "Energy flows",
     fdToday: "today",
     fdExpected: "expected",
+    bandSun: "Solar",
+    bandPv: "Charging with solar",
+    bandGrid: "Charging from the grid",
+    bandDischarge: "Battery discharging",
     fdTotal: "total",
     fdLive: "Today (live)",
     fdOlder: "Day before",
@@ -241,6 +245,10 @@ const TEXT = {
     fdTitle: "Energiestromen",
     fdToday: "vandaag",
     fdExpected: "verwacht",
+    bandSun: "Zon",
+    bandPv: "Laden met zonne-energie",
+    bandGrid: "Laden vanaf net",
+    bandDischarge: "Batterij ontladen",
     fdTotal: "totaal",
     fdLive: "Vandaag (live)",
     fdOlder: "Dag ervoor",
@@ -1288,7 +1296,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return 10 * step;
   }
 
-  _chart(id, series, xMin, xMax, ticks, gapLimit, markers = [], xFmt = (v) => this._time(new Date(v).toISOString()), yFmt = null) {
+  _chart(id, series, xMin, xMax, ticks, gapLimit, markers = [], xFmt = (v) => this._time(new Date(v).toISOString()), yFmt = null, bands = []) {
     // Full-width charts get a wider canvas so they are as high as the others.
     // The full-width flow chart gets a wider and higher canvas.
     const wide = id === "forecast" || id === "soc" || id === "temperature";
@@ -1315,6 +1323,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const yr = (v) => T + (1 - (v - right.min) / (right.max - right.min)) * (H - T - B);
     const yOf = (s) => (s.axis === "right" && right ? yr : y);
     let svg = `<clipPath id="clip-${id}"><rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}"/></clipPath>`;
+    // Background bands (e.g. charging / discharging periods), behind everything.
+    for (const [from, to, color] of bands) {
+      const x1 = Math.max(x(from), L);
+      const x2 = Math.min(x(to), W - R);
+      if (x2 > x1) svg += `<rect class="band" x="${x1.toFixed(1)}" y="${T}" width="${(x2 - x1).toFixed(1)}" height="${H - T - B}" fill="${color}"/>`;
+    }
     const steps = 4;
     for (let i = 0; i <= steps; i++) {
       const v = yMin + ((yMax - yMin) / steps) * i;
@@ -1712,6 +1726,36 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const margin = 2 * 3600e3;
       const inView = (points) => points.filter(([ts]) => ts >= fMin - margin && ts <= fMax + margin);
       const slot = 3600e3;  // verification/forecast points are at most an hour apart
+      // What the batteries did / are planned to do, as background bands:
+      // solar charging, grid charging, discharging; solar alone (faint).
+      const bandColors = { pv: "rgba(67,160,71,.28)", grid: "rgba(142,36,170,.28)", discharge: "rgba(30,136,229,.28)", sun: "rgba(253,216,53,.10)" };
+      const kindOf = (battery, surplus, pvW) => {
+        if (battery < -100) return "discharge";
+        if (battery > 100) {
+          const fromPv = Math.min(battery, Math.max(surplus, 0));
+          return fromPv >= battery - fromPv ? "pv" : "grid";
+        }
+        return pvW > 50 ? "sun" : null;
+      };
+      const raw = [];
+      past.forEach(([ts, hw, ex, pw, bw], i) => {
+        if (hw == null || ts >= now) return;
+        const end = Math.min(past[i + 1]?.[0] ?? ts + 3600e3, now);
+        raw.push([ts, end, kindOf(bw || 0, (pw || 0) - hw - (ex || 0), pw || 0)]);
+      });
+      const pvAt = (ts) => pvByHour.get(Math.floor(ts / 3600e3) * 3600e3) || 0;
+      batFc.forEach(([ts, power, , grid], i) => {
+        const end = batFc[i + 1]?.[0] ?? ts + 900e3;
+        if (end <= now) return;
+        raw.push([Math.max(ts, now), end, kindOf(power || 0, -((grid || 0) - (power || 0)), pvAt(ts))]);
+      });
+      const bands = [];
+      for (const [from, to, kind] of raw) {
+        if (!kind) continue;
+        const last = bands[bands.length - 1];
+        if (last && last[2] === bandColors[kind] && Math.abs(last[1] - from) < 1000) last[1] = to;
+        else bands.push([from, to, bandColors[kind]]);
+      }
       forecastChart = this._chart(
         "forecast",
         [
@@ -1769,6 +1813,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
             hour: "2-digit",
             minute: "2-digit",
           }),
+        null,
+        bands.filter(([from, to]) => to >= fMin && from <= fMax),
       );
       this._charts.forecast.gapLimit = slot;
 
@@ -1895,7 +1941,13 @@ class HomeBatteryAssistPanel extends HTMLElement {
       priceRows.length ? item(priceColor, t.priceAxis) : "",
       priceRows.length ? item(exportColor, t.exportAxis) : "",
       item(secondary, t.predicted, true),
-    ].join("")}</div>`;
+    ].join("")}</div>
+    <div class="legend" style="flex-wrap:wrap">${[
+      ["rgba(253,216,53,.35)", t.bandSun],
+      ["rgba(67,160,71,.6)", t.bandPv],
+      ["rgba(142,36,170,.6)", t.bandGrid],
+      ["rgba(30,136,229,.6)", t.bandDischarge],
+    ].map(([color, label]) => `<span><i style="background:${color};border-radius:2px;width:10px;height:10px"></i>${esc(label)}</span>`).join("")}</div>`;
 
     const info = t.daysOfData.replace("{days}", Math.round(h.days_covered)) + (h.imported ? ` · ${t.imported}` : "");
     return `<div class="card"><h2>${esc(t.consumption)} · ${esc(info)}</h2><div class="charts">
