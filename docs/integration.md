@@ -40,3 +40,5 @@ The sensors have a fixed meaning and can be used by other integrations and add-o
 ## Notifications
 
 Choose in the settings which decisions you want to be told about — the plan changes, new prices or a changed forecast reach, phase protection / limits / peak shaving, full charges, a lost or restored measurement, an unexpected solar surplus — and send them to notify services (e.g. the companion app) and/or as a notification in Home Assistant.
+
+**Virtual batteries** always say so in their name (e.g. *Marstek Venus 1 (virtueel)*): HomeBatteryAssist adds it when the name does not.

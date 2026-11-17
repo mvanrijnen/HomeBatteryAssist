@@ -19,8 +19,9 @@ Telegram layout (big endian):
 
 ``type`` 4 = actual value (4 bytes), 8 = counter (8 bytes). Active power is
 in 0.1 W, counters in Ws. Indexes: 1/2 = total import/export, 21/22 = L1,
-41/42 = L2, 61/62 = L3 (import/export). Record 0x90000000 holds the software
-version (4 bytes).
+41/42 = L2, 61/62 = L3 (import/export); per phase also current (31/51/71, mA),
+voltage (32/52/72, mV) and power factor (33/53/73, 0.001), when the meter
+sends them. Record 0x90000000 holds the software version (4 bytes).
 """
 
 from __future__ import annotations
@@ -46,6 +47,9 @@ PROTOCOL_EMETER = 0x6069
 
 # index of import power per phase (export = index + 1)
 PHASE_INDEX = (21, 41, 61)
+CURRENT_INDEX = (31, 51, 71)  # mA
+VOLTAGE_INDEX = (32, 52, 72)  # mV
+FACTOR_INDEX = (33, 53, 73)  # 0.001
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,6 +61,9 @@ class MeterTelegram:
     ticker_ms: int
     power_w: float  # total, + import / - export
     phase_w: tuple[float, float, float]  # per phase, + import / - export
+    phase_a: tuple[float, ...] | None = None  # current per phase (A), if sent
+    phase_v: tuple[float, ...] | None = None  # voltage per phase (V), if sent
+    phase_pf: tuple[float, ...] | None = None  # power factor per phase, if sent
 
 
 def decode(data: bytes) -> MeterTelegram | None:
@@ -79,7 +86,7 @@ def decode(data: bytes) -> MeterTelegram | None:
         if kind == 4:
             if pos + 4 > end:
                 break
-            actual[index] = struct.unpack_from(">I", data, pos)[0] / 10  # 0.1 W
+            actual[index] = struct.unpack_from(">I", data, pos)[0]
             pos += 4
         elif kind == 8:
             pos += 8
@@ -89,13 +96,24 @@ def decode(data: bytes) -> MeterTelegram | None:
             return None  # unknown record: do not guess
     if 1 not in actual or not all(i in actual for i in PHASE_INDEX):
         return None
-    phases = tuple(round(actual[i] - actual.get(i + 1, 0.0), 1) for i in PHASE_INDEX)
+    phases = tuple(
+        round((actual[i] - actual.get(i + 1, 0.0)) / 10, 1) for i in PHASE_INDEX
+    )
+
+    def per_phase(indexes: tuple[int, ...], scale: float) -> tuple[float, ...] | None:
+        if not all(i in actual for i in indexes):
+            return None
+        return tuple(round(actual[i] / scale, 3) for i in indexes)
+
     return MeterTelegram(
         serial,
         susy_id,
         ticker,
-        round(actual[1] - actual.get(2, 0.0), 1),
+        round((actual[1] - actual.get(2, 0.0)) / 10, 1),
         phases,  # type: ignore[arg-type]
+        per_phase(CURRENT_INDEX, 1000),
+        per_phase(VOLTAGE_INDEX, 1000),
+        per_phase(FACTOR_INDEX, 1000),
     )
 
 
@@ -151,7 +169,9 @@ class SpeedwireMeter(DirectMeter):
         if host != self.address:
             return
         if (telegram := decode(data)) is not None:
-            self._set(telegram.phase_w)
+            self.phase_v = telegram.phase_v
+            self.phase_pf = telegram.phase_pf
+            self._set(telegram.phase_w, telegram.phase_a)
 
 
 async def discover_speedwire(

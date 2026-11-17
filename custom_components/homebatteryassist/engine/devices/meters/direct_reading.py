@@ -65,6 +65,11 @@ class DirectMeter:
         self.hass = hass
         self.address = address
         self.phase_w: tuple[float, ...] | None = None
+        # Measured current (A), voltage (V) and power factor per phase, for
+        # meters that send them (None: only power).
+        self.phase_a: tuple[float, ...] | None = None
+        self.phase_v: tuple[float, ...] | None = None
+        self.phase_pf: tuple[float, ...] | None = None
         self.updated: datetime | None = None
         self.count = 0  # values received since the start
         self._listeners: list[PhaseListener] = []
@@ -86,10 +91,13 @@ class DirectMeter:
         return lambda: self._listeners.remove(listener)
 
     @callback
-    def _set(self, phase_w: tuple[float, ...]) -> None:
+    def _set(
+        self, phase_w: tuple[float, ...], phase_a: tuple[float, ...] | None = None
+    ) -> None:
         now = dt_util.utcnow()
         changed = phase_w != self.phase_w or not self.available
         self.phase_w, self.updated = phase_w, now
+        self.phase_a = phase_a
         self.count += 1
         if changed:
             for listener in list(self._listeners):
@@ -126,6 +134,9 @@ class DirectMeter:
             "type": self.label,
             "available": self.available,
             "phase_w": self.phase_w,
+            "phase_a": self.phase_a,
+            "phase_v": self.phase_v,
+            "phase_pf": self.phase_pf,
             "updated": self.updated.isoformat() if self.updated else None,
             "values_received": self.count,
         }

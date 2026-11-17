@@ -35,7 +35,12 @@ KINDS: dict[str, tuple[str, ...]] = {
         "interceptor_failed",
     ),
     "full_charge": ("full_charge_planned", "full_charge_overdue"),
-    "measurement": ("consumption_unavailable", "consumption_restored"),
+    "measurement": (
+        "consumption_unavailable",
+        "consumption_restored",
+        "meter_lost_hold",
+        "meter_back_resume",
+    ),
     "solar": ("pv_surplus_unexpected", "pv_surplus_unexpected_ended"),
 }
 

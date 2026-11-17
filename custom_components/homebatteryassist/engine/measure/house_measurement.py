@@ -24,6 +24,7 @@ part is a short peak now, ``take_spike_wh`` the energy of peaks that ended.
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -100,6 +101,33 @@ class PowerFlow:
     phase_house_w: tuple[float, ...] = ()
     phase_pv_w: tuple[float, ...] = ()
     heating_w: float = 0.0  # heating/cooling devices (part of house_w)
+    # Per phase, when the meter sends them (else ()): measured current (A),
+    # voltage (V) and power factor.
+    phase_a: tuple[float, ...] = ()
+    phase_v: tuple[float, ...] = ()
+    phase_pf: tuple[float, ...] = ()
+
+    def phase_amps(self, index: int) -> float:
+        """The current on a phase (A), as precise as known: measured; else
+        power / (measured voltage x power factor); else power / 230 V."""
+        power = abs(self.phase_w[index])
+        if index < len(self.phase_a):
+            return self.phase_a[index]
+        if index < len(self.phase_v) and self.phase_v[index] > 100:
+            factor = self.phase_pf[index] if index < len(self.phase_pf) else 1.0
+            factor = factor if 0.1 <= factor <= 1.0 else 1.0
+            return power / (self.phase_v[index] * factor)
+        return power / NOMINAL_VOLTAGE
+
+    @property
+    def phase_load_w(self) -> tuple[float, ...]:
+        """Grid power per phase as far as the fuse is concerned: the current
+        (``phase_amps``) at nominal voltage, with the sign of the power, so
+        it compares with the limit (max current x 230 V x (1 - margin))."""
+        return tuple(
+            math.copysign(self.phase_amps(i) * NOMINAL_VOLTAGE, p)
+            for i, p in enumerate(self.phase_w)
+        )
 
     @property
     def import_w(self) -> float:
@@ -112,8 +140,8 @@ class PowerFlow:
         return max(-self.grid_w, 0.0)
 
     def phase_current(self, index: int) -> float:
-        """Absolute current on a phase in A (at nominal voltage)."""
-        return abs(self.phase_w[index]) / NOMINAL_VOLTAGE
+        """Current on a phase in A (see ``phase_amps``)."""
+        return self.phase_amps(index)
 
 
 class MeasurementInput:
@@ -292,10 +320,19 @@ class MeasurementInput:
         excluded loads and batteries count as 0 W.
         """
         phase_w: list[float] = []
+        phase_a: tuple[float, ...] = ()
+        phase_v: tuple[float, ...] = ()
+        phase_pf: tuple[float, ...] = ()
         missing: list[str] = []
         if self.direct is not None:
             if self.direct.available and self.direct.phase_w:
                 phase_w = list(self.direct.phase_w[: self.phases])
+                if self.direct.phase_a:
+                    phase_a = tuple(self.direct.phase_a[: self.phases])
+                if self.direct.phase_v:
+                    phase_v = tuple(self.direct.phase_v[: self.phases])
+                if self.direct.phase_pf:
+                    phase_pf = tuple(self.direct.phase_pf[: self.phases])
             else:
                 missing.append(f"{self.direct.label} {self.direct.address}")
         for main, ret in self.grid_phases:
@@ -375,6 +412,9 @@ class MeasurementInput:
             tuple(round(v, 1) for v in phase_house),
             tuple(round(v, 1) for v in phase_pv),
             round(self._sum_abs(self.heating_sensors), 1),
+            phase_a,
+            phase_v,
+            phase_pf,
         ), []
 
     def _watts(self, entity_id: str) -> float | None:

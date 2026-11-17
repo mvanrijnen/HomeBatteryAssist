@@ -213,3 +213,56 @@ async def test_homewizard_kwh_meters_found(hass: HomeAssistant) -> None:
         )
     found = {(c.address, c.phases) for c in find_direct_meters(hass)}
     assert found == {("192.0.2.21", 1), ("192.0.2.30", 3)}
+
+
+def test_decode_current_voltage_power_factor() -> None:
+    """Per phase also current (mA), voltage (mV) and power factor (0.001)."""
+    data = _telegram(
+        1900000001,
+        {
+            1: 23000,
+            2: 0,
+            21: 23000,
+            22: 0,
+            41: 0,
+            42: 0,
+            61: 0,
+            62: 0,
+            31: 11500,
+            51: 200,
+            71: 300,
+            32: 228000,
+            52: 231000,
+            72: 232000,
+            33: 870,
+            53: 1000,
+            73: 1000,
+        },
+    )
+    telegram = decode(data)
+    assert telegram.phase_a == (11.5, 0.2, 0.3)
+    assert telegram.phase_v == (228.0, 231.0, 232.0)
+    assert telegram.phase_pf == (0.87, 1.0, 1.0)
+    # Without them (older meters): only power.
+    plain = decode(_telegram(1, {1: 0, 2: 0, 21: 0, 22: 0, 41: 0, 42: 0, 61: 0, 62: 0}))
+    assert plain.phase_a is None and plain.phase_v is None
+
+
+def test_phase_load_is_about_current() -> None:
+    """The fuse sees current: measured; else power / (voltage x power
+    factor); else power / 230 V."""
+    from custom_components.homebatteryassist.engine.measure.house_measurement import (
+        PowerFlow,
+    )
+
+    base = PowerFlow(2300.0, 0.0, 0.0, 0.0, 2300.0, (2300.0, -1150.0))
+    assert base.phase_current(0) == 10.0 and base.phase_load_w == (2300.0, -1150.0)
+    measured = PowerFlow(
+        2300.0, 0.0, 0.0, 0.0, 2300.0, (2300.0, -1150.0), phase_a=(12.0, 5.0)
+    )
+    assert measured.phase_current(0) == 12.0  # low power factor: more current
+    assert measured.phase_load_w == (2760.0, -1150.0)
+    voltage = PowerFlow(
+        2000.0, 0.0, 0.0, 0.0, 2000.0, (2000.0,), phase_v=(200.0,), phase_pf=(0.8,)
+    )
+    assert voltage.phase_current(0) == 12.5  # 2000 / (200 x 0.8)

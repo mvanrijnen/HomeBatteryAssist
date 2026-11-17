@@ -155,6 +155,7 @@ class VirtualBatterySimulator:
         # the average over the round; the grid at the last round, for jumps.
         self._samples: list[tuple[datetime, float, float]] = []
         self._step_grid: float | None = None
+        self._meter_lost = False  # grid unknown: batteries held
         # The interceptor (the user's last say) and what it did lately.
         self.intercepted: list[tuple[str, str, float, str]] = []
         self._intercept_gist = ""
@@ -217,7 +218,7 @@ class VirtualBatterySimulator:
             self.step(when)
             return
         phases = len(flow.phase_w)
-        with_virtual = list(flow.phase_w)
+        with_virtual = list(flow.phase_load_w)
         for config in self.virtual:
             power = self._batteries.states[config.id].power_w or 0.0
             index = PhaseDevice.from_config(config, phases).phase
@@ -226,10 +227,24 @@ class VirtualBatterySimulator:
         peak = self._forecast.peak_w
         if (
             overloaded(with_virtual, self._limit_w())
-            or overloaded(flow.phase_w, self._limit_w())
+            or overloaded(flow.phase_load_w, self._limit_w())
             or (peak > 0 and sum(with_virtual) > peak)
         ):
             self.step(when)
+
+    def _hold_without_meter(self, wanted: dict[str, float]) -> dict[str, float]:
+        """Without a known grid measurement (meter gone for 10 s, a grid
+        sensor unknown) the phase load is unknown: nothing is done (with
+        control: the batteries go back to their own control). Told once."""
+        if self._measurements.flow is not None:
+            if self._meter_lost:
+                self._meter_lost = False
+                self._decisions.async_log("battery", "meter_back_resume")
+            return wanted
+        if not self._meter_lost:
+            self._meter_lost = True
+            self._decisions.async_log("battery", "meter_lost_hold")
+        return dict.fromkeys(wanted, 0.0)
 
     def _round_flow(self, now: datetime):
         """The grid as zero on the meter sees it: the average over the round
@@ -403,8 +418,15 @@ class VirtualBatterySimulator:
         # The user's last say (interceptor module), then HomeBatteryAssist's
         # own final check (phase limits here, power and state of charge in
         # limit_power), which always wins.
+        proposed = dict(wanted)
         wanted = self._intercept(wanted, socs, full, reasons, now)
+        # Protection is not the interceptor's to undo: where phase relief or
+        # peak shaving set the power, that power stands.
+        for i, reason in reasons.items():
+            if reason in ("phase_relief", "peak_shaving"):
+                wanted[i] = proposed[i]
         wanted = self._phase_limited(wanted, now)
+        wanted = self._hold_without_meter(wanted)
         for config in self.virtual:
             limits = replace(config, max_soc=100.0) if full[config.id] else config
             power, soc = limit_power(
@@ -437,7 +459,7 @@ class VirtualBatterySimulator:
         result, relieved = relieve(
             wanted,
             devices,
-            flow.phase_w,
+            flow.phase_load_w,
             self._limit_w(),
             can_discharge=[
                 c.id
@@ -457,7 +479,7 @@ class VirtualBatterySimulator:
                 if d.phase in (index, None) and abs(result[d.id]) > 1
             ]
             if event is None:
-                discharging = flow.phase_w[index] > 0
+                discharging = flow.phase_load_w[index] > 0
                 self.relief[index] = event = {
                     "start": now,
                     "wh": 0.0,
@@ -567,7 +589,7 @@ class VirtualBatterySimulator:
         capped, limited = cap_powers(
             wanted,
             devices,
-            flow.phase_w,
+            flow.phase_load_w,
             self._limit_w(),
         )
         self.limited_phases = limited

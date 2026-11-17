@@ -174,3 +174,25 @@ def test_round_average_over_the_meter() -> None:
     assert averaged.grid_w == 1400.0
     sim._forecast.react_average = False
     assert VirtualBatterySimulator._round_flow(sim, NOW + 5 * s).grid_w == 3000.0
+
+
+def test_without_meter_nothing_is_done() -> None:
+    """Grid unknown: the batteries do nothing; told once, and when back."""
+    from types import SimpleNamespace
+
+    from custom_components.homebatteryassist.engine.devices.batteries.virtual import (
+        VirtualBatterySimulator,
+    )
+
+    logged: list[str] = []
+    sim = SimpleNamespace(
+        _measurements=SimpleNamespace(flow=None),
+        _meter_lost=False,
+        _decisions=SimpleNamespace(async_log=lambda _c, key, **_kw: logged.append(key)),
+    )
+    hold = VirtualBatterySimulator._hold_without_meter
+    assert hold(sim, {"a": -800.0, "b": 500.0}) == {"a": 0.0, "b": 0.0}
+    assert hold(sim, {"a": -800.0}) == {"a": 0.0}
+    sim._measurements.flow = object()
+    assert hold(sim, {"a": -800.0}) == {"a": -800.0}
+    assert logged == ["meter_lost_hold", "meter_back_resume"]

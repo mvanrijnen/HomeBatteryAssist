@@ -1810,6 +1810,16 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         )
 
 
+def virtual_name(name: str, language: str | None) -> str:
+    """A virtual battery's name always says it is virtual, so it is never
+    mistaken for a real one (e.g. "Marstek Venus 1 (virtueel)")."""
+    name = name.strip()
+    if "virtu" in name.lower():
+        return name
+    dutch = (language or "").lower().startswith("nl")
+    return f"{name} ({'virtueel' if dutch else 'virtual'})"
+
+
 def virtual_battery_schema(three_phase: bool) -> vol.Schema:
     """Properties of a virtual (simulated) battery."""
     schema: dict[Any, Any] = {
@@ -1870,7 +1880,9 @@ class VirtualBatterySubentryFlow(ConfigSubentryFlow):
                 errors[CONF_LOSS_MAX] = "loss_range"
             else:
                 data = {
-                    CONF_NAME: user_input[CONF_NAME],
+                    CONF_NAME: virtual_name(
+                        user_input[CONF_NAME], self.hass.config.language
+                    ),
                     CONF_CAPACITY: float(user_input[CONF_CAPACITY]),
                     CONF_PHASE: user_input.get(CONF_PHASE, PHASE_NONE),
                     **{

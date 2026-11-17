@@ -154,7 +154,9 @@ def test_simulator_holds_virtual_batteries_within_limit(hass: HomeAssistant) -> 
         max_discharge_w=2500.0,
     )
     flow = SimpleNamespace(
-        phase_w=(0.0, 4500.0, 0.0), phase_current=lambda i: [0, 4500 / 230, 0][i]
+        phase_w=(0.0, 4500.0, 0.0),
+        phase_load_w=(0.0, 4500.0, 0.0),  # no measured current: the power
+        phase_current=lambda i: [0, 4500 / 230, 0][i],
     )
     sim = VirtualBatterySimulator(
         hass,
@@ -169,7 +171,7 @@ def test_simulator_holds_virtual_batteries_within_limit(hass: HomeAssistant) -> 
     }
     assert [a[1] for a, _ in logged] == ["phase_limit"]
     assert logged[0][1]["phase"] == "L2"
-    flow.phase_w = (0.0, 1000.0, 0.0)
+    flow.phase_w = flow.phase_load_w = (0.0, 1000.0, 0.0)
     assert sim._phase_limited({"v1": 2500.0}, T0 + timedelta(minutes=1)) == {
         "v1": 2500.0
     }
@@ -232,6 +234,7 @@ def test_simulator_phase_protection(hass: HomeAssistant) -> None:
     )
     flow = SimpleNamespace(
         phase_w=(LIMIT + 1000.0, 0.0, 0.0),
+        phase_load_w=(LIMIT + 1000.0, 0.0, 0.0),
         phase_current=lambda i: [(LIMIT + 1000) / 230, 0, 0][i],
     )
     sim = VirtualBatterySimulator(
@@ -246,7 +249,7 @@ def test_simulator_phase_protection(hass: HomeAssistant) -> None:
     assert result == {"v1": -1000.0}
     assert logged[-1][0][1] == "phase_relief"
     assert sim.relief[0]["wh"] == 500.0
-    flow.phase_w = (1000.0, 0.0, 0.0)
+    flow.phase_w = flow.phase_load_w = (1000.0, 0.0, 0.0)
     assert sim._phase_relief({"v1": 1000.0}, socs, full, T0 + H, 0.5) == {"v1": 1000.0}
     assert logged[-1][0][1] == "phase_relief_ended"
     assert logged[-1][1]["energy"] == "0,50" or logged[-1][1]["energy"] == "0.50"
@@ -291,3 +294,33 @@ def test_plan_keeps_reserve_for_peak() -> None:
     # Keeps it for the peak; the final check works with the real stored energy
     # (the planner rounds it to 1 % levels), so allow that rounding.
     assert shaved.slots[2].grid_w <= 5050
+
+
+def test_simulator_uses_the_current_not_the_power(hass: HomeAssistant) -> None:
+    """With a measured current above power / 230 V (low power factor), the
+    phase is full sooner: the fuse sees current."""
+    config = SimpleNamespace(
+        id="v1",
+        name="V1 (virtueel)",
+        virtual=True,
+        phase="l2",
+        max_charge_w=2500.0,
+        max_discharge_w=2500.0,
+    )
+    from custom_components.homebatteryassist.engine.measure.house_measurement import (
+        PowerFlow,
+    )
+
+    # 4500 W but 22 A measured (power factor about 0.89)
+    flow = PowerFlow(
+        4500.0, 0.0, 0.0, 0.0, 4500.0, (0.0, 4500.0, 0.0), phase_a=(0.0, 22.0, 0.0)
+    )
+    sim = VirtualBatterySimulator(
+        hass,
+        SimpleNamespace(configs=[config]),
+        SimpleNamespace(flow=flow, max_current=25),
+        SimpleNamespace(balance_interval=timedelta(hours=1), phase_margin=10),
+        SimpleNamespace(async_log=lambda *a, **kw: None),
+    )
+    # limit 25 A x 230 V x 0.9 = 5175 W; load 22 A x 230 V = 5060 W: 115 W room
+    assert sim._phase_limited({"v1": 2500.0}, T0) == {"v1": 115.0}

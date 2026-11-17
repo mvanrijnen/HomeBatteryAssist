@@ -36,11 +36,24 @@ the dashboard simulates is what would be sent:
 5. **Interceptor** (``interceptors/``, the user's module, default none):
    per battery approve, limit (less, same direction), hold back (0 W) or
    release (back to its own control); what is held back may be taken over
-   by the approved batteries. ``run_interceptor`` holds it to that.
+   by the approved batteries. ``run_interceptor`` holds it to that. Where
+   phase relief or peak shaving set the power, that power stands: the
+   interceptor cannot undo protection.
 6. **HomeBatteryAssist's own final check**, which always wins: phase limits
    (``_phase_limited``), power limits and the state of charge: never below
    max(min SoC, reserve SoC), never above max SoC (100 % during a full
    charge).
+
+   The load per phase is the current as precise as known
+   (``PowerFlow.phase_load_w``: measured current; else power / (measured
+   voltage x power factor); else power / 230 V). **Real batteries are in
+   the measurement**: the meter already sees their current power on their
+   phase, so the load without them = measured load - their power now (per
+   phase; a battery without a phase spread evenly) before ``relieve`` /
+   ``cap_powers`` (the virtual batteries are not in the measurement, so
+   they use it as it is). **Grid unknown** (meter gone for 10 s, a grid
+   sensor unknown): no control; every battery is released to its own
+   control until the grid is measured again (``meter_lost_hold``).
 7. Per battery ``controller.async_command(power)`` (a released battery:
    ``controller.async_command(None)``, which releases it); the controller
    decides whether and when it is really sent.
@@ -61,7 +74,9 @@ Activating (later, deliberately, with the project owner)
 
 1. Refactor the steps 2 to 4 out of ``VirtualBatteries`` into
    ``engine/control/targets.py`` (``battery_targets(configs, ...)`` with the
-   reason per battery, and ``intercept_input`` from ``_intercept``), used by
+   reason per battery, ``intercept_input`` from ``_intercept`` and
+   ``load_without`` = the measured phase load minus the real batteries'
+   power now), used by
    the virtual batteries and this loop alike (now they work on
    ``self.virtual``; they must take the list of batteries).
 2. Uncomment this file and the wiring in ``__init__.py`` (search for
@@ -233,7 +248,13 @@ Activating (later, deliberately, with the project owner)
 #         socs = {
 #             c.id: self._batteries.states[c.id].soc for c in configs
 #         }
-#         # Steps 2-4: the same as the virtual batteries.
+#         if self._measurements.flow is None:
+#             # Grid unknown: the phase load is unknown; hand back control.
+#             for controller in self.controllers.values():
+#                 await controller.async_command(None, now)
+#             return
+#         # Steps 2-4: the same as the virtual batteries, on the load without
+#         # the real batteries (targets.load_without(flow, configs, states)).
 #         wanted, reasons = battery_targets(
 #             [c for c in configs if not full[c.id]],
 #             socs,

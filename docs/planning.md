@@ -24,7 +24,7 @@ Choose the mode in the settings, on the dashboard or with the action `set_plan_m
 - **Negative prices**: charging when import is negative, making room before a negative export price.
 - **Peak shaving** on the total grid import: the plan keeps energy in reserve for peaks; virtual batteries shave them live.
 - **Phase limits**: the plan never lets a phase exceed the main fuse (with an adjustable safety margin). The share of each phase is learned from your history.
-- **Phase protection** (virtual batteries): when a phase is overloaded, batteries on that phase take load off it within seconds.
+- **Phase protection** (virtual batteries): when a phase is overloaded, batteries on that phase take load off it within seconds. The load per phase is the **current** (what the main fuse sees): measured when the meter sends it (an SMA Home Manager does, with voltage and power factor), else power / (measured voltage × power factor), else power / 230 V. Phase protection and peak shaving cannot be undone by an [interceptor](#interceptor-your-last-say). Without a grid measurement (meter gone for 10 s) the batteries do nothing until it is back; *Why* says so.
 - **Distribution over several batteries**: as few batteries as possible at a sensible minimum power, kept in balance.
 
 ## Periodic full charge

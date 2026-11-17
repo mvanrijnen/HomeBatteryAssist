@@ -163,3 +163,11 @@ def test_random_loss_within_range() -> None:
         _, soc = limit_power(config, 50.0, 1000.0, 1.0, eff)
         # 1 kWh in at sqrt(eff) one way: between +0.89 and +0.95 kWh stored
         assert 58.9 <= soc <= 59.5
+
+
+def test_virtual_name_says_virtual() -> None:
+    from custom_components.homebatteryassist.config_flow import virtual_name
+
+    assert virtual_name("Marstek Venus 1", "nl") == "Marstek Venus 1 (virtueel)"
+    assert virtual_name("Test", "en") == "Test (virtual)"
+    assert virtual_name("Virtuele accu", "nl") == "Virtuele accu"
