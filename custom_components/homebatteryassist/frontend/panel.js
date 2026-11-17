@@ -605,13 +605,13 @@ const STYLE = `
   .tip .t { font-weight: 500; margin-bottom: 2px; }
   .tip .r { display: flex; justify-content: space-between; gap: 12px; }
   .tip i { display: inline-block; width: 10px; height: 10px; border-radius: 5px; margin-right: 6px; }
-  .reach { display: grid; gap: 8px; margin-top: 12px; }
+  .reach { display: grid; grid-template-columns: max-content 1fr max-content; gap: 8px 12px; align-items: center; margin-top: 12px; }
   .acc { width: 100%; border-collapse: collapse; font-size: 13px; }
   .acc th, .acc td { padding: 6px 4px; text-align: right; border-bottom: 1px solid var(--divider-color); }
   .acc th:first-child, .acc td:first-child { text-align: left; }
   .acc td small { display: block; color: var(--secondary-text-color); }
   .acc-wrap { overflow-x: auto; }
-  .reach .row { display: grid; grid-template-columns: 90px 1fr 170px; gap: 8px; align-items: center; }
+  .reach .row { display: contents; } /* one grid: the labels set the first column's width */
   .reach .bar { height: 12px; }
   .legend { display: flex; gap: 16px; font-size: 13px; color: var(--secondary-text-color); margin-top: 4px; }
   .legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
