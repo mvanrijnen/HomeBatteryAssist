@@ -323,17 +323,13 @@ class ConsumptionHistory:
             out[zone] = values
         return out
 
-    def today_energy(self, now: datetime) -> dict[str, Any]:
-        """Energy since local midnight (Wh), per clock hour: the average of
-        what was measured in that hour (closed intervals and the one running
-        now) over the whole hour (the current one: until now). So a gap, e.g.
-        a restart, counts at the hour's average, as in the hourly charts.
-        Grid import/export and battery charge/discharge come from the net
-        per hour."""
-        now = dt_util.as_utc(now)
-        midnight = dt_util.as_utc(dt_util.start_of_local_day(dt_util.as_local(now)))
+    def _hour_averages(
+        self, since: datetime, until: datetime, *, running: bool
+    ) -> dict[datetime, tuple[dict[str, float], dict[str, float]]]:
+        """Per clock hour in [since, until): the average W of what was
+        measured (house, pv, excluded, battery) and of each zone; with
+        ``running`` the interval running now counts too."""
         keys = ("house", "pv", "excluded", "battery")
-        # hour -> [weighted sums per key, measured seconds, zone sums]
         hours: dict[datetime, list[Any]] = {}
 
         def add(
@@ -342,7 +338,7 @@ class ConsumptionHistory:
             values: dict[str, float],
             zones: dict[str, float],
         ) -> None:
-            if seconds <= 0:
+            if seconds <= 0 or not since <= start < until:
                 return
             hour = start.replace(minute=0, second=0, microsecond=0)
             acc = hours.setdefault(hour, [dict.fromkeys(keys, 0.0), 0.0, {}])
@@ -354,7 +350,7 @@ class ConsumptionHistory:
 
         for record in self.records:
             start = dt_util.parse_datetime(str(record["start"]))
-            if start is None or dt_util.as_utc(start) < midnight:
+            if start is None:
                 continue
             add(
                 dt_util.as_utc(start),
@@ -371,7 +367,7 @@ class ConsumptionHistory:
                     if isinstance(v, dict)
                 },
             )
-        if self._measured_s and self._interval_start is not None:
+        if running and self._measured_s and self._interval_start is not None:
             add(
                 self._interval_start,
                 self._measured_s,
@@ -389,6 +385,25 @@ class ConsumptionHistory:
                     if sums[1]
                 },
             )
+        return {
+            hour: (
+                {k: v / seconds for k, v in sums.items()},
+                {z: ws / seconds for z, ws in zone_sums.items()},
+            )
+            for hour, (sums, seconds, zone_sums) in hours.items()
+        }
+
+    def day_energy(
+        self, start: datetime, end: datetime, now: datetime
+    ) -> dict[str, Any]:
+        """Energy (Wh) from ``start`` to ``end`` (a local day), per clock hour:
+        the average of what was measured in that hour over the whole hour (the
+        current one: until now), so a gap such as a restart counts at that
+        hour's average, as in the hourly charts. Grid import/export and
+        battery charge/discharge from the net per hour; ``flows`` = who
+        supplied whom (solar first to the house, then excluded devices, the
+        battery and the grid; then the battery; the grid the rest)."""
+        now = dt_util.as_utc(now)
         total = dict.fromkeys(
             (
                 "house",
@@ -402,22 +417,76 @@ class ConsumptionHistory:
             0.0,
         )
         zones: dict[str, float] = {}
-        for hour, (sums, seconds, zone_sums) in hours.items():
+        flows: dict[str, float] = {}
+        averages = self._hour_averages(start, end, running=start <= now < end)
+        for hour, (avg, zone_avg) in averages.items():
             span = min((now - hour).total_seconds(), 3600.0) / 3600  # h
-            avg = {k: v / seconds for k, v in sums.items()}
+            if span <= 0:
+                continue
+            grid = avg["house"] - avg["pv"] + avg["excluded"] + avg["battery"]
             total["house"] += avg["house"] * span
             total["pv"] += avg["pv"] * span
             total["excluded"] += avg["excluded"] * span
             total["charged"] += max(avg["battery"], 0.0) * span
             total["discharged"] += max(-avg["battery"], 0.0) * span
-            grid = avg["house"] - avg["pv"] + avg["excluded"] + avg["battery"]
             total["imported"] += max(grid, 0.0) * span
             total["exported"] += max(-grid, 0.0) * span
-            for zone, ws in zone_sums.items():
-                zones[zone] = zones.get(zone, 0.0) + ws / seconds * span
+            for zone, watts in zone_avg.items():
+                zones[zone] = zones.get(zone, 0.0) + watts * span
+            supply = {
+                "pv": max(avg["pv"], 0.0),
+                "battery": max(-avg["battery"], 0.0),
+                "grid": max(grid, 0.0),
+            }
+            demand = {
+                "house": max(avg["house"], 0.0),
+                "excluded": max(avg["excluded"], 0.0),
+                "battery": max(avg["battery"], 0.0),
+                "grid": max(-grid, 0.0),
+            }
+            for source in supply:
+                for sink in demand:
+                    if source == sink:
+                        continue
+                    watts = min(supply[source], demand[sink])
+                    if watts > 0:
+                        flows[f"{source}-{sink}"] = (
+                            flows.get(f"{source}-{sink}", 0.0) + watts * span
+                        )
+                        supply[source] -= watts
+                        demand[sink] -= watts
         result: dict[str, Any] = {k: round(v) for k, v in total.items()}
         result["zones"] = {k: round(v) for k, v in zones.items()}
+        result["flows"] = {k: round(v) for k, v in flows.items() if v >= 1}
         return result
+
+    def today_energy(self, now: datetime) -> dict[str, Any]:
+        """Energy since local midnight (Wh), incl. the interval running now."""
+        start = dt_util.start_of_local_day(dt_util.as_local(now))
+        return self.day_energy(
+            dt_util.as_utc(start), dt_util.as_utc(start + timedelta(days=1)), now
+        )
+
+    def energy_days(self, now: datetime) -> list[dict[str, Any]]:
+        """The energy of every earlier local day in the history, newest
+        first, each with its ``date`` (YYYY-MM-DD)."""
+        if not self.records:
+            return []
+        first = dt_util.parse_datetime(str(self.records[0]["start"]))
+        if first is None:
+            return []
+        day = dt_util.start_of_local_day(dt_util.as_local(first))
+        today = dt_util.start_of_local_day(dt_util.as_local(now))
+        out: list[dict[str, Any]] = []
+        while day < today:
+            following = dt_util.start_of_local_day(day + timedelta(hours=26))
+            energy = self.day_energy(
+                dt_util.as_utc(day), dt_util.as_utc(following), now
+            )
+            if energy["house"]:
+                out.append({"date": day.date().isoformat(), **energy})
+            day = following
+        return out[::-1]
 
     def prune(self, now: datetime) -> None:
         """Drop records older than the retention period."""

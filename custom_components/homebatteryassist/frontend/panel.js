@@ -16,6 +16,11 @@ const TEXT = {
     fdTitle: "Energy flows",
     fdToday: "today",
     fdExpected: "expected",
+    fdTotal: "total",
+    fdLive: "Today (live)",
+    fdOlder: "Day before",
+    fdNewer: "Day after",
+    fdDayNote: "The energy of that day (kWh) per part and per flow; the thicker the line, the more energy went along it.",
     fdImport: "← import",
     fdExport: "→ export",
     fdCharge: "↓ charge",
@@ -233,6 +238,11 @@ const TEXT = {
     fdTitle: "Energiestromen",
     fdToday: "vandaag",
     fdExpected: "verwacht",
+    fdTotal: "totaal",
+    fdLive: "Vandaag (live)",
+    fdOlder: "Dag ervoor",
+    fdNewer: "Dag erna",
+    fdDayNote: "De energie van die dag (kWh) per onderdeel en per stroom; hoe dikker de lijn, hoe meer energie erlangs ging.",
     fdImport: "← afname",
     fdExport: "→ terug",
     fdCharge: "↓ laden",
@@ -448,6 +458,8 @@ const STYLE = `
   .fd { position: relative; max-width: 640px; margin: 8px auto 4px; aspect-ratio: 520 / 460; }
   .fd svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .fd-totals { text-align: center; }
+  .card > .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+  .fd-flow { font-size: 12px; font-weight: 600; text-anchor: middle; paint-order: stroke; stroke: var(--card-background-color, #1c1c1c); stroke-width: 3px; }
   .fd-line { fill: none; stroke-width: 2; opacity: .45; }
   .fd-line.on { opacity: .9; }
   .fd-node { position: absolute; transform: translate(-50%, -44px); width: 150px;
@@ -757,6 +769,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
   // Energy flow diagram: every measured flow now (W, moving dots) and the
   // energy of today per node (kWh, from the history).
   _flowDiagram(s, t) {
+    const days = this._history?.energy_days || [];
+    if (this._fdDay != null && days[this._fdDay]) return this._flowDay(s, t, days, this._fdDay);
     const e = s.entities;
     const num = (id) => this._num(id);
     const house = num(e.house_consumption);
@@ -882,8 +896,95 @@ class HomeBatteryAssistPanel extends HTMLElement {
           excluded !== null ? `${(s.excluded_names || []).join(", ") || t.fdExcluded} ${kwh(today.excluded)}` : "",
         ].filter(Boolean).join(" · ")
       : "";
-    return `<div class="card"><h2>${esc(t.fdTitle)}</h2><div class="fd"><svg viewBox="0 0 520 460" preserveAspectRatio="xMidYMid meet">${svg}</svg>${nodes.join("")}</div>
+    return `<div class="card"><div class="head"><h2>${esc(t.fdTitle)}</h2>${this._fdNav(t, days)}</div><div class="fd"><svg viewBox="0 0 520 460" preserveAspectRatio="xMidYMid meet">${svg}</svg>${nodes.join("")}</div>
       ${totals ? `<div class="muted small fd-totals">${esc(t.fdTodayTotal)}: ${esc(totals)}</div>` : ""}</div>`;
+  }
+
+  // Day navigation of the flow diagram: today (live) or an earlier day.
+  _fdNav(t, days) {
+    if (!days.length) return "";
+    const i = this._fdDay;
+    const lang = this._hass.locale?.language || this._hass.language;
+    const label =
+      i == null
+        ? t.fdLive
+        : new Date(`${days[i].date}T12:00:00`).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "short" });
+    const older = i == null ? 0 : i + 1;
+    const newer = i == null ? null : i - 1;
+    return `<div class="nav">
+      <button data-fdday="${older}" title="${esc(t.fdOlder)}" ${older >= days.length ? "disabled" : ""}>◀</button>
+      <button data-fdday="live" class="${i == null ? "active" : ""}">${esc(label)}</button>
+      <button data-fdday="${newer == null || newer < 0 ? "live" : newer}" title="${esc(t.fdNewer)}" ${i == null ? "disabled" : ""}>▶</button>
+    </div>`;
+  }
+
+  // The flow diagram of an earlier day: energy per node and per flow (kWh),
+  // lines as thick as the energy that went along them.
+  _flowDay(s, t, days, index) {
+    const d = days[index];
+    const lang = this._hass.locale?.language || this._hass.language;
+    const num1 = (wh) => (wh == null ? "–" : (wh / 1000).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+    const kwh = (wh) => `${num1(wh)} kWh`;
+    const zones = s.zones || [];
+    const zoneWh = zones.reduce((a, z) => a + (d.zones?.[z.id] || 0), 0);
+    const pos = { pv: [260, 55], zone: [450, 55], grid: [70, 205], house: [450, 205], battery: [260, 360], excluded: [450, 360] };
+    const J = [260, 205];
+    const colors = { pv: "#ff9800", grid: "#488fc2", battery: "#4db6ac", export: "#8353d1", zone: "#e53935" };
+    const exists = (n) =>
+      n === "pv" ? s.has_pv : n === "battery" ? s.batteries.length > 0 : n === "excluded" ? s.has_excluded : n === "zone" ? zones.length > 0 : true;
+    const flows = { ...(d.flows || {}) };
+    if (zones.length) flows["house-zone"] = zoneWh;
+    const max = Math.max(...Object.values(flows), 1);
+    let svg = "";
+    for (const key of ["pv-house", "pv-grid", "pv-battery", "pv-excluded", "grid-house", "grid-battery", "grid-excluded",
+      "battery-house", "battery-grid", "battery-excluded", "house-zone"]) {
+      const [from, to] = key.split("-");
+      if (!exists(from) || !exists(to)) continue;
+      const [x1, y1] = pos[from];
+      const [x2, y2] = pos[to];
+      const straight = x1 === x2 || y1 === y2;
+      const d0 = straight ? `M${x1} ${y1} L${x2} ${y2}` : `M${x1} ${y1} Q${J[0]} ${J[1]} ${x2} ${y2}`;
+      const wh = flows[key] || 0;
+      const on = wh >= 50;
+      const color = key === "house-zone" ? colors.zone : to === "grid" ? colors.export : colors[from];
+      svg += `<path d="${d0}" class="fd-line${on ? " on" : ""}" stroke="${on ? color : "var(--divider-color)"}" style="stroke-width:${on ? 2 + (6 * wh) / max : 2}"/>`;
+      if (on) {
+        // The energy on the line, at its middle.
+        // (straight lines at a third, so they do not meet in the middle)
+        const f = 0.35;
+        const mx = straight ? x1 + (x2 - x1) * f : 0.25 * x1 + 0.5 * J[0] + 0.25 * x2;
+        const my = straight ? y1 + (y2 - y1) * f : 0.25 * y1 + 0.5 * J[1] + 0.25 * y2;
+        svg += `<text class="fd-flow" x="${(mx + (x1 === x2 ? 14 : 0)).toFixed(0)}" y="${(my - (x1 === x2 ? 0 : 6)).toFixed(0)}" fill="${color}">${esc(num1(wh))}</text>`;
+      }
+    }
+    const node = (key, cls, icon, label, value, rows = [], extra = "") => {
+      const [x, y] = pos[key];
+      const table = rows.length
+        ? `<table><tr><th>kWh</th><th>${esc(t.fdTotal)}</th></tr>${rows
+            .map(([name, a]) => `<tr><td>${esc(name)}</td><td>${esc(num1(a))}</td></tr>`)
+            .join("")}</table>`
+        : "";
+      return `<div class="fd-node ${cls}" style="left:${(x / 520) * 100}%;top:${(y / 460) * 100}%">
+        <div class="fd-circle"><ha-icon icon="${icon}"></ha-icon><b>${esc(value)}</b>${extra ? `<small>${esc(extra)}</small>` : ""}</div>
+        <div class="fd-info"><div class="fd-name">${esc(label)}</div>${table}</div></div>`;
+    };
+    const nodes = [
+      node("grid", "fd-grid", "mdi:transmission-tower", t.grid, `← ${kwh(d.imported)}`,
+        [[t.fdImport, d.imported], [t.fdExport, d.exported]]),
+      node("house", "fd-house", "mdi:home", t.house, kwh(d.house)),
+      s.has_pv ? node("pv", "fd-pv", "mdi:solar-power", t.pv, kwh(d.pv)) : "",
+      s.batteries.length
+        ? node("battery", "fd-battery", "mdi:home-battery", t.batteries, `↓ ${num1(d.charged)} ↑ ${num1(d.discharged)}`,
+            [[t.fdCharge, d.charged], [t.fdDischarge, d.discharged]])
+        : "",
+      s.has_excluded
+        ? node("excluded", "fd-excluded", "mdi:ev-station", (s.excluded_names || []).length === 1 ? s.excluded_names[0] : t.fdExcluded, kwh(d.excluded))
+        : "",
+      zones.length ? node("zone", "fd-zone", "mdi:hvac", zones.map((z) => z.name).join(", "), kwh(zoneWh), [], t.fdPartOfHouse) : "",
+    ];
+    return `<div class="card"><div class="head"><h2>${esc(t.fdTitle)}</h2>${this._fdNav(t, days)}</div>
+      <div class="fd"><svg viewBox="0 0 520 460" preserveAspectRatio="xMidYMid meet">${svg}</svg>${nodes.join("")}</div>
+      <div class="muted small fd-totals">${esc(t.fdDayNote)}</div></div>`;
   }
 
   _flows(s, t) {
@@ -1331,6 +1432,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
   }
 
   _bindFlowNav() {
+    for (const button of this.shadowRoot.querySelectorAll(".nav button[data-fdday]")) {
+      button.addEventListener("click", () => {
+        this._fdDay = button.dataset.fdday === "live" ? null : Number(button.dataset.fdday);
+        this._scheduleRender();
+      });
+    }
     for (const button of this.shadowRoot.querySelectorAll(".nav button[data-day]")) {
       button.addEventListener("click", () => {
         this._dayWeek = button.dataset.day === "all" ? null : Number(button.dataset.day);

@@ -496,6 +496,8 @@ def websocket_history(
         msg["id"],
         {
             "interval_minutes": entry.runtime_data.history.minutes,
+            # Energy (and flows) of every earlier day, for the flow diagram.
+            "energy_days": entry.runtime_data.history.energy_days(now),
             "days_covered": days_covered(records),
             "imported": sum(1 for r in records if r.get("source") == "import"),
             # [time ms, house consumption W, excluded devices W]

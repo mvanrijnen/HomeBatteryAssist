@@ -301,3 +301,10 @@ async def test_today_energy(hass: HomeAssistant) -> None:
     assert today["charged"] == 400 and today["discharged"] == 0
     assert today["exported"] == 600 and today["imported"] == 0
     assert today["zones"] == {"z": 300}
+    # Who supplied whom: solar to the house, the battery and the grid.
+    assert today["flows"] == {"pv-house": 1000, "pv-battery": 400, "pv-grid": 600}
+    # Earlier days: yesterday's record as a day of its own.
+    days = history.energy_days(midnight + timedelta(hours=1, minutes=5))
+    # One measured quarter counts for its whole hour (as a gap would).
+    assert [d["house"] for d in days] == [4000]
+    assert days[0]["flows"] == {"grid-house": 4000}
