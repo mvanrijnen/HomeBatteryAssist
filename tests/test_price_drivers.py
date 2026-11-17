@@ -9,6 +9,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.homebatteryassist.engine.sources.prices import (
     DRIVERS,
+    ROLE_EXPORT,
     ROLE_IMPORT,
     ROLE_MARKET,
     find_sources,
@@ -45,7 +46,7 @@ def test_points_from() -> None:
 
 
 async def test_dyntarnl_driver(hass: HomeAssistant) -> None:
-    """All-in prices and bare market prices (published + forecast)."""
+    """All-in, bare market (published + forecast) and export prices."""
     entry = MockConfigEntry(domain="dyntarnl", title="Essent")
     entry.add_to_hass(hass)
     registry = er.async_get(hass)
@@ -64,7 +65,10 @@ async def test_dyntarnl_driver(hass: HomeAssistant) -> None:
         (
             "_electricity_market_market_current",
             "market",
-            {"prices": [[ms + i * hour, 0.10] for i in range(48)]},
+            {
+                "prices": [[ms + i * hour, 0.10] for i in range(48)],
+                "purchase_fee": 0.025,
+            },
         ),
     ):
         registry.async_get_or_create(
@@ -78,13 +82,16 @@ async def test_dyntarnl_driver(hass: HomeAssistant) -> None:
             f"sensor.{object_id}", "0.3", {"unit_of_measurement": "€/kWh", **attrs}
         )
     (source,) = [s for s in find_sources(hass) if s.driver == "dyntarnl"]
-    assert source.roles == {ROLE_IMPORT, ROLE_MARKET}
+    assert source.roles == {ROLE_IMPORT, ROLE_MARKET, ROLE_EXPORT}
     driver, source_id = split_key(source.key)
     data = await driver.async_read(hass, source_id, ROLE_IMPORT)
     assert len(data.points) == 49 and data.points[-1].estimated
     assert data.unit == "€/kWh"
     market = await driver.async_read(hass, source_id, ROLE_MARKET)
     assert [p.price for p in market.points[-2:]] == [0.10, 0.20]
+    # Export: the market price minus the purchase fee (Essent).
+    export = await driver.async_read(hass, source_id, ROLE_EXPORT)
+    assert [p.price for p in export.points[-2:]] == [0.075, 0.175]
     assert set(driver.watch(hass, source_id)) == {"sensor.forecast", "sensor.market"}
 
 

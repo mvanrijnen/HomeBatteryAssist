@@ -9,18 +9,32 @@ others (recognised by the end of their unique id):
 - ``…_electricity_market_market_current``: attribute ``prices`` with the
   published bare market prices (yesterday, today, tomorrow).
 
-Roles: ``import`` (all-in) and ``market`` (bare, published + forecast).
+Roles: ``import`` (all-in), ``market`` (bare, published + forecast) and
+``export``: the market price minus the supplier's purchase fee (attribute
+``purchase_fee`` of the market sensor, e.g. Essent about 0.025), which is what
+exported energy earns on a dynamic contract (as DynTarNL's own export price
+sensor, which has no forecast).
 """
 
 from __future__ import annotations
+
+from dataclasses import replace
 
 from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from .base import ROLE_IMPORT, ROLE_MARKET, PriceData, PriceDriver, PriceSource
+from .base import (
+    ROLE_EXPORT,
+    ROLE_IMPORT,
+    ROLE_MARKET,
+    PriceData,
+    PriceDriver,
+    PriceSource,
+)
 from .price_points import (
     MARKET_ATTRIBUTES,
+    PricePoint,
     merge_price_forecasts,
     parse_price_forecast,
 )
@@ -56,7 +70,7 @@ class DynTarNLDriver(PriceDriver):
                 self.key,
                 entry.entry_id,
                 f"{self.name}: {entry.title}",
-                frozenset({ROLE_IMPORT, ROLE_MARKET}),
+                frozenset({ROLE_IMPORT, ROLE_MARKET, ROLE_EXPORT}),
                 7,
             )
             for entry in hass.config_entries.async_entries(DOMAIN)
@@ -66,20 +80,21 @@ class DynTarNLDriver(PriceDriver):
     async def async_read(
         self, hass: HomeAssistant, source: str, role: str
     ) -> PriceData:
-        """All-in prices, or bare market prices (published, then forecast)."""
+        """All-in prices, bare market prices (published, then forecast) or
+        export prices (market minus the purchase fee)."""
         forecast = hass.states.get(_entity(hass, source, FORECAST_SUFFIX) or "")
         unit = forecast.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if forecast else None
-        if role == ROLE_MARKET:
+        if role in (ROLE_MARKET, ROLE_EXPORT):
             market = hass.states.get(_entity(hass, source, MARKET_SUFFIX) or "")
-            return PriceData(
-                merge_price_forecasts(
-                    [
-                        parse_price_forecast(market),
-                        parse_price_forecast(forecast, MARKET_ATTRIBUTES),
-                    ]
-                ),
-                unit,
+            points = merge_price_forecasts(
+                [
+                    parse_price_forecast(market),
+                    parse_price_forecast(forecast, MARKET_ATTRIBUTES),
+                ]
             )
+            if role == ROLE_EXPORT:
+                points = _minus_fee(points, purchase_fee(market))
+            return PriceData(points, unit)
         return PriceData(parse_price_forecast(forecast, ("prices",)), unit)
 
     def watch(self, hass: HomeAssistant, source: str) -> list[str]:
@@ -92,3 +107,16 @@ class DynTarNLDriver(PriceDriver):
             )
             if e
         ]
+
+
+def purchase_fee(state) -> float:
+    """The supplier's purchase fee per kWh (0 when unknown or nonsense)."""
+    try:
+        fee = float(state.attributes.get("purchase_fee")) if state else 0.0
+    except (TypeError, ValueError):
+        return 0.0
+    return fee if 0.0 <= fee < 1.0 else 0.0
+
+
+def _minus_fee(points: list[PricePoint], fee: float) -> list[PricePoint]:
+    return [replace(p, price=round(p.price - fee, 5)) for p in points]

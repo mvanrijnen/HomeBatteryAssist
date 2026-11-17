@@ -43,7 +43,7 @@ From a price source of your choice (*price [drivers](drivers.md)*): [DynTarNL](h
 
 Every calculation (plans, comparisons and the realised value of the batteries) assumes there is **no net metering** (in the Netherlands it ends on 1 January 2027). Imported energy costs the import price; exported energy earns only the export price, so charging from solar power costs what that power would have earned, and discharging saves the import price only for energy the house would otherwise have bought.
 
-The export price is the bare market price (EPEX, default), an export price forecast from one or more sensors, or import price × factor (default 0.25; 1.0 equals net metering).
+The export price is the bare market price (EPEX, default), the export price — from the price source when it has one, otherwise from one or more sensors — or import price × factor (default 0.25; 1.0 equals net metering). On a dynamic contract the supplier usually deducts a purchase fee from the market price for exported energy (e.g. Essent about € 0.025/kWh); with DynTarNL as price source, *Export price from the price source* gives exactly that: the market price (published and forecast) minus the fee DynTarNL reports.
 
 ### Tariff
 
