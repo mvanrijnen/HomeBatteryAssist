@@ -296,6 +296,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.tariffs: dict[str, Tariff] = dict(tariffs or {})
         self.tariff_key: str = entry.options.get(CONF_TARIFF, DEFAULT_TARIFF)
         self.tariff_fallback = False
+        # Bare market prices (when the price source has them), for the
+        # dashboard and tariffs that need them.
+        self.market_prices: list[PricePoint] = []
         self._failed_tariffs: set[str] = set()
         # Own PV forecast sources (the built-in one reads the Energy platforms).
         self.pv_sources: dict[str, PvForecastSource] = dict(pv_sources or {})
@@ -556,6 +559,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         if self.pv_entries:
             pv_now_w = pv_wh.get(hour)
+        self.market_prices = await self._async_read_market(now)
         # What a kWh really costs and earns: the chosen tariff module.
         prices, export_prices = await self._async_apply_tariff(
             prices, export_prices, now, price_unit
@@ -962,6 +966,19 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 entities += driver.watch(self.hass, source)
         return list(dict.fromkeys(entities))
 
+    async def _async_read_market(self, now: datetime) -> list[PricePoint]:
+        """Bare market prices of the price source (driver with a market
+        role), else the export prices when those are the bare market price."""
+        driver, _source = split_key(self.price_source)
+        offered = {s.key: s for s in (driver.find(self.hass) if driver else [])}
+        source = offered.get(self.price_source)
+        if source is not None and ROLE_MARKET in source.roles:
+            data = await self._async_read_driver(self.price_source, ROLE_MARKET)
+            return [p for p in data.points if p.end > now]
+        if self.export_mode == EXPORT_MARKET:
+            return await self._async_read_export_prices(now)
+        return []
+
     async def _async_apply_tariff(
         self,
         prices: list[PricePoint],
@@ -975,14 +992,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         tariff = tariff or TARIFFS[DEFAULT_TARIFF]
         if tariff.key == DEFAULT_TARIFF and isinstance(tariff, SourceTariff):
             return prices, export_prices
-        market: list[PricePoint] = []
-        if tariff.needs_market:
-            driver, _source = split_key(self.price_source)
-            offered = {s.key: s for s in (driver.find(self.hass) if driver else [])}
-            source = offered.get(self.price_source)
-            if source is not None and ROLE_MARKET in source.roles:
-                data = await self._async_read_driver(self.price_source, ROLE_MARKET)
-                market = data.points
+        market = self.market_prices if tariff.needs_market else []
         try:
             return apply_tariff(
                 tariff, prices, export_prices, market, now, unit, self.export_factor

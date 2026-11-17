@@ -12,6 +12,9 @@ const TEXT = {
     grid: "Grid",
     priceNow: "Power price",
     priceFrom: "from {time}: {price}",
+    priceNowAt: "Now ({time})",
+    priceFromAt: "From {time}",
+    priceCols: ["Market", "Import", "Export"],
     exportPrice: "export {price}",
     ownSensors: "own sensors",
     directly: "read directly",
@@ -210,6 +213,9 @@ const TEXT = {
     grid: "Net",
     priceNow: "Stroomprijs",
     priceFrom: "vanaf {time}: {price}",
+    priceNowAt: "Nu ({time})",
+    priceFromAt: "Vanaf {time}",
+    priceCols: ["Beurs", "Inkoop", "Verkoop"],
     exportPrice: "teruglevering {price}",
     ownSensors: "eigen sensoren",
     directly: "rechtstreeks",
@@ -429,6 +435,11 @@ const STYLE = `
   .flow .value { font-size: 22px; font-weight: 500; white-space: nowrap; }
   .flow .label { color: var(--secondary-text-color); font-size: 12px; }
   .flow .value small { font-size: 60%; font-weight: 400; margin-left: 2px; }
+  .flows > .flow.price { flex: 2 1 0; min-width: 250px; }
+  .flow .value table.prices { font-size: 13px; font-weight: 400; border-collapse: collapse; width: 100%; }
+  .flow .value table.prices th, .flow .value table.prices td { padding: 1px 4px; text-align: right; }
+  .flow .value table.prices th { font-weight: 500; color: var(--secondary-text-color); }
+  .flow .value table.prices tr > th:first-child { text-align: left; padding-left: 0; }
   .pv ha-icon { color: var(--warning-color, #f4b400); }
   .export .value { color: var(--success-color, #43a047); }
   .import .value { color: var(--error-color, #db4437); }
@@ -713,14 +724,15 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const lang = this._hass.locale?.language || this._hass.language;
       const fmt = (v, est) =>
         v == null ? "–" : `${est ? "≈ " : ""}${new Intl.NumberFormat(lang, { style: "currency", currency: p.currency || "EUR", minimumFractionDigits: 2, maximumFractionDigits: 3 }).format(v)}`;
-      const subs = [];
-      if (p.next != null) {
-        const time = new Date(p.next_start).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
-        subs.push(t.priceFrom.replace("{time}", time).replace("{price}", fmt(p.next, p.next_estimated)));
-      }
-      if (p.export_now != null) subs.push(t.exportPrice.replace("{price}", fmt(p.export_now)));
+      // Now and from the next price change: market, import and export price.
+      const hhmm = (iso) => new Date(iso).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+      const row = (label, market, imp, est, exp) =>
+        `<tr><th>${esc(label)}</th><td>${fmt(market)}</td><td>${fmt(imp, est)}</td><td>${fmt(exp)}</td></tr>`;
+      const rows = [row(t.priceNowAt.replace("{time}", hhmm(p.start || new Date().toISOString())), p.market_now, p.now, p.now_estimated, p.export_now)];
+      if (p.next != null) rows.push(row(t.priceFromAt.replace("{time}", hhmm(p.next_start)), p.market_next, p.next, p.next_estimated, p.export_next));
+      const table = `<table class="prices"><tr><th></th>${t.priceCols.map((c) => `<th>${esc(c)}</th>`).join("")}</tr>${rows.join("")}</table>`;
       const cls = p.next == null ? "price" : p.next > p.now ? "price up" : "price down";
-      parts.push(this._flow(cls, "mdi:currency-eur", t.priceNow, `${fmt(p.now, p.now_estimated)}<small>/kWh</small>`, subs.join(" · ")));
+      parts.push(this._flow(cls, "mdi:currency-eur", t.priceNow, table));
     }
     if (s.has_pv || s.has_pv_forecast) {
       const expected = s.pv_forecast_now_w == null ? "" : `${t.expected} ${this._power(s.pv_forecast_now_w)}`;

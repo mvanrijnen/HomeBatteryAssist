@@ -7,7 +7,7 @@ entities and batteries exist, then shows their live states from ``hass.states``.
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -241,9 +241,18 @@ def _prices_now(hass: HomeAssistant, data: Any) -> dict[str, Any] | None:
         None,
     )
     plan = forecast.selected_plan
-    slot = next(
-        (s for s in (plan.slots if plan else []) if s.start <= now < s.end), None
-    )
+    slots = plan.slots if plan else []
+
+    def export_at(when: datetime) -> float | None:
+        slot = next((s for s in slots if s.start <= when < s.end), None)
+        return slot.export_price if slot else None
+
+    def market_at(when: datetime) -> float | None:
+        point = next(
+            (p for p in data.forecast.market_prices if p.start <= when < p.end), None
+        )
+        return point.price if point else None
+
     return {
         "unit": forecast.price_unit,
         "currency": hass.config.currency,
@@ -253,7 +262,11 @@ def _prices_now(hass: HomeAssistant, data: Any) -> dict[str, Any] | None:
         "next": upcoming.price if upcoming else None,
         "next_start": upcoming.start.isoformat() if upcoming else None,
         "next_estimated": upcoming.estimated if upcoming else False,
-        "export_now": slot.export_price if slot else None,
+        "start": current.start.isoformat(),
+        "market_now": market_at(now),
+        "export_now": export_at(now),
+        "market_next": market_at(upcoming.start) if upcoming else None,
+        "export_next": export_at(upcoming.start) if upcoming else None,
     }
 
 

@@ -250,8 +250,19 @@ def test_prices_now(hass: HomeAssistant) -> None:
         plan_mode="arbitrage",
         selected_plan=SimpleNamespace(slots=[slot]),
     )
-    result = _prices_now(hass, SimpleNamespace(forecast=SimpleNamespace(data=forecast)))
+    market = [
+        PricePoint(hour, hour + h, 0.10),
+        PricePoint(hour + 2 * h, hour + 3 * h, 0.05),
+    ]
+    result = _prices_now(
+        hass,
+        SimpleNamespace(forecast=SimpleNamespace(data=forecast, market_prices=market)),
+    )
     assert result["now"] == 0.30
     assert result["next"] == 0.25 and result["next_estimated"] is True
     assert result["next_start"] == (hour + 2 * h).isoformat()
     assert result["export_now"] == 0.12
+    # Market and export price now and from the next price change.
+    assert result["market_now"] == 0.10 and result["market_next"] == 0.05
+    assert result["export_next"] is None  # the plan has no slot there
+    assert result["start"] == hour.isoformat()
