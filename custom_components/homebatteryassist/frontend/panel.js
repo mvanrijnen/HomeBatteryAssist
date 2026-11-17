@@ -13,6 +13,12 @@ const TEXT = {
     priceNow: "Power price",
     priceFrom: "from {time}: {price}",
     priceNowAt: "Now ({time})",
+    tempTitle: "Temperature and heating/cooling",
+    tempOutdoor: "Outdoor (forecast)",
+    tempRoom: "Room (learned)",
+    tempPower: "Heating/cooling (expected)",
+    tempKwh: "Expected heating/cooling: {days}",
+    tempLearning: "The effect of the temperature is still being learned (7 days with temperature needed); for now only the forecast outdoor temperature.",
     priceFromAt: "From {time}",
     priceCols: ["Market", "Import", "Export"],
     exportPrice: "export {price}",
@@ -214,6 +220,12 @@ const TEXT = {
     priceNow: "Stroomprijs",
     priceFrom: "vanaf {time}: {price}",
     priceNowAt: "Nu ({time})",
+    tempTitle: "Temperatuur en verwarming/koeling",
+    tempOutdoor: "Buiten (verwacht)",
+    tempRoom: "Kamer (geleerd)",
+    tempPower: "Verwarming/koeling (verwacht)",
+    tempKwh: "Verwacht verbruik verwarming/koeling: {days}",
+    tempLearning: "Het effect van de temperatuur wordt nog geleerd (7 dagen met temperatuur nodig); voorlopig alleen de verwachte buitentemperatuur.",
     priceFromAt: "Vanaf {time}",
     priceCols: ["Beurs", "Inkoop", "Verkoop"],
     exportPrice: "teruglevering {price}",
@@ -992,7 +1004,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
   _chart(id, series, xMin, xMax, ticks, gapLimit, markers = [], xFmt = (v) => this._time(new Date(v).toISOString()), yFmt = null) {
     // Full-width charts get a wider canvas so they are as high as the others.
     // The full-width flow chart gets a wider and higher canvas.
-    const wide = id === "forecast" || id === "soc";
+    const wide = id === "forecast" || id === "soc" || id === "temperature";
     const rightSeries = series.filter((s) => s.axis === "right");
     const W = wide ? 1232 : 600, H = id === "forecast" ? 300 : 190, L = 58, R = rightSeries.length ? 58 : 8, T = 8, B = 24;
     const all = series.filter((s) => s.axis !== "right").flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
@@ -1593,12 +1605,67 @@ class HomeBatteryAssistPanel extends HTMLElement {
         <div class="muted">${esc(accText)}</div>
         ${h.battery_forecast?.length ? `<div class="muted">${esc(this._planText(h, t))} · ${esc(t.batteryNote)}</div>` : ""}</div>
       ${socChart ? `<div class="chart wide"><h3>${esc(t.socTitle)}</h3>${socChart}</div>` : ""}
+      ${this._temperatureChart(h, t, lang)}
       <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}<div class="muted small">${esc(t.last7Info)}</div></div>
       <div class="chart"><div class="head"><h3>${esc(t.avgDay)}</h3>${this._dayNav(t, weeks, lang)}</div>${avg}
         <div class="legend">${dayNames.map((name, i) => `<span><i style="background:${dayColors[i]}"></i>${esc(name)}</span>`).join("")}
         <span>${esc(t.allAverage)}</span></div>
         <div class="muted small">${esc(t.avgDayInfo)}</div></div>
     </div></div>`;
+  }
+
+  // Expected outdoor temperature, learned room temperature and the heating /
+  // cooling power to expect (only with a weather source).
+  _temperatureChart(h, t, lang) {
+    const temp = h.temperature;
+    if (!temp || !temp.slots?.length) return "";
+    const rows = temp.slots;
+    const xMin = rows[0][0];
+    const xMax = rows[rows.length - 1][0];
+    const ticks = [];
+    const span = (xMax - xMin) / 3600e3;
+    const step = span <= 48 ? 6 : 24;
+    const d = new Date(xMin);
+    d.setMinutes(0, 0, 0);
+    d.setHours(Math.ceil(d.getHours() / step) * step);
+    for (; d.getTime() <= xMax; d.setHours(d.getHours() + step)) {
+      ticks.push([
+        d.getTime(),
+        d.getHours() === 0
+          ? d.toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" })
+          : `${String(d.getHours()).padStart(2, "0")}:00`,
+      ]);
+    }
+    const degrees = (v) => (v == null ? "–" : `${v.toFixed(1).replace(".", lang.startsWith("nl") ? "," : ".")} °C`);
+    const axisDeg = (v) => `${Math.round(v)} °C`;
+    const outdoorColor = "#039be5";
+    const roomColor = "#e53935";
+    const heatColor = "#fb8c00";
+    const series = [
+      ...(temp.learned ? [{ points: rows.map(([ts, , , w]) => [ts, w]), color: heatColor, label: t.tempPower }] : []),
+      { points: rows.map(([ts, out]) => [ts, out]), color: outdoorColor, label: t.tempOutdoor, axis: "right", fmt: degrees, axisFmt: axisDeg },
+      ...(rows.some((r) => r[2] != null)
+        ? [{ points: rows.map(([ts, , room]) => [ts, room]), color: roomColor, dashed: true, label: t.tempRoom, axis: "right", fmt: degrees, axisFmt: axisDeg }]
+        : []),
+    ];
+    const chart = this._chart("temperature", series, xMin, xMax, ticks, 2 * 3600e3);
+    // Expected heating/cooling energy per local day (from the slots).
+    const perDay = new Map();
+    for (let i = 0; i < rows.length; i++) {
+      const [ts, , , w] = rows[i];
+      if (w == null) continue;
+      const next = rows[i + 1]?.[0] ?? ts + (rows.length > 1 ? rows[1][0] - rows[0][0] : 900e3);
+      const day = new Date(ts).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" });
+      perDay.set(day, (perDay.get(day) || 0) + (w * (next - ts)) / 3600e6);
+    }
+    const kwh = [...perDay.entries()]
+      .map(([day, v]) => `${day}: ${v.toFixed(1).replace(".", lang.startsWith("nl") ? "," : ".")} kWh`)
+      .join(" · ");
+    const note = temp.learned ? t.tempKwh.replace("{days}", kwh || "–") : t.tempLearning;
+    const legend = `<div class="legend">${series
+      .map((s) => `<span><i style="${s.dashed ? `background:none;border-top:2px dashed ${s.color};height:0` : `background:${s.color}`}"></i>${esc(s.label)}</span>`)
+      .join("")}</div>`;
+    return `<div class="chart wide"><h3>${esc(t.tempTitle)}</h3>${chart}${legend}<div class="muted small">${esc(note)}</div></div>`;
   }
 
   _accuracy(t) {

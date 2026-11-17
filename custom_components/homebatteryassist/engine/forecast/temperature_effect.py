@@ -137,6 +137,25 @@ class TemperatureModel:
         cool = cooling_degrees(temp_c) - _usual(self.usual_cooling, weekday, hour, 0.0)
         return self.heat_w_per_deg * heat + self.cool_w_per_deg * cool
 
+    def demand(self, start: datetime, temp_c: float | None) -> float | None:
+        """The heating/cooling power (W) to expect in that slot itself, not
+        the difference with the usual weather (dashboard)."""
+        if temp_c is None or not math.isfinite(temp_c) or not self.active:
+            return None
+        local = dt_util.as_local(start)
+        base = self.room(local.weekday(), local.hour) - self.gain_c
+        return self.heat_w_per_deg * heating_degrees(
+            temp_c, base
+        ) + self.cool_w_per_deg * cooling_degrees(temp_c)
+
+    def room_at(self, start: datetime) -> float | None:
+        """The learned room temperature in that slot (None without a room
+        sensor)."""
+        if not self.usual_indoor:
+            return None
+        local = dt_util.as_local(start)
+        return self.room(local.weekday(), local.hour)
+
 
 @dataclass(frozen=True, slots=True)
 class ZoneModels:
@@ -154,6 +173,15 @@ class ZoneModels:
 
     def effect(self, start: datetime, temp_c: float | None) -> float:
         return sum(m.effect(start, temp_c) for m in self.models)
+
+    def demand(self, start: datetime, temp_c: float | None) -> float | None:
+        values = [m.demand(start, temp_c) for m in self.models]
+        known = [v for v in values if v is not None]
+        return sum(known) if known else None
+
+    def room_at(self, start: datetime) -> float | None:
+        rooms = [r for m in self.models if (r := m.room_at(start)) is not None]
+        return sum(rooms) / len(rooms) if rooms else None
 
 
 TemperatureEffect = TemperatureModel | ZoneModels

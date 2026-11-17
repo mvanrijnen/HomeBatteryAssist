@@ -270,6 +270,32 @@ def _prices_now(hass: HomeAssistant, data: Any) -> dict[str, Any] | None:
     }
 
 
+def _temperature_series(forecast: Any) -> dict[str, Any] | None:
+    """The expected outdoor temperature, the learned room temperature and
+    the heating/cooling power to expect per slot (None without weather)."""
+    if forecast.weather is None:
+        return None
+    model = forecast.temperature_model
+    learned = model is not None and model.active
+    rows = []
+    for start, temp in forecast.temperature_slots:
+        demand = model.demand(start, temp) if learned else None
+        room = model.room_at(start) if model is not None else None
+        rows.append(
+            [
+                int(start.timestamp() * 1000),
+                None if temp is None else round(temp, 1),
+                None if room is None else round(room, 1),
+                None if demand is None else round(demand),
+            ]
+        )
+    return {
+        "slots": rows,
+        "learned": learned,
+        "days": model.days if model is not None else 0,
+    }
+
+
 def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str, Any]:
     """Everything the panel needs besides live entity states."""
     data = entry.runtime_data
@@ -531,6 +557,9 @@ def websocket_history(
                 [int(s.start.timestamp() * 1000), s.power_w, s.base_w]
                 for s in forecast.data.consumption
             ],
+            # With a weather source: [time ms, outdoor °C, room °C, heating /
+            # cooling W] per slot (room and W once learned).
+            "temperature": _temperature_series(forecast),
             # Last 24 h checked afterwards: [time ms, measured W, predicted W]
             # (predicted = the prediction with the shortest lead time).
             "verification": [

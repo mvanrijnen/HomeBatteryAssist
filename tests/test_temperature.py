@@ -362,3 +362,25 @@ def test_profile_has_no_weekend_split(hass: HomeAssistant) -> None:
     )
 
     assert METHODS == ("weekday_hour", "hour", "overall")
+
+
+def test_demand_and_room_for_the_dashboard(hass: HomeAssistant) -> None:
+    """The power to expect itself (not the difference with the usual
+    weather) and the learned room temperature; zones add up."""
+    from custom_components.homebatteryassist.engine.forecast.temperature_effect import (
+        ZoneModels,
+    )
+
+    model = TemperatureModel(
+        100.0, 0.0, 14, "zone", {}, {}, gain_c=4.0, usual_indoor={1: 21.0}
+    )
+    start = dt_util.as_utc(dt_util.as_local(NOW).replace(hour=1))
+    assert model.room_at(start) == 21.0
+    assert model.demand(start, 7.0) == 1000.0  # 10 degrees below 21 - 4
+    assert model.demand(start, 20.0) == 0.0
+    assert model.demand(start, None) is None
+    house = TemperatureModel(50.0, 0.0, 14, "avg_w", {}, {})
+    assert house.room_at(start) is None
+    both = ZoneModels((model, house))
+    assert both.demand(start, 7.0) == 1000.0 + 50.0 * 9.0  # house: 20 - 4 - 7
+    assert both.room_at(start) == 21.0
