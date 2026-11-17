@@ -9,8 +9,10 @@ active code.
 What it does, once active
 =========================
 
-Every ``STEP`` (and at once when the grid meter shows a phase overload or a
-peak) the loop decides a power per real battery and hands it to that
+Every round (setting ``react_interval_s``, default 5 s; on the average of
+the meter over the round when ``react_average`` is on) and at once when the
+grid meter shows a phase overload, a peak or (``react_jump``) a jump of at
+least ``react_jump_w``, the loop decides a power per real battery and hands it to that
 battery's ``BatteryController`` (``battery_controller.py``), which applies the
 safety rules (master switch, always release, watchdog, refresh, throttle,
 deadband, idle = release, limits) and talks to the battery.
@@ -104,8 +106,8 @@ Activating (later, deliberately, with the project owner)
 #
 # _LOGGER = logging.getLogger(__name__)
 #
-# STEP = timedelta(seconds=1)
-# REACT_INTERVAL = timedelta(seconds=0.5)  # fastest reaction on the meter
+# STEP = timedelta(seconds=5)  # fallback; the round is forecast.react_interval
+# REACT_INTERVAL = timedelta(seconds=0.5)  # fastest extra round on the meter
 #
 #
 # class ReaderDriver(DirectBatteryDriver):
@@ -184,7 +186,9 @@ Activating (later, deliberately, with the project owner)
 #             return
 #         self._last = dt_util.utcnow()
 #         self._unsub.append(
-#             async_track_time_interval(self.hass, self._async_step, STEP)
+#             async_track_time_interval(
+#                 self.hass, self._async_step, self._forecast.react_interval or STEP
+#             )
 #         )
 #         self._unsub.append(self._measurements.async_add_listener(self._measured))
 #         self._decisions.async_log(
@@ -205,8 +209,9 @@ Activating (later, deliberately, with the project owner)
 #
 #     @callback
 #     def _measured(self, when: datetime, _power: float | None) -> None:
-#         """React at once on a phase overload or a peak (as the virtual
-#         batteries do), not only every STEP."""
+#         """React at once on a phase overload, a peak or a large jump (as
+#         the virtual batteries do: the average over the round and the jump
+#         check move to targets.py with step 1), not only every round."""
 #         if self._last is not None and when - self._last >= REACT_INTERVAL:
 #             # The check of VirtualBatteries._async_measured, moved to
 #             # targets.py in step 1 of "Activating".

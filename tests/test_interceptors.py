@@ -147,3 +147,30 @@ def test_own_module_from_template(tmp_path: Path) -> None:
     outcome = run_interceptor(interceptor, data)
     assert outcome.powers["cold"] == 0.0
     assert outcome.powers["big"] <= -1500.0  # limited, then took over the cold one
+
+
+def test_round_average_over_the_meter() -> None:
+    """Zero on the meter uses the time-weighted average of the round; off:
+    the last value."""
+    from datetime import timedelta
+    from types import SimpleNamespace
+
+    from custom_components.homebatteryassist.engine.devices.batteries.virtual import (
+        VirtualBatterySimulator,
+    )
+    from custom_components.homebatteryassist.engine.measure.house_measurement import (
+        PowerFlow,
+    )
+
+    flow = PowerFlow(3000.0, 0.0, 0.0, 0.0, 3000.0, (3000.0,))
+    s = timedelta(seconds=1)
+    sim = SimpleNamespace(
+        _measurements=SimpleNamespace(flow=flow),
+        _forecast=SimpleNamespace(react_interval=5 * s, react_average=True),
+        # 1000 W for 4 s, then 3000 W for the last second
+        _samples=[(NOW, 1000.0, 0.0), (NOW + 4 * s, 3000.0, 0.0)],
+    )
+    averaged = VirtualBatterySimulator._round_flow(sim, NOW + 5 * s)
+    assert averaged.grid_w == 1400.0
+    sim._forecast.react_average = False
+    assert VirtualBatterySimulator._round_flow(sim, NOW + 5 * s).grid_w == 3000.0

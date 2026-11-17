@@ -168,6 +168,22 @@
               "spike_filter": "De module die pieken herkent. Eigen filters uit /config/homebatteryassist/spike_filters staan hier ook (na herladen)."
             }
           },
+          "reaction": {
+            "name": "Reactie op de meter",
+            "description": "Hoe vaak de batterijen de netmeter volgen (nul op de meter, fasebeveiliging). Op fase-overbelasting en de piekgrens wordt altijd direct gereageerd. Voorlopig stuurt dit de virtuele batterijen; later de aansturing.",
+            "data": {
+              "react_interval_s": "Een ronde elke",
+              "react_average": "Rekenen met het gemiddelde over de ronde",
+              "react_jump": "Direct reageren op een grote sprong",
+              "react_jump_w": "Grote sprong: minstens"
+            },
+            "data_description": {
+              "react_interval_s": "Hoe vaak de batterijen op de meter worden bijgeregeld. Elke seconde levert nauwelijks iets op (de batterijen hebben zelf 1 à 2 seconden nodig); minder vaak betekent minder opdrachten. Standaard 5 seconden.",
+              "react_average": "Bijregelen op het gemiddelde van de meter over de afgelopen ronde in plaats van de laatste waarde, zodat één uitschieter niets aanstuurt.",
+              "react_jump": "Verandert het net meer dan de sprong hieronder, dan direct een extra ronde (bijv. een oven of laadpaal die aangaat), niet pas bij de volgende ronde.",
+              "react_jump_w": "Standaard 1000 W."
+            }
+          },
           "full_charge": {
             "name": "Volladen",
             "description": "Het periodiek volladen van de batterijen.",
@@ -590,6 +606,22 @@
               "spike_threshold_w": "Een stijging van minstens zoveel boven het gebruikelijke verbruik kan een piek zijn. Standaard 2000 W.",
               "spike_max_minutes": "Een stijging die langer duurt is normaal verbruik (bijvoorbeeld een oven) en wordt vanaf dan gevolgd. Standaard 5 minuten.",
               "spike_filter": "De module die pieken herkent. Eigen filters uit /config/homebatteryassist/spike_filters staan hier ook (na herladen)."
+            }
+          },
+          "reaction": {
+            "name": "Reactie op de meter",
+            "description": "Hoe vaak de batterijen de netmeter volgen (nul op de meter, fasebeveiliging). Op fase-overbelasting en de piekgrens wordt altijd direct gereageerd. Voorlopig stuurt dit de virtuele batterijen; later de aansturing.",
+            "data": {
+              "react_interval_s": "Een ronde elke",
+              "react_average": "Rekenen met het gemiddelde over de ronde",
+              "react_jump": "Direct reageren op een grote sprong",
+              "react_jump_w": "Grote sprong: minstens"
+            },
+            "data_description": {
+              "react_interval_s": "Hoe vaak de batterijen op de meter worden bijgeregeld. Elke seconde levert nauwelijks iets op (de batterijen hebben zelf 1 à 2 seconden nodig); minder vaak betekent minder opdrachten. Standaard 5 seconden.",
+              "react_average": "Bijregelen op het gemiddelde van de meter over de afgelopen ronde in plaats van de laatste waarde, zodat één uitschieter niets aanstuurt.",
+              "react_jump": "Verandert het net meer dan de sprong hieronder, dan direct een extra ronde (bijv. een oven of laadpaal die aangaat), niet pas bij de volgende ronde.",
+              "react_jump_w": "Standaard 1000 W."
             }
           },
           "full_charge": {

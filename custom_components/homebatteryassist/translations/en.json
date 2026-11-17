@@ -168,6 +168,22 @@
               "spike_filter": "The module that recognises peaks. Own filters from /config/homebatteryassist/spike_filters appear here too (after a reload)."
             }
           },
+          "reaction": {
+            "name": "Reaction on the meter",
+            "description": "How often the batteries follow the grid meter (zero on the meter, phase protection). Phase overload and the peak limit are always acted on at once. For now this drives the virtual batteries; later the control.",
+            "data": {
+              "react_interval_s": "A round every",
+              "react_average": "Use the average over the round",
+              "react_jump": "React at once on a large jump",
+              "react_jump_w": "Large jump: at least"
+            },
+            "data_description": {
+              "react_interval_s": "How often the batteries are adjusted to the meter. Every second hardly brings anything (the batteries take 1 to 2 seconds themselves); less often means fewer commands. Default 5 seconds.",
+              "react_average": "Adjust to the average of the meter over the last round instead of its last value, so a single outlier steers nothing.",
+              "react_jump": "When the grid changes by more than the jump below, an extra round at once (e.g. an oven or an EV charger switching on), not only at the next round.",
+              "react_jump_w": "Default 1000 W."
+            }
+          },
           "full_charge": {
             "name": "Full charge",
             "description": "The periodic full charge of the batteries.",
@@ -590,6 +606,22 @@
               "spike_threshold_w": "A rise of at least this much above the usual consumption can be a peak. Default 2000 W.",
               "spike_max_minutes": "A rise that lasts longer is normal consumption (e.g. an oven) and is followed from then on. Default 5 minutes.",
               "spike_filter": "The module that recognises peaks. Own filters from /config/homebatteryassist/spike_filters appear here too (after a reload)."
+            }
+          },
+          "reaction": {
+            "name": "Reaction on the meter",
+            "description": "How often the batteries follow the grid meter (zero on the meter, phase protection). Phase overload and the peak limit are always acted on at once. For now this drives the virtual batteries; later the control.",
+            "data": {
+              "react_interval_s": "A round every",
+              "react_average": "Use the average over the round",
+              "react_jump": "React at once on a large jump",
+              "react_jump_w": "Large jump: at least"
+            },
+            "data_description": {
+              "react_interval_s": "How often the batteries are adjusted to the meter. Every second hardly brings anything (the batteries take 1 to 2 seconds themselves); less often means fewer commands. Default 5 seconds.",
+              "react_average": "Adjust to the average of the meter over the last round instead of its last value, so a single outlier steers nothing.",
+              "react_jump": "When the grid changes by more than the jump below, an extra round at once (e.g. an oven or an EV charger switching on), not only at the next round.",
+              "react_jump_w": "Default 1000 W."
             }
           },
           "full_charge": {

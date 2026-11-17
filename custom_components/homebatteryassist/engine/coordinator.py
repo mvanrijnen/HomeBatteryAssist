@@ -67,6 +67,10 @@ from ..const import (
     CONF_PV_CORRECTOR,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
+    CONF_REACT_AVERAGE,
+    CONF_REACT_INTERVAL,
+    CONF_REACT_JUMP,
+    CONF_REACT_JUMP_W,
     CONF_RESERVE_SOC,
     CONF_SPIKE_BATTERY,
     CONF_SPIKE_HISTORY,
@@ -94,6 +98,8 @@ from ..const import (
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
     DEFAULT_PV_MARGIN,
+    DEFAULT_REACT_INTERVAL,
+    DEFAULT_REACT_JUMP_W,
     DOMAIN,
     EXPORT_FACTOR,
     EXPORT_MARKET,
@@ -412,6 +418,16 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             ),
         )
         self.outdoor_sensor: str | None = options.get(CONF_OUTDOOR_TEMPERATURE) or None
+        # Reaction on the meter (virtual batteries now, the control later).
+        self.react_interval = timedelta(
+            seconds=options.get(CONF_REACT_INTERVAL, DEFAULT_REACT_INTERVAL)
+        )
+        self.react_average: bool = options.get(CONF_REACT_AVERAGE, True)
+        self.react_jump_w: float | None = (
+            float(options.get(CONF_REACT_JUMP_W, DEFAULT_REACT_JUMP_W))
+            if options.get(CONF_REACT_JUMP, True)
+            else None
+        )
         self.temperature_model: TemperatureEffect | None = None
         # heating/cooling devices with their own temperatures: zones
         self.zones = heating_zones(entry)

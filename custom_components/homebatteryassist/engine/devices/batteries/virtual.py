@@ -78,7 +78,8 @@ from ...units import state_to_celsius
 
 _LOGGER = logging.getLogger(__name__)
 
-STEP = timedelta(seconds=30)
+# The round is a setting (react_interval_s, default 5 s); this is the fallback.
+STEP = timedelta(seconds=5)
 MAX_STEP = timedelta(minutes=5)  # longer gaps (restart) are not simulated
 LIMIT_CLEAR_AFTER = timedelta(minutes=5)  # no phase limit this long: log it
 INTERCEPT_HORIZON = timedelta(hours=8)  # coming slots an interceptor sees
@@ -150,6 +151,10 @@ class VirtualBatterySimulator:
         self.relief_now: dict[int, float] = {}  # phase index -> W taken off
         self.peak_now: float = 0.0  # W shaved off the total
         self._full: set[str] = set()  # batteries waiting for the hysteresis
+        # Grid values since the last round: (time, grid W, excluded W), for
+        # the average over the round; the grid at the last round, for jumps.
+        self._samples: list[tuple[datetime, float, float]] = []
+        self._step_grid: float | None = None
         # The interceptor (the user's last say) and what it did lately.
         self.intercepted: list[tuple[str, str, float, str]] = []
         self._intercept_gist = ""
@@ -166,7 +171,11 @@ class VirtualBatterySimulator:
         if not self.virtual:
             return
         self._last = dt_util.utcnow()
-        self._unsub = async_track_time_interval(self.hass, self._async_step, STEP)
+        self._unsub = async_track_time_interval(
+            self.hass,
+            self._async_step,
+            getattr(self._forecast, "react_interval", None) or STEP,
+        )
         self._unsub_measured = self._measurements.async_add_listener(
             self._async_measured
         )
@@ -187,12 +196,25 @@ class VirtualBatterySimulator:
 
     @callback
     def _async_measured(self, when: datetime, _power: float | None) -> None:
-        """React at once when a phase is overloaded (or the virtual batteries
-        on it would overload it)."""
+        """Keep the grid values of the round; react at once when a phase is
+        overloaded (or the virtual batteries on it would overload it), above
+        the peak limit, or (when switched on) on a large jump of the grid."""
+        flow = self._measurements.flow
+        if flow is not None:
+            self._samples.append((when, flow.grid_w, flow.excluded_w))
         if self._last is None or when - self._last < REACT_INTERVAL:
             return
-        flow = self._measurements.flow
         if flow is None or not flow.phase_w:
+            return
+        jump = self._forecast.react_jump_w
+        if (
+            jump
+            and self._step_grid is not None
+            and abs(flow.grid_w - self._step_grid) >= jump
+        ):
+            # Follow the new level at once, not the average with before it.
+            self._samples = self._samples[-1:]
+            self.step(when)
             return
         phases = len(flow.phase_w)
         with_virtual = list(flow.phase_w)
@@ -208,6 +230,28 @@ class VirtualBatterySimulator:
             or (peak > 0 and sum(with_virtual) > peak)
         ):
             self.step(when)
+
+    def _round_flow(self, now: datetime):
+        """The grid as zero on the meter sees it: the average over the round
+        (when switched on, time-weighted), else the last value."""
+        flow = self._measurements.flow
+        interval = getattr(self._forecast, "react_interval", None) or STEP
+        samples = [s for s in self._samples if now - s[0] <= interval]
+        if flow is None or not getattr(self._forecast, "react_average", True):
+            return flow
+        if len(samples) < 2:
+            return flow
+        grid = excluded = seconds = 0.0
+        for (t1, g, x), (t2, _g, _x) in zip(
+            samples, [*samples[1:], (now, 0.0, 0.0)], strict=True
+        ):
+            span = max((t2 - t1).total_seconds(), 0.0)
+            grid += g * span
+            excluded += x * span
+            seconds += span
+        if seconds <= 0:
+            return flow
+        return replace(flow, grid_w=grid / seconds, excluded_w=excluded / seconds)
 
     def _intercept(
         self,
@@ -371,6 +415,10 @@ class VirtualBatterySimulator:
                 random_efficiency(config),
             )
             self._batteries.set_virtual(config.id, now, power, soc)
+        # A new round: the grid now (for jumps), and start the average anew.
+        flow = self._measurements.flow
+        self._step_grid = flow.grid_w if flow is not None else None
+        self._samples = self._samples[-1:]
 
     def _phase_relief(
         self,
@@ -587,7 +635,7 @@ class VirtualBatterySimulator:
             # NOM: the real surplus (+) / shortage (-) on the grid right now,
             # around the target grid power; a shortage never for excluded
             # devices nor for a random short peak (when switched on).
-            flow = self._measurements.flow
+            flow = self._round_flow(now)
             rules = self._forecast.rules
             ignore = self._forecast.spike_ignore_w(
                 self._measurements.spike.ignore_w, now

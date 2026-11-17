@@ -86,6 +86,14 @@ CONF_SPIKE_FILTER: Final = "spike_filter"
 # The interceptor module (engine/control/interceptors): the user's last say
 # per battery before commands (now: the virtual batteries).
 CONF_INTERCEPTOR: Final = "interceptor"
+# Reaction on the meter (control loop and virtual batteries): a round every
+# so many seconds, optionally on the average over it, and at once on a jump.
+CONF_REACT_INTERVAL: Final = "react_interval_s"
+DEFAULT_REACT_INTERVAL: Final = 5
+CONF_REACT_AVERAGE: Final = "react_average"
+CONF_REACT_JUMP: Final = "react_jump"
+CONF_REACT_JUMP_W: Final = "react_jump_w"
+DEFAULT_REACT_JUMP_W: Final = 1000
 CONF_SPIKE_HISTORY: Final = "spike_exclude_average"
 CONF_SPIKE_BATTERY: Final = "spike_no_discharge"
 CONF_SPIKE_THRESHOLD: Final = "spike_threshold_w"

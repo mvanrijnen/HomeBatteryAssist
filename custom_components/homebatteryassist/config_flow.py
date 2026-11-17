@@ -129,6 +129,10 @@ from .const import (
     CONF_PV_DRIVER,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
+    CONF_REACT_AVERAGE,
+    CONF_REACT_INTERVAL,
+    CONF_REACT_JUMP,
+    CONF_REACT_JUMP_W,
     CONF_RESERVE_SOC,
     CONF_SENSOR,
     CONF_SOC_SENSOR,
@@ -173,6 +177,8 @@ from .const import (
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
     DEFAULT_PV_MARGIN,
+    DEFAULT_REACT_INTERVAL,
+    DEFAULT_REACT_JUMP_W,
     DEFAULT_SPIKE_DURATION,
     DEFAULT_SPIKE_THRESHOLD,
     DOMAIN,
@@ -414,6 +420,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "spike_max_minutes",
         "spike_filter",
     ),
+    "reaction": ("react_interval_s", "react_average", "react_jump", "react_jump_w"),
     "full_charge": ("full_charge_window_days", "full_charge_day", "full_charge_solar"),
     "notifications": ("notify_targets", "notify_kinds"),
     "weather": (
@@ -756,6 +763,20 @@ async def _flat_settings_schema(
             default=current.get(CONF_SPIKE_THRESHOLD, DEFAULT_SPIKE_THRESHOLD),
         ): _number(500, 10000, 100, "W"),
         vol.Required(
+            CONF_REACT_INTERVAL,
+            default=current.get(CONF_REACT_INTERVAL, DEFAULT_REACT_INTERVAL),
+        ): _number(1, 60, 1, "s"),
+        vol.Required(
+            CONF_REACT_AVERAGE, default=current.get(CONF_REACT_AVERAGE, True)
+        ): BooleanSelector(),
+        vol.Required(
+            CONF_REACT_JUMP, default=current.get(CONF_REACT_JUMP, True)
+        ): BooleanSelector(),
+        vol.Required(
+            CONF_REACT_JUMP_W,
+            default=current.get(CONF_REACT_JUMP_W, DEFAULT_REACT_JUMP_W),
+        ): _number(100, 10000, 100, "W"),
+        vol.Required(
             CONF_SPIKE_DURATION,
             default=current.get(CONF_SPIKE_DURATION, DEFAULT_SPIKE_DURATION),
         ): _number(1, 60, 1, "min"),
@@ -987,6 +1008,14 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     options[CONF_TEMP_DISCHARGE] = bool(user_input.get(CONF_TEMP_DISCHARGE, False))
     options[CONF_SPIKE_BATTERY] = bool(user_input.get(CONF_SPIKE_BATTERY, True))
     options[CONF_SPIKE_HISTORY] = bool(user_input.get(CONF_SPIKE_HISTORY, True))
+    options[CONF_REACT_INTERVAL] = int(
+        user_input.get(CONF_REACT_INTERVAL, DEFAULT_REACT_INTERVAL)
+    )
+    options[CONF_REACT_AVERAGE] = bool(user_input.get(CONF_REACT_AVERAGE, True))
+    options[CONF_REACT_JUMP] = bool(user_input.get(CONF_REACT_JUMP, True))
+    options[CONF_REACT_JUMP_W] = int(
+        user_input.get(CONF_REACT_JUMP_W, DEFAULT_REACT_JUMP_W)
+    )
     options[CONF_SPIKE_THRESHOLD] = int(
         user_input.get(CONF_SPIKE_THRESHOLD, DEFAULT_SPIKE_THRESHOLD)
     )
