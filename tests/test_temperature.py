@@ -289,10 +289,10 @@ def test_zone_learns_room_and_heating_point(hass: HomeAssistant) -> None:
     assert model.room_temperature(day=True) == 21.0
     assert model.room_temperature(day=False) == 17.0
     assert model.heating_point == 18.0
-    # A night slot heats less than a day slot at the same outdoor temperature.
+    # Colder than usual adds; a night slot heats less (lower room temperature).
     day = dt_util.as_utc(dt_util.as_local(NOW).replace(hour=12))
     night = dt_util.as_utc(dt_util.as_local(NOW).replace(hour=3))
-    assert model.effect(day, 0.0) - model.effect(night, 0.0) > 200
+    assert model.effect(day, -5.0) > model.effect(night, -5.0) > 0
 
 
 def test_zones_add_up_or_fall_back_to_house(hass: HomeAssistant) -> None:
@@ -338,3 +338,27 @@ def test_heating_zone_reads_its_sensors(hass: HomeAssistant) -> None:
     zone = HeatingZone("a", "Woonkamer", "sensor.airco", "sensor.room", "sensor.unit")
     power, indoor, outdoor = zone.read(hass)
     assert power == 750.0 and abs(indoor - 21.1) < 0.1 and outdoor is None
+
+
+def test_room_temperature_per_day_of_the_week(hass: HomeAssistant) -> None:
+    """Working from home on Wednesday: that day is learned on its own."""
+    records = _zone_records(24, 3.0, 60.0)
+    for record in records:
+        local = dt_util.as_local(dt_util.parse_datetime(record["start"]))
+        zone = record["zones"]["a"]
+        if local.weekday() == 2 and zone["in"] == 21.0:
+            zone["in"] = 22.0
+    model = fit_temperature(records, NOW, "a", "Woonkamer")
+    assert model is not None
+    assert model.room_temperature(day=True, weekday=2) == 22.0
+    assert model.room_temperature(day=True, weekday=1) == 21.0
+    assert model.room(2, 12) == 22.0 and model.room(1, 12) == 21.0
+
+
+def test_profile_has_no_weekend_split(hass: HomeAssistant) -> None:
+    """The forecaster falls back from the weekday to the hour of all days."""
+    from custom_components.homebatteryassist.engine.forecast.forecasters.weekday_hour_profile import (
+        METHODS,
+    )
+
+    assert METHODS == ("weekday_hour", "hour", "overall")

@@ -11,7 +11,7 @@ The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [dr
 
 The built-in modules live in the integration and are updated with it; your own modules live in their own folder under `/config`, so an update never touches them.
 
-The **price sources** (`engine/sources/prices/`: DynTarNL (verified), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, or any sensor with prices in its attributes) are modules too; new ones are added to the code for now (`template.py`). Sources still in development (e.g. Tibber) are kept apart in `in_development/` and not offered.
+The **price sources** (`engine/sources/prices/`: [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (verified), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, or any sensor with prices in its attributes) are modules too; new ones are added to the code for now (`template.py`). Sources still in development (e.g. Tibber) are kept apart in `in_development/` and not offered.
 
 ## HomeBatteryAssist keeps the final say
 

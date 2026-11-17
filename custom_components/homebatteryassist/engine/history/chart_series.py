@@ -9,8 +9,6 @@ from homeassistant.util import dt as dt_util
 
 from .consumption_history import ConsumptionRecord
 
-WEEKEND = (5, 6)  # Saturday, Sunday
-
 
 def _weighted(record: ConsumptionRecord) -> tuple[datetime, float, float]:
     start = dt_util.parse_datetime(record["start"])
@@ -57,34 +55,30 @@ def hourly_series(
 
 def day_profile(
     records: Iterable[ConsumptionRecord],
-) -> dict[str, list[float | None]]:
-    """Average consumption (W) per local hour of the day, weekdays vs weekend."""
-    sums = {
-        "weekday": [[0.0, 0.0] for _ in range(24)],
-        "weekend": [[0.0, 0.0] for _ in range(24)],
-    }
+) -> dict[str, object]:
+    """Average consumption (W) per local hour of the day: ``days`` per day of
+    the week (Monday first) and ``all`` over every day."""
+    sums = [[[0.0, 0.0] for _ in range(24)] for _ in range(8)]  # 7 = all
     for record in records:
         start, avg, weight = _weighted(record)
         if weight <= 0:
             continue
         # Hourly records cover one local hour; finer records fall in one hour.
         local = dt_util.as_local(start)
-        kind = "weekend" if local.weekday() in WEEKEND else "weekday"
-        acc = sums[kind][local.hour]
-        acc[0] += avg * weight
-        acc[1] += weight
-    return {
-        kind: [round(s / w, 1) if w else None for s, w in hours]
-        for kind, hours in sums.items()
-    }
+        for index in (local.weekday(), 7):
+            acc = sums[index][local.hour]
+            acc[0] += avg * weight
+            acc[1] += weight
+    series = [[round(s / w, 1) if w else None for s, w in hours] for hours in sums]
+    return {"days": series[:7], "all": series[7]}
 
 
 def week_profiles(
     records: Iterable[ConsumptionRecord],
 ) -> list[dict[str, object]]:
     """The average day per local calendar week (Monday-Sunday), oldest first:
-    ``start``/``end`` (dates), ``days`` (measured days) and weekday/weekend
-    profiles as in ``day_profile``."""
+    ``start``/``end`` (dates), ``measured`` (measured days) and the profiles
+    as in ``day_profile``."""
     weeks: dict[str, list[ConsumptionRecord]] = {}
     for record in records:
         start, _avg, weight = _weighted(record)
@@ -99,7 +93,7 @@ def week_profiles(
             "end": (
                 datetime.fromisoformat(monday).date() + timedelta(days=6)
             ).isoformat(),
-            "days": days_covered(group),
+            "measured": days_covered(group),
             **day_profile(group),
         }
         for monday, group in sorted(weeks.items())

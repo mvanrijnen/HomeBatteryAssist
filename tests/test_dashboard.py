@@ -156,7 +156,7 @@ async def test_status_websocket(
 async def test_history_websocket(
     hass: HomeAssistant, hass_ws_client: WebSocketGenerator
 ) -> None:
-    """Hourly series and the weekday/weekend day profile for the charts."""
+    """Hourly series and the day profile per day of the week for the charts."""
     await hass.config.async_set_time_zone("Europe/Amsterdam")
     entry = await _setup(hass)
     history = entry.runtime_data.history
@@ -204,16 +204,19 @@ async def test_history_websocket(
     assert result["past"][0][1:] == [300.0, 0.0, None, None]  # no PV/battery measured
     assert result["pv_forecast"] == []
     assert result["price_series"] == []  # no price forecast configured
-    assert result["profile"]["weekday"][12] == 1000.0
-    assert result["profile"]["weekend"][12] == 500.0
-    assert result["profile"]["weekend"][3] is None
+    days = result["profile"]["days"]
+    assert len(days) == 7
+    assert days[0][12] == 1000.0  # Monday
+    assert days[5][12] == 500.0  # Saturday
+    assert days[5][3] is None and days[2][12] is None
+    assert result["profile"]["all"][12] == round((60000 + 15000) / 90, 1)
     # The same per calendar week (Monday-Sunday), oldest first.
     weeks = {w["start"]: w for w in result["profile_weeks"]}
     week = weeks["2026-11-09"]
     assert week["end"] == "2026-11-15"
-    assert week["weekday"][12] == 1000.0
-    assert week["weekend"][12] == 500.0
-    assert week["days"] == round(90 / 1440, 1)
+    assert week["days"][0][12] == 1000.0
+    assert week["days"][5][12] == 500.0
+    assert week["measured"] == round(90 / 1440, 1)
     assert [w["start"] for w in result["profile_weeks"]] == sorted(weeks)
     assert result["days_covered"] == round((15 + 15 + 60 + 30) / 1440, 1)
 

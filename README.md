@@ -35,6 +35,10 @@ Copy `custom_components/homebatteryassist` into your Home Assistant `config/cust
 
 Home Assistant 2025.6 or newer is required.
 
+### Prices (recommended for the Netherlands)
+
+For dynamic energy prices HomeBatteryAssist reads a price integration you already have. Tested with **DynTarNL** ([mvanrijnen/ha-dyntarNL](https://github.com/mvanrijnen/ha-dyntarNL)): Dutch dynamic tariffs including the price forecast for the coming days. Other sources (Nord Pool, EnergyZero, easyEnergy, …) work too — see [Forecasting](docs/forecasting.md#prices).
+
 ## Configuration
 
 - **Configure** on the integration opens a menu:

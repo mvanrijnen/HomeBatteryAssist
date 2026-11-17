@@ -4,9 +4,11 @@ A recency-weighted (half-life 14 days) average per local weekday and hour.
 With too little data it falls back step by step:
 
 1. same weekday, same hour  ("weekday_hour")
-2. weekdays or weekend, same hour  ("daytype_hour")
-3. all days, same hour  ("hour")
-4. overall average  ("overall")
+2. all days, same hour  ("hour")
+3. overall average  ("overall")
+
+Every day of the week has its own profile (no working days / weekend split:
+with working from home, a Wednesday can differ from a Tuesday).
 
 To make your own variant: copy this file to
 ``/config/homebatteryassist/forecasters/``, give the class another ``key`` and
@@ -28,8 +30,7 @@ from .base import Forecaster, ForecasterInput, ForecasterResult
 
 HALF_LIFE = timedelta(days=14)
 MIN_DAYS = 2  # distinct days needed before a profile level is trusted
-WEEKEND = (5, 6)
-METHODS = ("weekday_hour", "daytype_hour", "hour", "overall")
+METHODS = ("weekday_hour", "hour", "overall")
 
 
 @dataclass(slots=True)
@@ -69,10 +70,8 @@ class ConsumptionProfile:
             weight *= math.pow(0.5, age / HALF_LIFE.total_seconds())
             local = dt_util.as_local(start)
             day, hour = local.date(), local.hour
-            daytype = "weekend" if local.weekday() in WEEKEND else "weekday"
             for method, key in (
                 ("weekday_hour", (local.weekday(), hour)),
-                ("daytype_hour", (daytype, hour)),
                 ("hour", hour),
                 ("overall", None),
             ):
@@ -88,10 +87,8 @@ class ConsumptionProfile:
     def predict(self, when: datetime) -> tuple[float, str] | None:
         """Expected power (W) at ``when`` and the method used, or None."""
         local = dt_util.as_local(when)
-        daytype = "weekend" if local.weekday() in WEEKEND else "weekday"
         for method, key in (
             ("weekday_hour", (local.weekday(), local.hour)),
-            ("daytype_hour", (daytype, local.hour)),
             ("hour", local.hour),
             ("overall", None),
         ):

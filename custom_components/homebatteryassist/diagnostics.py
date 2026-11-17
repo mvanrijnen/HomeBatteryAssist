@@ -107,6 +107,12 @@ async def async_get_config_entry_diagnostics(
                         "room_night_c": model.room_temperature(day=False)
                         if model.usual_indoor
                         else None,
+                        "room_day_per_weekday_c": [
+                            model.room_temperature(day=True, weekday=d)
+                            for d in range(7)
+                        ]
+                        if model.usual_indoor
+                        else None,
                     }
                     for model in data.forecast.temperature_model.models
                 ]

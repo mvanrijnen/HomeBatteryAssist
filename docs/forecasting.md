@@ -10,7 +10,7 @@ Every forecast first determines how far ahead it can calculate: limited by your 
 
 The house consumption per slot is predicted by a **consumption forecaster** [module](modules.md):
 
-- **Weekday and hour profile** (default): the average per weekday and hour from your own history, recent days counting more; with little history it falls back to weekdays/weekend, hour of the day, or the overall average.
+- **Weekday and hour profile** (default): the average per weekday and hour from your own history, recent days counting more; every day of the week (Monday … Sunday) has its own profile — no working days / weekend split, since with working from home a Wednesday can differ from a Tuesday; with little history it falls back to the hour of all days, or the overall average.
 - **Same time in the last weeks**: the same weekday and time in the last two weeks.
 - **Your own forecaster**, see [Modules](modules.md).
 
@@ -28,12 +28,12 @@ A profile follows a sudden cold spell only after days. Houses that heat or cool 
 Every history interval stores the outdoor temperature (and per zone its power, room and outdoor temperature). From whole days, HomeBatteryAssist learns how many W the consumption rises per degree below the **heating point** (heating) and per degree above 22 °C (cooling); at least 7 days with temperature are needed, and days that hardly differ teach nothing.
 
 - The heating point is the room temperature minus what the house warms itself (people, appliances, sun). Without a room sensor the room is taken as 20 °C; the warming is learned (0–8 °C, 4 °C — so 16 °C outside — unless another value fits the days clearly better).
-- With a room sensor, the **desired room temperature** per hour is learned too (e.g. 21 °C during the day, 17 °C at night) and the forecast assumes it: a cold night costs less than a cold afternoon when the thermostat is lower at night.
-- What is fitted: per zone its own power against its own temperatures, the zones added up — once every zone has 7 days. Until then, and without zones, the heating/cooling devices together, or without them the whole house. Per slot it then adds *W per degree × (forecast degrees − the usual degrees at that hour in the last week)*: only the difference with the weather the profile already contains. The step comes after the forecaster and before the correction, so the accuracy check covers it. A forecaster [module](modules.md) that handles temperature itself sets `uses_temperature = True` and gets the forecast per slot in `temperatures`. The decision log tells what was learned.
+- With a room sensor, the **desired room temperature** per hour is learned too per day of the week (e.g. 21 °C during the day, 17 °C at night, 22 °C on the Wednesday you work from home) and the forecast assumes it: a cold night costs less than a cold afternoon when the thermostat is lower at night.
+- What is fitted: per zone its own power against its own temperatures, the zones added up — once every zone has 7 days. Until then, and without zones, the heating/cooling devices together, or without them the whole house. Per slot it then adds *W per degree × (forecast degrees − the usual degrees at that day of the week and hour, recent days counting more)*: only the difference with the weather the profile already contains. The step comes after the forecaster and before the correction, so the accuracy check covers it. A forecaster [module](modules.md) that handles temperature itself sets `uses_temperature = True` and gets the forecast per slot in `temperatures`. The decision log tells what was learned.
 
 ## Prices
 
-From a price source of your choice (*price [drivers](drivers.md)*): DynTarNL (tested), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, or any sensor with prices in its attributes; optionally an extra, longer forecast after it. Estimated (forecast) prices are marked as such.
+From a price source of your choice (*price [drivers](drivers.md)*): [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (tested; Dutch dynamic tariffs with a price forecast for the coming days), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, or any sensor with prices in its attributes; optionally an extra, longer forecast after it. Estimated (forecast) prices are marked as such.
 
 ### Export price and no net metering
 

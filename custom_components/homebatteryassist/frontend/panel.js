@@ -87,9 +87,7 @@ const TEXT = {
     last7Info:
       "What the house itself used, averaged per hour: grid import + solar production − excluded devices − battery charging (+ battery discharging). Excluded devices (e.g. an EV charger) are not in the house line and are not forecast. Hover over the line for the exact hour and value.",
     avgDayInfo:
-      "The same house consumption, averaged per hour of the day over all history (up to 28 days), for weekdays (Mon–Fri) and the weekend separately. This is the typical day pattern; the consumption forecast uses it per weekday, with recent days counting more. Use ◀ ▶ to see a single week next to the overall average (dashed) and spot changes.",
-    weekday: "Weekdays",
-    weekend: "Weekend",
+      "The same house consumption, averaged per hour of the day over all history (up to 28 days), for every day of the week separately (dashed: all days together). This is the typical day pattern; the consumption forecast uses it per day of the week, with recent days counting more. Use ◀ ▶ to see a single week next to the overall average and spot changes.",
     daysOfData: "{days} days of history",
     imported: "incl. imported",
     noHistory: "No consumption history yet.",
@@ -282,9 +280,7 @@ const TEXT = {
     last7Info:
       "Wat het huis zelf verbruikte, gemiddeld per uur: afname van het net + zonne-opwek − uitgesloten apparaten − laden van de batterij (+ ontladen). Uitgesloten apparaten (bijv. een laadpaal) zitten niet in de huislijn en worden niet voorspeld. Wijs de lijn aan voor het precieze uur en de waarde.",
     avgDayInfo:
-      "Hetzelfde huisverbruik, gemiddeld per uur van de dag over alle geschiedenis (tot 28 dagen), apart voor werkdagen (ma–vr) en het weekend. Zo zie je het vaste dagpatroon; de verbruiksvoorspelling gebruikt dit per weekdag, waarbij recente dagen zwaarder tellen. Met ◀ ▶ blader je per week; het gemiddelde van alle geschiedenis staat dan gestippeld ernaast, zodat je veranderingen ziet.",
-    weekday: "Werkdagen",
-    weekend: "Weekend",
+      "Hetzelfde huisverbruik, gemiddeld per uur van de dag over alle geschiedenis (tot 28 dagen), apart voor elke dag van de week (gestippeld: alle dagen samen). Zo zie je het vaste dagpatroon; de verbruiksvoorspelling gebruikt dit per dag van de week, waarbij recente dagen zwaarder tellen. Met ◀ ▶ blader je per week; het gemiddelde van alle geschiedenis staat gestippeld ernaast, zodat je veranderingen ziet.",
     daysOfData: "{days} dagen historie",
     imported: "incl. geïmporteerd",
     noHistory: "Nog geen verbruikshistorie.",
@@ -1234,7 +1230,6 @@ class HomeBatteryAssistPanel extends HTMLElement {
     }
     const lang = this._hass.locale?.language || this._hass.language;
     const primary = "var(--primary-color)";
-    const accent = "var(--accent-color, #ff9800)";
 
     // Last 7 days: hourly points, ticks at local midnight.
     const pts = h.hourly.map(([time, house]) => [time, house]);
@@ -1258,24 +1253,23 @@ class HomeBatteryAssistPanel extends HTMLElement {
          <span><i style="background:${excludedColor}"></i>${esc(t.excludedLine)}</span></div>`
       : "";
 
-    // Average day: 24 local hours, weekdays vs weekend.
-    const profilePts = (values) => values.map((v, hour) => [hour, v]);
+    // Average day: 24 local hours, one line per day of the week.
+    const profilePts = (values) => (values || []).map((v, hour) => [hour, v]);
     const hourTicks = [0, 3, 6, 9, 12, 15, 18, 21].map((hour) => [hour, `${String(hour).padStart(2, "0")}:00`]);
     const two = (n) => String(n).padStart(2, "0");
     const weeks = h.profile_weeks || [];
     if (this._dayWeek !== null && this._dayWeek >= weeks.length) this._dayWeek = null;
     const shown = this._dayWeek === null ? null : weeks[this._dayWeek];
-    const daySeries = shown
-      ? [
-          { points: profilePts(h.profile.weekday), color: primary, dashed: true, label: `${t.weekday} · ${t.allHistory}` },
-          { points: profilePts(h.profile.weekend), color: accent, dashed: true, label: `${t.weekend} · ${t.allHistory}` },
-          { points: profilePts(shown.weekday), color: primary, label: t.weekday },
-          { points: profilePts(shown.weekend), color: accent, label: t.weekend },
-        ]
-      : [
-          { points: profilePts(h.profile.weekday), color: primary, label: t.weekday },
-          { points: profilePts(h.profile.weekend), color: accent, label: t.weekend },
-        ];
+    // Monday first; 1 January 2024 was a Monday.
+    const dayNames = [0, 1, 2, 3, 4, 5, 6].map((i) =>
+      new Date(2024, 0, 1 + i).toLocaleDateString(lang, { weekday: "short" }),
+    );
+    const dayColors = ["#1e88e5", "#43a047", "#8e24aa", "#00acc1", "#fdd835", "#fb8c00", "#e53935"];
+    const profile = shown || h.profile || {};
+    const daySeries = [
+      ...dayNames.map((name, i) => ({ points: profilePts(profile.days?.[i]), color: dayColors[i], label: name })),
+      { points: profilePts(h.profile?.all), color: "var(--secondary-text-color)", dashed: true, label: t.allAverage },
+    ];
     const avg = this._chart(
       "day",
       daySeries,
@@ -1569,8 +1563,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
       ${socChart ? `<div class="chart wide"><h3>${esc(t.socTitle)}</h3>${socChart}</div>` : ""}
       <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}<div class="muted small">${esc(t.last7Info)}</div></div>
       <div class="chart"><div class="head"><h3>${esc(t.avgDay)}</h3>${this._dayNav(t, weeks, lang)}</div>${avg}
-        <div class="legend"><span><i style="background:${primary}"></i>${esc(t.weekday)}</span>
-        <span><i style="background:${accent}"></i>${esc(t.weekend)}</span>${shown ? `<span>${esc(t.allAverage)}</span>` : ""}</div>
+        <div class="legend">${dayNames.map((name, i) => `<span><i style="background:${dayColors[i]}"></i>${esc(name)}</span>`).join("")}
+        <span>${esc(t.allAverage)}</span></div>
         <div class="muted small">${esc(t.avgDayInfo)}</div></div>
     </div></div>`;
   }

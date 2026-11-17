@@ -102,6 +102,7 @@ from ..const import (
 from .devices.batteries import telemetry as battery_telemetry
 from .evaluation.forecast_accuracy import FORECASTER_KIND, KINDS, ForecastAccuracy
 from .explain import DecisionLog
+from .explain.plan_story import DAYS as STORY_DAYS
 from .explain.plan_story import plan_story
 from .forecast.consumption_forecast import (
     METHODS,
@@ -115,6 +116,7 @@ from .forecast.phase_shares import PhaseProfile
 from .forecast.planning_window import HorizonLimit, PlanningWindow, planning_horizon
 from .forecast.temperature_effect import (
     TemperatureEffect,
+    TemperatureModel,
     fit_effect,
     slot_temperatures,
 )
@@ -1143,19 +1145,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                     params["name"] = model.name
                 messages.append((key, params))
                 if model.usual_indoor:
-                    messages.append(
-                        (
-                            "temperature_room",
-                            {
-                                "name": model.name,
-                                "day": _degrees(model.room_temperature(day=True)),
-                                "night": _degrees(model.room_temperature(day=False)),
-                            },
-                        )
-                    )
+                    messages.append(self._room_message(model))
         gist = "|".join(
             f"{key}:{p.get('name')}:{p.get('heat')}:{p.get('cool')}:"
-            f"{p.get('base')}:{p.get('day')}:{p.get('night')}"
+            f"{p.get('base')}:{p.get('day')}:{p.get('night')}:{p.get('days')}"
             for key, p in messages
         )
         if gist == self._last_temperature:
@@ -1163,6 +1156,24 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self._last_temperature = gist
         for key, params in messages:
             self._decisions.async_log("forecast", key, **params)
+
+    def _room_message(self, model: TemperatureModel) -> tuple[str, dict[str, Any]]:
+        """The learned room temperature: per day of the week when the days
+        differ (e.g. working from home), else one value."""
+        params: dict[str, Any] = {
+            "name": model.name,
+            "day": _degrees(model.room_temperature(day=True)),
+            "night": _degrees(model.room_temperature(day=False)),
+        }
+        per_day = [
+            _degrees(model.room_temperature(day=True, weekday=d)) for d in range(7)
+        ]
+        if max(per_day) - min(per_day) < 1:
+            return "temperature_room", params
+        lang = (self.hass.config.language or "en").split("-")[0].lower()
+        names = STORY_DAYS.get(lang, STORY_DAYS["en"])
+        params["days"] = " · ".join(f"{names[d]} {t}" for d, t in enumerate(per_day))
+        return "temperature_room_days", params
 
     def _explain_method(self, data: ForecastData) -> None:
         """Explain on which history the consumption forecast is based."""

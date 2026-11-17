@@ -28,10 +28,14 @@ What is fitted:
   (``heating_w``) or, without such a device, the whole house (``avg_w``).
 
 Applied per slot: ``value + heat * (forecast heating degrees - usual heating
-degrees at that hour lately)`` (the same for cooling). The "usual" degrees are
-what the profile already contains (the last ``RECENT_DAYS``, from the same
-outdoor temperature the forecast is compared with: ``temp_c``), so only the
-*difference* with recent weather is added. Without a temperature forecast for
+degrees at that day of the week and hour)`` (the same for cooling). The
+"usual" degrees are what the profile already contains: averaged per day of
+the week (Monday .. Sunday, no working days / weekend split) and hour, recent
+days counting more (``HALF_LIFE``, as the weekday/hour profile), from the same
+outdoor temperature the forecast is compared with (``temp_c``). So only the
+*difference* with recent weather is added. The room temperature is learned
+the same way: per day of the week and hour (working from home on Wednesday
+shows), falling back to the hour of all days. Without a temperature forecast for
 a slot, or without enough history, nothing changes.
 """
 
@@ -57,7 +61,7 @@ HEATING_BASE_C = NOMINAL_INDOOR_C - DEFAULT_GAIN_C
 MIN_DAYS = 7  # days with temperature and consumption needed to learn
 MIN_SPREAD = 1.0  # degrees: the days must differ this much to learn a slope
 MIN_COVERAGE = 0.8  # a day must be measured (and have a temperature) this much
-RECENT_DAYS = 7  # the weather the profile already contains
+HALF_LIFE = timedelta(days=14)  # as the weekday/hour profile
 MAX_SLOPE_W = 2000.0  # W per degree: anything more is not believed
 DAY_HOURS = range(7, 23)  # "during the day" for the room temperature
 
@@ -82,10 +86,11 @@ class TemperatureModel:
     cool_w_per_deg: float
     days: int
     target: str  # "heating_w" (meters), "avg_w" (whole house) or "zone"
-    usual_heating: Mapping[int, float]  # local hour -> heating degrees
-    usual_cooling: Mapping[int, float]
+    # (weekday, local hour) and, as fallback, local hour -> value
+    usual_heating: Mapping[Any, float]  # heating degrees
+    usual_cooling: Mapping[Any, float]
     gain_c: float = DEFAULT_GAIN_C
-    usual_indoor: Mapping[int, float] = field(default_factory=dict)
+    usual_indoor: Mapping[Any, float] = field(default_factory=dict)  # °C
     name: str = ""  # the zone ("" = the house)
 
     @property
@@ -98,30 +103,38 @@ class TemperatureModel:
         """The models it is made of (itself)."""
         return (self,)
 
-    def room(self, hour: int) -> float:
-        """The usual room temperature at a local hour."""
-        return self.usual_indoor.get(hour, NOMINAL_INDOOR_C)
+    def room(self, weekday: int, hour: int) -> float:
+        """The usual room temperature on a day of the week at a local hour."""
+        return _usual(self.usual_indoor, weekday, hour, NOMINAL_INDOOR_C)
 
     @property
     def heating_point(self) -> float:
         """The outdoor temperature below which heating starts (during the day)."""
         return round(self.room_temperature(day=True) - self.gain_c, 1)
 
-    def room_temperature(self, *, day: bool) -> float:
-        """The usual room temperature during the day or at night."""
-        hours = [
-            v for h, v in self.usual_indoor.items() if (h in DAY_HOURS) == day
+    def room_temperature(self, *, day: bool, weekday: int | None = None) -> float:
+        """The usual room temperature during the day or at night, of one day
+        of the week or of all days."""
+        values = [
+            v
+            for key, v in self.usual_indoor.items()
+            if isinstance(key, tuple)
+            and (weekday is None or key[0] == weekday)
+            and (key[1] in DAY_HOURS) == day
         ] or [NOMINAL_INDOOR_C]
-        return round(sum(hours) / len(hours), 1)
+        return round(sum(values) / len(values), 1)
 
     def effect(self, start: datetime, temp_c: float | None) -> float:
         """Extra W in a slot starting at ``start`` with ``temp_c`` forecast."""
         if temp_c is None or not math.isfinite(temp_c):
             return 0.0
-        hour = dt_util.as_local(start).hour
-        base = self.room(hour) - self.gain_c
-        heat = heating_degrees(temp_c, base) - self.usual_heating.get(hour, 0.0)
-        cool = cooling_degrees(temp_c) - self.usual_cooling.get(hour, 0.0)
+        local = dt_util.as_local(start)
+        weekday, hour = local.weekday(), local.hour
+        base = self.room(weekday, hour) - self.gain_c
+        heat = heating_degrees(temp_c, base) - _usual(
+            self.usual_heating, weekday, hour, 0.0
+        )
+        cool = cooling_degrees(temp_c) - _usual(self.usual_cooling, weekday, hour, 0.0)
         return self.heat_w_per_deg * heat + self.cool_w_per_deg * cool
 
 
@@ -146,12 +159,40 @@ class ZoneModels:
 TemperatureEffect = TemperatureModel | ZoneModels
 
 
+def _usual(values: Mapping[Any, float], weekday: int, hour: int, default: float):
+    """The value of that day of the week and hour, else of the hour."""
+    value = values.get((weekday, hour))
+    if value is None:
+        value = values.get(hour, default)
+    return value
+
+
+class _Means:
+    """Weighted means per (weekday, hour) and per hour."""
+
+    def __init__(self) -> None:
+        self._sums: dict[Any, list[float]] = defaultdict(lambda: [0.0, 0.0])
+
+    def add(self, weekday: int, hour: int, value: float, weight: float) -> None:
+        for key in ((weekday, hour), hour):
+            self._sums[key][0] += weight * value
+            self._sums[key][1] += weight
+
+    def result(self, digits: int | None = None) -> dict[Any, float]:
+        return {
+            k: (round(v[0] / v[1], digits) if digits is not None else v[0] / v[1])
+            for k, v in self._sums.items()
+            if v[1]
+        }
+
+
 @dataclass(slots=True)
 class _Row:
     """One usable record: what the fit needs."""
 
     start: datetime
     day: Any  # local date
+    weekday: int  # local day of the week (Monday 0)
     hour: int  # local hour
     weight: float
     value: float  # the fitted power
@@ -191,6 +232,7 @@ def _rows(
             _Row(
                 start,
                 local.date(),
+                local.weekday(),
                 local.hour,
                 float(record["minutes"]) * float(record["coverage"]),
                 float(value or 0.0),
@@ -217,18 +259,22 @@ def fit_temperature(
     rows = _rows(records, zone, target)
     if not rows:
         return None
-    recent = now - timedelta(days=RECENT_DAYS)
-    indoor: dict[int, list[float]] = defaultdict(lambda: [0.0, 0.0])
+    half_life = HALF_LIFE.total_seconds()
+
+    def recency(row: _Row) -> float:
+        age = max((now - row.start).total_seconds(), 0.0)
+        return row.weight * math.pow(0.5, age / half_life)
+
+    indoor = _Means()
     for row in rows:
-        if row.indoor is not None and row.start >= recent:
-            indoor[row.hour][0] += row.weight * row.indoor
-            indoor[row.hour][1] += row.weight
-    usual_indoor = {h: round(v[0] / v[1], 1) for h, v in indoor.items() if v[1]}
+        if row.indoor is not None:
+            indoor.add(row.weekday, row.hour, row.indoor, recency(row))
+    usual_indoor = indoor.result(1)
 
     def room(row: _Row) -> float:
         if row.indoor is not None:
             return row.indoor
-        return usual_indoor.get(row.hour, NOMINAL_INDOOR_C)
+        return _usual(usual_indoor, row.weekday, row.hour, NOMINAL_INDOOR_C)
 
     def days_for(gain: float) -> list[tuple[float, float, float]]:
         sums: dict[Any, list[float]] = defaultdict(lambda: [0.0, 0.0, 0.0, 0.0])
@@ -254,20 +300,19 @@ def fit_temperature(
             h, c, e = _slopes(days_for(candidate))
             if h > 0 and e < BETTER_FIT * error:
                 gain, heat, cool, error = candidate, h, c, e
-    usual: dict[int, list[float]] = defaultdict(lambda: [0.0, 0.0, 0.0])
+    usual_heat, usual_cool = _Means(), _Means()
     for row in rows:
-        if row.start >= recent:
-            hour = usual[row.hour]
-            hour[0] += row.weight * heating_degrees(row.reference, room(row) - gain)
-            hour[1] += row.weight * cooling_degrees(row.reference)
-            hour[2] += row.weight
+        weight = recency(row)
+        degrees = heating_degrees(row.reference, room(row) - gain)
+        usual_heat.add(row.weekday, row.hour, degrees, weight)
+        usual_cool.add(row.weekday, row.hour, cooling_degrees(row.reference), weight)
     return TemperatureModel(
         round(heat, 1),
         round(cool, 1),
         len(days),
         target,
-        {h: v[0] / v[2] for h, v in usual.items() if v[2]},
-        {h: v[1] / v[2] for h, v in usual.items() if v[2]},
+        usual_heat.result(),
+        usual_cool.result(),
         gain,
         usual_indoor,
         name,
