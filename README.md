@@ -37,7 +37,7 @@ Home Assistant 2025.6 or newer is required.
 
 ### Prices (recommended for the Netherlands)
 
-For dynamic energy prices HomeBatteryAssist reads a price integration you already have. Tested with **DynTarNL** ([mvanrijnen/ha-dyntarNL](https://github.com/mvanrijnen/ha-dyntarNL)): Dutch dynamic tariffs including the price forecast for the coming days. Other sources (Nord Pool, EnergyZero, easyEnergy, …) work too — see [Forecasting](docs/forecasting.md#prices).
+For dynamic energy prices HomeBatteryAssist reads a price integration you already have. Tested with **DynTarNL** ([mvanrijnen/ha-dyntarNL](https://github.com/mvanrijnen/ha-dyntarNL)): Dutch dynamic tariffs including the price forecast for the coming days, and from DynTarNL 1.2.0 also the export price (published and forecast; older versions: market price minus the purchase fee). Other sources (Nord Pool, EnergyZero, easyEnergy, …) work too — see [Forecasting](docs/forecasting.md#prices).
 
 ## Configuration
 

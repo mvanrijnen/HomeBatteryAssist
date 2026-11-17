@@ -9,11 +9,17 @@ others (recognised by the end of their unique id):
 - ``…_electricity_market_market_current``: attribute ``prices`` with the
   published bare market prices (yesterday, today, tomorrow).
 
+- ``…_electricity_feedin_compensation_now`` (export price now, DynTarNL >= 1.2.0):
+  attribute ``prices`` with the published export prices (market minus the
+  supplier's purchase fee, may be negative); the forecast sensor then has
+  ``forecast_export`` with the forecast export prices (only after the last
+  published hour; only when DynTarNL's forecasts are on).
+
 Roles: ``import`` (all-in), ``market`` (bare, published + forecast) and
-``export``: the market price minus the supplier's purchase fee (attribute
-``purchase_fee`` of the market sensor, e.g. Essent about 0.025), which is what
-exported energy earns on a dynamic contract (as DynTarNL's own export price
-sensor, which has no forecast).
+``export``: what exported energy earns on a dynamic contract. Read from the
+export price sensor and ``forecast_export`` when there (recognised by the
+attribute, not the version); otherwise (DynTarNL < 1.2.0) calculated as the
+market price minus the ``purchase_fee`` of the market sensor.
 """
 
 from __future__ import annotations
@@ -42,6 +48,7 @@ from .price_points import (
 DOMAIN = "dyntarnl"
 FORECAST_SUFFIX = "_electricity_forecast_total_avg_24h"
 MARKET_SUFFIX = "_electricity_market_market_current"
+EXPORT_SUFFIX = "_electricity_feedin_compensation_now"
 
 
 def _entity(hass: HomeAssistant, entry_id: str, suffix: str) -> str | None:
@@ -93,6 +100,10 @@ class DynTarNLDriver(PriceDriver):
                 ]
             )
             if role == ROLE_EXPORT:
+                export = hass.states.get(_entity(hass, source, EXPORT_SUFFIX) or "")
+                published = export_prices(export, forecast)
+                if published is not None:
+                    return PriceData(published, unit)
                 points = _minus_fee(points, purchase_fee(market))
             return PriceData(points, unit)
         return PriceData(parse_price_forecast(forecast, ("prices",)), unit)
@@ -104,6 +115,7 @@ class DynTarNLDriver(PriceDriver):
             for e in (
                 _entity(hass, source, FORECAST_SUFFIX),
                 _entity(hass, source, MARKET_SUFFIX),
+                _entity(hass, source, EXPORT_SUFFIX),
             )
             if e
         ]
@@ -120,3 +132,23 @@ def purchase_fee(state) -> float:
 
 def _minus_fee(points: list[PricePoint], fee: float) -> list[PricePoint]:
     return [replace(p, price=round(p.price - fee, 5)) for p in points]
+
+
+def export_prices(export, forecast) -> list[PricePoint] | None:
+    """The export prices of DynTarNL >= 1.2.0: the published ones (attribute
+    ``prices`` of the export price sensor), then the forecast ones
+    (``forecast_export``) after the last published hour. Negative prices are
+    kept (exporting costs money then). ``None`` when the export sensor has no
+    ``prices`` (an older DynTarNL, or no data yet): calculate it instead."""
+    if export is None or not export.attributes.get("prices"):
+        return None
+    published = parse_price_forecast(export, ("prices",))
+    if not published:
+        return None
+    last = published[-1].end
+    predicted = [
+        replace(p, estimated=True)
+        for p in parse_price_forecast(forecast, ("forecast_export",))
+        if p.start >= last
+    ]
+    return merge_price_forecasts([published, predicted])

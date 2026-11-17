@@ -95,6 +95,78 @@ async def test_dyntarnl_driver(hass: HomeAssistant) -> None:
     assert set(driver.watch(hass, source_id)) == {"sensor.forecast", "sensor.market"}
 
 
+async def test_dyntarnl_export_series(hass: HomeAssistant) -> None:
+    """DynTarNL >= 1.2.0: published export prices, then forecast_export after
+    the last published hour; negative prices kept; older versions (no
+    ``prices`` on the export sensor) fall back to market minus the fee."""
+    entry = MockConfigEntry(domain="dyntarnl", title="Essent")
+    entry.add_to_hass(hass)
+    registry = er.async_get(hass)
+    ms = int(dt_util.start_of_local_day().timestamp() * 1000)
+    hour = 3600_000
+    states = {
+        "_electricity_forecast_total_avg_24h": (
+            "forecast",
+            {
+                "prices": [[ms + i * hour, 0.30, "p"] for i in range(4)],
+                # overlaps the last published hour, then a gap, then more
+                "forecast_export": [
+                    [ms + 3 * hour, 0.99],
+                    [ms + 4 * hour, 0.05],
+                    [ms + 6 * hour, 0.07],
+                ],
+            },
+        ),
+        "_electricity_market_market_current": (
+            "market",
+            {
+                "prices": [[ms + i * hour, 0.10] for i in range(4)],
+                "purchase_fee": 0.025,
+            },
+        ),
+        "_electricity_feedin_compensation_now": (
+            "export",
+            {
+                "prices": [
+                    [ms, 0.075],
+                    [ms + hour, -0.04],
+                    [ms + 2 * hour, 0.075],
+                    [ms + 3 * hour, 0.075],
+                ]
+            },
+        ),
+    }
+    for suffix, (object_id, attrs) in states.items():
+        registry.async_get_or_create(
+            "sensor",
+            "dyntarnl",
+            f"x{suffix}",
+            config_entry=entry,
+            suggested_object_id=object_id,
+        )
+        hass.states.async_set(
+            f"sensor.{object_id}", "0.1", {"unit_of_measurement": "€/kWh", **attrs}
+        )
+    (source,) = [s for s in find_sources(hass) if s.driver == "dyntarnl"]
+    driver, source_id = split_key(source.key)
+    export = (await driver.async_read(hass, source_id, ROLE_EXPORT)).points
+    assert [p.price for p in export] == [0.075, -0.04, 0.075, 0.075, 0.05, 0.07]
+    assert [p.estimated for p in export] == [False] * 4 + [True] * 2
+    assert "sensor.export" in driver.watch(hass, source_id)
+
+    # Empty forecast_export: only the published series.
+    attrs = dict(hass.states.get("sensor.forecast").attributes, forecast_export=[])
+    hass.states.async_set("sensor.forecast", "0.1", attrs)
+    export = (await driver.async_read(hass, source_id, ROLE_EXPORT)).points
+    assert [p.price for p in export] == [0.075, -0.04, 0.075, 0.075]
+
+    # Older DynTarNL / no data: no prices on the export sensor -> calculated.
+    for state in ("0.1", "unknown"):
+        hass.states.async_set("sensor.export", state, {})
+        export = (await driver.async_read(hass, source_id, ROLE_EXPORT)).points
+        assert [p.price for p in export] == [0.075] * 4
+
+
 async def test_action_driver(hass: HomeAssistant) -> None:
     """Prices from a core integration's action response (EnergyZero)."""
     entry = MockConfigEntry(domain="energyzero", title="EnergyZero")
