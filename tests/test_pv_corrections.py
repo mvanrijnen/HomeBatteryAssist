@@ -150,3 +150,16 @@ async def test_corrections_are_compared(hass: HomeAssistant) -> None:
     accuracy.refresh_stats(start + 2 * H)
     assert accuracy.pv_correctors()["lead_time"]["1-6h"]["mae"] == 0.0
     assert accuracy.pv_results()[0].actual == 400.0
+
+
+async def test_reset_forgets_the_comparison_too(hass: HomeAssistant) -> None:
+    """Resetting PV accuracy also clears the PV corrections' results."""
+    accuracy = ForecastAccuracy(hass, "test")
+    kind = f"{PV_CORRECTOR_KIND}lead_time"
+    accuracy.track(kind)
+    for each in ("pv", kind):
+        accuracy.results[each] = [
+            {"start": NOW.isoformat(), "actual": 1.0, "pred": {"0-1h": 1.0}}
+        ]
+    accuracy.reset("pv")
+    assert accuracy.results["pv"] == [] and accuracy.results[kind] == []

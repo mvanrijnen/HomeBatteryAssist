@@ -383,10 +383,13 @@ class ForecastAccuracy:
         self._store.async_delay_save(self._data, 1)
 
     def reset(self, kind: Kind) -> None:
-        """Forget what was learned for ``kind``."""
-        self.results[kind] = []
-        self.predictions[kind] = {}
-        self._stats[kind] = self._kind_stats(kind, dt_util.utcnow())
+        """Forget what was learned for ``kind``, and the comparisons that
+        belong to it (``<kind>@<module>``: forecasters, PV corrections)."""
+        now = dt_util.utcnow()
+        for each in (kind, *(k for k in self.kinds if k.startswith(f"{kind}@"))):
+            self.results[each] = []
+            self.predictions[each] = {}
+            self._stats[each] = self._kind_stats(each, now)
         self._store.async_delay_save(self._data, 1)
 
     def mode(self, kind: Kind, now: datetime) -> Mode:
