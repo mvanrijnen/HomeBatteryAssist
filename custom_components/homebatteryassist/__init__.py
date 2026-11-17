@@ -309,6 +309,23 @@ async def async_setup_entry(
     simulator.async_start()
     entry.async_on_unload(simulator.async_stop)
 
+    # Battery control — WRITTEN OUT, NOT ACTIVE (engine/control/control_loop.py;
+    # see "Activating" there). Once active it runs next to the simulator, on
+    # the same targets, and releases every battery on unload:
+    #
+    # from .engine.control.control_loop import ControlLoop
+    # control = ControlLoop(
+    #     hass,
+    #     entry,
+    #     decisions,
+    #     batteries,
+    #     measurements,
+    #     forecast,
+    #     enabled=entry.options.get(CONF_CONTROL_ENABLED, False),
+    # )
+    # control.async_start()
+    # entry.async_on_unload(control.async_stop)
+
     entry.runtime_data = HomeBatteryAssistData(
         decisions=decisions,
         measurements=measurements,

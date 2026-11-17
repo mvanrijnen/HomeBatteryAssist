@@ -75,3 +75,12 @@ def test_controller_off_by_default() -> None:
     default = inspect.signature(BatteryController).parameters["enabled"].default
     assert default is False
     assert READERS  # readers only read (their write methods are never called)
+
+
+def test_control_loop_is_only_comment() -> None:
+    """The control loop is written out as comment: no active code at all."""
+    import ast
+
+    tree = ast.parse((PACKAGE / "engine/control/control_loop.py").read_text("utf-8"))
+    assert len(tree.body) == 1  # the docstring
+    assert isinstance(tree.body[0], ast.Expr)

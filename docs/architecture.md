@@ -33,7 +33,8 @@ custom_components/homebatteryassist/
 ├── strings.json, translations/
 └── engine/
     ├── coordinator.py     one cycle through the layers
-    ├── control/           battery_controller.py — built, not active
+    ├── control/           battery_controller.py — built, not active;
+    │                      control_loop.py — written out as comment
     ├── units.py           unit conversion
     ├── own_modules.py     loading own modules from /config
     ├── devices/           1  drivers
@@ -96,6 +97,8 @@ HomeBatteryAssist does not control batteries. The control layer (`engine/control
 A test (`tests/test_read_only.py`) fails as soon as code outside the drivers and this layer calls a write method, creates a controller, enables a direct driver or calls a Home Assistant action that changes a device.
 
 Each [direct driver](drivers.md#direct-battery-drivers--prepared-not-used) states its own control needs; the controller enforces them.
+
+The **control loop** (`engine/control/control_loop.py`) is written out completely, but as comment: no line of it runs, and a test checks that the file has no active code. Once active it runs every second next to the virtual batteries, on the same targets — full charge, the plan's power or zero on the meter (never for excluded devices or random short peaks), spread over the batteries, phase protection and peak shaving, state of charge limits — and gives each battery its power through its controller, via the integration it is linked with (e.g. Omnibattery's manual mode) or an enabled direct driver. The steps to activate it are listed at the top of the file.
 
 ## Meters
 
