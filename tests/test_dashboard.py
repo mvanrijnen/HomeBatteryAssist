@@ -140,6 +140,8 @@ async def test_status_websocket(
     assert result["prices"] is None  # no price forecast configured
     assert result["reach"]["has_price"] is False
     assert result["reach"]["price_end"] is None
+    assert result["reach"]["has_weather"] is False
+    assert result["reach"]["weather_end"] is None
     assert result["reach"]["max_end"] > result["window"]["start"]
     assert result["decisions"][0]["message"]
     assert result["planner"]["key"] == "nom"

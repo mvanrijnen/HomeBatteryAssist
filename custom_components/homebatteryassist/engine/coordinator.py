@@ -451,6 +451,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.temperatures: list[float | None] | None = None  # per slot
         # (slot start, forecast °C) for the dashboard
         self.temperature_slots: list[tuple[datetime, float | None]] = []
+        # How far the outdoor temperature forecast reaches (end of its last hour).
+        self.weather_end: datetime | None = None
         self._last_temperature: str | None = None
         # Price driver ("<driver>:<source>") or the price sensor field.
         self.price_source: str = options.get(CONF_PRICE_SOURCE, PRICE_SOURCE_SENSOR)
@@ -1286,6 +1288,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         if self.weather is None:
             self.temperature_model = self.temperatures = None
             self.temperature_slots = []
+            self.weather_end = None
             return
         self.temperature_model = fit_effect(
             self.forecast_records(), now, {z.zone_id: z.name for z in self.zones}
@@ -1295,6 +1298,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         except Exception:  # a weather source may fail in any way
             _LOGGER.exception("Weather forecast of %s failed", self.weather.describe())
             hourly = {}
+        self.weather_end = max(hourly) + timedelta(hours=1) if hourly else None
         slots = list(window.slots(step))
         self.temperatures = slot_temperatures(slots, hourly) if hourly else None
         self.temperature_slots = [

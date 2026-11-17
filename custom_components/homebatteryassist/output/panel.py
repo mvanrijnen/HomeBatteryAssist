@@ -464,6 +464,8 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             "pv_end": _iso(forecast_data.pv_end),
             "has_price": data.forecast.price_configured,
             "has_pv_forecast": bool(data.forecast.pv_entries),
+            "weather_end": _iso(data.forecast.weather_end),
+            "has_weather": data.forecast.weather is not None,
         },
         # The active planner module (built-in mode or own planner).
         "planner": {

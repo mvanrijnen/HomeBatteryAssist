@@ -224,6 +224,7 @@ const TEXT = {
     leads: { "0-1h": "0-1 h", "1-6h": "1-6 h", "6-24h": "6-24 h", "1-2d": "1-2 d", "2-3d": "2-3 d", "3-5d": "3-5 d", "5d+": "5+ d" },
     reachConsumption: "Consumption",
     reachPrice: "Prices",
+    reachWeather: "Outdoor temperature",
     reachPv: "PV",
     reachUntil: "until {end} ({hours} h)",
     reachNone: "no data",
@@ -453,6 +454,7 @@ const TEXT = {
     leads: { "0-1h": "0-1 u", "1-6h": "1-6 u", "6-24h": "6-24 u", "1-2d": "1-2 d", "2-3d": "2-3 d", "3-5d": "3-5 d", "5d+": "5+ d" },
     reachConsumption: "Verbruik",
     reachPrice: "Prijzen",
+    reachWeather: "Buitentemperatuur",
     reachPv: "PV",
     reachUntil: "tot {end} ({hours} uur)",
     reachNone: "geen gegevens",
@@ -1295,7 +1297,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const reach = `<h2 style="margin-top:16px">${esc(t.reachTitle)}</h2><div class="reach">
       ${row(t.reachConsumption, r.consumption_end, true)}
       ${row(t.reachPrice, r.price_end, r.has_price)}
-      ${row(t.reachPv, r.pv_end, r.has_pv_forecast)}</div>`;
+      ${row(t.reachPv, r.pv_end, r.has_pv_forecast)}
+      ${r.has_weather ? row(t.reachWeather, r.weather_end, true) : ""}</div>`;
     return `<div class="card"><h2>${esc(t.planning)}</h2><div>${esc(text)}</div>
       <div class="muted">${esc(t.limit[w.limited_by] || w.limited_by)}</div>${reach}</div>`;
   }
