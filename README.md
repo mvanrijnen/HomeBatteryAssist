@@ -42,7 +42,7 @@ For dynamic energy prices HomeBatteryAssist reads a price integration you alread
 ## Configuration
 
 - **Configure** on the integration opens a menu:
-  - **Settings**: the main fields on top (history interval, planning horizon, forecast interval, price source, extra price forecast, plan mode, consumption forecaster, tariff, PV forecast), the rest in collapsible sections: export price, solar forecast correction, planning, limits and reserve, full charge, notifications, temperature and weather. Empty fields show their default value;
+  - **Settings**: the main fields on top (history interval, planning horizon, forecast interval, price source, extra price forecast, plan mode, consumption forecaster, tariff, PV forecast), the rest in collapsible sections: export price, solar forecast correction (incl. the PV correction module), planning, limits and reserve, short peaks, full charge, battery temperature, notifications, weather and outdoor temperature. Empty fields show their default value;
   - **Back to default settings**: every setting back to its default; where the prices and PV forecast come from is kept;
   - **Grid connection and meter**: the meter, phases, connection size and sensors.
 - **Add** batteries, virtual batteries, PV sources, excluded devices, heating/cooling (optionally with room and outdoor temperature: a zone per room) and time slots under the integration; each can be changed later (including its phase).

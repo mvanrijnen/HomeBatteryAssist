@@ -13,6 +13,12 @@ is read directly about once a second (``direct.py``: HomeWizard P1 API, SMA
 Speedwire). Listeners can then ask to be called at most every
 ``ENTITY_INTERVAL`` (entities), so the recorder does not store a state per
 second; the history still gets every value.
+
+Every new consumption value also goes through the chosen spike filter
+(``spike_filters/``, when short peaks are switched on): ``spike`` says which
+part is a short peak now, ``take_spike_wh`` the energy of peaks that ended.
+``nom_balance`` turns a flow into what zero on the meter asks of the batteries
+(never discharging for excluded devices or an ignored peak).
 """
 
 from __future__ import annotations

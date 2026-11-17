@@ -433,7 +433,8 @@ class VirtualBatterySimulator:
             )
         else:
             # NOM: the real surplus (+) / shortage (-) on the grid right now,
-            # around the target grid power.
+            # around the target grid power; a shortage never for excluded
+            # devices nor for a random short peak (when switched on).
             flow = self._measurements.flow
             rules = self._forecast.rules
             ignore = self._forecast.spike_ignore_w(
