@@ -161,7 +161,19 @@ def _blocks(slots: list[PlanSlot], charging: bool) -> list[_Block]:
         price = (
             sum(s.price * abs(s.power_w) for s in priced) / weight if weight else None
         )
-        from_grid = any(s.grid_w > ACTIVE_W for s in current)
+        if charging:
+            # Mostly from the grid: at least half of the charged energy came
+            # from the grid (the grid import up to the charge power per slot);
+            # a solar charge with a little grid import stays a solar charge.
+            from_grid_wh = sum(
+                min(s.power_w, max(s.grid_w, 0.0))
+                * (s.end - s.start).total_seconds()
+                / 3600
+                for s in current
+            )
+            from_grid = from_grid_wh >= energy / 2
+        else:
+            from_grid = any(s.grid_w > ACTIVE_W for s in current)
         limited = any(s.limited for s in current)
         blocks.append(
             _Block(current[0].start, current[-1].end, energy, price, from_grid, limited)

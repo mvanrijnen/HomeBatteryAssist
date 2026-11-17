@@ -172,26 +172,32 @@ def _optimise(
                         cost += (reserve - j) * step / 1000 * RESERVE_PENALTY
                     if cost < best:
                         best, best_j = cost, j
-                # Covering a house load smaller than one level: discharge just
-                # that, using a fraction of a level (valued as a mix of the two
-                # levels). Without this a big battery could not cover small loads.
+                # Covering the house load exactly: discharge just that, also
+                # when it is not a whole number of levels (valued as a mix of
+                # the two levels around it). Without this the plan could only
+                # discharge whole levels (e.g. 331 or 663 W for a 640 W load)
+                # and would leave energy unused.
                 need = max(net, 0.0)
                 part = need * hours / eff / step if need > 0 else 0.0
+                target = i - part
                 if (
-                    0 < part < 1
-                    and i > normal
+                    part > 0
+                    and part != int(part)
+                    and target >= normal
                     and may_discharge(rules, price)
                     and need <= slot.max_discharge_w
                 ):
+                    low = int(target)
+                    frac = target - low
                     cost = (
                         grid_cost(net - need, hours, price, export)
                         + need * hours / 1000 * data.cycle_cost
                         + need * hours / 1000 * extra
-                        + part * future[0][i - 1]
-                        + (1 - part) * future[0][i]
+                        + (1 - frac) * future[0][low]
+                        + frac * future[0][min(low + 1, levels - 1)]
                     )
                     if cost < best:
-                        best, best_j = cost, i - part
+                        best, best_j = cost, target
                 current[flag][i] = best
                 choice[i] = best_j
         future = current

@@ -136,3 +136,21 @@ async def test_story_charge_that_brings_nothing(hass: HomeAssistant) -> None:
     nom = BatteryPlan("nom", "nom", [], 1.0, 1.0 + 0.20)
     text = plan_story(plan, {"nom": nom}, T0, "nl", 0.85, 0.02, False)
     assert "levert dat vrijwel niets op" in text
+
+
+async def test_story_keeps_grid_and_solar_charges_apart(hass: HomeAssistant) -> None:
+    """A night charge from the grid and a solar charge later the same day are
+    two moments: the solar one (a little grid import aside) is not told as
+    charging from the grid."""
+    await hass.config.async_set_time_zone("Europe/Amsterdam")
+    slots = [
+        PlanSlot(T0, T0 + H, 2000.0, 50.0, 2500.0, 0.20),  # grid charge
+        PlanSlot(T0 + H, T0 + 2 * H, 0.0, 50.0, 500.0, 0.25),
+        # solar charge: 800 W into the battery, only 100 W from the grid
+        PlanSlot(T0 + 2 * H, T0 + 3 * H, 800.0, 60.0, 100.0, 0.25),
+        PlanSlot(T0 + 3 * H, T0 + 4 * H, -500.0, 55.0, 0.0, 0.45),
+    ]
+    plan = BatteryPlan("arbitrage", "arbitrage", slots, 1.0, 1.5)
+    text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
+    assert "laden we 2,0 kWh uit het net" in text
+    assert "2,8 kWh uit het net" not in text

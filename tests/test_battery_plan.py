@@ -365,3 +365,19 @@ def test_reach_times() -> None:
     assert empty == T0 + 4 * H
     # Already empty: no moment.
     assert reach_times([slot(0, 10.0)], 10.0, 10.0, 100.0) == (None, None)
+
+
+def test_arbitrage_covers_the_house_load_exactly() -> None:
+    """A big battery covers a load between two levels exactly, not one whole
+    level less (e.g. 331 W of 640 W)."""
+    slots = _slots([640.0] * 8)
+    plan = plan_batteries(
+        [_battery(90.0, capacity=10.0, power=5000.0)],
+        slots,
+        {},
+        _prices([0.45] * 4 + [0.20] * 4),
+        mode=MODE_ARBITRAGE,
+    )
+    dear = plan.slots[:4]
+    assert [s.power_w for s in dear] == pytest.approx([-640.0] * 4, abs=1)
+    assert all(abs(s.grid_w) < 1 for s in dear)
