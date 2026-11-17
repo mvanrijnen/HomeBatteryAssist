@@ -323,6 +323,102 @@ class ConsumptionHistory:
             out[zone] = values
         return out
 
+    def today_energy(self, now: datetime) -> dict[str, Any]:
+        """Energy since local midnight (Wh), per clock hour: the average of
+        what was measured in that hour (closed intervals and the one running
+        now) over the whole hour (the current one: until now). So a gap, e.g.
+        a restart, counts at the hour's average, as in the hourly charts.
+        Grid import/export and battery charge/discharge come from the net
+        per hour."""
+        now = dt_util.as_utc(now)
+        midnight = dt_util.as_utc(dt_util.start_of_local_day(dt_util.as_local(now)))
+        keys = ("house", "pv", "excluded", "battery")
+        # hour -> [weighted sums per key, measured seconds, zone sums]
+        hours: dict[datetime, list[Any]] = {}
+
+        def add(
+            start: datetime,
+            seconds: float,
+            values: dict[str, float],
+            zones: dict[str, float],
+        ) -> None:
+            if seconds <= 0:
+                return
+            hour = start.replace(minute=0, second=0, microsecond=0)
+            acc = hours.setdefault(hour, [dict.fromkeys(keys, 0.0), 0.0, {}])
+            for key in keys:
+                acc[0][key] += values.get(key, 0.0) * seconds
+            acc[1] += seconds
+            for zone, watts in zones.items():
+                acc[2][zone] = acc[2].get(zone, 0.0) + watts * seconds
+
+        for record in self.records:
+            start = dt_util.parse_datetime(str(record["start"]))
+            if start is None or dt_util.as_utc(start) < midnight:
+                continue
+            add(
+                dt_util.as_utc(start),
+                record["minutes"] * 60 * record.get("coverage", 1.0),
+                {
+                    "house": record["avg_w"],
+                    "pv": record.get("pv_w", 0.0),
+                    "excluded": record.get("excluded_w", 0.0),
+                    "battery": record.get("battery_w", 0.0),
+                },
+                {
+                    z: v.get("w", 0.0)
+                    for z, v in (record.get("zones") or {}).items()
+                    if isinstance(v, dict)
+                },
+            )
+        if self._measured_s and self._interval_start is not None:
+            add(
+                self._interval_start,
+                self._measured_s,
+                {
+                    "house": self._energy_ws / self._measured_s,
+                    "pv": self._pv_ws / self._pv_s if self._pv_s else 0.0,
+                    "excluded": self._excluded_ws / self._measured_s,
+                    "battery": self._battery_ws / self._battery_s
+                    if self._battery_s
+                    else 0.0,
+                },
+                {
+                    z: sums[0] / sums[1]
+                    for z, sums in self._zone_sums.items()
+                    if sums[1]
+                },
+            )
+        total = dict.fromkeys(
+            (
+                "house",
+                "pv",
+                "excluded",
+                "charged",
+                "discharged",
+                "imported",
+                "exported",
+            ),
+            0.0,
+        )
+        zones: dict[str, float] = {}
+        for hour, (sums, seconds, zone_sums) in hours.items():
+            span = min((now - hour).total_seconds(), 3600.0) / 3600  # h
+            avg = {k: v / seconds for k, v in sums.items()}
+            total["house"] += avg["house"] * span
+            total["pv"] += avg["pv"] * span
+            total["excluded"] += avg["excluded"] * span
+            total["charged"] += max(avg["battery"], 0.0) * span
+            total["discharged"] += max(-avg["battery"], 0.0) * span
+            grid = avg["house"] - avg["pv"] + avg["excluded"] + avg["battery"]
+            total["imported"] += max(grid, 0.0) * span
+            total["exported"] += max(-grid, 0.0) * span
+            for zone, ws in zone_sums.items():
+                zones[zone] = zones.get(zone, 0.0) + ws / seconds * span
+        result: dict[str, Any] = {k: round(v) for k, v in total.items()}
+        result["zones"] = {k: round(v) for k, v in zones.items()}
+        return result
+
     def prune(self, now: datetime) -> None:
         """Drop records older than the retention period."""
         cutoff = (dt_util.as_utc(now) - HISTORY_RETENTION).isoformat()

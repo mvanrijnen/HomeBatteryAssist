@@ -270,6 +270,60 @@ def _prices_now(hass: HomeAssistant, data: Any) -> dict[str, Any] | None:
     }
 
 
+def _today_expected(data: Any) -> dict[str, float | None]:
+    """The whole day as expected (Wh): measured so far plus the forecast
+    until local midnight (house consumption, PV, heating/cooling zones) and
+    the battery plan (charge / discharge, grid import / export). Excluded
+    devices are not forecast (None)."""
+    now = dt_util.utcnow()
+    end = dt_util.as_utc(
+        dt_util.start_of_local_day(dt_util.as_local(now)) + timedelta(days=1)
+    )
+    today = data.history.today_energy(now)
+    forecast = data.forecast
+    fdata = forecast.data
+
+    def rest(start: datetime, stop: datetime, watts: float) -> float:
+        """Wh of ``watts`` in the part of [start, stop) between now and end."""
+        overlap = (min(stop, end) - max(start, now)).total_seconds()
+        return watts * overlap / 3600 if overlap > 0 else 0.0
+
+    house = sum(rest(s.start, s.end, s.power_w) for s in fdata.consumption)
+    pv = None
+    if forecast.pv_entries:
+        pv = today["pv"] + sum(
+            rest(start, start + timedelta(hours=1), wh)
+            for start, wh in fdata.pv_wh.items()
+        )
+    zones = None
+    model = forecast.temperature_model
+    slots = forecast.temperature_slots
+    if model is not None and model.active and slots:
+        step = (slots[1][0] - slots[0][0]) if len(slots) > 1 else timedelta(minutes=15)
+        zones = sum(today["zones"].values()) + sum(
+            rest(start, start + step, model.demand(start, temp) or 0.0)
+            for start, temp in slots
+        )
+    plan = fdata.selected_plan
+    battery = {"charged": 0.0, "discharged": 0.0, "imported": 0.0, "exported": 0.0}
+    for slot in plan.slots if plan else []:
+        battery["charged"] += rest(slot.start, slot.end, max(slot.power_w, 0.0))
+        battery["discharged"] += rest(slot.start, slot.end, max(-slot.power_w, 0.0))
+        battery["imported"] += rest(slot.start, slot.end, max(slot.grid_w, 0.0))
+        battery["exported"] += rest(slot.start, slot.end, max(-slot.grid_w, 0.0))
+    planned = plan is not None and bool(plan.slots)
+    return {
+        "house": round(today["house"] + house),
+        "pv": None if pv is None else round(pv),
+        "zones": None if zones is None else round(zones),
+        **{
+            key: round(today[key] + value) if planned else None
+            for key, value in battery.items()
+        },
+        "excluded": None,
+    }
+
+
 def _temperature_series(forecast: Any) -> dict[str, Any] | None:
     """The expected outdoor temperature, the learned room temperature and
     the heating/cooling power to expect per slot (None without weather)."""
@@ -323,10 +377,26 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             for sub in entry.subentries.values()
             if sub.subentry_type == SUBENTRY_EXCLUDED_LOAD
         ],
+        # Per excluded device its power sensor(s) (one, or one per phase).
+        "excluded": [
+            {
+                "name": sub.title,
+                "sensors": [
+                    v
+                    for k, v in sub.data.items()
+                    if v and (k == "sensor" or k.startswith("phase_sensor_"))
+                ],
+            }
+            for sub in entry.subentries.values()
+            if sub.subentry_type == SUBENTRY_EXCLUDED_LOAD
+        ],
         "zones": [
-            {"name": zone.name, "sensor": zone.power_sensor}
+            {"name": zone.name, "sensor": zone.power_sensor, "id": zone.zone_id}
             for zone in data.forecast.zones
         ],
+        # Energy since local midnight (Wh), incl. the interval running now.
+        "today": data.history.today_energy(dt_util.utcnow()),
+        "today_expected": _today_expected(data),
         "entities": _entity_ids(registry, entry.entry_id, MAIN_KEYS),
         "batteries": [
             {

@@ -267,3 +267,37 @@ def test_prices_now(hass: HomeAssistant) -> None:
     assert result["market_now"] == 0.10 and result["market_next"] == 0.05
     assert result["export_next"] is None  # the plan has no slot there
     assert result["start"] == hour.isoformat()
+
+
+async def test_today_energy(hass: HomeAssistant) -> None:
+    """Energy since local midnight: closed intervals plus the running one;
+    grid and battery split by direction per interval."""
+    from custom_components.homebatteryassist.engine.history.consumption_history import (
+        ConsumptionHistory,
+    )
+
+    await hass.config.async_set_time_zone("Europe/Amsterdam")
+    history = ConsumptionHistory(hass, "test", 15)
+    midnight = dt_util.as_utc(dt_util.start_of_local_day())
+    history.records = [
+        {  # yesterday: not counted
+            "start": (midnight - timedelta(minutes=15)).isoformat(),
+            "minutes": 15,
+            "avg_w": 4000.0,
+            "coverage": 1.0,
+        },
+        {  # 1 kW house, 2 kW solar, battery charging 400 W -> export 600 W
+            "start": midnight.isoformat(),
+            "minutes": 60,
+            "avg_w": 1000.0,
+            "coverage": 1.0,
+            "pv_w": 2000.0,
+            "battery_w": 400.0,
+            "zones": {"z": {"w": 300.0}},
+        },
+    ]
+    today = history.today_energy(midnight + timedelta(hours=1, minutes=5))
+    assert today["house"] == 1000 and today["pv"] == 2000
+    assert today["charged"] == 400 and today["discharged"] == 0
+    assert today["exported"] == 600 and today["imported"] == 0
+    assert today["zones"] == {"z": 300}
