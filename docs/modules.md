@@ -32,7 +32,7 @@ Whatever a module returns, HomeBatteryAssist checks it before it is used:
 
 If a chosen module fails, the explanation (*Why*) says so once, the log has the details, and the built-in fallback is used: zero on the meter for a planner, the profile for a forecaster, the source's prices for a tariff. The dashboard's overview shows which planner, forecaster and tariff are active, and marks a fallback.
 
-Everything stays **advice**: no module controls a battery or any other device.
+For now everything is **advice**: in this phase of development no module controls a battery or any other device.
 
 ## Comparing
 

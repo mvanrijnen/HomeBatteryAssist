@@ -881,14 +881,14 @@
       "step": {
         "user": {
           "title": "Battery",
-          "description": "These batteries were found in other integrations. Choose one to link it with all values filled in, or link a battery manually. HomeBatteryAssist only reads the battery; the integration that controls it keeps doing so.",
+          "description": "These batteries were found in other integrations. Choose one to link it with all values filled in, or link a battery manually. For now HomeBatteryAssist only reads the battery; the integration that controls it keeps doing so.",
           "data": {
             "source": "Battery"
           }
         },
         "reconfigure": {
           "title": "Battery",
-          "description": "Link a home battery through the entities of its own integration (read-only). Its charging and discharging is kept out of the house consumption.",
+          "description": "Link a home battery through the entities of its own integration (for now read-only). Its charging and discharging is kept out of the house consumption.",
           "data": {
             "name": "Name",
             "soc_sensor": "State of charge sensor",
@@ -923,7 +923,7 @@
         },
         "battery": {
           "title": "Battery",
-          "description": "Link a home battery through the entities of its own integration (read-only). Its charging and discharging is kept out of the house consumption.",
+          "description": "Link a home battery through the entities of its own integration (for now read-only). Its charging and discharging is kept out of the house consumption.",
           "data": {
             "name": "Name",
             "soc_sensor": "State of charge sensor",

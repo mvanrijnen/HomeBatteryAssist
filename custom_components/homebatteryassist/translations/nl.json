@@ -881,14 +881,14 @@
       "step": {
         "user": {
           "title": "Batterij",
-          "description": "Deze batterijen zijn gevonden in andere integrations. Kies er een om hem te koppelen met alle waarden ingevuld, of koppel een batterij handmatig. HomeBatteryAssist leest de batterij alleen uit; de integration die hem aanstuurt blijft dat doen.",
+          "description": "Deze batterijen zijn gevonden in andere integrations. Kies er een om hem te koppelen met alle waarden ingevuld, of koppel een batterij handmatig. HomeBatteryAssist leest de batterij voorlopig alleen uit; de integratie die hem aanstuurt blijft dat doen.",
           "data": {
             "source": "Batterij"
           }
         },
         "reconfigure": {
           "title": "Batterij",
-          "description": "Koppel een thuisbatterij via de entities van zijn eigen integration (alleen uitlezen). Het laden en ontladen van de batterij wordt buiten het huisverbruik gehouden.",
+          "description": "Koppel een thuisbatterij via de entiteiten van zijn eigen integratie (voorlopig alleen uitlezen). Het laden en ontladen van de batterij wordt buiten het huisverbruik gehouden.",
           "data": {
             "name": "Naam",
             "soc_sensor": "Sensor vulling",
@@ -923,7 +923,7 @@
         },
         "battery": {
           "title": "Batterij",
-          "description": "Koppel een thuisbatterij via de entities van zijn eigen integration (alleen uitlezen). Het laden en ontladen van de batterij wordt buiten het huisverbruik gehouden.",
+          "description": "Koppel een thuisbatterij via de entiteiten van zijn eigen integratie (voorlopig alleen uitlezen). Het laden en ontladen van de batterij wordt buiten het huisverbruik gehouden.",
           "data": {
             "name": "Naam",
             "soc_sensor": "Sensor vulling",

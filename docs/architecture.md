@@ -4,7 +4,7 @@ HomeBatteryAssist is built in layers. Data flows one way, from the devices to th
 
 | # | Layer | What it does | Folder |
 |---|---|---|---|
-| 1 | **Devices** | Talks to the physical devices — read-only | `engine/devices/` |
+| 1 | **Devices** | Talks to the physical devices — for now read-only | `engine/devices/` |
 | 2 | **External sources** | Prices, PV forecasts, tariffs | `engine/sources/` |
 | 3 | **Measuring** | The house *now*: consumption, grid per phase, battery states and counters | `engine/measure/` |
 | 4 | **History** | The past: consumption per interval, import of older data | `engine/history/` |
@@ -86,7 +86,7 @@ So one battery type can be read through several integrations. The **virtual batt
 
 ## Control layer (built, not active)
 
-HomeBatteryAssist does not control batteries. The control layer (`engine/control/battery_controller.py`) is built beforehand, so the safety is in place before anything is ever controlled:
+In this phase of development HomeBatteryAssist does not control batteries yet. The control layer (`engine/control/battery_controller.py`) is built beforehand, so the safety is in place before anything is controlled:
 
 - a **master switch**, off by default — nothing is sent while it is off, and nothing in HomeBatteryAssist turns it on;
 - **always release** control to the battery's own logic on stop, reload, restart and every error;

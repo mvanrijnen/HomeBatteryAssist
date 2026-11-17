@@ -1,6 +1,6 @@
 # Planning (advice)
 
-HomeBatteryAssist plans what the batteries could best do over the [planning window](forecasting.md#planning-window). **It is advice only**: no battery is controlled. Only virtual batteries follow the plan, as a simulation.
+HomeBatteryAssist plans what the batteries could best do over the [planning window](forecasting.md#planning-window). **For now it is advice**: in this phase of development no physical battery is controlled; virtual batteries follow the plan, as a simulation. The plan is designed to become battery commands 1:1.
 
 ## Plan modes
 

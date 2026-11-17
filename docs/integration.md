@@ -1,6 +1,6 @@
 # Working with other integrations
 
-HomeBatteryAssist never controls anything, so it can run next to any battery or energy integration (e.g. Omnibattery) without interfering.
+In this phase of development HomeBatteryAssist controls nothing, so it can run next to any battery or energy integration (e.g. Omnibattery) without interfering.
 
 ## Sensors
 
