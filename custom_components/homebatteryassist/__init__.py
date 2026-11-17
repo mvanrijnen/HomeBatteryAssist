@@ -41,6 +41,7 @@ from .engine.devices.batteries.virtual import VirtualBatterySimulator
 from .engine.evaluation.forecast_accuracy import ForecastAccuracy
 from .engine.evaluation.plan_check import PlanVerification
 from .engine.evaluation.pv_corrections import async_load_user_pv_correctors
+from .engine.evaluation.unexpected_surplus import UnexpectedSurplus
 from .engine.explain import DecisionLog
 from .engine.explain.notifications import Notifier
 from .engine.forecast.forecasters import async_load_user_forecasters
@@ -308,6 +309,36 @@ async def async_setup_entry(
     )
     simulator.async_start()
     entry.async_on_unload(simulator.async_stop)
+
+    # Why: an unexpected solar surplus, measured against the forecast now.
+    surplus_check = UnexpectedSurplus(
+        decimal_comma=(hass.config.language or "").startswith("nl")
+    )
+
+    @callback
+    def _check_surplus(when: datetime, _power: float | None) -> None:
+        flow = measurements.flow
+        data = forecast.data
+        slot = data.consumption_at(when) if data is not None else None
+        known = (
+            flow is not None
+            and measurements.has_pv
+            and measurements.pv_known
+            and data is not None
+            and data.pv_now_w is not None
+            and slot is not None
+        )
+        result = surplus_check.update(
+            when,
+            flow.pv_w - flow.house_w - flow.excluded_w if known else None,
+            data.pv_now_w - slot.power_w if known else None,
+            nom=data is None or data.plan_mode == MODE_NOM,
+        )
+        if result is not None:
+            key, params = result
+            decisions.async_log("forecast", key, **params)
+
+    entry.async_on_unload(measurements.async_add_listener(_check_surplus))
 
     # Battery control — WRITTEN OUT, NOT ACTIVE (engine/control/control_loop.py;
     # see "Activating" there). Once active it runs next to the simulator, on

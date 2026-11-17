@@ -403,7 +403,8 @@
         "prices": "New prices / changed forecast reach",
         "protection": "Phase protection, limits and peak shaving",
         "full_charge": "Full charges",
-        "measurement": "Measurement lost / restored"
+        "measurement": "Measurement lost / restored",
+        "solar": "Unexpected solar surplus"
       }
     },
     "pv_driver": {

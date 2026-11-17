@@ -403,7 +403,8 @@
         "prices": "Nieuwe prijzen / gewijzigd bereik voorspelling",
         "protection": "Fasebeveiliging, grenzen en piekafvlakking",
         "full_charge": "Volladen",
-        "measurement": "Meting weggevallen / terug"
+        "measurement": "Meting weggevallen / terug",
+        "solar": "Onverwacht zonne-overschot"
       }
     },
     "pv_driver": {

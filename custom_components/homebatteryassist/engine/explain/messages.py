@@ -79,6 +79,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "phase_relief_ended": "Phase {phase} is back under the limit. {names} took load off it for {minutes} min, {energy} kWh in total.",
         "peak_shaving": "Peak shaving: the grid would supply {grid}, above the peak limit of {limit}. {names} take {power} off it.",
         "peak_shaving_ended": "Grid import is back under the peak limit. The batteries shaved the peak for {minutes} min, {energy} kWh in total.",
+        "pv_surplus_unexpected": "Unexpected solar surplus: since {since} about {surplus} more solar power than the house uses, while {expected} was forecast for this hour.{battery}",
+        "pv_surplus_unexpected_ended": "The unexpected solar surplus is over ({start} to {end}): {energy} kWh left over, of which {expected} kWh was forecast; at most {peak}.",
     },
     "nl": {
         "horizon_setting": "Planning {hours} uur vooruit (tot {end}): het ingestelde maximum van {days} dagen.",
@@ -145,6 +147,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "phase_relief_ended": "Fase {phase} is weer onder de grens. {names} ontlastte de fase {minutes} min, met in totaal {energy} kWh.",
         "peak_shaving": "Piekafvlakking: het net zou {grid} leveren, boven de piekgrens van {limit}. {names} vangen daarvan {power} op.",
         "peak_shaving_ended": "De netafname is weer onder de piekgrens. De batterijen vlakten de piek {minutes} min af, met in totaal {energy} kWh.",
+        "pv_surplus_unexpected": "Onverwacht zonne-overschot: sinds {since} ongeveer {surplus} meer zonnestroom dan het huis gebruikt, terwijl voor dit uur {expected} verwacht werd.{battery}",
+        "pv_surplus_unexpected_ended": "Het onverwachte zonne-overschot is voorbij ({start} tot {end}): {energy} kWh over, waarvan {expected} kWh voorspeld; hoogstens {peak}.",
     },
 }
 
@@ -206,6 +210,8 @@ TERMS: dict[str, dict[str, str]] = {
         "plan_charge": " The plan said: charge now. The battery follows its own control; HomeBatteryAssist only advises.",
         "plan_discharge": " The plan said: supply now. The battery follows its own control; HomeBatteryAssist only advises.",
         "plan_idle": " The plan said: neither charge nor supply now. The battery follows its own control; HomeBatteryAssist only advises.",
+        "surplus_nom": " The batteries store it as long as they are not full (zero on the meter).",
+        "surplus_plan": " The plan did not count on it: the batteries follow the plan for this slot, so what they do not store goes to the grid.",
     },
     "nl": {
         "none": "",
@@ -241,6 +247,8 @@ TERMS: dict[str, dict[str, str]] = {
         "plan_charge": " Het plan zei: nu laden. De batterij volgt haar eigen sturing; HomeBatteryAssist geeft alleen advies.",
         "plan_discharge": " Het plan zei: nu leveren. De batterij volgt haar eigen sturing; HomeBatteryAssist geeft alleen advies.",
         "plan_idle": " Het plan zei: nu niet laden of leveren. De batterij volgt haar eigen sturing; HomeBatteryAssist geeft alleen advies.",
+        "surplus_nom": " De batterijen slaan het op zolang ze niet vol zijn (nul op de meter).",
+        "surplus_plan": " Het plan rekende er niet op: de batterijen volgen het plan voor dit tijdvak, dus wat ze niet opslaan gaat naar het net.",
     },
 }
 

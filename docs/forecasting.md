@@ -67,6 +67,10 @@ Every hour the PV forecast is checked against the PV measured afterwards. The au
 
 All corrections are calculated every cycle; the *Accuracy* tab compares them with each other and with the uncorrected forecast. The diagnostics show what the chosen one learned (factors per hour and level). A correction set by hand or switched off (action `set_forecast_correction`) is followed as set.
 
+### Unexpected solar surplus
+
+The correction works afterwards; *Why* also says it while it happens. When clearly more solar power is left over than forecast — the measured surplus (PV − house − excluded devices) is at least 300 W and less than half of it was forecast for this hour (PV forecast, corrected, minus the consumption forecast), for 5 minutes on end — *Why* reports an **unexpected solar surplus**: how much, what was forecast, and what it means for the batteries (with zero on the meter they store it; with a plan per slot they follow the plan, which did not count on it). When it has been over for 10 minutes a second message gives the energy left over and how much of it was forecast. Needs a measured PV source and a PV forecast. Can also be sent as a notification (kind *Unexpected solar surplus*).
+
 ## Accuracy
 
 Every forecast is verified afterwards per lead time (0–1 h … 5 days+): consumption against the measured consumption, PV against the measured PV, estimated prices against the prices published later. Learned corrections are applied automatically, or set by hand (action `set_forecast_correction`).

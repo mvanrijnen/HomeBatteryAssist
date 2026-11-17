@@ -161,16 +161,20 @@ async def test_history_websocket(
     entry = await _setup(hass)
     history = entry.runtime_data.history
     now = dt_util.utcnow().replace(minute=0, second=0, microsecond=0)
+    # Two hours ago, unless that is 12:00 local (the hour checked below).
+    back = timedelta(hours=2)
+    if dt_util.as_local(now - back).hour == 12:
+        back = timedelta(hours=3)
     history.records = [
         # two 15-min records in one hour -> hourly average 300 W
         {
-            "start": (now - timedelta(hours=2)).isoformat(),
+            "start": (now - back).isoformat(),
             "minutes": 15,
             "avg_w": 200.0,
             "coverage": 1.0,
         },
         {
-            "start": (now - timedelta(hours=2, minutes=-15)).isoformat(),
+            "start": (now - back + timedelta(minutes=15)).isoformat(),
             "minutes": 15,
             "avg_w": 400.0,
             "coverage": 1.0,
@@ -197,9 +201,7 @@ async def test_history_websocket(
 
     assert result["interval_minutes"] == 15
     assert result["imported"] == 1
-    assert result["hourly"] == [
-        [int((now - timedelta(hours=2)).timestamp() * 1000), 300.0, 0.0]
-    ]
+    assert result["hourly"] == [[int((now - back).timestamp() * 1000), 300.0, 0.0]]
     assert result["has_excluded"] is False
     assert result["past"][0][1:] == [300.0, 0.0, None, None]  # no PV/battery measured
     assert result["pv_forecast"] == []
