@@ -11,14 +11,14 @@ The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [dr
 
 The built-in modules live in the integration and are updated with it; your own modules live in their own folder under `/config`, so an update never touches them.
 
-The **price sources** (`engine/sources/prices/`: [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (verified), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, or any sensor with prices in its attributes) are modules too; new ones are added to the code for now (`template.py`). Sources still in development (e.g. Tibber) are kept apart in `in_development/` and not offered.
+The **price sources** (`engine/sources/prices/`: [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (verified), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, or any sensor with prices in its attributes) are modules too; new ones are added to the code for now (`template.py`). The same goes for **weather sources** (`engine/sources/weather/`: a Home Assistant weather entity; `template.py`). Sources still in development (e.g. Tibber) are kept apart in `in_development/` and not offered.
 
 ## HomeBatteryAssist keeps the final say
 
 Whatever a module returns, HomeBatteryAssist checks it before it is used:
 
 - **Planner**: every requested power is cut back to what the batteries and the phases allow, to the minimum/maximum state of charge and to your price rules (no discharging below the minimum discharge price, no charging from the grid above the maximum charge price — except fixed actions you set yourself, such as manual or time slots). **Periodic full charges are inserted after that.** A planner cannot plan anything the batteries or the grid connection cannot do.
-- **Consumption forecaster**: a missing, negative or absurd value is replaced by the built-in profile's prediction. The learned (or manual) correction and your own adjustments are applied afterwards.
+- **Consumption forecaster**: a missing, negative or absurd value is replaced by the built-in profile's prediction. The temperature step (optional), the learned (or manual) correction and your own adjustments are applied afterwards.
 - **Tariff**: a missing or absurd price (more than 10 per kWh either way) is replaced by the price the source gave. The accuracy of the price *forecast* is still measured on the source's prices.
 - **PV forecast source**: negative, non-finite or absurd values and hours without a time zone are dropped. The learned PV correction and the safety margin are applied afterwards.
 
@@ -79,7 +79,9 @@ class Forecaster:
     ) -> ForecasterResult | list[float | None]: ...
 ```
 
-`data.history` (the consumption records: `start`, `minutes`, `avg_w`, `coverage`, optionally `pv_w`, `excluded_w`, `battery_w`, `vacation`), `data.slots` (start, end), `data.now`, `data.interval`. Return the expected consumption per slot in W, or None where you have no idea. Quick, no I/O.
+`data.history` (the consumption records: `start`, `minutes`, `avg_w`, `coverage`, optionally `pv_w`, `excluded_w`, `battery_w`, `vacation`, `heating_w` (heating/cooling devices, part of `avg_w`), `temp_c` (outdoor temperature) and `zones` (per heating/cooling device: `w`, and when measured `in` = room and `out` = own outdoor temperature)), `data.slots` (start, end), `data.now`, `data.interval`, and `data.temperatures` (the forecast outdoor temperature per slot in °C, None where unknown; None without a weather entity). Return the expected consumption per slot in W, or None where you have no idea. Quick, no I/O.
+
+The optional [temperature step](forecasting.md#outdoor-temperature-optional) is added to your result afterwards; set `uses_temperature = True` on your class if your forecaster already takes the temperature into account.
 
 ### Tariff — `engine/sources/tariffs/base.py`
 
