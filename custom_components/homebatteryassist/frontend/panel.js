@@ -1006,6 +1006,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     // The full-width flow chart gets a wider and higher canvas.
     const wide = id === "forecast" || id === "soc" || id === "temperature";
     const rightSeries = series.filter((s) => s.axis === "right");
+    const hasLeft = series.some((s) => s.axis !== "right");
     const W = wide ? 1232 : 600, H = id === "forecast" ? 300 : 190, L = 58, R = rightSeries.length ? 58 : 8, T = 8, B = 24;
     const all = series.filter((s) => s.axis !== "right").flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
     const yMax = this._niceMax(Math.max(...all, 0));
@@ -1031,7 +1032,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     for (let i = 0; i <= steps; i++) {
       const v = yMin + ((yMax - yMin) / steps) * i;
       svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>`;
-      svg += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${esc(yFmt ? yFmt(v) : this._axisPower(v))}</text>`;
+      if (hasLeft) svg += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${esc(yFmt ? yFmt(v) : this._axisPower(v))}</text>`;
       if (right) {
         const rv = right.min + ((right.max - right.min) / steps) * i;
         svg += `<text class="axis" x="${W - R + 6}" y="${y(v) + 4}" text-anchor="start">${esc(right.fmt ? right.fmt(rv) : rv.toFixed(2))}</text>`;
