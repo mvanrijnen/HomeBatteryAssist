@@ -110,7 +110,8 @@
               "nom_target_w": "Doelnetvermogen (nul op de meter)",
               "manual_power_w": "Handmatig vermogen",
               "charge_hysteresis": "Laadhysterese",
-              "vacation": "Vakantiemodus"
+              "vacation": "Vakantiemodus",
+              "interceptor": "Onderschepper (interceptor)"
             },
             "data_description": {
               "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
@@ -121,7 +122,8 @@
               "nom_target_w": "Nul op de meter mikt op dit netvermogen in plaats van precies 0 W, bijv. +50 W zodat er altijd een beetje wordt afgenomen.",
               "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
               "charge_hysteresis": "Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit.",
-              "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken)."
+              "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken).",
+              "interceptor": "Jouw laatste woord per batterij voordat een opdracht uitgaat: goedkeuren, beperken (minder, zelfde richting), tegenhouden of vrijgeven. De eigen controle van HomeBatteryAssist komt erna en gaat altijd voor. Standaard geen; eigen onderscheppers uit /config/homebatteryassist/interceptors staan hier ook (na herladen). Voorlopig werkt hij op de virtuele batterijen."
             }
           },
           "limits": {
@@ -379,6 +381,11 @@
         "open_meteo_knmi": "Open-Meteo, KNMI-model"
       }
     },
+    "interceptor": {
+      "options": {
+        "none": "Geen (alles zoals voorgesteld)"
+      }
+    },
     "pv_corrector": {
       "options": {
         "hour_and_level": "Per vooruitzicht, uur en niveau",
@@ -527,7 +534,8 @@
               "nom_target_w": "Doelnetvermogen (nul op de meter)",
               "manual_power_w": "Handmatig vermogen",
               "charge_hysteresis": "Laadhysterese",
-              "vacation": "Vakantiemodus"
+              "vacation": "Vakantiemodus",
+              "interceptor": "Onderschepper (interceptor)"
             },
             "data_description": {
               "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
@@ -538,7 +546,8 @@
               "nom_target_w": "Nul op de meter mikt op dit netvermogen in plaats van precies 0 W, bijv. +50 W zodat er altijd een beetje wordt afgenomen.",
               "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
               "charge_hysteresis": "Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit.",
-              "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken)."
+              "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken).",
+              "interceptor": "Jouw laatste woord per batterij voordat een opdracht uitgaat: goedkeuren, beperken (minder, zelfde richting), tegenhouden of vrijgeven. De eigen controle van HomeBatteryAssist komt erna en gaat altijd voor. Standaard geen; eigen onderscheppers uit /config/homebatteryassist/interceptors staan hier ook (na herladen). Voorlopig werkt hij op de virtuele batterijen."
             }
           },
           "limits": {

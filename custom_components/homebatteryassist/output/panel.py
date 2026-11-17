@@ -270,6 +270,30 @@ def _prices_now(hass: HomeAssistant, data: Any) -> dict[str, Any] | None:
     }
 
 
+def _interceptor_info(entry: HomeBatteryAssistConfigEntry) -> dict[str, Any] | None:
+    """The active interceptor and what it changes now (None = none)."""
+    data = entry.runtime_data
+    interceptor = data.forecast.interceptor
+    if interceptor is None or interceptor.key == "none":
+        return None
+    names = {c.id: c.name for c in data.batteries.configs}
+    return {
+        "key": interceptor.key,
+        "name": interceptor.name or interceptor.key,
+        "builtin": False,
+        "fallback": False,
+        "changes": [
+            {
+                "battery": names.get(i, i),
+                "action": action,
+                "power_w": round(power),
+                "reason": reason,
+            }
+            for i, action, power, reason in data.simulator.intercepted
+        ],
+    }
+
+
 def _today_expected(data: Any) -> dict[str, float | None]:
     """The whole day as expected (Wh): measured so far plus the forecast
     until local midnight (house consumption, PV, heating/cooling zones) and
@@ -442,7 +466,10 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             "has_pv_forecast": bool(data.forecast.pv_entries),
         },
         # The active planner module (built-in mode or own planner).
-        "planner": _planner_info(data.forecast),
+        "planner": {
+            **_planner_info(data.forecast),
+            "interceptor": _interceptor_info(entry),
+        },
         "decisions": [
             {"time": d["time"], "category": d["category"], "message": d["message"]}
             for d in reversed(data.decisions.entries[-RECENT_DECISIONS:])

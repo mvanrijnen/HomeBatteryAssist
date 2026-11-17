@@ -25,6 +25,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_HISTORY_INTERVAL,
+    CONF_INTERCEPTOR,
     CONF_NOTIFY_KINDS,
     CONF_NOTIFY_TARGETS,
     CONF_SPIKE_DURATION,
@@ -35,6 +36,10 @@ from .const import (
     DEFAULT_SPIKE_DURATION,
     DEFAULT_SPIKE_THRESHOLD,
     DOMAIN,
+)
+from .engine.control.interceptors import (
+    async_load_user_interceptors,
+    create_interceptor,
 )
 from .engine.coordinator import ForecastCoordinator
 from .engine.devices.batteries.virtual import VirtualBatterySimulator
@@ -319,6 +324,11 @@ async def async_setup_entry(
     )
     _check_plan(dt_util.utcnow())
 
+    # The user's last say per battery (interceptor module), before
+    # HomeBatteryAssist's own final check.
+    forecast.interceptor = create_interceptor(
+        entry.options.get(CONF_INTERCEPTOR), await async_load_user_interceptors(hass)
+    )
     simulator = VirtualBatterySimulator(
         hass, batteries, measurements, forecast, decisions
     )

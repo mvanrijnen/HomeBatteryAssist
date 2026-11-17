@@ -83,6 +83,9 @@ CONF_PEAK_INCLUDE_EXCLUDED: Final = "peak_include_excluded"
 # Short peaks (kettle, microwave): a spike filter module recognises them;
 # random ones are left out of the average and/or not covered by the battery.
 CONF_SPIKE_FILTER: Final = "spike_filter"
+# The interceptor module (engine/control/interceptors): the user's last say
+# per battery before commands (now: the virtual batteries).
+CONF_INTERCEPTOR: Final = "interceptor"
 CONF_SPIKE_HISTORY: Final = "spike_exclude_average"
 CONF_SPIKE_BATTERY: Final = "spike_no_discharge"
 CONF_SPIKE_THRESHOLD: Final = "spike_threshold_w"

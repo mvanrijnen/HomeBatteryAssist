@@ -31,10 +31,17 @@ the dashboard simulates is what would be sent:
    more when more power is needed; per-battery min/max power, hysteresis).
 4. **Phase protection** (relieve an overloaded phase, never push a phase over
    its limit — ``phase_limit.py``) and **peak shaving** (``peak.py``).
-5. **State of charge**: never below max(min SoC, reserve SoC), never above
-   max SoC (100 % during a full charge).
-6. Per battery ``controller.async_command(power)``; the controller decides
-   whether and when it is really sent.
+5. **Interceptor** (``interceptors/``, the user's module, default none):
+   per battery approve, limit (less, same direction), hold back (0 W) or
+   release (back to its own control); what is held back may be taken over
+   by the approved batteries. ``run_interceptor`` holds it to that.
+6. **HomeBatteryAssist's own final check**, which always wins: phase limits
+   (``_phase_limited``), power limits and the state of charge: never below
+   max(min SoC, reserve SoC), never above max SoC (100 % during a full
+   charge).
+7. Per battery ``controller.async_command(power)`` (a released battery:
+   ``controller.async_command(None)``, which releases it); the controller
+   decides whether and when it is really sent.
 
 How a battery is reached (``ReaderDriver`` below):
 
@@ -51,7 +58,8 @@ Activating (later, deliberately, with the project owner)
 ==========================================================
 
 1. Refactor the steps 2 to 4 out of ``VirtualBatteries`` into
-   ``engine/control/targets.py`` (``battery_targets(configs, ...)``), used by
+   ``engine/control/targets.py`` (``battery_targets(configs, ...)`` with the
+   reason per battery, and ``intercept_input`` from ``_intercept``), used by
    the virtual batteries and this loop alike (now they work on
    ``self.virtual``; they must take the list of batteries).
 2. Uncomment this file and the wiring in ``__init__.py`` (search for
@@ -87,7 +95,12 @@ Activating (later, deliberately, with the project owner)
 # from ..measure.battery_monitor import BatteryConfig, BatteryInput
 # from ..measure.house_measurement import MeasurementInput
 # from .battery_controller import BatteryController
-# from .targets import battery_targets, protection_needed  # step 1 of "Activating"
+# from .interceptors import run_interceptor
+# from .targets import (  # step 1 of "Activating"
+#     battery_targets,
+#     intercept_input,
+#     protection_needed,
+# )
 #
 # _LOGGER = logging.getLogger(__name__)
 #
@@ -216,7 +229,7 @@ Activating (later, deliberately, with the project owner)
 #             c.id: self._batteries.states[c.id].soc for c in configs
 #         }
 #         # Steps 2-4: the same as the virtual batteries.
-#         wanted = battery_targets(
+#         wanted, reasons = battery_targets(
 #             [c for c in configs if not full[c.id]],
 #             socs,
 #             now,
@@ -224,6 +237,13 @@ Activating (later, deliberately, with the project owner)
 #             measurements=self._measurements,
 #             batteries=self._batteries,
 #         )
+#         # Step 5: the interceptor (the same input as for the virtual
+#         # batteries, built by targets.intercept_input), then step 6.
+#         outcome = run_interceptor(
+#             self._forecast.interceptor,
+#             intercept_input(configs, socs, full, wanted, reasons, now, ...),
+#         )
+#         wanted, released = outcome.powers, outcome.released
 #         for config in configs:
 #             soc = socs[config.id]
 #             controller = self.controllers[config.id]
@@ -237,6 +257,9 @@ Activating (later, deliberately, with the project owner)
 #                 power = _within_soc(
 #                     config, soc, wanted.get(config.id, 0.0), self._forecast
 #                 )
+#             if config.id in released:  # the interceptor released it
+#                 await controller.async_command(None, now)
+#                 continue
 #             await controller.async_command(power, now)
 #             await controller.async_tick(now)
 #             if controller.errors:

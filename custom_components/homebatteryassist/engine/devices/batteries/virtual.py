@@ -48,6 +48,13 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.util import dt as dt_util
 
 from ....const import NOMINAL_VOLTAGE
+from ...control.interceptors import (
+    BatteryProposal,
+    InterceptInput,
+    PriceSlot,
+    create_interceptor,
+    run_interceptor,
+)
 from ...coordinator import ForecastCoordinator
 from ...explain import DecisionLog
 from ...measure.battery_monitor import BatteryConfig, BatteryInput
@@ -67,12 +74,14 @@ from ...planning.phase_limit import (
     relieve,
     shave_peak,
 )
+from ...units import state_to_celsius
 
 _LOGGER = logging.getLogger(__name__)
 
 STEP = timedelta(seconds=30)
 MAX_STEP = timedelta(minutes=5)  # longer gaps (restart) are not simulated
 LIMIT_CLEAR_AFTER = timedelta(minutes=5)  # no phase limit this long: log it
+INTERCEPT_HORIZON = timedelta(hours=8)  # coming slots an interceptor sees
 RELIEF_END_AFTER = timedelta(minutes=1)  # phase back under the limit this long
 REACT_INTERVAL = timedelta(seconds=2)  # fastest extra step on an overload
 
@@ -141,6 +150,10 @@ class VirtualBatterySimulator:
         self.relief_now: dict[int, float] = {}  # phase index -> W taken off
         self.peak_now: float = 0.0  # W shaved off the total
         self._full: set[str] = set()  # batteries waiting for the hysteresis
+        # The interceptor (the user's last say) and what it did lately.
+        self.intercepted: list[tuple[str, str, float, str]] = []
+        self._intercept_gist = ""
+        self._intercept_failed = False
 
     @property
     def virtual(self) -> list[BatteryConfig]:
@@ -196,6 +209,111 @@ class VirtualBatterySimulator:
         ):
             self.step(when)
 
+    def _intercept(
+        self,
+        wanted: dict[str, float],
+        socs: dict[str, float],
+        full: dict[str, Any],
+        reasons: dict[str, str],
+        now: datetime,
+    ) -> dict[str, float]:
+        """Run the chosen interceptor on the proposal; explain changes."""
+        interceptor = getattr(
+            self._forecast, "interceptor", None
+        ) or create_interceptor(None, {})
+        data = self._forecast.data
+        flow = self._measurements.flow
+        plan = data.selected_plan if data is not None else None
+        horizon = now + INTERCEPT_HORIZON
+        proposals = []
+        for config in self.virtual:
+            state = self._batteries.states[config.id]
+            temperature = (
+                state_to_celsius(self.hass.states.get(config.temperature_sensor))
+                if config.temperature_sensor
+                else None
+            )
+            proposals.append(
+                BatteryProposal(
+                    id=config.id,
+                    name=config.name,
+                    phase=config.phase,
+                    soc=socs[config.id],
+                    power_w=state.power_w,
+                    temperature_c=temperature,
+                    capacity_kwh=config.capacity_kwh,
+                    max_charge_w=config.max_charge_w,
+                    max_discharge_w=config.max_discharge_w,
+                    min_soc=config.min_soc,
+                    max_soc=config.max_soc,
+                    virtual=config.virtual,
+                    full_charge=bool(full[config.id]),
+                    proposed_w=wanted[config.id],
+                    reason=reasons[config.id],
+                )
+            )
+        outcome = run_interceptor(
+            interceptor,
+            InterceptInput(
+                now=now,
+                mode=data.plan_mode if data is not None else MODE_NOM,
+                batteries=proposals,
+                grid_w=flow.grid_w if flow else None,
+                phase_w=tuple(flow.phase_w) if flow else (),
+                phase_limit_w=self._limit_w(),
+                house_w=flow.house_w if flow else None,
+                pv_w=flow.pv_w if flow else None,
+                excluded_w=flow.excluded_w if flow else None,
+                spike_w=self._measurements.spike.ignore_w,
+                slots=[
+                    PriceSlot(s.start, s.end, s.price, s.export_price, s.power_w)
+                    for s in (plan.slots if plan else [])
+                    if s.end > now and s.start < horizon
+                ],
+            ),
+        )
+        self._explain_intercept(interceptor, outcome)
+        return outcome.powers
+
+    def _explain_intercept(self, interceptor: Any, outcome: Any) -> None:
+        """Why: once when the interceptor fails, and when what it changes
+        changes (not every second)."""
+        name = interceptor.name or interceptor.key
+        if outcome.failed and not self._intercept_failed:
+            self._decisions.async_log("battery", "interceptor_failed", name=name)
+        self._intercept_failed = outcome.failed
+        self.intercepted = outcome.changes
+        names = {c.id: c.name for c in self.virtual}
+        dutch = (self.hass.config.language or "").startswith("nl")
+        words = (
+            {
+                "reject": "tegengehouden",
+                "release": "vrijgegeven",
+                "limit": "beperkt tot",
+            }
+            if dutch
+            else {"reject": "held back", "release": "released", "limit": "limited to"}
+        )
+        parts = [
+            f"{names.get(i, i)} {words.get(action, action)}"
+            + (f" {abs(power):.0f} W" if action == "limit" else "")
+            + (f" ({reason})" if reason else "")
+            for i, action, power, reason in outcome.changes
+        ]
+        # Only the kind of change counts, not every watt of a limit.
+        gist = "|".join(
+            f"{i}:{action}:{reason}" for i, action, _power, reason in outcome.changes
+        )
+        if gist == self._intercept_gist:
+            return
+        self._intercept_gist = gist
+        if parts:
+            self._decisions.async_log(
+                "battery", "interceptor_changed", name=name, changes="; ".join(parts)
+            )
+        else:
+            self._decisions.async_log("battery", "interceptor_cleared", name=name)
+
     def _limit_w(self) -> float:
         return phase_limit_w(
             self._measurements.max_current, self._forecast.phase_margin
@@ -227,8 +345,21 @@ class VirtualBatterySimulator:
             wanted[config.id] = (
                 config.max_charge_w if full[config.id] else targets(config, soc)
             )
+        nom = data is None or data.plan_mode == MODE_NOM
+        reasons = {
+            c.id: "full_charge" if full[c.id] else "zero_on_meter" if nom else "plan"
+            for c in self.virtual
+        }
+        before = dict(wanted)
         wanted = self._phase_relief(wanted, socs, full, now, hours)
+        reasons.update({i: "phase_relief" for i in wanted if wanted[i] != before[i]})
+        before = dict(wanted)
         wanted = self._peak_shaving(wanted, socs, full, now, hours)
+        reasons.update({i: "peak_shaving" for i in wanted if wanted[i] != before[i]})
+        # The user's last say (interceptor module), then HomeBatteryAssist's
+        # own final check (phase limits here, power and state of charge in
+        # limit_power), which always wins.
+        wanted = self._intercept(wanted, socs, full, reasons, now)
         wanted = self._phase_limited(wanted, now)
         for config in self.virtual:
             limits = replace(config, max_soc=100.0) if full[config.id] else config

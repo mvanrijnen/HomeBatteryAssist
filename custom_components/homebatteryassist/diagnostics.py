@@ -132,6 +132,10 @@ async def async_get_config_entry_diagnostics(
             "temperature_forecast_slots": sum(
                 t is not None for t in data.forecast.temperatures or []
             ),
+            "interceptor": (
+                data.forecast.interceptor.key if data.forecast.interceptor else None
+            ),
+            "interceptor_changes": data.simulator.intercepted,
             "pv_corrector": data.forecast.pv_corrector_key,
             "pv_corrector_fallback": data.forecast.pv_corrector_fallback,
             "pv_corrector_learned": _pv_details(data.forecast),

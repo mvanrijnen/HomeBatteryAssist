@@ -145,6 +145,9 @@ const TEXT = {
     forecasterNames: { profile: "Weekday and hour profile", last_weeks: "Same time in the last weeks" },
     pvCorrectorNames: { hour_and_level: "Per lead time, hour and level", lead_time: "Per lead time (original)" },
     plannerPvCorrector: "PV correction:",
+    plannerInterceptor: "Interceptor:",
+    icAllThrough: "lets everything through",
+    icActions: { reject: "held back", release: "released", limit: "limited to" },
     pvCorrectorsTitle: "PV corrections compared",
     pvCorrectorsHelp: "Average deviation of the PV forecast after each correction per lead time; the best in bold, 'uncorrected' for reference. All corrections are calculated every cycle, also when they are not chosen — choose one in the settings.",
     uncorrected: "Uncorrected",
@@ -367,6 +370,9 @@ const TEXT = {
     forecasterNames: { profile: "Profiel per weekdag en uur", last_weeks: "Zelfde tijd afgelopen weken" },
     pvCorrectorNames: { hour_and_level: "Per vooruitzicht, uur en niveau", lead_time: "Per vooruitzicht (oorspronkelijk)" },
     plannerPvCorrector: "PV-correctie:",
+    plannerInterceptor: "Onderschepper:",
+    icAllThrough: "laat alles door",
+    icActions: { reject: "tegengehouden", release: "vrijgegeven", limit: "beperkt tot" },
     pvCorrectorsTitle: "PV-correcties vergeleken",
     pvCorrectorsHelp: "Gemiddelde afwijking van de PV-voorspelling na elke correctie per vooruitzicht; de beste vetgedrukt, 'ongecorrigeerd' ter vergelijking. Alle correcties worden elke cyclus doorgerekend, ook als ze niet gekozen zijn — kies er een in de instellingen.",
     uncorrected: "Ongecorrigeerd",
@@ -2081,7 +2087,17 @@ class HomeBatteryAssistPanel extends HTMLElement {
     };
     return `<div class="card planner"><span class="muted">${esc(t.plannerActive)}</span>
       <b>${esc(name.charAt(0).toUpperCase() + name.slice(1))}</b> <small class="muted">(${esc(kind)})</small>${esc(saving)}${warn}
-      ${module(t.plannerForecaster, p.forecaster, t.forecasterNames)}${module(t.plannerTariff, p.tariff, t.tariffNames)}${module(t.plannerPvCorrector, p.pv_corrector, t.pvCorrectorNames)}</div>`;
+      ${module(t.plannerForecaster, p.forecaster, t.forecasterNames)}${module(t.plannerTariff, p.tariff, t.tariffNames)}${module(t.plannerPvCorrector, p.pv_corrector, t.pvCorrectorNames)}${this._interceptorLine(p.interceptor, t)}</div>`;
+  }
+
+  // The interceptor (own module) and what it holds back or limits now.
+  _interceptorLine(ic, t) {
+    if (!ic) return "";
+    const what = (ic.changes || [])
+      .map((c) => `${c.battery}: ${t.icActions[c.action] || c.action}${c.action === "limit" ? ` ${Math.abs(c.power_w)} W` : ""}${c.reason ? ` (${c.reason})` : ""}`)
+      .join("; ");
+    return `<div class="sub"><span class="muted">${esc(t.plannerInterceptor)}</span> ${esc(ic.name)} <small class="muted">(${esc(t.plannerOwn)})</small>${
+      what ? ` · <span class="alert-text">${esc(what)}</span>` : ` · <small class="muted">${esc(t.icAllThrough)}</small>`}</div>`;
   }
 
   _decisions(s, t) {
@@ -2102,7 +2118,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const s = this._status;
       const tabs = {
         overview: () => [this._planner(s, t), this._flows(s, t), this._flowDiagram(s, t), this._phases(s, t), this._decisions(s, t)],
-        forecast: () => [this._consumption(t), this._planning(s, t)],
+        forecast: () => [this._consumption(t), this._planning(s, t), this._decisions(s, t)],
         value: () => [this._compare(s, t), this._planCheck(s, t)],
         batteries: () => [this._batteries(s, t)],
         check: () => [this._accuracy(t)],

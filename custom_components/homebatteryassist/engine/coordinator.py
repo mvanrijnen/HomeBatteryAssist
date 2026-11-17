@@ -307,6 +307,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.tariffs: dict[str, Tariff] = dict(tariffs or {})
         self.tariff_key: str = entry.options.get(CONF_TARIFF, DEFAULT_TARIFF)
         self.tariff_fallback = False
+        # The interceptor module (engine/control/interceptors), set at setup.
+        self.interceptor: Any = None
         # Bare market prices (when the price source has them), for the
         # dashboard and tariffs that need them.
         self.market_prices: list[PricePoint] = []

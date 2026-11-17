@@ -34,7 +34,8 @@ custom_components/homebatteryassist/
 └── engine/
     ├── coordinator.py     one cycle through the layers
     ├── control/           battery_controller.py — built, not active;
-    │                      control_loop.py — written out as comment
+    │                      control_loop.py — written out as comment;
+    │                      interceptors/ (base.py, template.py, pass_through.py)
     ├── units.py           unit conversion
     ├── own_modules.py     loading own modules from /config
     ├── devices/           1  drivers

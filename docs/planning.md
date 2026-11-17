@@ -31,6 +31,10 @@ Choose the mode in the settings, on the dashboard or with the action `set_plan_m
 
 Per battery (for the battery management's calibration), every so many days, at the cheapest moment, optionally on a preferred weekday and preferably with solar power; batteries charge fully at the same time when the grid connection allows it. The full charge is always inserted **after** the planner, whatever planner is chosen.
 
+## Interceptor (your last say)
+
+Before a command would go to a battery, the chosen **interceptor** [module](modules.md#interceptor--enginecontrolinterceptorsbasepy) gets the proposal per battery — with the batteries, phases, grid, prices and plan — and may approve it, **limit** it (less power, same direction), **hold it back** (0 W) or **release** the battery (back to its own control); what is held back may be taken over by the other batteries. It can only intercept, never ask more. After it comes HomeBatteryAssist's own final check (phase limits, power and state of charge), which always wins. None by default (settings section *Planning*); *Why* and the overview say what it holds back or limits. For now it acts on the virtual batteries.
+
 ## Explanation
 
 The plan is explained in plain language, as periods — what happens until when, and why — and compared with no battery, e.g.:

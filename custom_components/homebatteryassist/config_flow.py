@@ -89,6 +89,7 @@ from .const import (
     CONF_HISTORY_INTERVAL,
     CONF_INDOOR_TEMPERATURE,
     CONF_INITIAL_SOC,
+    CONF_INTERCEPTOR,
     CONF_LOSS_MAX,
     CONF_LOSS_MIN,
     CONF_MANUAL_POWER,
@@ -201,6 +202,11 @@ from .const import (
     SUBENTRY_VIRTUAL_BATTERY,
     phase_return_sensor_keys,
     phase_sensor_keys,
+)
+from .engine.control.interceptors import BUILTIN as INTERCEPTORS
+from .engine.control.interceptors import (
+    DEFAULT_INTERCEPTOR,
+    async_load_user_interceptors,
 )
 from .engine.devices.batteries.recognition import (
     BatteryCandidate,
@@ -389,6 +395,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "manual_power_w",
         "charge_hysteresis",
         "vacation",
+        "interceptor",
     ),
     "limits": (
         "reserve_soc",
@@ -674,6 +681,22 @@ async def _flat_settings_schema(
             CONF_VACATION, default=current.get(CONF_VACATION, False)
         ): BooleanSelector(),
         vol.Required(
+            CONF_INTERCEPTOR,
+            default=current.get(CONF_INTERCEPTOR, DEFAULT_INTERCEPTOR),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    *(SelectOptionDict(value=k, label=k) for k in INTERCEPTORS),
+                    *(
+                        SelectOptionDict(value=k, label=i.name or k)
+                        for k, i in (await async_load_user_interceptors(hass)).items()
+                    ),
+                ],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_INTERCEPTOR,
+            )
+        ),
+        vol.Required(
             CONF_FULL_CHARGE_DAY, default=current.get(CONF_FULL_CHARGE_DAY, "none")
         ): SelectSelector(
             SelectSelectorConfig(
@@ -953,6 +976,7 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     options[CONF_MIN_MARGIN] = float(user_input.get(CONF_MIN_MARGIN, 0))
     options[CONF_CHARGE_HYSTERESIS] = int(user_input.get(CONF_CHARGE_HYSTERESIS, 0))
     options[CONF_VACATION] = bool(user_input.get(CONF_VACATION, False))
+    options[CONF_INTERCEPTOR] = user_input.get(CONF_INTERCEPTOR, DEFAULT_INTERCEPTOR)
     options[CONF_FULL_CHARGE_DAY] = user_input.get(CONF_FULL_CHARGE_DAY, "none")
     options[CONF_FULL_CHARGE_SOLAR] = bool(user_input.get(CONF_FULL_CHARGE_SOLAR, True))
     options[CONF_NOTIFY_TARGETS] = list(user_input.get(CONF_NOTIFY_TARGETS) or [])

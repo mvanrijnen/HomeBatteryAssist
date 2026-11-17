@@ -1,6 +1,6 @@
 # Modules: make HomeBatteryAssist your own
 
-The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [drivers](drivers.md); see [Architecture](architecture.md)). You choose between the built-in ones, and advanced users can add their own without changing the integration. Seven kinds can be added as own modules today:
+The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [drivers](drivers.md); see [Architecture](architecture.md)). You choose between the built-in ones, and advanced users can add their own without changing the integration. Eight kinds can be added as own modules today:
 
 | Kind | What it does | Built-in | Own modules in | Choose in the settings |
 |---|---|---|---|---|
@@ -11,6 +11,7 @@ The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [dr
 | **PV correction** | Adjusts the PV forecast with what was learned from past forecasts and measured PV | Per lead time, hour and level (default), Per lead time (the original) | `/config/homebatteryassist/pv_corrections/` | PV correction (section *Solar forecast*) |
 | **Spike filter** | Recognises short consumption peaks while they happen | Short peaks above a threshold | `/config/homebatteryassist/spike_filters/` | Spike filter (section *Short peaks*) |
 | **Weather source** | Reads the outdoor temperature now and its forecast per hour | Weather entity, KNMI integration, Weerlive, Open-Meteo, Open-Meteo KNMI model | `/config/homebatteryassist/weather_sources/` | Weather source (section *Weather and outdoor temperature*) |
+| **Interceptor** | Your last say per battery before a command goes out: approve, limit, hold back or release | None (everything as proposed) | `/config/homebatteryassist/interceptors/` | Interceptor (section *Planning*) |
 
 The built-in modules live in the integration and are updated with it; your own modules live in their own folder under `/config`, so an update never touches them.
 
@@ -25,6 +26,7 @@ Whatever a module returns, HomeBatteryAssist checks it before it is used:
 - **Tariff**: a missing or absurd price (more than 10 per kWh either way) is replaced by the price the source gave. The accuracy of the price *forecast* is still measured on the source's prices.
 - **PV forecast source**: negative, non-finite or absurd values and hours without a time zone are dropped. The PV correction and the safety margin are applied afterwards.
 - **Spike filter**: the part of the consumption not discharged for stays between 0 and the consumption, a peak's energy between 0 and 5 kWh; anything else counts as no peak. A failing filter is switched off until the next reload (*Why* says so). Regular peaks are always treated as normal consumption, whatever the filter says.
+- **Interceptor**: it can only intercept — a limit is at most the proposal and in the same direction (more is cut back to the proposal, the other direction to 0 W); unknown batteries, unknown actions and nonsense count as approved; a failing interceptor lets the proposals through unchanged (*Why* says so once). After it comes HomeBatteryAssist's own final check, which always wins: phase limits, power limits and the state of charge.
 - **Weather source**: hours without a time zone and temperatures that are not believable (outside −60…60 °C) are dropped; a failing source counts as no forecast (the consumption forecast is then not adjusted for the weather).
 - **PV correction**: a missing, negative, non-finite or absurd value (more than 3 × the forecast + 100 Wh) is replaced by the correction per lead time. Accuracy is always learned on the *raw* forecast, so a correction never feeds back on itself. When the correction is set by hand or switched off (action `set_forecast_correction`), only the correction per lead time is used, as set.
 
@@ -53,6 +55,7 @@ Everything stays **advice**: no module controls a battery or any other device.
    | PV correction | `engine/evaluation/pv_corrections/template.py` (less in the morning, e.g. a tree); `hour_and_level.py`, `lead_time.py` |
    | Spike filter | `engine/measure/spike_filters/template.py` (never discharge above a level during the day); `short_peaks.py` |
    | Weather source | `engine/sources/weather/template.py` (a sensor plus day values); `ha_weather_entity.py`, `knmi_integration.py`, `weerlive_api.py`, `open_meteo.py` |
+   | Interceptor | `engine/control/interceptors/template.py` (no discharging of a cold battery, no grid charging while a big device runs, at most 1500 W); `pass_through.py` |
 
 3. Give the class its own `key` and `name`. In a copied built-in module, change the relative imports (`from .base import ...`) into absolute ones (`from custom_components.homebatteryassist.<package>.base import ...`), as in the templates.
 4. Reload HomeBatteryAssist (Settings → Devices & services → HomeBatteryAssist → ⋮ → Reload). Your module appears in the settings as `custom_<key>`.
@@ -119,6 +122,20 @@ class PvForecastSource:
 ```
 
 `async_find` lists the forecasts the source offers (shown in the settings); `async_read` returns one as Wh per clock hour (timezone-aware hour starts). Only read — never control a device; use Home Assistant's shared HTTP session for web services and cache, because the forecast is read every cycle.
+
+### Interceptor — `engine/control/interceptors/base.py`
+
+```python
+class Interceptor:
+    key = "my_rules"
+    name = "My rules"
+
+    def intercept(self, data: InterceptInput) -> InterceptResult: ...
+```
+
+Called every control step (every second) with HomeBatteryAssist's proposal. `data.batteries` holds per battery its name, phase, state of charge, power now, temperature, capacity and limits, whether a full charge runs, the proposed power (`proposed_w`, + charge / − discharge) and why (`reason`: `plan`, `zero_on_meter`, `full_charge`, `phase_relief`, `peak_shaving`); besides that the grid (net and per phase, the phase limit), house, solar, excluded devices, the random short peak now, the plan mode and the coming slots of the plan (prices, export prices, planned power, 8 hours).
+
+Return `InterceptResult(decisions, redistribute=True)` with a `Decision(battery_id, action, power_w, reason)` for the batteries you do not approve: `REJECT` (0 W, HomeBatteryAssist keeps control), `LIMIT` (at most `power_w`, same direction) or `RELEASE` (back to the battery's own control). With `redistribute` the approved batteries may take over what the others no longer do (up to their limits). The `reason` shows in *Why* and on the overview. Quick, no I/O. For now the interceptor acts on the virtual batteries, so you see what it would do before anything is controlled.
 
 ### Weather source — `engine/sources/weather/base.py`
 
