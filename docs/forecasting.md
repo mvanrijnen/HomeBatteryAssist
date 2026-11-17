@@ -28,7 +28,7 @@ A profile follows a sudden cold spell only after days. Houses that heat or cool 
    - Your own module (see [Modules](modules.md)).
 
    Weerlive and Open-Meteo use the **home location of Home Assistant** (rounded to about 1 km); the field *Place* is only for another place (`latitude,longitude`; Weerlive also takes a place name). The hourly forecast of a weather entity or Weerlive often reaches only 24–48 hours; after it, the daily minimum and maximum are turned into an hourly course (coldest around 05:00, warmest around 15:00), so the forecast reaches as far as the planning.
-2. Optional: an **outdoor temperature sensor** — more accurate than the weather source's current temperature, and its history in Home Assistant is used to learn right away instead of after a week. (The sensors of a zone, below, are not filled in from the history: a new zone learns from the moment it is added.)
+2. Optional: an **outdoor temperature sensor** — more accurate than the weather source's current temperature, and its history in Home Assistant is used to learn right away instead of after a week. The sensors of a zone (below) are filled in from the history too, so a new zone is learned right away.
 3. Optional: add the heat pump or airco as a **heating/cooling** device (with its power sensor). It stays part of the house consumption, but is measured apart, which gives a cleaner signal.
 4. Optional, per heating/cooling device: the **room temperature** sensor of the room it heats or cools, and its **own outdoor temperature** sensor (e.g. the outdoor unit of an airco; without it the outdoor temperature of step 1–2 is used). A device with these is a **zone**; several devices (an airco per room) are several zones.
 

@@ -47,7 +47,10 @@ from .engine.explain.notifications import Notifier
 from .engine.forecast.forecasters import async_load_user_forecasters
 from .engine.forecast.user_adjustments import AdjustmentStore
 from .engine.history import ConsumptionHistory
-from .engine.history.temperature_import import async_import_temperatures
+from .engine.history.temperature_import import (
+    async_import_temperatures,
+    async_import_zones,
+)
 from .engine.measure.battery_monitor import (
     ACTIVITY_THRESHOLD_W,
     BatteryInput,
@@ -222,13 +225,23 @@ async def async_setup_entry(
         )
 
     await history.async_start()
-    if forecast.outdoor_sensor:
-        # Past records get their outdoor temperature from the statistics.
+    if forecast.outdoor_sensor or forecast.zones:
+        # Past records get their outdoor temperature and the heating/cooling
+        # zones from the statistics, so the temperature effect is learned at
+        # once; then the forecast is made again with it.
         async def _fill_temperatures() -> None:
+            filled = 0
             try:
-                await async_import_temperatures(hass, history, forecast.outdoor_sensor)
+                if forecast.outdoor_sensor:
+                    filled += await async_import_temperatures(
+                        hass, history, forecast.outdoor_sensor
+                    )
+                if forecast.zones:
+                    filled += await async_import_zones(hass, history, forecast.zones)
             except Exception:  # the recorder may be unavailable
-                _LOGGER.exception("Filling in past outdoor temperatures failed")
+                _LOGGER.exception("Filling in past temperatures failed")
+            if filled:
+                await forecast.async_request_refresh()
 
         entry.async_create_background_task(
             hass, _fill_temperatures(), f"{DOMAIN} outdoor temperatures"

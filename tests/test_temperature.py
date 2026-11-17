@@ -30,6 +30,7 @@ from custom_components.homebatteryassist.engine.history.consumption_history impo
 )
 from custom_components.homebatteryassist.engine.history.temperature_import import (
     fill_temperatures,
+    fill_zone,
 )
 from custom_components.homebatteryassist.engine.sources.weather.ha_weather_entity import (
     parse_forecast,
@@ -179,6 +180,33 @@ async def test_fill_temperatures(hass: HomeAssistant) -> None:
     assert fill_temperatures(history, {NOW: 3.0}) == 1
     assert history.records[0]["temp_c"] == 3.0
     assert history.records[1]["temp_c"] == 9.0
+
+
+async def test_fill_zone_from_statistics(hass: HomeAssistant) -> None:
+    """A zone added today gets weeks of power, room and outdoor temperature;
+    records that already have the zone keep it; nonsense is skipped."""
+    history = ConsumptionHistory(hass, "test", 15)
+    history.records = [
+        {
+            "start": (NOW + i * H).isoformat(),
+            "minutes": 60,
+            "avg_w": 900.0,
+            "coverage": 1.0,
+        }
+        for i in range(3)
+    ]
+    history.records[2]["zones"] = {"z1": {"w": 5.0}}
+    count = fill_zone(
+        history,
+        "z1",
+        {NOW: 400.0, NOW + H: -3.0, NOW + 2 * H: 300.0},
+        {NOW: 20.5, NOW + H: 21.0},
+        {NOW: 4.0, NOW + H: 99.0},
+    )
+    assert count == 1
+    assert history.records[0]["zones"] == {"z1": {"w": 400.0, "in": 20.5, "out": 4.0}}
+    assert "zones" not in history.records[1]  # negative power: skipped
+    assert history.records[2]["zones"] == {"z1": {"w": 5.0}}
 
 
 def test_heating_cooling_subentry_offered(hass: HomeAssistant) -> None:
