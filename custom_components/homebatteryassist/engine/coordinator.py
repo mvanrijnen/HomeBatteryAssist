@@ -409,6 +409,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self._last_plan: str | None = None
         self._last_method: str | None = None
+        # Recalculated by hand: tell the plan in *Why* even when unchanged.
+        self.explain_next = False
         self._last_corrections: dict[str, str] = {}
         options = entry.options
         self.max_days: int = options.get(
@@ -1178,7 +1180,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 "forecast",
                 f"correction_{kind}" if text != "none" else "correction_none",
                 kind=kind,
-                mode=mode,
+                mode=f"@mode_{mode}",
                 correction=text,
                 samples=stats.samples if stats else 0,
             )
@@ -1212,7 +1214,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             )
 
     def _explain_plan(self, data: ForecastData) -> None:
-        """Explain the plan in plain language when it changes noticeably."""
+        """Explain the plan in plain language when it changes noticeably
+        (always after a recalculation by hand)."""
+        forced, self.explain_next = self.explain_next, False
         plan = data.selected_plan
         if plan is None or not plan.slots:
             return
@@ -1248,7 +1252,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         first_charge = next((s.start for s in plan.slots if s.power_w > 100), None)
         key = f"{plan.mode}|{action}|{first_charge}|{_money(plan.saving)}"
-        if key == self._last_plan:
+        if key == self._last_plan and not forced:
             return
         self._last_plan = key
         self._decisions.async_log("planning", "battery_plan_story", text=text)
@@ -1363,6 +1367,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         """Explain on which history the consumption forecast is based."""
         method = data.consumption_method or "none"
         if method == self._last_method:
+            return
+        if self._last_method is None and method == "none":
+            # The first cycle after a start may run before the history is
+            # read: not worth a message (a real "none" follows the plan story).
+            self._last_method = method
             return
         self._last_method = method
         days = round(

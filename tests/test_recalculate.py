@@ -86,3 +86,40 @@ async def test_recalculate_when_not_loaded(hass: HomeAssistant) -> None:
     assert await async_setup_component(hass, DOMAIN, {})
     with pytest.raises(ServiceValidationError):
         await hass.services.async_call(DOMAIN, "recalculate", blocking=True)
+
+
+async def test_recalculate_by_hand_tells_the_plan_again(hass: HomeAssistant) -> None:
+    """A recalculation by hand asks for the plan story once; the cycle uses
+    (and clears) that request, also when there is no plan."""
+    entry = await _setup(hass)
+    forecast = entry.runtime_data.forecast
+    calls = []
+    original = forecast._explain_plan
+
+    def spy(data):
+        calls.append(forecast.explain_next)
+        original(data)
+
+    forecast._explain_plan = spy
+    await hass.services.async_call(DOMAIN, "recalculate", blocking=True)
+    assert calls[-1] is True
+    assert forecast.explain_next is False
+
+
+def test_correction_mode_in_the_users_language() -> None:
+    """The correction's mode is a term: "geleerd", not "learned", in Dutch."""
+    from custom_components.homebatteryassist.engine.explain.messages import (
+        render,
+    )
+
+    text = render(
+        "nl",
+        "correction_consumption",
+        {
+            "kind": "consumption",
+            "mode": "@mode_learned",
+            "correction": "-130 W",
+            "samples": 99,
+        },
+    )
+    assert "(geleerd, 99 vergelijkingen)" in text

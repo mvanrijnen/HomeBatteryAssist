@@ -28,5 +28,6 @@ class RecalculateButton(HomeBatteryAssistEntity, ButtonEntity):
         self._forecast = entry.runtime_data.forecast
 
     async def async_press(self) -> None:
-        """Recalculate."""
+        """Recalculate; the plan is told in *Why* again, also unchanged."""
+        self._forecast.explain_next = True
         await self._forecast.async_refresh()

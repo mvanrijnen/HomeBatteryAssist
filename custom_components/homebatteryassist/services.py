@@ -151,6 +151,7 @@ async def async_recalculate(hass: HomeAssistant) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for entry in _loaded_entries(hass):
         forecast = entry.runtime_data.forecast
+        forecast.explain_next = True  # by hand: show the plan in Why again
         await forecast.async_refresh()
         result = forecast.summary()
     return result
