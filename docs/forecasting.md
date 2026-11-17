@@ -53,6 +53,20 @@ A **tariff** [module](modules.md) turns these prices into what a kWh really cost
 
 From a **PV forecast source** [module](modules.md): by default any integration that supports the Energy dashboard's solar forecast (e.g. Forecast.Solar, Solcast); several forecasts (e.g. one per roof) are summed. Corrected automatically (learned), with a fixed safety margin, both, or not at all.
 
+### PV correction
+
+Every hour the PV forecast is checked against the PV measured afterwards. The automatic correction is a **PV correction** [module](modules.md), chosen in the settings section *Solar forecast*:
+
+- **Per lead time, hour and level** (default): the factor per lead time below, and on top of it what is typical for your installation:
+  - **per hour of the day** — e.g. shade in the morning or a roof facing west: the forecast is too high in the morning and too low in the afternoon;
+  - **per level** — how much the forecast promises at that hour compared with the most it promised at that hour lately (about a clear sky). Forecasts are often relatively further off on dull days than on sunny ones; *dull*, *mixed* and *sunny* hours each get a factor.
+
+  Both are learned from the last weeks (recent days counting more) and count for less while there are few days; the combined factor stays between 0.3 and 2. Without history it is the same as the original.
+- **Per lead time** (the original, always available): one factor per lead time (0–1 h … 5 days+), measured / forecast energy, between 0.5 and 1.5.
+- **Your own correction**, see [Modules](modules.md) — e.g. a copy of a built-in one, adapted.
+
+All corrections are calculated every cycle; the *Accuracy* tab compares them with each other and with the uncorrected forecast. The diagnostics show what the chosen one learned (factors per hour and level). A correction set by hand or switched off (action `set_forecast_correction`) is followed as set.
+
 ## Accuracy
 
 Every forecast is verified afterwards per lead time (0–1 h … 5 days+): consumption against the measured consumption, PV against the measured PV, estimated prices against the prices published later. Learned corrections are applied automatically, or set by hand (action `set_forecast_correction`).

@@ -63,6 +63,7 @@ PRICE_EXTENSION_NONE: Final = "none"
 CONF_MAX_CYCLES: Final = "max_cycles_per_day"
 CONF_PV_MARGIN: Final = "pv_forecast_margin"
 CONF_PV_CORRECTION: Final = "pv_correction"
+CONF_PV_CORRECTOR: Final = "pv_corrector"  # PV correction module (learned)
 PV_CORRECTION_AUTO: Final = "auto"  # learned from past forecasts
 PV_CORRECTION_FIXED: Final = "fixed"  # only the fixed margin (%)
 PV_CORRECTION_BOTH: Final = "both"

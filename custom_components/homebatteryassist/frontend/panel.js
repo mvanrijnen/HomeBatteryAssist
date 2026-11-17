@@ -119,6 +119,11 @@ const TEXT = {
     moduleFallback: "failed or missing, built-in used",
     chosen: "chosen",
     forecasterNames: { profile: "Weekday and hour profile", last_weeks: "Same time in the last weeks" },
+    pvCorrectorNames: { hour_and_level: "Per lead time, hour and level", lead_time: "Per lead time (original)" },
+    plannerPvCorrector: "PV correction:",
+    pvCorrectorsTitle: "PV corrections compared",
+    pvCorrectorsHelp: "Average deviation of the PV forecast after each correction per lead time; the best in bold, 'uncorrected' for reference. All corrections are calculated every cycle, also when they are not chosen — choose one in the settings.",
+    uncorrected: "Uncorrected",
     tariffNames: { source: "As the price source gives them" },
     forecastersTitle: "Consumption forecasters compared",
     forecastersHelp: "Average deviation of each forecaster's own prediction (before corrections) per lead time; the best in bold. All forecasters are calculated every cycle, also when they are not chosen — choose one in the settings.",
@@ -312,6 +317,11 @@ const TEXT = {
     moduleFallback: "fout of ontbreekt, ingebouwde gebruikt",
     chosen: "gekozen",
     forecasterNames: { profile: "Profiel per weekdag en uur", last_weeks: "Zelfde tijd afgelopen weken" },
+    pvCorrectorNames: { hour_and_level: "Per vooruitzicht, uur en niveau", lead_time: "Per vooruitzicht (oorspronkelijk)" },
+    plannerPvCorrector: "PV-correctie:",
+    pvCorrectorsTitle: "PV-correcties vergeleken",
+    pvCorrectorsHelp: "Gemiddelde afwijking van de PV-voorspelling na elke correctie per vooruitzicht; de beste vetgedrukt, 'ongecorrigeerd' ter vergelijking. Alle correcties worden elke cyclus doorgerekend, ook als ze niet gekozen zijn — kies er een in de instellingen.",
+    uncorrected: "Ongecorrigeerd",
     tariffNames: { source: "Zoals de prijsbron ze geeft" },
     forecastersTitle: "Verbruiksvoorspellers vergeleken",
     forecastersHelp: "Gemiddelde afwijking van de eigen voorspelling van elke voorspeller (vóór correcties) per vooruitzicht; de beste vetgedrukt. Alle voorspellers worden elke cyclus doorgerekend, ook als ze niet gekozen zijn — kies er een in de instellingen.",
@@ -1602,41 +1612,59 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const body = any
       ? `<div class="acc-wrap"><table class="acc">${head}${rows}</table></div><div class="muted">${esc(t.accHelp)}</div>`
       : `<div class="muted">${esc(t.accNoData)}</div>`;
-    return `<div class="card"><h2>${esc(t.accTitle)}</h2>${body}</div>${this._forecasterAccuracy(t, leads, head)}`;
+    return `<div class="card"><h2>${esc(t.accTitle)}</h2>${body}</div>${this._forecasterAccuracy(t, leads, head)}${this._pvCorrectorAccuracy(t, leads, head)}`;
   }
 
   _forecasterAccuracy(t, leads, head) {
-    // Every consumption forecaster's own accuracy (before corrections), the
-    // lowest average deviation per lead time in bold.
-    const all = Object.entries(this._history?.forecasters || {});
+    // Every consumption forecaster's own accuracy (before corrections).
+    const all = Object.entries(this._history?.forecasters || {}).map(([key, f]) => ({
+      name: t.forecasterNames[key] || f.name || key,
+      tag: f.chosen ? t.chosen : f.builtin ? t.plannerBuiltin : t.plannerOwn,
+      lead_times: f.lead_times,
+    }));
+    return this._moduleAccuracy(all, leads, head, "W", t.forecastersTitle, t.forecastersHelp);
+  }
+
+  _pvCorrectorAccuracy(t, leads, head) {
+    // Every PV correction's accuracy, next to the uncorrected forecast.
+    const all = Object.entries(this._history?.pv_correctors || {}).map(([key, f]) => ({
+      name: t.pvCorrectorNames[key] || f.name || key,
+      tag: f.chosen ? t.chosen : f.builtin ? t.plannerBuiltin : t.plannerOwn,
+      lead_times: f.lead_times,
+    }));
+    const raw = this._history?.accuracy?.pv?.lead_times;
+    if (all.length && raw) all.push({ name: t.uncorrected, tag: "", lead_times: raw });
+    return this._moduleAccuracy(all, leads, head, "Wh", t.pvCorrectorsTitle, t.pvCorrectorsHelp);
+  }
+
+  _moduleAccuracy(all, leads, head, unit, title, help) {
+    // Modules side by side: average deviation per lead time, the lowest in bold.
     if (all.length < 2) return "";
     const best = Object.fromEntries(
       leads.map((lead) => {
         const values = all
-          .map(([, f]) => f.lead_times[lead])
+          .map((f) => f.lead_times[lead])
           .filter((b) => b && b.samples && b.mae != null)
           .map((b) => b.mae);
         return [lead, values.length > 1 ? Math.min(...values) : null];
       }),
     );
     const rows = all
-      .map(([key, f]) => {
-        const name = t.forecasterNames[key] || f.name || key;
+      .map((f) => {
         const cells = leads
           .map((lead) => {
             const b = f.lead_times[lead];
             if (!b || !b.samples || b.mae == null) return "<td>–</td>";
-            const text = `${Math.round(b.mae)} W`;
-            return `<td title="${b.samples} · bias ${Math.round(b.bias)} W">${b.mae === best[lead] ? `<b>${esc(text)}</b>` : esc(text)}</td>`;
+            const text = `${Math.round(b.mae)} ${unit}`;
+            return `<td title="${b.samples} · bias ${Math.round(b.bias)} ${unit}">${b.mae === best[lead] ? `<b>${esc(text)}</b>` : esc(text)}</td>`;
           })
           .join("");
-        const tag = f.chosen ? t.chosen : f.builtin ? t.plannerBuiltin : t.plannerOwn;
-        return `<tr><td>${esc(name)}<small>${esc(tag)}</small></td>${cells}</tr>`;
+        return `<tr><td>${esc(f.name)}${f.tag ? `<small>${esc(f.tag)}</small>` : ""}</td>${cells}</tr>`;
       })
       .join("");
-    return `<div class="card"><h2>${esc(t.forecastersTitle)}</h2>
+    return `<div class="card"><h2>${esc(title)}</h2>
       <div class="acc-wrap"><table class="acc">${head}${rows}</table></div>
-      <div class="muted">${esc(t.forecastersHelp)}</div></div>`;
+      <div class="muted">${esc(help)}</div></div>`;
   }
 
   _message(text) {
@@ -1672,7 +1700,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     };
     return `<div class="card planner"><span class="muted">${esc(t.plannerActive)}</span>
       <b>${esc(name.charAt(0).toUpperCase() + name.slice(1))}</b> <small class="muted">(${esc(kind)})</small>${esc(saving)}${warn}
-      ${module(t.plannerForecaster, p.forecaster, t.forecasterNames)}${module(t.plannerTariff, p.tariff, t.tariffNames)}</div>`;
+      ${module(t.plannerForecaster, p.forecaster, t.forecasterNames)}${module(t.plannerTariff, p.tariff, t.tariffNames)}${module(t.plannerPvCorrector, p.pv_corrector, t.pvCorrectorNames)}</div>`;
   }
 
   _decisions(s, t) {

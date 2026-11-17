@@ -35,6 +35,7 @@ from .engine.coordinator import ForecastCoordinator
 from .engine.devices.batteries.virtual import VirtualBatterySimulator
 from .engine.evaluation.forecast_accuracy import ForecastAccuracy
 from .engine.evaluation.plan_check import PlanVerification
+from .engine.evaluation.pv_corrections import async_load_user_pv_correctors
 from .engine.explain import DecisionLog
 from .engine.explain.notifications import Notifier
 from .engine.forecast.forecasters import async_load_user_forecasters
@@ -111,6 +112,7 @@ async def async_setup_entry(
         await async_load_user_forecasters(hass),
         await async_load_user_tariffs(hass),
         await async_load_user_pv_sources(hass),
+        await async_load_user_pv_correctors(hass),
     )
     forecast.last_full = lambda battery_id: batteries.stats.get(battery_id, {}).get(
         "last_full_charge"

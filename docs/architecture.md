@@ -66,7 +66,8 @@ custom_components/homebatteryassist/
     ├── planning/          6  battery_plan.py (final check), full_charge.py, phase_limit.py,
     │                         battery_distribution.py, time_slots.py,
     │                         planners/ (base.py, template.py, zero_on_meter.py, arbitrage.py)
-    ├── evaluation/        7  forecast_accuracy.py, plan_check.py
+    ├── evaluation/        7  forecast_accuracy.py, plan_check.py,
+    │                         pv_corrections/ (base.py, template.py, hour_and_level.py, lead_time.py)
     └── explain/           8  messages.py, plan_story.py, decision_log.py, notifications.py
 ```
 

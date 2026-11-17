@@ -24,6 +24,7 @@ from ..engine.devices.meters.discovery import SOURCE_NAMES, find_direct_meters
 from ..engine.devices.meters.via_ha_integration import find_meter_candidates
 from ..engine.evaluation.forecast_accuracy import BUCKET_KEYS, KINDS
 from ..engine.evaluation.plan_check import slot_saving
+from ..engine.evaluation.pv_corrections import BUILTIN as PV_CORRECTORS
 from ..engine.forecast.forecasters import BUILTIN as FORECASTERS
 from ..engine.history.chart_series import (
     day_profile,
@@ -150,6 +151,14 @@ def _planner_info(forecast: Any) -> dict[str, Any]:
             "builtin": forecast.forecaster_key not in forecast.forecasters,
             "fallback": forecast.forecaster_fallback,
         },
+        "pv_corrector": {
+            "key": forecast.pv_corrector_key,
+            "name": forecast.pv_corrector_name(forecast.pv_corrector_key),
+            "builtin": forecast.pv_corrector_key not in forecast.pv_correctors,
+            "fallback": forecast.pv_corrector_fallback,
+        }
+        if forecast.pv_entries
+        else None,
         "tariff": {
             "key": forecast.tariff_key,
             "name": forecast.tariff_name(forecast.tariff_key),
@@ -538,6 +547,17 @@ def websocket_history(
                 }
                 for key, summary in forecast.accuracy.forecasters().items()
                 if key in forecast.forecasters or key in FORECASTERS
+            },
+            # Accuracy of every PV correction, side by side.
+            "pv_correctors": {
+                key: {
+                    "name": forecast.pv_corrector_name(key),
+                    "builtin": key not in forecast.pv_correctors,
+                    "chosen": key == forecast.pv_corrector_key,
+                    "lead_times": summary,
+                }
+                for key, summary in forecast.accuracy.pv_correctors().items()
+                if key in forecast.pv_correctors or key in PV_CORRECTORS
             },
             "price_series": [
                 [

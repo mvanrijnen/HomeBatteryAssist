@@ -64,6 +64,7 @@ from ..const import (
     CONF_PRICE_FORECAST,
     CONF_PRICE_SOURCE,
     CONF_PV_CORRECTION,
+    CONF_PV_CORRECTOR,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
     CONF_RESERVE_SOC,
@@ -100,7 +101,20 @@ from ..const import (
     SUBENTRY_TIME_SLOT,
 )
 from .devices.batteries import telemetry as battery_telemetry
-from .evaluation.forecast_accuracy import FORECASTER_KIND, KINDS, ForecastAccuracy
+from .evaluation.forecast_accuracy import (
+    FORECASTER_KIND,
+    KINDS,
+    PV_CORRECTOR_KIND,
+    ForecastAccuracy,
+)
+from .evaluation.pv_corrections import BUILTIN as PV_CORRECTORS
+from .evaluation.pv_corrections import (
+    DEFAULT_PV_CORRECTOR,
+    PvCorrectionInput,
+    PvCorrector,
+    apply_pv_correction,
+)
+from .evaluation.pv_corrections.lead_time import LeadTimeCorrector
 from .explain import DecisionLog
 from .explain.plan_story import DAYS as STORY_DAYS
 from .explain.plan_story import plan_story
@@ -243,6 +257,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         forecasters: Mapping[str, Forecaster] | None = None,
         tariffs: Mapping[str, Tariff] | None = None,
         pv_sources: Mapping[str, PvForecastSource] | None = None,
+        pv_correctors: Mapping[str, PvCorrector] | None = None,
     ) -> None:
         """Initialize."""
         super().__init__(
@@ -281,6 +296,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self._failed_tariffs: set[str] = set()
         # Own PV forecast sources (the built-in one reads the Energy platforms).
         self.pv_sources: dict[str, PvForecastSource] = dict(pv_sources or {})
+        # PV correction: own ones next to the built-in ones.
+        self.pv_correctors: dict[str, PvCorrector] = dict(pv_correctors or {})
+        self.pv_corrector_key: str = entry.options.get(
+            CONF_PV_CORRECTOR, DEFAULT_PV_CORRECTOR
+        )
+        self.pv_corrector_fallback = False
+        self._failed_pv_correctors: set[str] = set()
         self.export_factor: float = entry.options.get(
             CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR
         )
@@ -515,16 +537,14 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             for p in prices
             if window.overlaps(p.start, p.end)
         ]
-        pv_wh = {
-            start: round(
-                accuracy.correct("pv", wh, start, now)
-                if self.pv_correction in (PV_CORRECTION_AUTO, PV_CORRECTION_BOTH)
-                else wh,
-                1,
-            )
-            for start, wh in pv_wh.items()
-            if window.overlaps(start, start + PV_PERIOD)
-        }
+        pv_wh = self._correct_pv(
+            {
+                start: wh
+                for start, wh in pv_wh.items()
+                if window.overlaps(start, start + PV_PERIOD)
+            },
+            now,
+        )
         if self.pv_entries:
             pv_now_w = pv_wh.get(hour)
         # What a kWh really costs and earns: the chosen tariff module.
@@ -700,6 +720,72 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             kind = f"{FORECASTER_KIND}{key}"
             self.accuracy.track(kind)
             self.accuracy.record(kind, [(a, b, v) for a, b, v, _m in slots], now)
+
+    def _correct_pv(self, raw: dict[datetime, float], now: datetime) -> dict:
+        """The PV forecast after the chosen PV correction module (when the
+        learned correction is on); every correction is also recorded on its
+        own, to compare them."""
+        if not raw or self.pv_correction not in (
+            PV_CORRECTION_AUTO,
+            PV_CORRECTION_BOTH,
+        ):
+            return {start: round(wh, 1) for start, wh in raw.items()}
+        accuracy = self.accuracy
+        data = PvCorrectionInput(
+            now,
+            sorted(raw.items()),
+            accuracy.pv_results(),
+            lambda start: accuracy.lead_factor(start, now),
+            accuracy.bucket_factors(now),
+        )
+        results: dict[str, list[float]] = {}
+        for key, corrector in (*PV_CORRECTORS.items(), *self.pv_correctors.items()):
+            try:
+                results[key] = apply_pv_correction(corrector, data)
+            except Exception:  # an own module may fail in any way
+                _LOGGER.exception("PV correction %s failed", key)
+                self._pv_corrector_failed(key)
+                continue
+            kind = f"{PV_CORRECTOR_KIND}{key}"
+            accuracy.track(kind)
+            accuracy.record(
+                kind,
+                [
+                    (start, start + PV_PERIOD, wh)
+                    for (start, _), wh in zip(data.slots, results[key], strict=True)
+                ],
+                now,
+            )
+        # A user's manual or switched off correction (action) is followed as
+        # it is: the correction per lead time only.
+        key = (
+            self.pv_corrector_key
+            if accuracy.mode("pv", now) == "learned"
+            else LeadTimeCorrector.key
+        )
+        values = results.get(key)
+        self.pv_corrector_fallback = values is None
+        if values is None:
+            values = results.get(LeadTimeCorrector.key) or [
+                wh * data.lead_factor(start) for start, wh in data.slots
+            ]
+        return {
+            start: round(wh, 1)
+            for (start, _), wh in zip(data.slots, values, strict=True)
+        }
+
+    def _pv_corrector_failed(self, key: str) -> None:
+        if key in self._failed_pv_correctors:
+            return
+        self._failed_pv_correctors.add(key)
+        self._decisions.async_log(
+            "forecast", "pv_corrector_failed", name=self.pv_corrector_name(key)
+        )
+
+    def pv_corrector_name(self, key: str) -> str:
+        """Name of a PV correction for the user."""
+        corrector = self.pv_correctors.get(key) or PV_CORRECTORS.get(key)
+        return (corrector.name if corrector else "") or key
 
     def _forecaster_failed(self, key: str) -> None:
         if key in self._failed_forecasters:

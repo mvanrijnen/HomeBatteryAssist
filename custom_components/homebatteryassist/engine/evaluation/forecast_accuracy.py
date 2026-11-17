@@ -43,6 +43,7 @@ from homeassistant.util import dt as dt_util
 
 from ...const import DOMAIN
 from ..history.consumption_history import ConsumptionRecord
+from .pv_corrections.base import PvResult
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,6 +58,9 @@ KINDS: tuple[Kind, ...] = ("consumption", "pv", "price")
 # Extra kinds "consumption@<forecaster key>": every consumption forecaster's
 # own predictions, to compare forecasters (no corrections are learned for them).
 FORECASTER_KIND = "consumption@"
+# Extra kinds "pv@<correction key>": every PV correction's corrected forecast,
+# to compare the corrections.
+PV_CORRECTOR_KIND = "pv@"
 type Mode = Literal["learned", "off", "manual"]
 MODES: tuple[Mode, ...] = ("learned", "off", "manual")
 ALL_BUCKETS = "all"
@@ -127,6 +131,35 @@ class ForecastAccuracy:
             self.results.setdefault(kind, [])
             self.settings.setdefault(kind, _default_setting())
 
+    def pv_correctors(self) -> dict[str, dict[str, Any]]:
+        """Accuracy per PV correction (key -> summary per bucket)."""
+        return {
+            kind.removeprefix(PV_CORRECTOR_KIND): self.summary(kind)
+            for kind in self.kinds
+            if kind.startswith(PV_CORRECTOR_KIND)
+        }
+
+    def pv_results(self) -> list[PvResult]:
+        """The settled PV hours: measured and raw predicted Wh per lead time."""
+        out = []
+        for result in self.results["pv"]:
+            start = dt_util.parse_datetime(result["start"])
+            if start is not None:
+                out.append(PvResult(start, result["actual"], dict(result["pred"])))
+        return out
+
+    def bucket_factors(self, now: datetime) -> dict[str, float]:
+        """The PV factor per lead time bucket in use now (1.0 = none)."""
+        return {
+            bucket: (self.correction_for("pv", bucket, now) or 1.0)
+            for bucket in BUCKET_KEYS
+        }
+
+    def lead_factor(self, start: datetime, now: datetime) -> float:
+        """The PV factor for a slot starting at ``start`` (1.0 = none)."""
+        lead = max(start - now, timedelta(0))
+        return self.correction_for("pv", bucket_for(lead), now) or 1.0
+
     def forecasters(self) -> dict[str, dict[str, Any]]:
         """Accuracy per consumption forecaster (key -> summary per bucket)."""
         return {
@@ -139,7 +172,7 @@ class ForecastAccuracy:
         """Load stored predictions and results."""
         if (data := await self._store.async_load()) is not None:
             for kind in data.get("predictions", {}) | data.get("results", {}):
-                if kind.startswith(FORECASTER_KIND):
+                if kind.startswith((FORECASTER_KIND, PV_CORRECTOR_KIND)):
                     self.track(kind)
             for kind in self.kinds:
                 self.predictions[kind] = data.get("predictions", {}).get(kind, {})
@@ -233,16 +266,20 @@ class ForecastAccuracy:
         }
         # Skip night hours: nothing to learn from 0 vs 0.
         pending = self.predictions["pv"]
-        for hour in list(pending):
-            if (
-                hour in actuals
-                and actuals[hour] < PV_MIN_WH
-                and all(
-                    v < PV_MIN_WH for k, v in pending[hour].items() if k in BUCKET_KEYS
-                )
-            ):
-                pending.pop(hour)
-                actuals.pop(hour)
+        night = [
+            hour
+            for hour in pending
+            if hour in actuals
+            and actuals[hour] < PV_MIN_WH
+            and all(v < PV_MIN_WH for k, v in pending[hour].items() if k in BUCKET_KEYS)
+        ]
+        corrections = [k for k in self.kinds if k.startswith(PV_CORRECTOR_KIND)]
+        for hour in night:
+            for kind in ("pv", *corrections):
+                self.predictions[kind].pop(hour, None)
+            actuals.pop(hour)
+        for kind in corrections:
+            self._settle(kind, actuals)
         return self._settle("pv", actuals)
 
     def evaluate_prices(self, published: Mapping[str, float]) -> int:

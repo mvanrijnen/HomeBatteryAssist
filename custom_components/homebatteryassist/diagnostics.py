@@ -6,6 +6,7 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant
 
+from .engine.evaluation.pv_corrections import BUILTIN as PV_CORRECTORS
 from .models import HomeBatteryAssistConfigEntry
 
 RECENT_RECORDS = 12
@@ -130,6 +131,9 @@ async def async_get_config_entry_diagnostics(
             "temperature_forecast_slots": sum(
                 t is not None for t in data.forecast.temperatures or []
             ),
+            "pv_corrector": data.forecast.pv_corrector_key,
+            "pv_corrector_fallback": data.forecast.pv_corrector_fallback,
+            "pv_corrector_learned": _pv_details(data.forecast),
             "tariff": data.forecast.tariff_key,
             "tariff_fallback": data.forecast.tariff_fallback,
             "own": {
@@ -160,3 +164,15 @@ def _state(hass: HomeAssistant, entity_id: str) -> dict[str, Any] | None:
         "unit": state.attributes.get("unit_of_measurement"),
         "last_updated": state.last_updated.isoformat(),
     }
+
+
+def _pv_details(forecast: Any) -> dict[str, Any] | None:
+    """What the chosen PV correction learned (if it tells)."""
+    key = forecast.pv_corrector_key
+    corrector = forecast.pv_correctors.get(key) or PV_CORRECTORS.get(key)
+    if corrector is None:
+        return None
+    try:
+        return corrector.details()
+    except Exception:  # an own module may fail in any way
+        return None

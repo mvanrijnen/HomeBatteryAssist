@@ -89,10 +89,12 @@
             "description": "Correction of the PV forecast.",
             "data": {
               "pv_correction": "Correction of the PV forecast",
+              "pv_corrector": "PV correction",
               "pv_forecast_margin": "Margin on the PV forecast"
             },
             "data_description": {
               "pv_correction": "How the PV forecast is corrected before planning: automatically (learned from how accurate past forecasts were), with a fixed margin (below), both, or not at all.",
+              "pv_corrector": "With 'automatic': which correction module learns from past forecasts. 'Per lead time, hour and level' (default) also learns per hour of the day (shade, roof direction) and per level (dull or sunny hour); 'Per lead time' is the original. Own corrections from /config/homebatteryassist/pv_corrections appear here too (after a reload). The Accuracy tab compares them.",
               "pv_forecast_margin": "Used with 'fixed margin' and 'both': the plans count on this much less solar power, as a buffer against optimistic forecasts."
             }
           },
@@ -344,6 +346,12 @@
         "off": "No correction"
       }
     },
+    "pv_corrector": {
+      "options": {
+        "hour_and_level": "Per lead time, hour and level",
+        "lead_time": "Per lead time (original)"
+      }
+    },
     "price_source": {
       "options": {
         "sensor": "Price sensor (choose below)"
@@ -459,10 +467,12 @@
             "description": "Correction of the PV forecast.",
             "data": {
               "pv_correction": "Correction of the PV forecast",
+              "pv_corrector": "PV correction",
               "pv_forecast_margin": "Margin on the PV forecast"
             },
             "data_description": {
               "pv_correction": "How the PV forecast is corrected before planning: automatically (learned from how accurate past forecasts were), with a fixed margin (below), both, or not at all.",
+              "pv_corrector": "With 'automatic': which correction module learns from past forecasts. 'Per lead time, hour and level' (default) also learns per hour of the day (shade, roof direction) and per level (dull or sunny hour); 'Per lead time' is the original. Own corrections from /config/homebatteryassist/pv_corrections appear here too (after a reload). The Accuracy tab compares them.",
               "pv_forecast_margin": "Used with 'fixed margin' and 'both': the plans count on this much less solar power, as a buffer against optimistic forecasts."
             }
           },

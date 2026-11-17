@@ -89,10 +89,12 @@
             "description": "Correctie van de zonvoorspelling.",
             "data": {
               "pv_correction": "Correctie zonvoorspelling",
+              "pv_corrector": "PV-correctie",
               "pv_forecast_margin": "Marge op de zonvoorspelling"
             },
             "data_description": {
               "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet.",
+              "pv_corrector": "Bij 'automatisch': welke correctiemodule leert van eerdere voorspellingen. 'Per vooruitzicht, uur en niveau' (standaard) leert ook per uur van de dag (schaduw, dakrichting) en per niveau (somber of zonnig uur); 'Per vooruitzicht' is de oorspronkelijke. Eigen correcties uit /config/homebatteryassist/pv_corrections staan hier ook (na herladen). Het tabblad Nauwkeurigheid vergelijkt ze.",
               "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen."
             }
           },
@@ -344,6 +346,12 @@
         "off": "Geen correctie"
       }
     },
+    "pv_corrector": {
+      "options": {
+        "hour_and_level": "Per vooruitzicht, uur en niveau",
+        "lead_time": "Per vooruitzicht (oorspronkelijk)"
+      }
+    },
     "price_source": {
       "options": {
         "sensor": "Prijssensor (hieronder kiezen)"
@@ -459,10 +467,12 @@
             "description": "Correctie van de zonvoorspelling.",
             "data": {
               "pv_correction": "Correctie zonvoorspelling",
+              "pv_corrector": "PV-correctie",
               "pv_forecast_margin": "Marge op de zonvoorspelling"
             },
             "data_description": {
               "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet.",
+              "pv_corrector": "Bij 'automatisch': welke correctiemodule leert van eerdere voorspellingen. 'Per vooruitzicht, uur en niveau' (standaard) leert ook per uur van de dag (schaduw, dakrichting) en per niveau (somber of zonnig uur); 'Per vooruitzicht' is de oorspronkelijke. Eigen correcties uit /config/homebatteryassist/pv_corrections staan hier ook (na herladen). Het tabblad Nauwkeurigheid vergelijkt ze.",
               "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen."
             }
           },

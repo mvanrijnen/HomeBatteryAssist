@@ -122,6 +122,7 @@ from .const import (
     CONF_PRICE_SOURCE,
     CONF_PV_ADDRESS,
     CONF_PV_CORRECTION,
+    CONF_PV_CORRECTOR,
     CONF_PV_DRIVER,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
@@ -206,6 +207,11 @@ from .engine.devices.meters.discovery import (
 from .engine.devices.meters.via_ha_integration import (
     MeterCandidate,
     find_meter_candidates,
+)
+from .engine.evaluation.pv_corrections import BUILTIN as PV_CORRECTORS
+from .engine.evaluation.pv_corrections import (
+    DEFAULT_PV_CORRECTOR,
+    async_load_user_pv_correctors,
 )
 from .engine.explain.notifications import KINDS as NOTIFY_KINDS
 from .engine.explain.notifications import PERSISTENT
@@ -350,7 +356,7 @@ def _price_source_selector(
 # Settings grouped in collapsible sections; the rest stays at the top.
 SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
     "export": ("export_price_mode", "export_price_entities", "export_price_factor"),
-    "solar": ("pv_correction", "pv_forecast_margin"),
+    "solar": ("pv_correction", "pv_corrector", "pv_forecast_margin"),
     "planning": (
         "cycle_cost",
         "max_cycles_per_day",
@@ -675,6 +681,22 @@ async def _flat_settings_schema(
             )
         ),
         vol.Required(
+            CONF_PV_CORRECTOR,
+            default=current.get(CONF_PV_CORRECTOR, DEFAULT_PV_CORRECTOR),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    *(SelectOptionDict(value=k, label=k) for k in PV_CORRECTORS),
+                    *(
+                        SelectOptionDict(value=k, label=c.name or k)
+                        for k, c in (await async_load_user_pv_correctors(hass)).items()
+                    ),
+                ],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_PV_CORRECTOR,
+            )
+        ),
+        vol.Required(
             CONF_PV_MARGIN,
             default=current.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN),
         ): _number(0, 50, 1, "%"),
@@ -849,6 +871,7 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
             options[key] = float(user_input[key])
     options[CONF_PEAK_LIMIT] = int(user_input.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT))
     options[CONF_PV_CORRECTION] = user_input.get(CONF_PV_CORRECTION, PV_CORRECTION_BOTH)
+    options[CONF_PV_CORRECTOR] = user_input.get(CONF_PV_CORRECTOR, DEFAULT_PV_CORRECTOR)
     options[CONF_PV_MARGIN] = int(user_input.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN))
     options[CONF_MAX_CYCLES] = float(
         user_input.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES)
