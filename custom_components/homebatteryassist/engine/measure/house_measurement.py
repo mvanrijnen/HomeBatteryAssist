@@ -511,3 +511,35 @@ def nom_balance(flow: PowerFlow, target_w: float, ignore_w: float = 0.0) -> floa
     if need <= 0:
         return -need
     return -max(need - flow.excluded_w - max(ignore_w, 0.0), 0.0)
+
+
+# An unexpected solar surplus: at least this much measured, and less than
+# this share of it forecast for the current hour.
+MIN_SURPLUS_W = 300.0
+SURPLUS_SHARE = 0.5
+
+
+def solar_surplus_w(flow: PowerFlow) -> float:
+    """What is left over of the solar power now: PV - house - excluded."""
+    return flow.pv_w - flow.house_w - flow.excluded_w
+
+
+def unexpected_surplus(surplus_w: float, expected_w: float) -> bool:
+    """A surplus the forecast did not see coming."""
+    return (
+        surplus_w >= MIN_SURPLUS_W and max(expected_w, 0.0) < SURPLUS_SHARE * surplus_w
+    )
+
+
+def plan_balance(planned_w: float, surplus_w: float, expected_w: float) -> float:
+    """What a plan per slot asks of the batteries now (W, + charge), with an
+    unexpected solar surplus stored on top.
+
+    The plan counted on ``expected_w`` of surplus (forecast for this hour);
+    what is unexpectedly more is charged as well, never so much that the grid
+    supplies it. A plan that discharges now is followed as it is.
+    """
+    if planned_w < 0 or not unexpected_surplus(surplus_w, expected_w):
+        return planned_w
+    extra = surplus_w - max(expected_w, 0.0)
+    return min(planned_w + extra, max(planned_w, surplus_w))

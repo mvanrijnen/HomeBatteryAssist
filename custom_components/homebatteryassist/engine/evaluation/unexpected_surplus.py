@@ -8,7 +8,7 @@ so once (and once more when it is over), with what it means for the batteries.
 Surplus = PV - house - excluded devices (what the batteries could store);
 expected = PV forecast for this hour (corrected) - consumption forecast for
 this slot. Unexpected: at least ``MIN_SURPLUS_W`` measured, and less than
-``SHARE`` of it forecast, for ``START_AFTER`` on end (a passing gap in the
+half of it forecast, for ``START_AFTER`` on end (a passing gap in the
 clouds is no message); over after ``END_AFTER`` without it.
 """
 
@@ -18,8 +18,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-MIN_SURPLUS_W = 300.0
-SHARE = 0.5
+from ..measure.house_measurement import unexpected_surplus
+
 START_AFTER = timedelta(minutes=5)
 END_AFTER = timedelta(minutes=10)
 MAX_GAP = timedelta(minutes=2)  # longer without a value: start counting anew
@@ -35,8 +35,9 @@ class _Event:
 
 
 def unexpected(surplus_w: float, expected_w: float) -> bool:
-    """A surplus the forecast did not see coming."""
-    return surplus_w >= MIN_SURPLUS_W and max(expected_w, 0.0) < SHARE * surplus_w
+    """A surplus the forecast did not see coming (``MIN_SURPLUS_W`` and more,
+    less than half of it forecast; the rule is in ``house_measurement``)."""
+    return unexpected_surplus(surplus_w, expected_w)
 
 
 class UnexpectedSurplus:

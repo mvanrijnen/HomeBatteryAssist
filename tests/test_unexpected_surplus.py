@@ -10,6 +10,9 @@ from custom_components.homebatteryassist.engine.evaluation.unexpected_surplus im
 )
 from custom_components.homebatteryassist.engine.explain.messages import render
 from custom_components.homebatteryassist.engine.explain.notifications import kind_of
+from custom_components.homebatteryassist.engine.measure.house_measurement import (
+    plan_balance,
+)
 
 T0 = datetime(2026, 11, 17, 11, 0, tzinfo=dt_util.UTC)
 S = timedelta(seconds=10)
@@ -65,3 +68,14 @@ def test_message_in_plan_mode_and_notification_kind() -> None:
     assert "plan rekende er niet op" in text
     assert kind_of(key) == "solar"
     assert kind_of("pv_surplus_unexpected_ended") == "solar"
+
+
+def test_plan_stores_unexpected_surplus_on_top() -> None:
+    """A plan per slot charges what is unexpectedly left over, never from
+    the grid; a planned discharge and an expected surplus stay as planned."""
+    assert plan_balance(0.0, 1500.0, 0.0) == 1500.0
+    assert plan_balance(500.0, 1500.0, 500.0) == 1500.0  # 500 planned + 1000
+    assert plan_balance(2000.0, 1500.0, 0.0) == 2000.0  # grid charge planned
+    assert plan_balance(-800.0, 1500.0, 0.0) == -800.0
+    assert plan_balance(1000.0, 1200.0, 1000.0) == 1000.0  # as forecast
+    assert plan_balance(0.0, 200.0, 0.0) == 0.0  # too small

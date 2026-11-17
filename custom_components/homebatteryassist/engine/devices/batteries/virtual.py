@@ -6,7 +6,8 @@ selected plan mode, using the real measurements:
 - ``nom``: absorb the real surplus / cover the real shortage measured on the
   grid right now (after the real batteries);
 - the other modes (arbitrage, time slots, manual): follow the battery plan of
-  the current slot, for the virtual batteries' share of the planned capacity.
+  the current slot, for the virtual batteries' share of the planned capacity;
+  an unexpected solar surplus (``plan_balance``) is stored on top.
 
 The total is spread over the virtual batteries with
 ``planning.distribution.distribute`` (minimum power per battery).
@@ -50,7 +51,12 @@ from ....const import NOMINAL_VOLTAGE
 from ...coordinator import ForecastCoordinator
 from ...explain import DecisionLog
 from ...measure.battery_monitor import BatteryConfig, BatteryInput
-from ...measure.house_measurement import MeasurementInput, nom_balance
+from ...measure.house_measurement import (
+    MeasurementInput,
+    nom_balance,
+    plan_balance,
+    solar_surplus_w,
+)
 from ...planning.battery_distribution import Candidate, Distributor
 from ...planning.battery_plan import MODE_NOM
 from ...planning.phase_limit import (
@@ -431,6 +437,21 @@ class VirtualBatterySimulator:
             total = (
                 slot.power_w * virtual_capacity / capacity if slot and capacity else 0.0
             )
+            # An unexpected solar surplus is stored on top of the plan.
+            flow = self._measurements.flow
+            forecast_slot = data.consumption_at(now)
+            if (
+                flow is not None
+                and self._measurements.has_pv
+                and self._measurements.pv_known
+                and data.pv_now_w is not None
+                and forecast_slot is not None
+            ):
+                total = plan_balance(
+                    total,
+                    solar_surplus_w(flow),
+                    data.pv_now_w - forecast_slot.power_w,
+                )
         else:
             # NOM: the real surplus (+) / shortage (-) on the grid right now,
             # around the target grid power; a shortage never for excluded

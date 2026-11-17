@@ -22,7 +22,8 @@ the dashboard simulates is what would be sent:
 1. **Full charge** due for a battery (``ForecastData.full_charge_now``):
    charge at its max power up to 100 %.
 2. **Target total**: the selected plan's power for the current slot
-   (arbitrage, time slots, manual, own planners) or, for zero on the meter,
+   (arbitrage, time slots, manual, own planners), with an unexpected solar
+   surplus stored on top (``plan_balance``), or, for zero on the meter,
    ``nom_balance`` — surplus charged; a shortage discharged, but never for
    excluded devices nor for a random short peak (spike filter, when on).
    Price rules: no discharging below the minimum discharge price.

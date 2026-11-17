@@ -6,6 +6,7 @@ HomeBatteryAssist plans what the batteries could best do over the [planning wind
 
 Every plan mode is a [planner module](modules.md); all are calculated every cycle, with the expected saving compared with no battery:
 
+- **Unexpected solar surplus**: in every mode the batteries also store solar power the plan did not count on — at least 300 W left over (PV − house − excluded devices) while less than half of it was forecast for this hour — on top of the planned power (not more than the surplus, so never from the grid; a planned discharge is followed as it is). *Why* reports it ([Forecasting](forecasting.md#unexpected-solar-surplus)).
 - **Zero on the meter (NOM)**: charge with surplus solar power, supply the house on shortage — not excluded devices (e.g. an EV charger) and, when switched on, not random [short peaks](measuring.md#short-peaks).
 - **Arbitrage** (own use): charge when power is cheap, supply the house when it is expensive.
 - **Full arbitrage**: like arbitrage, but may also discharge to the grid when the export price makes that worthwhile.

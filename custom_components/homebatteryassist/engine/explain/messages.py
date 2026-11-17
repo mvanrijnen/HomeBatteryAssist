@@ -211,7 +211,7 @@ TERMS: dict[str, dict[str, str]] = {
         "plan_discharge": " The plan said: supply now. The battery follows its own control; HomeBatteryAssist only advises.",
         "plan_idle": " The plan said: neither charge nor supply now. The battery follows its own control; HomeBatteryAssist only advises.",
         "surplus_nom": " The batteries store it as long as they are not full (zero on the meter).",
-        "surplus_plan": " The plan did not count on it: the batteries follow the plan for this slot, so what they do not store goes to the grid.",
+        "surplus_plan": " The plan did not count on it: the batteries store it on top of the plan as long as they are not full.",
     },
     "nl": {
         "none": "",
@@ -248,7 +248,7 @@ TERMS: dict[str, dict[str, str]] = {
         "plan_discharge": " Het plan zei: nu leveren. De batterij volgt haar eigen sturing; HomeBatteryAssist geeft alleen advies.",
         "plan_idle": " Het plan zei: nu niet laden of leveren. De batterij volgt haar eigen sturing; HomeBatteryAssist geeft alleen advies.",
         "surplus_nom": " De batterijen slaan het op zolang ze niet vol zijn (nul op de meter).",
-        "surplus_plan": " Het plan rekende er niet op: de batterijen volgen het plan voor dit tijdvak, dus wat ze niet opslaan gaat naar het net.",
+        "surplus_plan": " Het plan rekende er niet op: de batterijen slaan het bovenop het plan op zolang ze niet vol zijn.",
     },
 }
 

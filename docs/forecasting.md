@@ -69,7 +69,7 @@ All corrections are calculated every cycle; the *Accuracy* tab compares them wit
 
 ### Unexpected solar surplus
 
-The correction works afterwards; *Why* also says it while it happens. When clearly more solar power is left over than forecast — the measured surplus (PV − house − excluded devices) is at least 300 W and less than half of it was forecast for this hour (PV forecast, corrected, minus the consumption forecast), for 5 minutes on end — *Why* reports an **unexpected solar surplus**: how much, what was forecast, and what it means for the batteries (with zero on the meter they store it; with a plan per slot they follow the plan, which did not count on it). When it has been over for 10 minutes a second message gives the energy left over and how much of it was forecast. Needs a measured PV source and a PV forecast. Can also be sent as a notification (kind *Unexpected solar surplus*).
+The correction works afterwards; *Why* also says it while it happens. When clearly more solar power is left over than forecast — the measured surplus (PV − house − excluded devices) is at least 300 W and less than half of it was forecast for this hour (PV forecast, corrected, minus the consumption forecast), for 5 minutes on end — *Why* reports an **unexpected solar surplus**: how much, what was forecast, and what it means for the batteries (they store it: with zero on the meter by themselves, with a plan per slot on top of the plan — see [Planning](planning.md)). When it has been over for 10 minutes a second message gives the energy left over and how much of it was forecast. Needs a measured PV source and a PV forecast. Can also be sent as a notification (kind *Unexpected solar surplus*).
 
 ## Accuracy
 

@@ -407,6 +407,7 @@ const STYLE = `
     background: var(--app-header-background-color, var(--primary-color)); color: var(--app-header-text-color, #fff);
     font-size: 20px; }
   .toolbar .title { flex: 1; }
+  .toolbar .version { font-size: 12px; opacity: .7; margin-left: 8px; }
   .toolbar button { display: flex; align-items: center; gap: 6px; font: inherit; font-size: 14px; cursor: pointer;
     color: inherit; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: 18px; padding: 6px 14px; }
@@ -520,6 +521,15 @@ const STYLE = `
 const FLOW_LEAD = 6 * 3600e3; // the flow chart shows this much history before now
 const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+// The integration's version: the panel is loaded as panel.js?v=<version>.
+const VERSION = (() => {
+  try {
+    return new URL(import.meta.url).searchParams.get("v") || "";
+  } catch (err) {
+    return "";
+  }
+})();
 
 class HomeBatteryAssistPanel extends HTMLElement {
   constructor() {
@@ -1733,7 +1743,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       body = `<div class="tabs">${bar}</div>${tabs[tab]().join("")}`;
     }
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
-      <div class="toolbar"><span class="menu"></span><span class="title">${esc(t.title)}</span>
+      <div class="toolbar"><span class="menu"></span><span class="title">${esc(t.title)}${VERSION ? `<span class="version">v${esc(VERSION)}</span>` : ""}</span>
         ${this._status ? `<button class="recalc" ${this._busy ? "disabled" : ""}>
           <ha-icon icon="mdi:refresh"></ha-icon>${esc(this._busy ? t.recalculating : t.recalculate)}</button>` : ""}</div>
       <div class="content">${body}</div>`;

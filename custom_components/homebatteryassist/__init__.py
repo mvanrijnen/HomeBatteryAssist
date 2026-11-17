@@ -53,7 +53,7 @@ from .engine.measure.battery_monitor import (
     BatteryInput,
     activity_of,
 )
-from .engine.measure.house_measurement import MeasurementInput
+from .engine.measure.house_measurement import MeasurementInput, solar_surplus_w
 from .engine.measure.spike_filters import (
     DEFAULT_SPIKE_FILTER,
     async_load_user_spike_filters,
@@ -330,7 +330,7 @@ async def async_setup_entry(
         )
         result = surplus_check.update(
             when,
-            flow.pv_w - flow.house_w - flow.excluded_w if known else None,
+            solar_surplus_w(flow) if known else None,
             data.pv_now_w - slot.power_w if known else None,
             nom=data is None or data.plan_mode == MODE_NOM,
         )
