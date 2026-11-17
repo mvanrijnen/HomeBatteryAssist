@@ -123,3 +123,24 @@ def test_correction_mode_in_the_users_language() -> None:
         },
     )
     assert "(geleerd, 99 vergelijkingen)" in text
+
+
+async def test_no_prices_told_only_after_the_start(hass: HomeAssistant) -> None:
+    """Right after a start the price forecast may not deliver yet: "no
+    prices" is only told when it lasts beyond the start-up grace."""
+    from datetime import timedelta
+
+    entry = await _setup(hass)
+    forecast = entry.runtime_data.forecast
+    keys = lambda: [d["key"] for d in entry.runtime_data.decisions.entries]  # noqa: E731
+    assert "horizon_no_price" not in keys()
+
+    forecast._started_at -= timedelta(minutes=10)
+    await hass.services.async_call(DOMAIN, "recalculate", blocking=True)
+    assert "horizon_no_price" in keys()
+    told = next(
+        d
+        for d in entry.runtime_data.decisions.entries
+        if d["key"] == "horizon_no_price"
+    )
+    assert "()" not in told["message"]

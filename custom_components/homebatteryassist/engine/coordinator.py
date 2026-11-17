@@ -209,6 +209,9 @@ PRICE_LOG_DAYS = timedelta(days=8)  # published prices kept for the chart
 
 EVENT_FORECAST_UPDATED = f"{DOMAIN}_forecast_updated"
 RETRY_INTERVAL = timedelta(minutes=1)
+# Right after a start other integrations may not deliver yet: "no prices" /
+# "no PV" is only told when it lasts longer than this.
+STARTUP_GRACE = timedelta(minutes=5)
 
 
 @dataclass(slots=True)
@@ -469,6 +472,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             self.export_entities = []
         self.pv_entries: list[str] = list(options.get(CONF_PV_FORECAST) or [])
         self._last_limit: HorizonLimit | None = None
+        self._started_at = dt_util.utcnow()
         self._price_store: Store[dict[str, Any]] | None = None
         # period start (ISO) -> [end, import price, export price]
         self.price_log: dict[str, list[Any]] = {}
@@ -1410,6 +1414,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         """Log in the decision log when the limiting factor changes."""
         if window.limited_by == self._last_limit:
             return
+        if window.limited_by in (HorizonLimit.NO_PRICE, HorizonLimit.NO_PV) and (
+            not self.hass.is_running
+            or dt_util.utcnow() - self._started_at < STARTUP_GRACE
+        ):
+            return  # starting up: the forecasts usually follow within a minute
         self._last_limit = window.limited_by
         self._decisions.async_log(
             "planning",
@@ -1417,7 +1426,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             end=window.end,
             hours=round(window.hours),
             days=self.max_days,
-            entity=self.price_entity or "",
+            entity=self.price_entity or self.price_source,
         )
 
 

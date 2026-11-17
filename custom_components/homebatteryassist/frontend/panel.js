@@ -530,7 +530,7 @@ const STYLE = `
   .export .value { color: var(--success-color, #43a047); }
   .import .value { color: var(--error-color, #db4437); }
   .batteries { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
-  .battery { padding: 12px; border-radius: 10px; background: var(--secondary-background-color); display: grid; gap: 8px; }
+  .battery { padding: 12px; border-radius: 10px; background: var(--secondary-background-color); display: grid; gap: 8px; align-content: start; }
   .battery .head { display: flex; justify-content: space-between; align-items: baseline; }
   .battery .name { font-weight: 500; }
   .status { font-size: 13px; padding: 2px 8px; border-radius: 10px; background: var(--divider-color); }
@@ -712,7 +712,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
     try {
       this._status = await this._hass.callWS({ type: "homebatteryassist/status" });
       this._error = null;
-      if (Date.now() - this._historyAt > 5 * 60000) {
+      // A new forecast cycle (its window starts anew): fetch the charts at
+      // once, e.g. the first full cycle after a restart.
+      const cycle = this._status?.window?.start;
+      const newCycle = cycle && this._cycle && cycle !== this._cycle;
+      this._cycle = cycle;
+      if (newCycle || Date.now() - this._historyAt > 5 * 60000) {
         // A failing history call only costs the charts, not the whole panel.
         this._historyAt = Date.now();
         try {
@@ -1074,6 +1079,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return `<div class="card"><h2>${esc(t.flows)}</h2><div class="flows">${parts.join("")}</div></div>`;
   }
 
+  _markVirtual(b, t) {
+    // "(virtual)" after a virtual battery's name, unless the name says so.
+    return b.virtual && !String(b.name || "").toLowerCase().includes(String(t.virtual).toLowerCase());
+  }
+
   _compare(s, t) {
     // Every mode compared with no battery, and arbitrage compared with NOM.
     const value = this._history?.value;
@@ -1082,7 +1092,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const money = (v) =>
       v == null ? "–" : new Intl.NumberFormat(lang, { style: "currency", currency: value.currency || "EUR" }).format(v);
     const signed = (v) => (v == null ? "–" : `${v > 0 ? "+" : ""}${money(v)}`);
-    const name = (m) => t.modeNames[m] || m;
+    // Own planner modules by their own name (not their key).
+    const name = (m) => t.modeNames[m] || this._history?.planner_names?.[m] || m;
     // Time slots without slots and manual at 0 W only repeat NOM / nothing.
     const shown = (m) =>
       m === value.mode || (m === "time_slots" ? value.time_slots > 0 : m === "manual" ? value.manual_w !== 0 : true);
@@ -1148,7 +1159,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const fill = soc === null ? 0 : soc;
     const cls = soc !== null && soc <= b.min_soc ? "alert" : soc !== null && soc < b.min_soc + 10 ? "warn" : "";
     return `<div class="battery">
-      <div class="head"><span class="name">${esc(b.name)}${b.virtual ? ` <small class="muted">(${esc(t.virtual)})</small>` : ""}</span>
+      <div class="head"><span class="name">${esc(b.name)}${this._markVirtual(b, t) ? ` <small class="muted">(${esc(t.virtual)})</small>` : ""}</span>
         <span class="status ${esc(status || "")}">${esc(status ? t[status] || status : t.unavailable)}</span></div>
       <div class="bar"><div class="fill ${cls}" style="width:${fill}%"></div>
         <div class="mark" style="left:${b.min_soc}%"></div><div class="mark" style="left:${b.max_soc}%"></div>
@@ -1861,7 +1872,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
             }
             if (value == null) return "";
             const pct = Math.round((value / b.capacity_kwh) * 100);
-            const name = `${b.name}${b.virtual ? ` (${t.virtual})` : ""}`;
+            const name = `${b.name}${this._markVirtual(b, t) ? ` (${t.virtual})` : ""}`;
             return `<div class="r muted"><span>${esc(name)}</span><b>${approx}${esc(kwhFmt(value))} · ${pct}%</b></div>`;
           });
           return rows.join("");
