@@ -13,6 +13,10 @@ const TEXT = {
     priceNow: "Power price",
     priceFrom: "from {time}: {price}",
     priceNowAt: "Now ({time})",
+    fdTitle: "Energy flows",
+    fdToday: "today",
+    fdExcluded: "Excluded devices",
+    fdPartOfHouse: "part of the house",
     tempTitle: "Temperature and heating/cooling",
     tempOutdoor: "Outdoor (forecast)",
     tempRoom: "Room (learned)",
@@ -220,6 +224,10 @@ const TEXT = {
     priceNow: "Stroomprijs",
     priceFrom: "vanaf {time}: {price}",
     priceNowAt: "Nu ({time})",
+    fdTitle: "Energiestromen",
+    fdToday: "vandaag",
+    fdExcluded: "Uitgesloten apparaten",
+    fdPartOfHouse: "deel van het huis",
     tempTitle: "Temperatuur en verwarming/koeling",
     tempOutdoor: "Buiten (verwacht)",
     tempRoom: "Kamer (geleerd)",
@@ -425,6 +433,25 @@ const STYLE = `
     background: var(--app-header-background-color, var(--primary-color)); color: var(--app-header-text-color, #fff);
     font-size: 20px; }
   .toolbar .title { flex: 1; }
+  .fd { position: relative; max-width: 560px; margin: 8px auto 4px; aspect-ratio: 520 / 360; }
+  .fd svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .fd-line { fill: none; stroke-width: 2; opacity: .45; }
+  .fd-line.on { opacity: .9; }
+  .fd-node { position: absolute; transform: translate(-50%, -50%); width: 96px; height: 96px; border-radius: 50%;
+    border: 3px solid var(--fd-color); background: var(--card-background-color, var(--ha-card-background, #1c1c1c));
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-sizing: border-box; }
+  .fd-node ha-icon { --mdc-icon-size: 22px; color: var(--fd-color); }
+  .fd-node b { font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .fd-node small { font-size: 10px; color: var(--secondary-text-color); line-height: 1.2; max-width: 86px; }
+  .fd-node span { position: absolute; top: 100%; margin-top: 3px; font-size: 12px; color: var(--secondary-text-color); white-space: nowrap; }
+  .fd-node.fd-pv span, .fd-node.fd-zone span { top: auto; bottom: 100%; margin: 0 0 3px; }
+  .fd-node.fd-grid { --fd-color: #488fc2; }
+  .fd-node.fd-house { --fd-color: var(--primary-color); }
+  .fd-node.fd-pv { --fd-color: #ff9800; }
+  .fd-node.fd-battery { --fd-color: #4db6ac; }
+  .fd-node.fd-excluded { --fd-color: #ce93d8; }
+  .fd-node.fd-zone { --fd-color: #e53935; width: 80px; height: 80px; }
+  @media (max-width: 480px) { .fd-node { width: 74px; height: 74px; } .fd-node small { display: none; } }
   .toolbar .version { font-size: 12px; opacity: .7; margin-left: 8px; }
   .toolbar button { display: flex; align-items: center; gap: 6px; font: inherit; font-size: 14px; cursor: pointer;
     color: inherit; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.4);
@@ -704,6 +731,123 @@ class HomeBatteryAssistPanel extends HTMLElement {
   _flow(cls, icon, label, value, sub = "") {
     return `<div class="flow ${cls}"><ha-icon icon="${icon}"></ha-icon>
       <div class="value">${value}</div><div class="label">${esc(label)}${sub ? ` · ${esc(sub)}` : ""}</div></div>`;
+  }
+
+  // Energy flow diagram: every measured flow now (W, moving dots) and the
+  // energy of today per node (kWh, from the history).
+  _flowDiagram(s, t) {
+    const e = s.entities;
+    const num = (id) => this._num(id);
+    const house = num(e.house_consumption);
+    const grid = num(e.grid_power);
+    if (house === null && grid === null) return "";
+    const pv = s.has_pv ? Math.max(num(e.pv_power) || 0, 0) : null;
+    const excluded = s.has_excluded ? Math.max(num(e.excluded_power) || 0, 0) : null;
+    const battery = s.batteries.length ? num(e.batteries_power) : null;  // + charging
+    const soc = s.batteries.length ? num(e.batteries_soc) : null;
+    const zones = (s.zones || []).map((z) => ({ name: z.name, w: Math.max(this._num(z.sensor) || 0, 0) }));
+    // Who supplies whom: solar first to the house, then the excluded devices,
+    // the battery and the grid; then the battery; the grid the rest.
+    const supply = { pv: pv || 0, battery: Math.max(-(battery || 0), 0), grid: Math.max(grid || 0, 0) };
+    const demand = { house: Math.max(house || 0, 0), excluded: excluded || 0, battery: Math.max(battery || 0, 0), grid: Math.max(-(grid || 0), 0) };
+    const flows = {};
+    for (const from of ["pv", "battery", "grid"]) {
+      for (const to of ["house", "excluded", "battery", "grid"]) {
+        if (from === to) continue;
+        const w = Math.min(supply[from], demand[to]);
+        if (w > 1) {
+          flows[`${from}-${to}`] = w;
+          supply[from] -= w;
+          demand[to] -= w;
+        }
+      }
+    }
+    // Today, from the closed history intervals since local midnight.
+    const h = this._history;
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    const today = { house: 0, pv: 0, excluded: 0, charged: 0, discharged: 0, imported: 0, exported: 0 };
+    const past = h?.past || [];
+    for (let i = 0; i < past.length; i++) {
+      const [ts, hw, ex, pw, bw] = past[i];
+      if (ts < midnight.getTime() || hw == null) continue;
+      // Each row covers until the next one (hourly), at most an hour.
+      const hours = Math.min(((past[i + 1]?.[0] ?? ts + 3600e3) - ts) / 3600e3, 1);
+      today.house += hw * hours;
+      today.pv += (pw || 0) * hours;
+      today.excluded += (ex || 0) * hours;
+      today.charged += Math.max(bw || 0, 0) * hours;
+      today.discharged += Math.max(-(bw || 0), 0) * hours;
+      const g = hw - (pw || 0) + (ex || 0) + (bw || 0);
+      today.imported += Math.max(g, 0) * hours;
+      today.exported += Math.max(-g, 0) * hours;
+    }
+    const lang = this._hass.locale?.language || this._hass.language;
+    const kwh = (wh) => `${(wh / 1000).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} kWh`;
+    const hasHistory = (h?.past || []).some(([ts]) => ts >= midnight.getTime());
+    // Layout (viewBox 520 x 360): solar top, grid left, house right,
+    // battery bottom, excluded devices bottom right, zones top right.
+    const pos = { pv: [260, 60], grid: [70, 180], house: [450, 180], battery: [260, 300], excluded: [450, 300], zone: [450, 60] };
+    const paths = {
+      "pv-house": "M260 60 Q260 180 450 180",
+      "pv-grid": "M260 60 Q260 180 70 180",
+      "pv-battery": "M260 60 L260 300",
+      "pv-excluded": "M260 60 Q300 300 450 300",
+      "grid-house": "M70 180 L450 180",
+      "grid-battery": "M70 180 Q260 180 260 300",
+      "grid-excluded": "M70 180 Q300 300 450 300",
+      "battery-house": "M260 300 Q260 180 450 180",
+      "battery-grid": "M260 300 Q260 180 70 180",
+      "battery-excluded": "M260 300 L450 300",
+      "house-zone": "M450 180 L450 60",
+    };
+    const colors = { pv: "#ff9800", grid: "#488fc2", battery: "#4db6ac", export: "#8353d1", zone: "#e53935" };
+    const exists = (n) =>
+      n === "pv" ? pv !== null : n === "battery" ? battery !== null : n === "excluded" ? excluded !== null : n === "zone" ? zones.length > 0 : true;
+    if (zones.length) flows["house-zone"] = zones.reduce((a, z) => a + z.w, 0);
+    const now = Date.now() / 1000;
+    let svg = "";
+    for (const [key, d] of Object.entries(paths)) {
+      const [from, to] = key.split("-");
+      if (!exists(from) || !exists(to)) continue;
+      const color = key === "house-zone" ? colors.zone : to === "grid" ? colors.export : colors[from];
+      const w = flows[key] || 0;
+      svg += `<path d="${d}" class="fd-line${w > 1 ? " on" : ""}" stroke="${w > 1 ? color : "var(--divider-color)"}"/>`;
+      if (w > 1) {
+        // Faster with more power; the start follows the clock, so the dots
+        // do not jump back on every redraw.
+        const dur = Math.max(1.2, 6 - Math.log10(w) * 1.4);
+        for (const shift of w > 1500 ? [0, 0.5] : [0]) {
+          const begin = -((now / dur + shift) % 1) * dur;
+          // Hidden until the animation runs (no flash at the corner on a redraw).
+          svg += `<circle r="4.5" fill="${color}" visibility="hidden"><set attributeName="visibility" to="visible" begin="0s" fill="freeze"/><animateMotion dur="${dur.toFixed(2)}s" begin="${begin.toFixed(2)}s" repeatCount="indefinite" path="${d}"/></circle>`;
+        }
+      }
+    }
+    const node = (key, cls, icon, label, value, sub = "") => {
+      const [x, y] = pos[key];
+      return `<div class="fd-node ${cls}" style="left:${(x / 520) * 100}%;top:${(y / 360) * 100}%">
+        <ha-icon icon="${icon}"></ha-icon><b>${esc(value)}</b>${sub ? `<small>${esc(sub)}</small>` : ""}<span>${esc(label)}</span></div>`;
+    };
+    const todayText = (text) => (hasHistory ? `${t.fdToday} ${text}` : "");
+    const zoneW = zones.reduce((a, z) => a + z.w, 0);
+    const nodes = [
+      node("grid", "fd-grid", "mdi:transmission-tower", t.grid,
+        grid === null ? "–" : `${grid >= 0 ? "← " : "→ "}${this._power(Math.abs(grid))}`,
+        hasHistory ? `← ${kwh(today.imported)} · → ${kwh(today.exported)}` : ""),
+      node("house", "fd-house", "mdi:home", t.house, this._power(house), todayText(kwh(today.house))),
+      pv !== null ? node("pv", "fd-pv", "mdi:solar-power", t.pv, this._power(pv), todayText(kwh(today.pv))) : "",
+      battery !== null
+        ? node("battery", "fd-battery", "mdi:home-battery", t.batteries,
+            `${battery > 1 ? "↓ " : battery < -1 ? "↑ " : ""}${this._power(Math.abs(battery || 0))}`,
+            [soc !== null ? `${Math.round(soc)}%` : "", hasHistory ? `↓ ${kwh(today.charged)} · ↑ ${kwh(today.discharged)}` : ""].filter(Boolean).join(" · "))
+        : "",
+      excluded !== null
+        ? node("excluded", "fd-excluded", "mdi:ev-station", (s.excluded_names || []).join(", ") || t.fdExcluded, this._power(excluded), todayText(kwh(today.excluded)))
+        : "",
+      zones.length ? node("zone", "fd-zone", "mdi:hvac", zones.map((z) => z.name).join(", "), this._power(zoneW), t.fdPartOfHouse) : "",
+    ];
+    return `<div class="card"><h2>${esc(t.fdTitle)}</h2><div class="fd"><svg viewBox="0 0 520 360" preserveAspectRatio="xMidYMid meet">${svg}</svg>${nodes.join("")}</div></div>`;
   }
 
   _flows(s, t) {
@@ -1810,7 +1954,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     else {
       const s = this._status;
       const tabs = {
-        overview: () => [this._planner(s, t), this._flows(s, t), this._phases(s, t), this._decisions(s, t)],
+        overview: () => [this._planner(s, t), this._flows(s, t), this._flowDiagram(s, t), this._phases(s, t), this._decisions(s, t)],
         forecast: () => [this._consumption(t), this._planning(s, t)],
         value: () => [this._compare(s, t), this._planCheck(s, t)],
         batteries: () => [this._batteries(s, t)],

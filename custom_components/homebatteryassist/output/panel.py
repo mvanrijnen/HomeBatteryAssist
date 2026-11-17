@@ -18,7 +18,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
-from ..const import DOMAIN, NAME, NOMINAL_VOLTAGE
+from ..const import DOMAIN, NAME, NOMINAL_VOLTAGE, SUBENTRY_EXCLUDED_LOAD
 from ..engine.devices.batteries import telemetry as battery_telemetry
 from ..engine.devices.meters.discovery import SOURCE_NAMES, find_direct_meters
 from ..engine.devices.meters.via_ha_integration import find_meter_candidates
@@ -316,6 +316,17 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
         "has_pv_forecast": bool(data.forecast.pv_entries),
         "pv_forecast_now_w": data.forecast.data.pv_now_w,
         "has_excluded": bool(data.measurements.excluded_sensors),
+        # For the energy flow diagram: excluded devices and heating/cooling
+        # zones by name (their power sensors are read live by the panel).
+        "excluded_names": [
+            sub.title
+            for sub in entry.subentries.values()
+            if sub.subentry_type == SUBENTRY_EXCLUDED_LOAD
+        ],
+        "zones": [
+            {"name": zone.name, "sensor": zone.power_sensor}
+            for zone in data.forecast.zones
+        ],
         "entities": _entity_ids(registry, entry.entry_id, MAIN_KEYS),
         "batteries": [
             {
