@@ -15,7 +15,10 @@ from custom_components.homebatteryassist.const import (
 from custom_components.homebatteryassist.engine.control.export_limiter import (
     ExportLimiter,
 )
-from custom_components.homebatteryassist.engine.devices.inverters import get_driver
+from custom_components.homebatteryassist.engine.devices.inverters import (
+    DRIVERS,
+    get_driver,
+)
 from custom_components.homebatteryassist.engine.planning.export_limit import (
     connection_w,
     export_limit,
@@ -79,7 +82,9 @@ def test_limiter_explains_what_it_would_curtail() -> None:
     assert limiter.limit.limit_w == 0.0
     assert limiter.curtailed_w == 2000.0
     assert [k for k, _ in log.keys] == ["export_limit_started"]
-    assert limiter.would_send() == ["SMA Modbus 192.168.1.10: 40151=802, 40149=0"]
+    assert limiter.would_send() == [
+        "SMA Modbus (TL) 192.168.1.10: unit 3 40023=0 W as % x 100 of WMax"
+    ]
     # The price turns positive: no limit, the episode ends.
     limiter.update(when, -2000.0, 0.05)
     assert not limiter.limit.limited and limiter.curtailed_w == 0.0
@@ -221,3 +226,47 @@ def test_expected_limits_from_the_plan() -> None:
     assert [k for k, _ in log.keys] == ["export_limit_expected"]
     limiter.plan_updated(slots, NOW + timedelta(minutes=5))
     assert len(log.keys) == 1  # told once
+
+
+def test_sunspec_driver_describes_model_123() -> None:
+    """The SunSpec driver says what it would write in model 123; it is never
+    enabled in this phase."""
+    driver = get_driver("sunspec_modbus")
+    assert driver is not None and not driver.enabled and not driver.verified
+    text = driver.describe("192.168.1.20:502/126", 1500.4)
+    assert text == (
+        "SunSpec Modbus 192.168.1.20:502/126: model 123 "
+        "WMaxLimPct=1500 W as % of WMax, WMaxLimPct_RvrtTms=60, WMaxLim_Ena=1"
+    )
+
+
+def test_export_capacity_from_the_inverter_breakers() -> None:
+    """A 20 A breaker on a 3-phase inverter: 13.8 kW, plus 2.5 kW battery
+    discharge, below the 3x25 A connection (17.25 kW); unknown -> connection."""
+    from custom_components.homebatteryassist.engine.planning.export_limit import (
+        export_capacity_w,
+        inverter_max_w,
+    )
+
+    assert inverter_max_w(20, 3) == 13800
+    assert inverter_max_w(16, 1) == 3680
+    assert inverter_max_w(None, 3) is None and inverter_max_w(0, 3) is None
+    assert export_capacity_w(17250, [13800], 2500) == 16300
+    assert export_capacity_w(17250, [13800, 3680], 2500) == 17250  # capped
+    assert export_capacity_w(17250, [13800, None], 0) == 17250  # unknown
+    assert export_capacity_w(17250, [], 0) == 17250  # no PV source
+
+
+def test_sma_drivers_per_type() -> None:
+    """The SMA drivers say what they would write, with the Modbus unit."""
+    shm = get_driver("sma_home_manager")
+    assert shm.describe("192.168.1.5", 0) == (
+        "SMA Sunny Home Manager 192.168.1.5: unit 2 40016=0 W as % of PMAX"
+    )
+    assert shm.limits == "export"
+    storage = get_driver("sma_storage_x")
+    assert storage.describe("10.0.0.2", 3000) == (
+        "SMA Storage X 10.0.0.2: unit 3 41193=2507, unit 3 41195=60, "
+        "unit 3 40210=1077, unit 3 40212=3000"
+    )
+    assert all(not d.enabled and not d.verified for d in DRIVERS)

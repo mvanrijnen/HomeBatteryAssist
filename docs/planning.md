@@ -68,7 +68,7 @@ When the solar surplus can no longer go into the batteries, it goes to the grid.
 - **0 W** — do not export, because it does not earn money: the export price of the tariff (for a dynamic contract the market price minus the supplier's fee) minus the **export costs** of your contract (setting *Export costs*, e.g. the export fee or penalty of a fixed contract) is below the *limit price* (default 0). So: a very low or negative price, or a fixed contract whose export costs are higher than what it pays, means no export. The batteries still store what they can; the inverters would produce no more than the house and batteries use. *No export when it earns too little* switches this off.
 - **0 W always** with the setting **Never export** (optional): export is stopped altogether, whatever the price;
 - **a fixed maximum** (setting *Fixed maximum export*, e.g. the grid operator's limit; 0 = none);
-- else the **grid connection's maximum** (phases × fuse × 230 V): not limited.
+- else the **most that can be exported**: the grid connection's maximum (phases × fuse × 230 V), or less when the *breaker of the inverter* is set for every PV source (A per phase × 230 V, × 3 on all phases; set per PV source) — then the inverters plus what the batteries can discharge, e.g. a 3-phase inverter on 3 × 20 A (13.8 kW) + a 2.5 kW battery = 16.3 kW on a 3 × 25 A connection (17.25 kW). Not limited.
 
 Attributes: *limited*, the reason, the limit as current per phase, the export price, the export now, what would be curtailed now and today, and per PV source what its inverter driver would send. With a [twin](measuring.md#twin-of-a-real-battery) the export is counted as with the twin instead of the real battery.
 

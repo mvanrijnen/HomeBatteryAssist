@@ -64,8 +64,29 @@ Besides the power per phase every meter driver also reads the **current, voltage
 
 How an inverter's power could be limited for the [export limit](planning.md#export-limit-pv-inverters). **Prepared, not used**: every driver has `enabled = False`, `async_set_limit` is never called, and HomeBatteryAssist opens no connection to an inverter in this phase; the sensor *Max export* only shows what a driver would send. `base.py` = `InverterDriver` (`points`: the settings it would write, `{limit_w}` = the limit in W; `limits`: the inverter's own output or the export), `template.py` = an example.
 
-- `sma_home_manager.py` — SMA inverters with a **Sunny Home Manager 2.0** (together in ennexOS / Sunny Portal): the limit then belongs to the Home Manager, which limits all its SMA inverters; an inverter must not be limited directly beside it. How to change the Home Manager's limit locally is not known yet (it is set in Sunny Portal / ennexOS), so this driver only says the export limit would go through the Home Manager. The Home Manager is read as a [meter](#meters--enginedevicesmeters) already.
-- `sma_modbus.py` — an SMA Sunny Boy / Sunny Tripower **without** a Home Manager, via Modbus TCP: active power through communication with a setpoint in W. **The registers differ per SMA model**; the driver has an example (40151 = 802, 40149 = W, unit 3, port 502) from SMA's Modbus documentation, *not verified on a device*.
+- `sma_home_manager.py` — SMA inverters with a **Sunny Home Manager 2.0** (together in ennexOS / Sunny Portal): the limit then belongs to the Home Manager, which limits all its SMA inverters; an inverter must not be written directly beside it. The Home Manager (software package ≥ 2.10) is a Modbus TCP server for grid management services: unit **2**, register **40016** = setpoint in % of the system's PMAX. It takes the house consumption into account, so it limits the **export**. Switch on in Sunny Portal / ennexOS: *Grid management services via Ethernet based communication* and *Limitation of active power feed-in* (*Implement external setpoints only*). A setpoint is valid 60 minutes, then it falls back to 100 %. The Home Manager is read as a [meter](#meters--enginedevicesmeters) already.
+- `sma_modbus.py` — older SMA types (Sunny Boy TL-21, Sunny Tripower TL-10/-20/-30) **without** a Home Manager: register **40023** = limit in % × 100 of WMax (unit 3). The fallback is set in the inverter's web interface (*Use fallback setting*); otherwise it keeps the last limit.
+- `sma_storage_x.py` — SMA Sunny Tripower Storage X / Sunny Island X without a Home Manager: 40210 = 1077 (manual in W), 40212 = limit in W, fallback 41193 = 2507 with timeout 41195 (unit 3).
+- `sunspec_modbus.py` — **any inverter with SunSpec Modbus** (SMA, Fronius, SolarEdge, Kostal, Huawei, ABB / FIMER, ...): the vendor-neutral register map. It starts at 40000 (`SunS`), followed by a chain of models whose addresses differ per device, so the driver walks the chain. The limit goes through model **123** (*Immediate Controls*): `WMaxLimPct` (offset 3, % of `WMax` from model 121, scaled by `WMaxLimPct_SF`), `WMaxLimPct_RvrtTms` (offset 5: after 60 s without a new write the inverter returns to full power by itself) and `WMaxLim_Ena` (offset 7, 1 = on). Address `host[:port][/unit]`; the unit id differs per brand (SMA 126, Fronius and SolarEdge 1). Newer devices with model 704 (SunSpec 2018 / IEEE 1547) are not covered yet. From the SunSpec specification. With a Sunny Home Manager the SHM driver applies, not this one.
+
+All from the manufacturers' documentation and users' reports, *not verified on a device*.
+
+### SMA per type {#sma-per-type}
+
+| Type | Driver | Limit | Fallback when the setpoints stop | SunSpec |
+|---|---|---|---|---|
+| Any SMA inverter with a **Sunny Home Manager 2.0** | `sma_home_manager` | unit 2, 40016 = % of PMAX (export) | after 60 min back to 100 % | — |
+| Sunny Boy 3.0–6.0-1AV-40/41 | `sunspec_modbus` | model 123 `WMaxLimPct` (unit 126) | `WMaxLimPct_RvrtTms` | 1AV-41 from firmware 4.00.23.R |
+| Sunny Tripower 3.0–10.0-3AV-40 | `sunspec_modbus` | model 123 `WMaxLimPct` (unit 126) | `WMaxLimPct_RvrtTms` | from firmware 4.00.02.R |
+| Sunny Tripower CORE1 | `sunspec_modbus` | model 123 `WMaxLimPct` (unit 126) | `WMaxLimPct_RvrtTms` | from firmware 3.14 |
+| Sunny Boy TL-21, Sunny Tripower TL-10/-20/-30 | `sma_modbus` | 40023 = % × 100 (unit 3) | web interface: *Use fallback setting* | no |
+| Sunny Tripower Storage X, Sunny Island X | `sma_storage_x` | 40210 = 1077, 40212 = W (unit 3) | 41193 = 2507, timeout 41195 | — |
+| Sunny Tripower X (STP 12–25-50), Sunny Boy Smart Energy | — (registers not published yet; SunSpec on the STP X after a firmware update) | | | |
+
+- **Modbus is off by default**: switch it on in the inverter (port 502). SMA's unit id is 3; SunSpec is SMA's unit + 123 (126).
+- **Flash memory**: write only grid management values cyclically (SunSpec model 123, the % setpoints, the Home Manager's 40016). Normal settings such as `WMax` (40915) are stored in flash; SMA warns that changing them cyclically destroys the flash memory.
+- **Possible power**: SMA publishes no register for the power the panels could give now; *Possible power* of a PV source needs a sensor of its own (e.g. from the DC power per string). An inverter that is limited only produces what is asked.
+- Sources: SMA's Modbus documents (*SMA-Modbus-general-TI*, *SunSpecModbus-TI*, *SMAModbus-ennexOS-TI*, *SMAModbus-STPS-X-SI-X-TI*, *HM-20-Modbus-NSD-TI*, on files.sma.de) and users' reports for the TL types.
 
 ## Supported now
 

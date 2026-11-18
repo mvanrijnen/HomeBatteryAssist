@@ -35,8 +35,10 @@ from .const import (
     CONF_INTERCEPTOR,
     CONF_INVERTER_ADDRESS,
     CONF_INVERTER_DRIVER,
+    CONF_INVERTER_MAX_CURRENT,
     CONF_NOTIFY_KINDS,
     CONF_NOTIFY_TARGETS,
+    CONF_PHASE,
     CONF_PV_DEVIATION_MINUTES,
     CONF_SPIKE_DURATION,
     CONF_SPIKE_FILTER,
@@ -54,6 +56,7 @@ from .const import (
     DEFAULT_SPIKE_DURATION,
     DEFAULT_SPIKE_THRESHOLD,
     DOMAIN,
+    PHASE_NONE,
     SUBENTRY_PV_SOURCE,
 )
 from .engine.control.control_test import ControlTest
@@ -91,7 +94,11 @@ from .engine.measure.spike_filters import (
     create_spike_filter,
 )
 from .engine.planning.battery_plan import MODE_NOM
-from .engine.planning.export_limit import connection_w
+from .engine.planning.export_limit import (
+    connection_w,
+    export_capacity_w,
+    inverter_max_w,
+)
 from .engine.planning.planners import async_load_user_planners
 from .engine.sources.pv_forecasts import async_load_user_pv_sources
 from .engine.sources.tariffs import async_load_user_tariffs
@@ -473,6 +480,22 @@ async def async_setup_entry(
 
     # The export limit (PV inverters): shown and explained; nothing is sent.
     options = entry.options
+    pv_subs = [
+        sub
+        for sub in entry.subentries.values()
+        if sub.subentry_type == SUBENTRY_PV_SOURCE
+    ]
+    grid_w = connection_w(measurements.phases, measurements.max_current)
+    pv_max = [
+        inverter_max_w(
+            sub.data.get(CONF_INVERTER_MAX_CURRENT),
+            measurements.phases
+            if sub.data.get(CONF_PHASE, PHASE_NONE) == PHASE_NONE
+            else 1,
+        )
+        for sub in pv_subs
+    ]
+    battery_max = sum(c.max_discharge_w for c in batteries.configs if not c.virtual)
     export_limiter = ExportLimiter(
         decisions,
         enabled=bool(options.get(CONF_EXPORT_LIMIT, DEFAULT_EXPORT_LIMIT)),
@@ -482,15 +505,19 @@ async def async_setup_entry(
         fixed_w=float(options.get(CONF_EXPORT_LIMIT_MAX_W, DEFAULT_EXPORT_LIMIT_MAX_W)),
         cost=float(options.get(CONF_EXPORT_LIMIT_COST, DEFAULT_EXPORT_LIMIT_COST)),
         never=bool(options.get(CONF_EXPORT_NEVER, DEFAULT_EXPORT_NEVER)),
-        connection=connection_w(measurements.phases, measurements.max_current),
+        connection=export_capacity_w(grid_w, pv_max, battery_max),
+        capacity={
+            "connection_w": round(grid_w),
+            "inverters_w": [None if w is None else round(w) for w in pv_max],
+            "batteries_w": round(battery_max),
+        },
         inverters=[
             (
                 sub.data[CONF_NAME],
                 get_inverter_driver(sub.data.get(CONF_INVERTER_DRIVER)),
                 sub.data.get(CONF_INVERTER_ADDRESS, ""),
             )
-            for sub in entry.subentries.values()
-            if sub.subentry_type == SUBENTRY_PV_SOURCE
+            for sub in pv_subs
         ],
         decimal_comma=comma,
     )

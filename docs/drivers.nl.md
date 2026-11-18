@@ -64,8 +64,29 @@ Naast het vermogen per fase leest elke meterdriver ook de **stroom, spanning en 
 
 Hoe het vermogen van een omvormer begrensd zou kunnen worden voor de [begrenzing van de teruglevering](planning.md#export-limit-pv-inverters). **Voorbereid, niet gebruikt**: elke driver heeft `enabled = False`, `async_set_limit` wordt nooit aangeroepen, en HomeBatteryAssist maakt in deze fase geen verbinding met een omvormer; de sensor *Max. teruglevering* toont alleen wat een driver zou sturen. `base.py` = `InverterDriver` (`points`: de instellingen die hij zou schrijven, `{limit_w}` = de grens in W; `limits`: het eigen vermogen van de omvormer of de teruglevering), `template.py` = een voorbeeld.
 
-- `sma_home_manager.py` — SMA-omvormers met een **Sunny Home Manager 2.0** (samen in ennexOS / Sunny Portal): de grens hoort dan bij de Home Manager, die al zijn SMA-omvormers begrenst; een omvormer mag daarnaast niet rechtstreeks begrensd worden. Hoe de grens van de Home Manager lokaal te wijzigen is, is nog niet bekend (hij wordt ingesteld in Sunny Portal / ennexOS), dus deze driver zegt alleen dat de begrenzing via de Home Manager zou gaan. De Home Manager wordt al uitgelezen als [meter](#meters-enginedevicesmeters).
-- `sma_modbus.py` — een SMA Sunny Boy / Sunny Tripower **zonder** Home Manager, via Modbus TCP: werkvermogen via communicatie met een setpoint in W. **De registers verschillen per SMA-model**; de driver heeft een voorbeeld (40151 = 802, 40149 = W, unit 3, poort 502) uit de Modbus-documentatie van SMA, *niet geverifieerd op een apparaat*.
+- `sma_home_manager.py` — SMA-omvormers met een **Sunny Home Manager 2.0** (samen in ennexOS / Sunny Portal): de grens hoort dan bij de Home Manager, die al zijn SMA-omvormers begrenst; een omvormer mag daarnaast niet rechtstreeks beschreven worden. De Home Manager (softwarepakket ≥ 2.10) is een Modbus TCP-server voor netbeheerdiensten: unit **2**, register **40016** = setpoint in % van de PMAX van de installatie. Hij houdt rekening met het huisverbruik, dus hij begrenst de **teruglevering**. Aanzetten in Sunny Portal / ennexOS: *Netbeheerdiensten via Ethernet-communicatie* en *Begrenzing van de teruglevering* (*Alleen externe setpoints uitvoeren*). Een setpoint geldt 60 minuten, daarna valt hij terug naar 100 %. De Home Manager wordt al uitgelezen als [meter](#meters-enginedevicesmeters).
+- `sma_modbus.py` — oudere SMA-types (Sunny Boy TL-21, Sunny Tripower TL-10/-20/-30) **zonder** Home Manager: register **40023** = grens in % × 100 van WMax (unit 3). Het terugvallen stel je in de webinterface van de omvormer in (*Use fallback setting*); anders houdt hij de laatste grens vast.
+- `sma_storage_x.py` — SMA Sunny Tripower Storage X / Sunny Island X zonder Home Manager: 40210 = 1077 (handmatig in W), 40212 = grens in W, terugvallen 41193 = 2507 met time-out 41195 (unit 3).
+- `sunspec_modbus.py` — **elke omvormer met SunSpec Modbus** (SMA, Fronius, SolarEdge, Kostal, Huawei, ABB / FIMER, ...): de merkonafhankelijke registerindeling. Die begint op 40000 (`SunS`), gevolgd door een keten van modellen waarvan de adressen per apparaat verschillen; de driver loopt die keten dus af. De begrenzing gaat via model **123** (*Immediate Controls*): `WMaxLimPct` (offset 3, % van `WMax` uit model 121, geschaald met `WMaxLimPct_SF`), `WMaxLimPct_RvrtTms` (offset 5: na 60 s zonder nieuwe opdracht gaat de omvormer zelf terug naar vol vermogen) en `WMaxLim_Ena` (offset 7, 1 = aan). Adres `host[:poort][/unit]`; het unit-id verschilt per merk (SMA 126, Fronius en SolarEdge 1). Nieuwere apparaten met model 704 (SunSpec 2018 / IEEE 1547) worden nog niet ondersteund. Uit de SunSpec-specificatie. Met een Sunny Home Manager geldt de SHM-driver, niet deze.
+
+Alles uit de documentatie van de fabrikanten en ervaringen van gebruikers, *niet geverifieerd op een apparaat*.
+
+### SMA per type {#sma-per-type}
+
+| Type | Driver | Begrenzing | Terugvallen als de setpoints stoppen | SunSpec |
+|---|---|---|---|---|
+| Elke SMA-omvormer met een **Sunny Home Manager 2.0** | `sma_home_manager` | unit 2, 40016 = % van PMAX (teruglevering) | na 60 min terug naar 100 % | — |
+| Sunny Boy 3.0–6.0-1AV-40/41 | `sunspec_modbus` | model 123 `WMaxLimPct` (unit 126) | `WMaxLimPct_RvrtTms` | 1AV-41 vanaf firmware 4.00.23.R |
+| Sunny Tripower 3.0–10.0-3AV-40 | `sunspec_modbus` | model 123 `WMaxLimPct` (unit 126) | `WMaxLimPct_RvrtTms` | vanaf firmware 4.00.02.R |
+| Sunny Tripower CORE1 | `sunspec_modbus` | model 123 `WMaxLimPct` (unit 126) | `WMaxLimPct_RvrtTms` | vanaf firmware 3.14 |
+| Sunny Boy TL-21, Sunny Tripower TL-10/-20/-30 | `sma_modbus` | 40023 = % × 100 (unit 3) | webinterface: *Use fallback setting* | nee |
+| Sunny Tripower Storage X, Sunny Island X | `sma_storage_x` | 40210 = 1077, 40212 = W (unit 3) | 41193 = 2507, time-out 41195 | — |
+| Sunny Tripower X (STP 12–25-50), Sunny Boy Smart Energy | — (registers nog niet gepubliceerd; SunSpec op de STP X na een firmware-update) | | | |
+
+- **Modbus staat standaard uit**: zet het aan in de omvormer (poort 502). Het unit-id van SMA is 3; SunSpec is het SMA-unit + 123 (126).
+- **Flashgeheugen**: schrijf alleen netbeheerwaarden herhaaldelijk (SunSpec model 123, de %-setpoints, 40016 van de Home Manager). Gewone instellingen zoals `WMax` (40915) staan in flash; SMA waarschuwt dat ze herhaaldelijk wijzigen het flashgeheugen kapotmaakt.
+- **Mogelijk vermogen**: SMA publiceert geen register met wat de panelen nu zouden kunnen leveren; *Mogelijk vermogen* van een PV-bron heeft een eigen sensor nodig (bijv. uit het DC-vermogen per string). Een begrensde omvormer levert alleen wat gevraagd wordt.
+- Bronnen: de Modbus-documenten van SMA (*SMA-Modbus-general-TI*, *SunSpecModbus-TI*, *SMAModbus-ennexOS-TI*, *SMAModbus-STPS-X-SI-X-TI*, *HM-20-Modbus-NSD-TI*, op files.sma.de) en ervaringen van gebruikers voor de TL-types.
 
 ## Nu ondersteund {#supported-now}
 

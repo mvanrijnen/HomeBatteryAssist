@@ -22,6 +22,7 @@ class Point:
     address: int
     name: str
     value: str  # what would be written, e.g. "802" or "{limit_w}"
+    unit: int | None = None  # Modbus unit id, when it differs per point
 
 
 class InverterDriver:
@@ -41,7 +42,9 @@ class InverterDriver:
     def describe(self, address: str, limit_w: float) -> str:
         """What it would send for this limit (for the attributes and *Why*)."""
         parts = [
-            f"{p.address}={p.value.format(limit_w=round(limit_w))}" for p in self.points
+            ("" if p.unit is None else f"unit {p.unit} ")
+            + f"{p.address}={p.value.format(limit_w=round(limit_w))}"
+            for p in self.points
         ]
         return f"{self.name} {address}: " + ", ".join(parts)
 

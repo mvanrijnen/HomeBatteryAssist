@@ -5,10 +5,14 @@ from __future__ import annotations
 from .base import InverterDriver, Point
 from .sma_home_manager import SmaHomeManagerInverterDriver
 from .sma_modbus import SmaModbusInverterDriver
+from .sma_storage_x import SmaStorageXInverterDriver
+from .sunspec_modbus import SunSpecModbusInverterDriver
 
 DRIVERS: tuple[InverterDriver, ...] = (
     SmaHomeManagerInverterDriver(),
     SmaModbusInverterDriver(),
+    SmaStorageXInverterDriver(),
+    SunSpecModbusInverterDriver(),
 )
 
 

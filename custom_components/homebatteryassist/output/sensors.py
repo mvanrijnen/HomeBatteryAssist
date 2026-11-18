@@ -275,6 +275,10 @@ class ExportLimitSensor(HomeBatteryAssistEntity, SensorEntity):
             "curtailed_w": round(limiter.curtailed_w),
             "curtailed_today_kwh": round(limiter.today_kwh, 3),
             "would_send": limiter.would_send() if limit.limited else [],
+            # The most that can be exported (not limited): connection,
+            # inverter breakers + batteries.
+            "max_possible_w": round(limiter.connection),
+            **limiter.capacity,
             # Coming periods in which export would be limited (plan).
             "expected": [
                 {

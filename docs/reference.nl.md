@@ -229,8 +229,9 @@ Een meting van zonne-opwek (PV), bijvoorbeeld een omvormer. De opwek wordt bij d
 | **Gemeten door** | Een sensor van een andere integratie, of een meter die rechtstreeks wordt uitgelezen (ongeveer elke seconde, alleen lezen), bijv. een HomeWizard kWh-meter op de groep van de omvormer. |
 | **IP-adres meter** | Alleen bij een rechtstreeks uitgelezen meter. |
 | **Omvormer-driver (begrenzing teruglevering)** | Hoe deze omvormer begrensd zou kunnen worden voor de begrenzing van de teruglevering. In deze fase wordt niets verstuurd: alleen getoond wat hij zou sturen. |
-| **Adres omvormer** | IP-adres van de omvormer, voor de driver. |
+| **Adres omvormer** | Adres van de omvormer voor de driver: IP-adres, eventueel met poort en unit-id (host:poort/unit, bijv. 192.168.1.20:502/126 voor SunSpec op een SMA). |
 | **Mogelijk vermogen (optioneel)** | Wat deze PV-bron nu zou kunnen leveren (W), bijv. een register van een SMA-omvormer, ingelezen met de Modbus-integratie van Home Assistant. Waar het hoger is dan het gemeten vermogen, werd PV tegengehouden (begrensd): HomeBatteryAssist leert dan van wat de zon gaf, en toont wat er tegengehouden wordt. |
+| **Automaat van de omvormer (A per fase)** | De automaat van de groep van de omvormer (bijv. 20 A): het meeste dat deze omvormer kan leveren (A x 230 V, x 3 als hij op alle fasen zit). Als dit bij elke PV-bron is ingevuld, is Max. teruglevering niet meer dan de omvormers plus de batterijen kunnen leveren, in plaats van het maximum van de netaansluiting. |
 
 ### Uitgesloten apparaat {#device-excluded-load}
 

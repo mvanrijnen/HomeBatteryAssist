@@ -99,6 +99,7 @@ from .const import (
     CONF_INTERCEPTOR,
     CONF_INVERTER_ADDRESS,
     CONF_INVERTER_DRIVER,
+    CONF_INVERTER_MAX_CURRENT,
     CONF_LOSS_MAX,
     CONF_LOSS_MIN,
     CONF_MANUAL_POWER,
@@ -1733,6 +1734,15 @@ class PvSourceSubentryFlow(_MeasuredDeviceSubentryFlow):
             )
         ),
         CONF_INVERTER_ADDRESS: TextSelector(),
+        CONF_INVERTER_MAX_CURRENT: NumberSelector(
+            NumberSelectorConfig(
+                min=1,
+                max=80,
+                step=1,
+                unit_of_measurement="A",
+                mode=NumberSelectorMode.BOX,
+            )
+        ),
         CONF_PV_POSSIBLE_SENSOR: EntitySelector(
             EntitySelectorConfig(domain="sensor", device_class="power")
         ),

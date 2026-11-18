@@ -229,8 +229,9 @@ A measurement of solar (PV) production, e.g. an inverter. Its production is adde
 | **Measured by** | A sensor of another integration, or a meter read directly (about every second, read-only), e.g. a HomeWizard kWh meter on the inverter's line. |
 | **Meter IP address** | Only for a meter read directly. |
 | **Inverter driver (export limit)** | How this inverter could be limited for the export limit. In this phase nothing is sent: only shown what it would send. |
-| **Inverter address** | IP address of the inverter, for the driver. |
+| **Inverter address** | Address of the inverter for the driver: IP address, optionally with port and unit id (host:port/unit, e.g. 192.168.1.20:502/126 for SunSpec on an SMA). |
 | **Possible power (optional)** | What this PV source could produce now (W), e.g. an SMA inverter's register read with Home Assistant's Modbus integration. Where it is higher than the measured power, the PV was held back (curtailed): HomeBatteryAssist then learns from what the sun gave, and shows what is held back. |
+| **Breaker of the inverter (A per phase)** | The breaker of the inverter's group (e.g. 20 A): the most this inverter can deliver (A x 230 V, x 3 when it is on all phases). When it is set for every PV source, Max export is no more than the inverters plus the batteries can deliver, instead of the grid connection's maximum. |
 
 ### Excluded device {#device-excluded-load}
 

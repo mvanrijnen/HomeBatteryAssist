@@ -62,6 +62,7 @@ async def test_add_device_three_phase(hass: HomeAssistant, kind: str) -> None:
             "pv_address",
             "inverter_driver",
             "inverter_address",
+            "inverter_max_current",
             "possible_sensor",
         }
         if kind == SUBENTRY_PV_SOURCE
@@ -109,6 +110,7 @@ async def test_single_phase_has_no_phase_field(hass: HomeAssistant) -> None:
         "pv_address",
         "inverter_driver",
         "inverter_address",
+        "inverter_max_current",
         "possible_sensor",
     }
 

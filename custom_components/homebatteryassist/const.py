@@ -222,6 +222,8 @@ CONF_PV_DRIVER: Final = "pv_driver"  # "sensor" or a meter driver key
 CONF_BATTERY_METER: Final = "battery_meter"  # "none" or a meter driver key
 CONF_BATTERY_METER_ADDRESS: Final = "battery_meter_address"
 BATTERY_METER_NONE: Final = "none"
+# The breaker of a PV inverter's group (A per phase): the most it can deliver.
+CONF_INVERTER_MAX_CURRENT: Final = "inverter_max_current"
 CONF_PV_ADDRESS: Final = "pv_address"  # address of a directly read PV meter
 PV_DRIVER_SENSOR: Final = "sensor"
 # Optional per-phase sensors of a 3-phase device (PV inverter, EV charger)

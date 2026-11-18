@@ -51,6 +51,7 @@ class ExportLimiter:
         cost: float = 0.0,
         never: bool = False,
         connection: float,
+        capacity: dict[str, Any] | None = None,
         inverters: list[tuple[str, Any, str]],  # (name, driver, address)
         decimal_comma: bool = False,
     ) -> None:
@@ -62,6 +63,9 @@ class ExportLimiter:
         self.never = never
         self.fixed_w = fixed_w
         self.connection = connection
+        # How the most that can be exported was found (connection,
+        # inverter breakers, batteries), for the sensor.
+        self.capacity = capacity or {}
         self.inverters = inverters
         self._comma = decimal_comma
         self.limit = ExportLimit(connection, False, "none")
