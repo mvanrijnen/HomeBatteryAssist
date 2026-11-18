@@ -200,12 +200,13 @@ Of elke batterij doet wat haar opgedragen wordt (in deze fase door haar eigen in
 
 ### Begrenzing teruglevering (PV-omvormers) {#settings-export-limit}
 
-Hoeveel er nu maximaal teruggeleverd mag worden, als de sensor Max. teruglevering op de netaansluiting (0 W = niet terugleveren). In deze fase alleen getoond en uitgelegd in Waarom (hoeveel de omvormers minder zouden leveren, en wat dat waard is); er wordt niets naar een omvormer gestuurd.
+Hoeveel er nu maximaal teruggeleverd mag worden, als de sensor Max. teruglevering op de netaansluiting (0 W = niet terugleveren): alleen terugleveren als het na kosten geld oplevert (terugleverprijs van het tarief, min de terugleverkosten van je contract), of een vaste maximum. In deze fase alleen getoond en uitgelegd in Waarom; er wordt niets naar een omvormer gestuurd.
 
 | Veld | Uitleg |
 |---|---|
-| **Niet terugleveren bij een lage terugleverprijs** | Onder de terugleverprijs hieronder is de grens 0 W: de batterijen slaan nog op wat ze kunnen, de omvormers zouden niet meer leveren dan huis en batterijen gebruiken. |
-| **Terugleverprijs waaronder niets wordt teruggeleverd** | Per kWh, in de prijseenheid van de prijsbron (na het tarief). Standaard 0: alleen bij een negatieve terugleverprijs. |
+| **Niet terugleveren als het te weinig oplevert** | Onder de grensprijs (terugleverprijs min terugleverkosten) is de grens 0 W: de batterijen slaan nog op wat ze kunnen, de omvormers zouden niet meer leveren dan huis en batterijen gebruiken. Uit: alleen een vaste maximum begrenst. |
+| **Terugleverkosten (vergoeding of boete)** | Per teruggeleverde kWh, bovenop de terugleverprijs: bijv. de terugleverkosten van een vast contract. Alleen terugleveren als de terugleverprijs min deze kosten boven de grensprijs ligt. Standaard 0. |
+| **Grensprijs (netto)** | Alleen terugleveren als de terugleverprijs (na het tarief, min de terugleverkosten) hierboven ligt, per kWh. Standaard 0: alleen als terugleveren geld oplevert; bij een negatieve prijs nooit. |
 | **Vaste maximale teruglevering** | Bijv. een grens van de netbeheerder. 0 = geen. |
 
 ## Apparaten en tijdvakken {#devices}

@@ -83,6 +83,7 @@ from .const import (
     CONF_EXPORT_ENTITIES,
     CONF_EXPORT_FACTOR,
     CONF_EXPORT_LIMIT,
+    CONF_EXPORT_LIMIT_COST,
     CONF_EXPORT_LIMIT_MAX_W,
     CONF_EXPORT_LIMIT_PRICE,
     CONF_EXPORT_MODE,
@@ -177,6 +178,7 @@ from .const import (
     DEFAULT_EFFICIENCY,
     DEFAULT_EXPORT_FACTOR,
     DEFAULT_EXPORT_LIMIT,
+    DEFAULT_EXPORT_LIMIT_COST,
     DEFAULT_EXPORT_LIMIT_MAX_W,
     DEFAULT_EXPORT_LIMIT_PRICE,
     DEFAULT_EXPORT_MODE,
@@ -468,7 +470,12 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
     ),
     "reaction": ("react_interval_s", "react_average", "react_jump", "react_jump_w"),
     "command_check": ("command_check_w", "command_check_minutes"),
-    "export_limit": ("export_limit_on", "export_limit_price", "export_limit_max_w"),
+    "export_limit": (
+        "export_limit_on",
+        "export_limit_cost",
+        "export_limit_price",
+        "export_limit_max_w",
+    ),
     "full_charge": ("full_charge_window_days", "full_charge_day", "full_charge_solar"),
     "notifications": ("notify_targets", "notify_kinds"),
     "weather": (
@@ -938,6 +945,10 @@ async def _flat_settings_schema(
             default=current.get(CONF_EXPORT_LIMIT_PRICE, DEFAULT_EXPORT_LIMIT_PRICE),
         ): _number(-1, 1, 0.001, "/kWh"),
         vol.Required(
+            CONF_EXPORT_LIMIT_COST,
+            default=current.get(CONF_EXPORT_LIMIT_COST, DEFAULT_EXPORT_LIMIT_COST),
+        ): _number(0, 1, 0.001, "/kWh"),
+        vol.Required(
             CONF_EXPORT_LIMIT_MAX_W,
             default=current.get(CONF_EXPORT_LIMIT_MAX_W, DEFAULT_EXPORT_LIMIT_MAX_W),
         ): _number(0, 100000, 50, "W"),
@@ -1159,6 +1170,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     )
     options[CONF_EXPORT_LIMIT_PRICE] = float(
         user_input.get(CONF_EXPORT_LIMIT_PRICE, DEFAULT_EXPORT_LIMIT_PRICE)
+    )
+    options[CONF_EXPORT_LIMIT_COST] = float(
+        user_input.get(CONF_EXPORT_LIMIT_COST, DEFAULT_EXPORT_LIMIT_COST)
     )
     options[CONF_EXPORT_LIMIT_MAX_W] = int(
         user_input.get(CONF_EXPORT_LIMIT_MAX_W, DEFAULT_EXPORT_LIMIT_MAX_W)

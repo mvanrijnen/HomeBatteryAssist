@@ -1,7 +1,8 @@
 """The export limit: the most that may be exported to the grid now.
 
-- below the export limit price (default 0, so at a negative export price)
-  nothing is exported: limit 0 W (the batteries still take what they can;
+- when exporting earns too little: the export price minus the export
+  costs of the contract (a fee or penalty per kWh) below the export limit
+  price (default 0: only when exporting earns money) -> nothing is exported: limit 0 W (the batteries still take what they can;
   the inverters would produce no more than the house and batteries use);
 - else a fixed maximum when set (e.g. a grid operator's limit);
 - else no limit: the grid connection's maximum (phases x fuse x 230 V).
@@ -44,11 +45,12 @@ def export_limit(
     enabled: bool,
     price: float | None,
     threshold: float,
+    cost: float = 0.0,
     fixed_w: float,
     connection: float,
 ) -> ExportLimit:
     """The export limit now (see the module docstring)."""
-    if enabled and price is not None and price < threshold:
+    if enabled and price is not None and price - cost < threshold:
         return ExportLimit(0.0, True, REASON_PRICE)
     if fixed_w > 0 and fixed_w < connection:
         return ExportLimit(float(fixed_w), True, REASON_FIXED)

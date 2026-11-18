@@ -27,6 +27,7 @@ from .const import (
     CONF_COMMAND_CHECK_MINUTES,
     CONF_COMMAND_CHECK_W,
     CONF_EXPORT_LIMIT,
+    CONF_EXPORT_LIMIT_COST,
     CONF_EXPORT_LIMIT_MAX_W,
     CONF_EXPORT_LIMIT_PRICE,
     CONF_HISTORY_INTERVAL,
@@ -43,6 +44,7 @@ from .const import (
     DEFAULT_COMMAND_CHECK_MINUTES,
     DEFAULT_COMMAND_CHECK_W,
     DEFAULT_EXPORT_LIMIT,
+    DEFAULT_EXPORT_LIMIT_COST,
     DEFAULT_EXPORT_LIMIT_MAX_W,
     DEFAULT_EXPORT_LIMIT_PRICE,
     DEFAULT_HISTORY_INTERVAL,
@@ -476,6 +478,7 @@ async def async_setup_entry(
             options.get(CONF_EXPORT_LIMIT_PRICE, DEFAULT_EXPORT_LIMIT_PRICE)
         ),
         fixed_w=float(options.get(CONF_EXPORT_LIMIT_MAX_W, DEFAULT_EXPORT_LIMIT_MAX_W)),
+        cost=float(options.get(CONF_EXPORT_LIMIT_COST, DEFAULT_EXPORT_LIMIT_COST)),
         connection=connection_w(measurements.phases, measurements.max_current),
         inverters=[
             (

@@ -65,7 +65,7 @@ In this phase of development the [virtual batteries](measuring.md#virtual-batter
 
 When the solar surplus can no longer go into the batteries, it goes to the grid. At a negative export price that costs money; and a grid operator may cap the export. The sensor **Max export** on the *Grid connection* device says how much may be exported now:
 
-- **0 W** — do not export: the export price is below the *export price below which nothing is exported* (default 0, so at a negative export price). The batteries still store what they can; the inverters would produce no more than the house and batteries use.
+- **0 W** — do not export, because it does not earn money: the export price of the tariff (for a dynamic contract the market price minus the supplier's fee) minus the **export costs** of your contract (setting *Export costs*, e.g. the export fee or penalty of a fixed contract) is below the *limit price* (default 0). So: a very low or negative price, or a fixed contract whose export costs are higher than what it pays, means no export. The batteries still store what they can; the inverters would produce no more than the house and batteries use. *No export when it earns too little* switches this off.
 - **a fixed maximum** (setting *Fixed maximum export*, e.g. the grid operator's limit; 0 = none);
 - else the **grid connection's maximum** (phases × fuse × 230 V): not limited.
 

@@ -41,6 +41,7 @@ class ExportLimiter:
         enabled: bool,
         threshold: float,
         fixed_w: float,
+        cost: float = 0.0,
         connection: float,
         inverters: list[tuple[str, Any, str]],  # (name, driver, address)
         decimal_comma: bool = False,
@@ -49,6 +50,7 @@ class ExportLimiter:
         self._decisions = decisions
         self.enabled = enabled
         self.threshold = threshold
+        self.cost = cost
         self.fixed_w = fixed_w
         self.connection = connection
         self.inverters = inverters
@@ -89,6 +91,7 @@ class ExportLimiter:
             enabled=self.enabled,
             price=price,
             threshold=self.threshold,
+            cost=self.cost,
             fixed_w=self.fixed_w,
             connection=self.connection,
         )
@@ -147,12 +150,12 @@ class ExportLimiter:
     def _reason(self) -> str:
         dutch = self._comma
         if self.limit.reason == REASON_PRICE:
-            price = self._num(self.price or 0.0, 3)
+            price = self._num((self.price or 0.0) - self.cost, 3)
             threshold = self._num(self.threshold, 3)
             return (
-                f"terugleverprijs {price} onder {threshold}"
+                f"netto terugleverprijs {price} onder {threshold}"
                 if dutch
-                else f"export price {price} below {threshold}"
+                else f"net export price {price} below {threshold}"
             )
         return "vaste grens" if dutch else "fixed limit"
 

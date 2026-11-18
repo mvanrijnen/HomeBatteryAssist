@@ -40,6 +40,11 @@ def test_export_limit_rule() -> None:
     assert (limit.limit_w, limit.reason) == (5000.0, "fixed")
     limit = export_limit(price=-0.01, connection=CONNECTION, **fixed)
     assert limit.limit_w == 0.0  # the price wins
+    # A fixed contract with an export fee: 0.07 earned - 0.09 costs < 0.
+    limit = export_limit(price=0.07, cost=0.09, connection=CONNECTION, **rule)
+    assert (limit.limit_w, limit.reason) == (0.0, "price")
+    limit = export_limit(price=0.12, cost=0.09, connection=CONNECTION, **rule)
+    assert not limit.limited  # still earns 0.03 per kWh
     off = {**rule, "enabled": False}
     assert not export_limit(price=-0.5, connection=CONNECTION, **off).limited
 

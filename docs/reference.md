@@ -200,12 +200,13 @@ Whether each battery does what it is told (in this phase by its own integration,
 
 ### Export limit (PV inverters) {#settings-export-limit}
 
-The most that may be exported now, as the sensor Max export on the grid connection (0 W = no export). In this phase only shown and explained in Why (what the inverters would produce less, and what that is worth); nothing is sent to an inverter.
+The most that may be exported now, as the sensor Max export on the grid connection (0 W = no export): only export when it earns money after costs (export price of the tariff, minus the export costs of your contract), or a fixed maximum. In this phase only shown and explained in Why; nothing is sent to an inverter.
 
 | Field | Explanation |
 |---|---|
-| **No export at a low export price** | Below the export price below, the limit is 0 W: the batteries still store what they can, the inverters would produce no more than the house and batteries use. |
-| **Export price below which nothing is exported** | Per kWh, in the price unit of the price source (after the tariff). Default 0: only at a negative export price. |
+| **No export when it earns too little** | Below the limit price (the export price minus the export costs), the limit is 0 W: the batteries still store what they can, the inverters would produce no more than the house and batteries use. Off: only a fixed maximum limits. |
+| **Export costs (fee or penalty)** | Per kWh exported, on top of the export price: e.g. the export fee of a fixed contract. Export only when the export price minus these costs is above the limit price. Default 0. |
+| **Limit price (net)** | Export only when the export price (after the tariff, minus the export costs) is above this, per kWh. Default 0: only when exporting earns money; at a negative price never. |
 | **Fixed maximum export** | E.g. a limit of the grid operator. 0 = none. |
 
 ## Devices and time slots {#devices}

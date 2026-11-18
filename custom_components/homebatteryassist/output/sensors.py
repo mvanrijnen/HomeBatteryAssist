@@ -264,6 +264,12 @@ class ExportLimitSensor(HomeBatteryAssistEntity, SensorEntity):
             "max_current_per_phase": round(limit.amps_per_phase(self._phases), 1),
             "export_price": limiter.price,
             "export_limit_price": limiter.threshold if limiter.enabled else None,
+            "export_cost": limiter.cost,
+            "net_export_price": (
+                None
+                if limiter.price is None
+                else round(limiter.price - limiter.cost, 5)
+            ),
             "fixed_limit_w": limiter.fixed_w or None,
             "export_w": None if limiter.export_w is None else round(limiter.export_w),
             "curtailed_w": round(limiter.curtailed_w),

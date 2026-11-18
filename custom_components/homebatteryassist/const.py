@@ -80,6 +80,10 @@ CONF_PV_DEVIATION_MINUTES: Final = "pv_deviation_minutes"
 CONF_EXPORT_LIMIT: Final = "export_limit_on"
 CONF_EXPORT_LIMIT_PRICE: Final = "export_limit_price"
 CONF_EXPORT_LIMIT_MAX_W: Final = "export_limit_max_w"
+# Costs of exporting per kWh on top of the export price (a fee or penalty of
+# the contract): export only when price - costs is above the limit price.
+CONF_EXPORT_LIMIT_COST: Final = "export_limit_cost"
+DEFAULT_EXPORT_LIMIT_COST: Final = 0.0
 DEFAULT_EXPORT_LIMIT: Final = True
 DEFAULT_EXPORT_LIMIT_PRICE: Final = 0.0
 DEFAULT_EXPORT_LIMIT_MAX_W: Final = 0

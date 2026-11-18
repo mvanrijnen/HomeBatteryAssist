@@ -65,7 +65,7 @@ In deze ontwikkelfase doen de [virtuele batterijen](measuring.md#virtual-batteri
 
 Als het zonne-overschot niet meer in de batterijen kan, gaat het naar het net. Bij een negatieve terugleverprijs kost dat geld; en een netbeheerder kan de teruglevering begrenzen. De sensor **Max. teruglevering** op het apparaat *Netaansluiting* zegt hoeveel er nu teruggeleverd mag worden:
 
-- **0 W** — niet terugleveren: de terugleverprijs ligt onder de *terugleverprijs waaronder niets wordt teruggeleverd* (standaard 0, dus bij een negatieve terugleverprijs). De batterijen slaan nog op wat ze kunnen; de omvormers zouden niet meer leveren dan huis en batterijen gebruiken.
+- **0 W** — niet terugleveren, want het levert geen geld op: de terugleverprijs van het tarief (bij een dynamisch contract de marktprijs min de opslag van de leverancier) min de **terugleverkosten** van je contract (instelling *Terugleverkosten*, bijv. de terugleverkosten of -boete van een vast contract) ligt onder de *grensprijs* (standaard 0). Dus: een zeer lage of negatieve prijs, of een vast contract met hogere terugleverkosten dan het oplevert, betekent niet terugleveren. De batterijen slaan nog op wat ze kunnen; de omvormers zouden niet meer leveren dan huis en batterijen gebruiken. *Niet terugleveren als het te weinig oplevert* zet dit uit.
 - **een vaste maximum** (instelling *Vaste maximale teruglevering*, bijv. de grens van de netbeheerder; 0 = geen);
 - anders het **maximum van de netaansluiting** (fasen × zekering × 230 V): niet begrensd.
 
