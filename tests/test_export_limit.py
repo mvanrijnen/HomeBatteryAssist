@@ -241,8 +241,8 @@ def test_sunspec_driver_describes_model_123() -> None:
 
 
 def test_export_capacity_from_the_inverter_breakers() -> None:
-    """A 20 A breaker on a 3-phase inverter: 13.8 kW, plus 2.5 kW battery
-    discharge, below the 3x25 A connection (17.25 kW); unknown -> connection."""
+    """A 20 A breaker on a 3-phase inverter: 13.8 kW, below the 3x25 A
+    connection (17.25 kW); unknown -> connection."""
     from custom_components.homebatteryassist.engine.planning.export_limit import (
         export_capacity_w,
         inverter_max_w,
@@ -251,10 +251,10 @@ def test_export_capacity_from_the_inverter_breakers() -> None:
     assert inverter_max_w(20, 3) == 13800
     assert inverter_max_w(16, 1) == 3680
     assert inverter_max_w(None, 3) is None and inverter_max_w(0, 3) is None
-    assert export_capacity_w(17250, [13800], 2500) == 16300
-    assert export_capacity_w(17250, [13800, 3680], 2500) == 17250  # capped
-    assert export_capacity_w(17250, [13800, None], 0) == 17250  # unknown
-    assert export_capacity_w(17250, [], 0) == 17250  # no PV source
+    assert export_capacity_w(17250, [13800]) == 13800
+    assert export_capacity_w(17250, [13800, 4600]) == 17250  # capped
+    assert export_capacity_w(17250, [13800, None]) == 17250  # unknown
+    assert export_capacity_w(17250, []) == 17250  # no PV source
 
 
 def test_sma_drivers_per_type() -> None:

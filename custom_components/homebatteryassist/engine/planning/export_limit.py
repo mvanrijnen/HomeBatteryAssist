@@ -8,8 +8,8 @@
 - else a fixed maximum when set (e.g. a grid operator's limit);
 - else no limit: the most that can be exported (``export_capacity_w``):
   the grid connection's maximum (phases x fuse x 230 V), or less when the
-  breakers of all PV inverters are known (their sum plus what the batteries
-  can discharge).
+  breakers of all PV inverters are known (their sum: no more can pass
+  them).
 
 In this phase only shown and explained (sensor *Max export* on the grid
 connection, *Why*); later the inverter drivers would carry it out.
@@ -126,16 +126,13 @@ def inverter_max_w(max_current: float | None, phases: int) -> float | None:
     return max(phases, 1) * max_current * NOMINAL_VOLTAGE
 
 
-def export_capacity_w(
-    connection: float, inverters: list[float | None], batteries_w: float
-) -> float:
-    """The most that can be exported: the connection, or the inverters'
-    breakers plus the batteries' discharge power when that is lower (only
-    when every inverter's breaker is known)."""
+def export_capacity_w(connection: float, inverters: list[float | None]) -> float:
+    """The most the inverters can export: the connection, or the sum of the
+    inverters' breakers when that is lower (only when every inverter's
+    breaker is known)."""
     if not inverters or any(w is None for w in inverters):
         return connection
-    own = sum(w for w in inverters if w is not None) + max(batteries_w, 0.0)
-    return min(connection, own)
+    return min(connection, sum(w for w in inverters if w is not None))
 
 
 def production_limits(

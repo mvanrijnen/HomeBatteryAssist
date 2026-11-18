@@ -873,7 +873,7 @@
             "inverter_driver": "How this inverter could be limited for the export limit. With a Sunny Home Manager 2.0 choose the Home Manager for every SMA inverter behind it (the limit then goes through the Home Manager). In this phase nothing is sent: only shown what it would send.",
             "inverter_address": "Where the chosen driver would send to: the IP address of the device it talks to, optionally with port and unit id (host:port/unit). With the Sunny Home Manager driver: the Home Manager's IP address (the same for every PV source behind it), not the inverter's. With SMA Modbus or SunSpec: the inverter's IP address (SunSpec on an SMA: e.g. 192.168.1.20:502/126). Without a driver: leave empty.",
             "possible_sensor": "What this PV source could produce now (W), e.g. an SMA inverter's register read with Home Assistant's Modbus integration. Where it is higher than the measured power, the PV was held back (curtailed): HomeBatteryAssist then learns from what the sun gave, and shows what is held back.",
-            "inverter_max_current": "The breaker of the inverter's group (e.g. 20 A): the most this inverter can deliver (A x 230 V, x 3 when it is on all phases). When it is set for every PV source, Max export is no more than the inverters plus the batteries can deliver, instead of the grid connection's maximum."
+            "inverter_max_current": "The breaker of the inverter's group (e.g. 20 A): the most this inverter can deliver (A x 230 V, x 3 when it is on all phases). When it is set for every PV source, Max export is no more than can pass the inverters' breakers, instead of the grid connection's maximum."
           }
         },
         "reconfigure": {
@@ -902,7 +902,7 @@
             "inverter_driver": "How this inverter could be limited for the export limit. With a Sunny Home Manager 2.0 choose the Home Manager for every SMA inverter behind it (the limit then goes through the Home Manager). In this phase nothing is sent: only shown what it would send.",
             "inverter_address": "Where the chosen driver would send to: the IP address of the device it talks to, optionally with port and unit id (host:port/unit). With the Sunny Home Manager driver: the Home Manager's IP address (the same for every PV source behind it), not the inverter's. With SMA Modbus or SunSpec: the inverter's IP address (SunSpec on an SMA: e.g. 192.168.1.20:502/126). Without a driver: leave empty.",
             "possible_sensor": "What this PV source could produce now (W), e.g. an SMA inverter's register read with Home Assistant's Modbus integration. Where it is higher than the measured power, the PV was held back (curtailed): HomeBatteryAssist then learns from what the sun gave, and shows what is held back.",
-            "inverter_max_current": "The breaker of the inverter's group (e.g. 20 A): the most this inverter can deliver (A x 230 V, x 3 when it is on all phases). When it is set for every PV source, Max export is no more than the inverters plus the batteries can deliver, instead of the grid connection's maximum."
+            "inverter_max_current": "The breaker of the inverter's group (e.g. 20 A): the most this inverter can deliver (A x 230 V, x 3 when it is on all phases). When it is set for every PV source, Max export is no more than can pass the inverters' breakers, instead of the grid connection's maximum."
           }
         }
       },
@@ -1647,9 +1647,6 @@
           },
           "inverters_w": {
             "name": "Inverters (breakers)"
-          },
-          "batteries_w": {
-            "name": "Batteries (discharge)"
           },
           "production_limit_w": {
             "name": "Production limit (inverters)"

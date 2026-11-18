@@ -495,7 +495,6 @@ async def async_setup_entry(
         )
         for sub in pv_subs
     ]
-    battery_max = sum(c.max_discharge_w for c in batteries.configs if not c.virtual)
     export_limiter = ExportLimiter(
         decisions,
         enabled=bool(options.get(CONF_EXPORT_LIMIT, DEFAULT_EXPORT_LIMIT)),
@@ -505,11 +504,10 @@ async def async_setup_entry(
         fixed_w=float(options.get(CONF_EXPORT_LIMIT_MAX_W, DEFAULT_EXPORT_LIMIT_MAX_W)),
         cost=float(options.get(CONF_EXPORT_LIMIT_COST, DEFAULT_EXPORT_LIMIT_COST)),
         never=bool(options.get(CONF_EXPORT_NEVER, DEFAULT_EXPORT_NEVER)),
-        connection=export_capacity_w(grid_w, pv_max, battery_max),
+        connection=export_capacity_w(grid_w, pv_max),
         capacity={
             "connection_w": round(grid_w),
             "inverters_w": [None if w is None else round(w) for w in pv_max],
-            "batteries_w": round(battery_max),
         },
         inverters=[
             (
