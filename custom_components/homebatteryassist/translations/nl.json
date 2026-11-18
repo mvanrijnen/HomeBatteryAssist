@@ -1650,6 +1650,9 @@
           },
           "batteries_w": {
             "name": "Batterijen (ontladen)"
+          },
+          "production_limit_w": {
+            "name": "Opwekgrens (omvormers)"
           }
         }
       }

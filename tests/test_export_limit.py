@@ -77,13 +77,13 @@ def test_limiter_explains_what_it_would_curtail() -> None:
     )
     when = NOW
     for _ in range(60):  # a value a minute; with the last one: 1 hour
-        limiter.update(when, -2000.0, -0.10)
+        limiter.update(when, -2000.0, -0.10, 3000.0)
         when += timedelta(minutes=1)
     assert limiter.limit.limit_w == 0.0
     assert limiter.curtailed_w == 2000.0
     assert [k for k, _ in log.keys] == ["export_limit_started"]
     assert limiter.would_send() == [
-        "SMA Modbus (TL) 192.168.1.10: unit 3 40023=0 W as % x 100 of WMax"
+        "SMA Modbus (TL) 192.168.1.10: unit 3 40023=1000 W as % x 100 of WMax"
     ]
     # The price turns positive: no limit, the episode ends.
     limiter.update(when, -2000.0, 0.05)
@@ -284,3 +284,36 @@ def test_one_command_per_home_manager() -> None:
         inverters=[("Roof", shm, "192.168.1.5"), ("Garage", shm, "192.168.1.5")],
     )
     assert len(limiter.would_send()) == 1
+
+
+def test_inverters_limit_production_not_export() -> None:
+    """At 0 W export an inverter may still feed the house and batteries:
+    PV 3000 W, export 2000 W -> production 1000 W; split by breaker."""
+    from custom_components.homebatteryassist.engine.planning.export_limit import (
+        production_limits,
+    )
+
+    assert production_limits(0, -2000, 3000, [None]) == [1000]
+    assert production_limits(500, -2000, 3000, [None]) == [1500]
+    # Two inverters, 13.8 kW and 4.6 kW breakers: split 3:1.
+    assert production_limits(0, -2000, 6000, [13800, 4600]) == [3000, 1000]
+    # Unknown breaker: equal; capped at a breaker.
+    assert production_limits(0, -2000, 6000, [None, None]) == [2000, 2000]
+    assert production_limits(0, 0, 9000, [4000, 4000]) == [4000, 4000]
+    # Home Manager (export) gets the export limit, inverter the production.
+    limiter = ExportLimiter(
+        _Log(),  # type: ignore[arg-type]
+        enabled=True,
+        threshold=0.0,
+        fixed_w=0.0,
+        connection=CONNECTION,
+        inverters=[
+            ("SHM", get_driver("sma_home_manager"), "192.168.1.5"),
+            ("Roof", get_driver("sunspec_modbus"), "192.168.1.20"),
+        ],
+    )
+    limiter.update(NOW, -2000.0, -0.10, 3000.0)
+    assert limiter.targets() == [0.0, 1000.0]
+    assert limiter.production_limit_w == 1000.0
+    limiter.update(NOW, -2000.0, -0.10)  # PV unknown
+    assert limiter.targets() == [0.0, None]

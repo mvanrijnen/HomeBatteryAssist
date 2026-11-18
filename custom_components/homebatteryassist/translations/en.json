@@ -1650,6 +1650,9 @@
           },
           "batteries_w": {
             "name": "Batteries (discharge)"
+          },
+          "production_limit_w": {
+            "name": "Production limit (inverters)"
           }
         }
       }

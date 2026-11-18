@@ -26,6 +26,7 @@ from ..planning.export_limit import (
     ExportLimit,
     expected_limits,
     export_limit,
+    production_limits,
 )
 
 # Nothing is sent to an inverter in this phase (tested).
@@ -53,6 +54,7 @@ class ExportLimiter:
         connection: float,
         capacity: dict[str, Any] | None = None,
         inverters: list[tuple[str, Any, str]],  # (name, driver, address)
+        inverter_max: list[float | None] | None = None,  # W, per inverter
         decimal_comma: bool = False,
     ) -> None:
         """Initialize."""
@@ -67,6 +69,9 @@ class ExportLimiter:
         # inverter breakers, batteries), for the sensor.
         self.capacity = capacity or {}
         self.inverters = inverters
+        self.inverter_max = inverter_max or [None] * len(inverters)
+        self.pv_w: float | None = None  # PV now (W)
+        self.grid_w: float | None = None  # grid now (W, + import)
         self._comma = decimal_comma
         self.limit = ExportLimit(connection, False, "none")
         self.price: float | None = None
@@ -92,8 +97,16 @@ class ExportLimiter:
         text = f"{value:.{digits}f}"
         return text.replace(".", ",") if self._comma else text
 
-    def update(self, when: datetime, grid_w: float | None, price: float | None) -> None:
-        """A new measurement: the grid (W, + import) and the export price."""
+    def update(
+        self,
+        when: datetime,
+        grid_w: float | None,
+        price: float | None,
+        pv_w: float | None = None,
+    ) -> None:
+        """A new measurement: the grid (W, + import), the export price and
+        the PV power now."""
+        self.grid_w, self.pv_w = grid_w, pv_w
         hours = (
             min((when - self._last).total_seconds(), 60.0) / 3600 if self._last else 0
         )
@@ -238,11 +251,53 @@ class ExportLimiter:
     def would_send(self) -> list[str]:
         """Per inverter: what its driver would send for the limit now (once
         per device: PV sources behind one Home Manager share its command)."""
+        targets = self.targets()
         return list(
             dict.fromkeys(
-                driver.describe(address, self.limit.limit_w)
-                if driver is not None
+                driver.describe(address, target)
+                if driver is not None and target is not None
                 else f"{name}: -"
-                for name, driver, address in self.inverters
+                for (name, driver, address), target in zip(
+                    self.inverters, targets, strict=True
+                )
             )
         )
+
+    def targets(self) -> list[float | None]:
+        """Per inverter the value its driver would get: the export limit for
+        a driver that limits the export (a Home Manager), the production it
+        may give for one that limits its own output (None: PV or grid
+        unknown)."""
+        power = [
+            i
+            for i, (_n, driver, _a) in enumerate(self.inverters)
+            if driver is not None and driver.limits == "power"
+        ]
+        result: list[float | None] = [self.limit.limit_w] * len(self.inverters)
+        if not power:
+            return result
+        if self.pv_w is None or self.grid_w is None:
+            for i in power:
+                result[i] = None
+            return result
+        shares = production_limits(
+            self.limit.limit_w,
+            self.grid_w,
+            self.pv_w,
+            [self.inverter_max[i] for i in power],
+        )
+        for i, share in zip(power, shares, strict=True):
+            result[i] = share
+        return result
+
+    @property
+    def production_limit_w(self) -> float | None:
+        """What the inverters that limit their own output may produce in all."""
+        values = [
+            t
+            for t, (_n, d, _a) in zip(self.targets(), self.inverters, strict=True)
+            if d is not None and d.limits == "power"
+        ]
+        if not values or any(v is None for v in values):
+            return None
+        return sum(v for v in values if v is not None)

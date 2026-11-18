@@ -138,6 +138,35 @@ def export_capacity_w(
     return min(connection, own)
 
 
+def production_limits(
+    limit_w: float,
+    grid_w: float,
+    pv_w: float,
+    maxima: list[float | None],
+) -> list[float]:
+    """What each inverter that limits its own output may produce so the
+    export stays within ``limit_w``.
+
+    An inverter limits its production, not the export: it may give what the
+    house and the batteries use now plus the export allowed,
+    ``pv + grid + limit`` (grid + import / - export), so at 0 W export the
+    house is still fed. That total is split over the inverters by their
+    maximum (breaker) when all are known, else equally, and capped at each
+    one's maximum. An export limit (a Home Manager) gets ``limit_w`` itself.
+    """
+    if not maxima:
+        return []
+    total = max(pv_w + grid_w + limit_w, 0.0)
+    known = all(m is not None and m > 0 for m in maxima)
+    weights = [m if known and m is not None else 1.0 for m in maxima]
+    whole = sum(weights)
+    shares = [total * w / whole for w in weights]
+    return [
+        min(share, m) if m is not None and m > 0 else share
+        for share, m in zip(shares, maxima, strict=True)
+    ]
+
+
 def export_limit(
     *,
     enabled: bool,
