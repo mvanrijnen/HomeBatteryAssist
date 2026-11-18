@@ -33,6 +33,16 @@ HomeBatteryAssist keeps its own energy counters per battery (from its power, at 
 
 The battery card also shows the **cell difference** now (highest − lowest cell voltage) when the driver reads the cells.
 
+### Does the battery follow its command?
+
+Whoever controls a battery tells it to charge or discharge at a power — in this phase its own integration (e.g. Omnibattery), later HomeBatteryAssist. The battery driver reads that **command** (for Omnibattery and Marstek Modbus: RS485 control mode, force mode and the charge/discharge power) and HomeBatteryAssist checks every 15 seconds whether the battery follows it: at least half of the commanded power (or of its maximum power, when lower), in that direction.
+
+- Not following for **2 minutes** (setting *Tell after*, section *Battery follows its command*; commands from **100 W**, setting *Check commands from*) is told in *Why*, so starting up and ramping are no message.
+- **Explained** — the battery is full (charging), at its minimum (discharging), charging/discharging is switched off on the battery, or its hysteresis holds charging back after a full charge — *Why* says so with the reason. That is no problem: no alarm, no notification.
+- **Not explained** — a **problem**: *Why* says so, the battery's problem sensor *Does not follow its command* turns on (attributes: the command, the battery's power, since when), the battery card shows it in red, and a notification goes out when you chose *A battery does not follow its command*. Once it follows again for a minute, *Why* says that too.
+
+The battery card shows the command it has now (*Command*: charge / discharge at a power, or stop). A battery that controls itself (no external control) has no command and is not checked.
+
 What a battery does by its own control (charging, supplying, stopping) is explained as periods in *Why*, compared with the plan — see [Planning](planning.md#explanation).
 
 ## Virtual batteries

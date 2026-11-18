@@ -260,6 +260,18 @@
               "weather_location": "Voor Weerlive en Open-Meteo: 'breedtegraad,lengtegraad' (Weerlive kan ook een plaatsnaam). Leeg: de thuislocatie van Home Assistant, afgerond op ongeveer 1 km.",
               "outdoor_temperature_sensor": "Optioneel, nauwkeuriger dan de huidige temperatuur van de weer-entiteit; de geschiedenis ervan wordt gebruikt om meteen te leren."
             }
+          },
+          "command_check": {
+            "name": "Batterij volgt opdracht",
+            "description": "Of elke batterij doet wat haar opgedragen wordt (in deze fase door haar eigen integratie, bijv. Omnibattery), zodat een batterij die niet meer laadt of ontlaadt opvalt.",
+            "data": {
+              "command_check_w": "Opdrachten controleren vanaf",
+              "command_check_minutes": "Melden na"
+            },
+            "data_description": {
+              "command_check_w": "Een opdracht om met minstens dit vermogen te laden of ontladen wordt gecontroleerd: de batterij moet minstens de helft ervan (of van haar maximale vermogen) in die richting doen. Standaard 100 W.",
+              "command_check_minutes": "Waarom meldt het (en stuurt een melding, met 'Een batterij volgt haar opdracht niet') zodra het zo lang duurt, zodat opstarten en oplopen geen bericht geven. Vol, leeg, laden/ontladen uitgeschakeld en de hysterese van de batterij worden uitgelegd, niet als probleem gemeld. Standaard 2 min."
+            }
           }
         }
       }
@@ -459,7 +471,8 @@
         "protection": "Fasebeveiliging, grenzen en piekafvlakking",
         "full_charge": "Volladen",
         "measurement": "Meting weggevallen / terug",
-        "solar": "Onverwacht zonne-overschot of -tekort"
+        "solar": "Onverwacht zonne-overschot of -tekort",
+        "battery_command": "Een batterij volgt haar opdracht niet"
       }
     },
     "pv_driver": {
@@ -707,6 +720,18 @@
               "weather_api_key": "Voor Weerlive (verplicht) en Open-Meteo (alleen met een commercieel abonnement). Bewaard in Home Assistant; alleen naar die dienst gestuurd.",
               "weather_location": "Voor Weerlive en Open-Meteo: 'breedtegraad,lengtegraad' (Weerlive kan ook een plaatsnaam). Leeg: de thuislocatie van Home Assistant, afgerond op ongeveer 1 km.",
               "outdoor_temperature_sensor": "Optioneel, nauwkeuriger dan de huidige temperatuur van de weer-entiteit; de geschiedenis ervan wordt gebruikt om meteen te leren."
+            }
+          },
+          "command_check": {
+            "name": "Batterij volgt opdracht",
+            "description": "Of elke batterij doet wat haar opgedragen wordt (in deze fase door haar eigen integratie, bijv. Omnibattery), zodat een batterij die niet meer laadt of ontlaadt opvalt.",
+            "data": {
+              "command_check_w": "Opdrachten controleren vanaf",
+              "command_check_minutes": "Melden na"
+            },
+            "data_description": {
+              "command_check_w": "Een opdracht om met minstens dit vermogen te laden of ontladen wordt gecontroleerd: de batterij moet minstens de helft ervan (of van haar maximale vermogen) in die richting doen. Standaard 100 W.",
+              "command_check_minutes": "Waarom meldt het (en stuurt een melding, met 'Een batterij volgt haar opdracht niet') zodra het zo lang duurt, zodat opstarten en oplopen geen bericht geven. Vol, leeg, laden/ontladen uitgeschakeld en de hysterese van de batterij worden uitgelegd, niet als probleem gemeld. Standaard 2 min."
             }
           }
         }
@@ -1462,6 +1487,11 @@
     "button": {
       "recalculate": {
         "name": "Herbereken"
+      }
+    },
+    "binary_sensor": {
+      "battery_not_following": {
+        "name": "Volgt opdracht niet"
       }
     }
   },

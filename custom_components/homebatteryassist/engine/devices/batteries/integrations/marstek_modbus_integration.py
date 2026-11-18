@@ -1,7 +1,8 @@
 """Reader: Marstek batteries through Marstek Modbus (ViperRNMC/marstek_venus_modbus).
 
-Entity keys verified for reading. The write methods are untested and never
-called.
+Entity keys verified for reading; the command keys (RS485 control mode, force
+mode, charge/discharge power) follow the integration but are unverified. The
+write methods are untested and never called.
 """
 
 from __future__ import annotations
@@ -44,6 +45,13 @@ class MarstekModbusReader(EntityReader):
         "charged_today_kwh": "total_daily_charging_energy",
         "discharged_today_kwh": "total_daily_discharging_energy",
         "efficiency_pct": "round_trip_efficiency_total",
+    }
+
+    command_entities: ClassVar[dict[str, tuple[str, str]]] = {
+        "external": ("switch", "rs485_control_mode"),
+        "mode": ("select", "force_mode"),
+        "charge": ("number", "set_charge_power"),
+        "discharge": ("number", "set_discharge_power"),
     }
 
     async def async_set_power(

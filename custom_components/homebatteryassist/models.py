@@ -26,6 +26,7 @@ class HomeBatteryAssistData:
     forecast: ForecastCoordinator
     plan_check: PlanVerification
     simulator: Any = None  # VirtualBatterySimulator (live protections)
+    commands: Any = None  # CommandMonitor (does each battery follow its command)
 
 
 type HomeBatteryAssistConfigEntry = ConfigEntry[HomeBatteryAssistData]

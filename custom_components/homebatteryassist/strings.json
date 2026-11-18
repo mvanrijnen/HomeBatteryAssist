@@ -260,6 +260,18 @@
               "weather_location": "For Weerlive and Open-Meteo: 'latitude,longitude' (Weerlive also takes a place name). Empty: the home location of Home Assistant, rounded to about 1 km.",
               "outdoor_temperature_sensor": "Optional, more accurate than the weather entity's current temperature; its history is used to learn right away."
             }
+          },
+          "command_check": {
+            "name": "Battery follows its command",
+            "description": "Whether each battery does what it is told (in this phase by its own integration, e.g. Omnibattery), so a battery that stops charging or discharging is noticed.",
+            "data": {
+              "command_check_w": "Check commands from",
+              "command_check_minutes": "Tell after"
+            },
+            "data_description": {
+              "command_check_w": "A command to charge or discharge at least this power is checked: the battery should move at least half of it (or of its maximum power) in that direction. Default 100 W.",
+              "command_check_minutes": "Why tells it (and notifies, with 'A battery does not follow its command') once it lasts this long, so starting up and ramping are no message. Full, empty, charging/discharging switched off and the battery's hysteresis are explained, not reported as a problem. Default 2 min."
+            }
           }
         }
       }
@@ -459,7 +471,8 @@
         "protection": "Phase protection, limits and peak shaving",
         "full_charge": "Full charges",
         "measurement": "Measurement lost / restored",
-        "solar": "Unexpected solar surplus or shortage"
+        "solar": "Unexpected solar surplus or shortage",
+        "battery_command": "A battery does not follow its command"
       }
     },
     "pv_driver": {
@@ -707,6 +720,18 @@
               "weather_api_key": "For Weerlive (required) and Open-Meteo (only with a commercial plan). Stored in Home Assistant; only sent to that service.",
               "weather_location": "For Weerlive and Open-Meteo: 'latitude,longitude' (Weerlive also takes a place name). Empty: the home location of Home Assistant, rounded to about 1 km.",
               "outdoor_temperature_sensor": "Optional, more accurate than the weather entity's current temperature; its history is used to learn right away."
+            }
+          },
+          "command_check": {
+            "name": "Battery follows its command",
+            "description": "Whether each battery does what it is told (in this phase by its own integration, e.g. Omnibattery), so a battery that stops charging or discharging is noticed.",
+            "data": {
+              "command_check_w": "Check commands from",
+              "command_check_minutes": "Tell after"
+            },
+            "data_description": {
+              "command_check_w": "A command to charge or discharge at least this power is checked: the battery should move at least half of it (or of its maximum power) in that direction. Default 100 W.",
+              "command_check_minutes": "Why tells it (and notifies, with 'A battery does not follow its command') once it lasts this long, so starting up and ramping are no message. Full, empty, charging/discharging switched off and the battery's hysteresis are explained, not reported as a problem. Default 2 min."
             }
           }
         }
@@ -1462,6 +1487,11 @@
     "button": {
       "recalculate": {
         "name": "Recalculate"
+      }
+    },
+    "binary_sensor": {
+      "battery_not_following": {
+        "name": "Does not follow its command"
       }
     }
   },

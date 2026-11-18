@@ -15,7 +15,13 @@ from .anker.solarbank_max import AnkerSolarbankMax
 from .anker.solarbank_max_ac import AnkerSolarbankMaxAc
 from .anker.solarbank_xe import AnkerSolarbankXe
 from .anker.solarbank_xe_ac import AnkerSolarbankXeAc
-from .base import BatteryModel, BatteryReader, BatteryTelemetry, platform_of
+from .base import (
+    BatteryCommand,
+    BatteryModel,
+    BatteryReader,
+    BatteryTelemetry,
+    platform_of,
+)
 from .direct.base import DirectBatteryDriver
 from .hoymiles.hibattery_1920_ac import HoymilesHiBattery1920Ac
 from .hoymiles.hibattery_4020_ac import HoymilesHiBattery4020Ac
@@ -99,9 +105,11 @@ __all__ = [
     "DIRECT_DRIVERS",
     "MODELS",
     "READERS",
+    "BatteryCommand",
     "BatteryModel",
     "BatteryReader",
     "BatteryTelemetry",
+    "command",
     "model_for",
     "reader_for",
     "telemetry",
@@ -125,3 +133,10 @@ def telemetry(hass: HomeAssistant, config: BatteryConfig) -> BatteryTelemetry:
     """Extra live details of a battery (empty without a reader)."""
     reader = reader_for(hass, config)
     return reader.telemetry(hass, config) if reader else BatteryTelemetry()
+
+
+def command(hass: HomeAssistant, config: BatteryConfig) -> BatteryCommand | None:
+    """The command a battery has now from its controlling integration, if
+    readable (None without a reader, or when the battery controls itself)."""
+    reader = reader_for(hass, config)
+    return reader.command(hass, config) if reader else None

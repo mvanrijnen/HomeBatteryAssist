@@ -8,6 +8,8 @@ De sensoren hebben een vaste betekenis en kunnen door andere integraties en add-
 
 **Planfasen.** Vier sensoren vertellen wat het plan nu en hierna doet: *Fase ontladen*, *Fase laden (net)*, *Fase laden (zon)* en *Fase alleen net* (batterijen in rust, het huis op het net). Hun state is *Nu bezig*, *Gepland* of *Niet gepland*; de attributen geven de huidige en de volgende fase: begin, einde, minuten, kWh, gemiddelde prijs (afnameprijs; terugleverprijs bij laden met zon), waarom in gewone taal, en de kWh per batterij. Elk batterijapparaat heeft de drie batterijfasen met een eigen aandeel (het plan geldt voor alle batterijen samen en wordt naar capaciteit over ze verdeeld). Handig voor automatiseringen, bijvoorbeeld "stuur me een melding als het laden van het net begint" of "start de vaatwasser in een fase van laden met zon".
 
+**Volgt opdracht niet.** Elke echte batterij heeft een probleem-sensor die aan staat zolang de batterij de opdracht van de integratie die haar aanstuurt niet volgt, zonder verklaring (zie [Meten](measuring.md#does-the-battery-follow-its-command)); attributen: de opdracht, het vermogen van de batterij, de reden als het verklaarbaar is, en sinds wanneer.
+
 ## Acties {#actions}
 
 | Actie | Wat het doet |
@@ -39,6 +41,6 @@ De sensoren hebben een vaste betekenis en kunnen door andere integraties en add-
 
 ## Meldingen {#notifications}
 
-Kies in de instellingen over welke beslissingen je een melding wilt krijgen — wijzigingen in het plan, nieuwe prijzen of een gewijzigd bereik van de voorspelling, fasebeveiliging / limieten / piekafvlakking, volledige oplaadbeurten, een weggevallen of herstelde meting, een onverwacht zonne-overschot of -tekort — en stuur ze naar notify-diensten (bijvoorbeeld de companion-app) en/of als melding in Home Assistant.
+Kies in de instellingen over welke beslissingen je een melding wilt krijgen — wijzigingen in het plan, nieuwe prijzen of een gewijzigd bereik van de voorspelling, fasebeveiliging / limieten / piekafvlakking, volledige oplaadbeurten, een weggevallen of herstelde meting, een onverwacht zonne-overschot of -tekort, een batterij die [haar opdracht niet volgt](measuring.md#does-the-battery-follow-its-command) — en stuur ze naar notify-diensten (bijvoorbeeld de companion-app) en/of als melding in Home Assistant.
 
 **Virtuele batterijen** zeggen dat altijd in hun naam (bijvoorbeeld *Marstek Venus 1 (virtueel)*): HomeBatteryAssist voegt het toe als de naam het niet al doet.

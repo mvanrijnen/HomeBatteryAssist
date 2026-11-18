@@ -451,6 +451,8 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
                 # Extra details: the battery's driver (temperature, cells,
                 # ...) and HomeBatteryAssist's own counters.
                 "details": _battery_details(hass, data.batteries, config),
+                # The command it has now and whether it follows it.
+                "command": (data.commands.state(config.id) if data.commands else None),
                 "entities": _entity_ids(
                     registry, config.id, (d.key for d in BATTERY_SENSORS)
                 ),

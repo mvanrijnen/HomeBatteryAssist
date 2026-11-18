@@ -1,6 +1,7 @@
 """Reader: batteries managed by Omnibattery (ffunes/Omnibattery).
 
-Verified for reading with a Marstek Venus E v3. ``ac_power`` is the grid side
+Verified for reading with a Marstek Venus E v3 (the command it gives the
+battery too: RS485 control mode, force mode and charge/discharge power). ``ac_power`` is the grid side
 of the battery: + discharging / - charging. The write methods follow
 Omnibattery's entities but are untested and never called.
 """
@@ -49,6 +50,16 @@ class OmnibatteryReader(EntityReader):
         "discharged_today_kwh": "total_daily_discharging_energy",
         "efficiency_pct": "round_trip_efficiency_total",
         "cell_delta_v": "cell_delta",
+    }
+
+    command_entities: ClassVar[dict[str, tuple[str, str]]] = {
+        "external": ("switch", "rs485_control_mode"),
+        "mode": ("select", "force_mode"),
+        "charge": ("number", "set_charge_power"),
+        "discharge": ("number", "set_discharge_power"),
+        "allow_charge": ("switch", "battery_allow_charge"),
+        "allow_discharge": ("switch", "battery_allow_discharge"),
+        "hysteresis": ("binary_sensor", "charge_hysteresis_active"),
     }
 
     async def async_set_power(

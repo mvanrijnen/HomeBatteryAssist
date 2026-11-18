@@ -66,6 +66,16 @@ the dashboard simulates is what would be sent:
    ``controller.async_command(None)``, which releases it); the controller
    decides whether and when it is really sent.
 
+**Does the battery follow?** ``CommandMonitor``
+(``engine/evaluation/command_check.py``, already active) reads every real
+battery's command back from its integration's entities and compares it with
+its power. Today that checks the battery's own integration; once this loop
+writes the command, it checks HomeBatteryAssist's own commands the same way.
+A battery that does not follow without an explanation (``problem``: not
+full/empty, not switched off, no hysteresis) is released to its own control
+(``control_released``) instead of being commanded on; it is commanded again
+once the check is clear.
+
 How a battery is reached (``ReaderDriver`` below):
 
 - through the integration it is linked with — the reader's
@@ -177,8 +187,10 @@ Activating (later, deliberately, with the project owner)
 #         measurements: MeasurementInput,
 #         forecast: Any,  # ForecastCoordinator (no import cycle)
 #         enabled: bool,
+#         commands: Any = None,  # CommandMonitor: does a battery follow?
 #     ) -> None:
 #         self.hass = hass
+#         self._commands = commands
 #         self._decisions = decisions
 #         self._batteries = batteries
 #         self._measurements = measurements
@@ -292,6 +304,16 @@ Activating (later, deliberately, with the project owner)
 #                     config, soc, wanted.get(config.id, 0.0), self._forecast
 #                 )
 #             if config.id in released:  # the interceptor released it
+#                 await controller.async_command(None, now)
+#                 continue
+#             check = self._commands.checks.get(config.id) if self._commands else None
+#             if check is not None and check.problem:
+#                 # It does not follow (and nothing explains it): back to its
+#                 # own control rather than commanding on.
+#                 if controller.state.active:
+#                     self._decisions.async_log(
+#                         "battery", "control_released", name=config.name
+#                     )
 #                 await controller.async_command(None, now)
 #                 continue
 #             await controller.async_command(power, now)

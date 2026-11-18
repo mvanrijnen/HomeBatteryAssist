@@ -189,6 +189,15 @@ Voor huizen die elektrisch verwarmen of koelen: de verbruiksvoorspelling volgt d
 | **Plaats** | Voor Weerlive en Open-Meteo: 'breedtegraad,lengtegraad' (Weerlive kan ook een plaatsnaam). Leeg: de thuislocatie van Home Assistant, afgerond op ongeveer 1 km. |
 | **Sensor buitentemperatuur** | Optioneel, nauwkeuriger dan de huidige temperatuur van de weer-entiteit; de geschiedenis ervan wordt gebruikt om meteen te leren. |
 
+### Batterij volgt opdracht {#settings-command-check}
+
+Of elke batterij doet wat haar opgedragen wordt (in deze fase door haar eigen integratie, bijv. Omnibattery), zodat een batterij die niet meer laadt of ontlaadt opvalt.
+
+| Veld | Uitleg |
+|---|---|
+| **Opdrachten controleren vanaf** | Een opdracht om met minstens dit vermogen te laden of ontladen wordt gecontroleerd: de batterij moet minstens de helft ervan (of van haar maximale vermogen) in die richting doen. Standaard 100 W. |
+| **Melden na** | Waarom meldt het (en stuurt een melding, met 'Een batterij volgt haar opdracht niet') zodra het zo lang duurt, zodat opstarten en oplopen geen bericht geven. Vol, leeg, laden/ontladen uitgeschakeld en de hysterese van de batterij worden uitgelegd, niet als probleem gemeld. Standaard 2 min. |
+
 ## Apparaten en tijdvakken {#devices}
 
 Toe te voegen onder de integratie (**+ … toevoegen**) en te wijzigen met het tandwiel ernaast.
@@ -335,6 +344,7 @@ Wat HomeBatteryAssist aanmaakt (namen zoals in Home Assistant).
 | Fase laden (zon) | Sensor |
 | Fase alleen net | Sensor |
 | Herbereken | Knop |
+| Volgt opdracht niet | binary_sensor |
 
 ## Acties {#actions}
 

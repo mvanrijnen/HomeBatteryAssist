@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 
 from ....measure.battery_monitor import BatteryConfig
 from ....units import parse_float
-from ..base import BatteryReader, BatteryTelemetry, device_entities
+from ..base import BatteryCommand, BatteryReader, BatteryTelemetry, device_entities
 
 TELEMETRY_FIELDS = (
     "temperature_c",
@@ -29,6 +29,12 @@ class EntityReader(BatteryReader):
 
     # telemetry field -> translation key of a sensor on the battery's device
     sensors: ClassVar[dict[str, str]] = {}
+    # The command the battery has now, by (domain, translation key) on its
+    # device: ``external`` (switch: external control on), ``mode`` (select:
+    # none / charge / discharge), ``charge`` / ``discharge`` (number, W);
+    # optional ``allow_charge`` / ``allow_discharge`` (switch) and
+    # ``hysteresis`` (binary sensor: charging held back after full).
+    command_entities: ClassVar[dict[str, tuple[str, str]]] = {}
 
     def telemetry(self, hass: HomeAssistant, config: BatteryConfig) -> BatteryTelemetry:
         """Values of the mapped sensors that have a number."""
@@ -43,6 +49,43 @@ class EntityReader(BatteryReader):
         return BatteryTelemetry(
             **{k: values.get(k) for k in TELEMETRY_FIELDS},
             extra={k: v for k, v in values.items() if k not in TELEMETRY_FIELDS},
+        )
+
+    def command(
+        self, hass: HomeAssistant, config: BatteryConfig
+    ) -> BatteryCommand | None:
+        """The forced charge / discharge the battery has now, if any."""
+        keys = self.command_entities
+        if not all(k in keys for k in ("external", "mode", "charge", "discharge")):
+            return None
+        entities = device_entities(hass, config)
+
+        def state(name: str) -> str | None:
+            entity_id = entities.get(keys[name]) if name in keys else None
+            value = hass.states.get(entity_id) if entity_id else None
+            if value is None or value.state in ("unknown", "unavailable"):
+                return None
+            return value.state
+
+        if state("external") != "on":
+            return None  # the battery controls itself
+        mode = (state("mode") or "").lower()
+        if mode == "charge":
+            power = parse_float(state("charge"))
+        elif mode == "discharge":
+            power = parse_float(state("discharge"))
+            power = -power if power is not None else None
+        elif mode in ("none", "stop", "idle"):
+            power = 0.0
+        else:
+            return None
+        if power is None:
+            return None
+        return BatteryCommand(
+            power_w=power,
+            charge_allowed=state("allow_charge") != "off",
+            discharge_allowed=state("allow_discharge") != "off",
+            hysteresis=state("hysteresis") == "on",
         )
 
     async def _async_number(

@@ -47,6 +47,7 @@ KINDS: dict[str, tuple[str, ...]] = {
         "pv_shortage_unexpected",
         "pv_shortage_unexpected_ended",
     ),
+    "battery_command": ("battery_not_following", "battery_not_following_ended"),
 }
 
 

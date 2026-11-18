@@ -8,6 +8,8 @@ The sensors have a fixed meaning and can be used by other integrations and add-o
 
 **Plan phases.** Four sensors tell what the plan does now and next: *Phase discharging*, *Phase charging (grid)*, *Phase charging (solar)* and *Phase grid only* (batteries idle, the house on the grid). Their state is *Running now*, *Planned* or *Not planned*; the attributes give the current and the next phase: start, end, minutes, kWh, average price (import price; export price for charging with solar), why in plain language, and the kWh per battery. Each battery device has the three battery phases with its own share (the plan is for all batteries together and is spread over them by capacity). Handy for automations, e.g. "notify me when charging from the grid starts" or "start the dishwasher in a solar charging phase".
 
+**Does not follow its command.** Each real battery has a problem sensor that is on while the battery does not follow the command of the integration that controls it, without an explanation (see [Measuring](measuring.md#does-the-battery-follow-its-command)); attributes: the command, the battery's power, the reason when explained, and since when.
+
 ## Actions
 
 | Action | What it does |
@@ -39,6 +41,6 @@ The sensors have a fixed meaning and can be used by other integrations and add-o
 
 ## Notifications
 
-Choose in the settings which decisions you want to be told about — the plan changes, new prices or a changed forecast reach, phase protection / limits / peak shaving, full charges, a lost or restored measurement, an unexpected solar surplus or shortage — and send them to notify services (e.g. the companion app) and/or as a notification in Home Assistant.
+Choose in the settings which decisions you want to be told about — the plan changes, new prices or a changed forecast reach, phase protection / limits / peak shaving, full charges, a lost or restored measurement, an unexpected solar surplus or shortage, a battery that [does not follow its command](measuring.md#does-the-battery-follow-its-command) — and send them to notify services (e.g. the companion app) and/or as a notification in Home Assistant.
 
 **Virtual batteries** always say so in their name (e.g. *Marstek Venus 1 (virtueel)*): HomeBatteryAssist adds it when the name does not.

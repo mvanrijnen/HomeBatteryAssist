@@ -189,6 +189,15 @@ For houses that heat or cool with electricity: the consumption forecast follows 
 | **Place** | For Weerlive and Open-Meteo: 'latitude,longitude' (Weerlive also takes a place name). Empty: the home location of Home Assistant, rounded to about 1 km. |
 | **Outdoor temperature sensor** | Optional, more accurate than the weather entity's current temperature; its history is used to learn right away. |
 
+### Battery follows its command {#settings-command-check}
+
+Whether each battery does what it is told (in this phase by its own integration, e.g. Omnibattery), so a battery that stops charging or discharging is noticed.
+
+| Field | Explanation |
+|---|---|
+| **Check commands from** | A command to charge or discharge at least this power is checked: the battery should move at least half of it (or of its maximum power) in that direction. Default 100 W. |
+| **Tell after** | Why tells it (and notifies, with 'A battery does not follow its command') once it lasts this long, so starting up and ramping are no message. Full, empty, charging/discharging switched off and the battery's hysteresis are explained, not reported as a problem. Default 2 min. |
+
 ## Devices and time slots {#devices}
 
 Added under the integration (**+ Add …**) and changed with the gear icon next to each one.
@@ -335,6 +344,7 @@ What HomeBatteryAssist creates (names as shown in Home Assistant).
 | Phase charging (solar) | Sensor |
 | Phase grid only | Sensor |
 | Recalculate | Button |
+| Does not follow its command | binary_sensor |
 
 ## Actions {#actions}
 

@@ -53,6 +53,20 @@ const TEXT = {
     discharging: "Discharging",
     idle: "Idle",
     unavailable: "Unavailable",
+    cmdLabel: "Command",
+    cmdCharge: "charge {w}",
+    cmdDischarge: "discharge {w}",
+    cmdStop: "stop",
+    cmdInfo: "What the battery is told to do now by the integration that controls it (in this phase not HomeBatteryAssist), and whether it follows.",
+    cmdProblem: "Does not follow its command since {t}",
+    cmdExplained: "Does not follow its command since {t}: {r}",
+    cmdReasons: {
+      full: "full",
+      empty: "at its minimum",
+      charge_off: "charging switched off",
+      discharge_off: "discharging switched off",
+      hysteresis: "hysteresis after full",
+    },
     battery: "Batteries",
     virtual: "virtual",
     noBatteries: "No batteries linked yet. Add one under Settings → Devices & services → HomeBatteryAssist.",
@@ -292,6 +306,20 @@ const TEXT = {
     discharging: "Ontladen",
     idle: "Rust",
     unavailable: "Niet beschikbaar",
+    cmdLabel: "Opdracht",
+    cmdCharge: "laden {w}",
+    cmdDischarge: "ontladen {w}",
+    cmdStop: "stoppen",
+    cmdInfo: "Wat de batterij nu opgedragen krijgt van de integratie die haar aanstuurt (in deze fase niet HomeBatteryAssist), en of ze dat volgt.",
+    cmdProblem: "Volgt opdracht niet sinds {t}",
+    cmdExplained: "Volgt opdracht niet sinds {t}: {r}",
+    cmdReasons: {
+      full: "vol",
+      empty: "op minimum",
+      charge_off: "laden uitgeschakeld",
+      discharge_off: "ontladen uitgeschakeld",
+      hysteresis: "hysterese na vol",
+    },
     battery: "Batterijen",
     virtual: "virtueel",
     noBatteries: "Nog geen batterijen gekoppeld. Voeg er een toe via Instellingen → Apparaten & diensten → HomeBatteryAssist.",
@@ -567,6 +595,7 @@ const STYLE = `
     font-size: 12px; font-weight: 500; color: var(--primary-text-color); }
   .row { display: flex; justify-content: space-between; font-size: 14px; color: var(--secondary-text-color); }
   .row b { color: var(--primary-text-color); font-weight: 500; }
+  .row.cmd.alert span { color: var(--error-color, #db4437); font-weight: 500; }
   .phases { display: grid; gap: 10px; }
   table.compare { border-collapse: collapse; width: 100%; max-width: 640px; margin-bottom: 8px; }
   table.compare td { padding: 6px 8px; border-bottom: 1px solid var(--divider-color); }
@@ -1197,6 +1226,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       ${b.expected_empty ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.emptyExpected)}</span><b>${this._time(b.expected_empty)}</b></div>` : ""}
       ${b.nom_full && b.nom_full !== b.expected_full ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.fullNom)}</span><b>${this._time(b.nom_full)}</b></div>` : ""}
       ${b.nom_empty && b.nom_empty !== b.expected_empty ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.emptyNom)}</span><b>${this._time(b.nom_empty)}</b></div>` : ""}
+      ${this._command(b, t)}
       ${Object.keys(t.detail)
         .filter((k) => b.details && b.details[k] !== undefined)
         .map((k) => [k, b.details[k]])
@@ -1208,6 +1238,24 @@ class HomeBatteryAssistPanel extends HTMLElement {
         })
         .join("")}
     </div>`;
+  }
+
+  // The command the battery has now (from its controlling integration) and
+  // whether it follows it.
+  _command(b, t) {
+    const c = b.command;
+    if (!c || c.command_w === null || c.command_w === undefined) return "";
+    const w = this._power(Math.abs(c.command_w));
+    const what = c.command_w > 0 ? t.cmdCharge.replace("{w}", w) : c.command_w < 0 ? t.cmdDischarge.replace("{w}", w) : t.cmdStop;
+    let line = `<div class="row" title="${esc(t.cmdInfo)}"><span>${esc(t.cmdLabel)}</span><b>${esc(what)}</b></div>`;
+    if (c.not_following && c.since) {
+      const when = this._time(c.since);
+      const text = c.problem
+        ? t.cmdProblem.replace("{t}", when)
+        : t.cmdExplained.replace("{t}", when).replace("{r}", t.cmdReasons[c.reason] || c.reason || "");
+      line += `<div class="row cmd ${c.problem ? "alert" : "muted"}"><span>${esc(text)}</span></div>`;
+    }
+    return line;
   }
 
   _batteries(s, t) {

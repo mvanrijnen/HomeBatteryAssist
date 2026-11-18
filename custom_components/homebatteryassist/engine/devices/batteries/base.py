@@ -64,6 +64,20 @@ class BatteryTelemetry:
         return {k: v for k, v in values.items() if v is not None}
 
 
+@dataclass(frozen=True, slots=True)
+class BatteryCommand:
+    """What a battery is told to do right now by whoever controls it (its own
+    integration, e.g. Omnibattery; later HomeBatteryAssist), and what may hold
+    it back."""
+
+    power_w: float  # + charge / - discharge / 0 = stop
+    charge_allowed: bool = True
+    discharge_allowed: bool = True
+    # Charging held back after a full charge until the state of charge has
+    # dropped a little (the battery's own hysteresis).
+    hysteresis: bool = False
+
+
 class BatteryModel:
     """A battery type. Subclass per brand, type range and type; set only what
     is known for sure (None = unknown)."""
@@ -129,6 +143,13 @@ class BatteryReader:
     def telemetry(self, hass: HomeAssistant, config: BatteryConfig) -> BatteryTelemetry:
         """Extra live details of the battery (default: none)."""
         return BatteryTelemetry()
+
+    def command(
+        self, hass: HomeAssistant, config: BatteryConfig
+    ) -> BatteryCommand | None:
+        """The command the battery has now from its controlling integration
+        (read only), or None: not readable, or the battery controls itself."""
+        return None
 
     async def async_set_power(
         self, hass: HomeAssistant, config: BatteryConfig, power_w: float

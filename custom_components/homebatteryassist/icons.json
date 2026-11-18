@@ -125,6 +125,14 @@
       "recalculate": {
         "default": "mdi:refresh"
       }
+    },
+    "binary_sensor": {
+      "battery_not_following": {
+        "default": "mdi:battery-alert-variant-outline",
+        "state": {
+          "off": "mdi:battery-check-outline"
+        }
+      }
     }
   },
   "services": {

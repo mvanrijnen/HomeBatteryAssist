@@ -88,6 +88,9 @@ MESSAGES: dict[str, dict[str, str]] = {
         "pv_surplus_unexpected_ended": "The unexpected solar surplus is over ({start} to {end}): {energy} kWh left over, of which {expected} kWh was forecast; at most {peak}.",
         "pv_shortage_unexpected": "Less solar than forecast: since {since} about {surplus} of solar power left over beyond what the house uses, while {expected} was forecast for this hour.{battery}",
         "pv_shortage_unexpected_ended": "The solar shortage is over ({start} to {end}): {energy} kWh left over, while {expected} kWh was forecast; at most {peak} missing.",
+        "battery_not_following": "{name} does not follow its command: since {since} told to {direction} at {command}, but its power is {actual}. The integration that controls it (or the battery itself) may have a problem.",
+        "battery_not_following_explained": "{name} does not follow its command to {direction} at {command} (since {since}, power {actual}), and that is explained: {reason}.",
+        "battery_not_following_ended": "{name} follows its command again (it did not from {start} to {end}).",
     },
     "nl": {
         "horizon_setting": "Planning {hours} uur vooruit (tot {end}): het ingestelde maximum van {days} dagen.",
@@ -163,6 +166,9 @@ MESSAGES: dict[str, dict[str, str]] = {
         "pv_surplus_unexpected_ended": "Het onverwachte zonne-overschot is voorbij ({start} tot {end}): {energy} kWh over, waarvan {expected} kWh voorspeld; hoogstens {peak}.",
         "pv_shortage_unexpected": "Minder zon dan verwacht: sinds {since} ongeveer {surplus} zonnestroom over na het verbruik van het huis, terwijl voor dit uur {expected} verwacht werd.{battery}",
         "pv_shortage_unexpected_ended": "Het zonnetekort is voorbij ({start} tot {end}): {energy} kWh over, terwijl {expected} kWh voorspeld was; hoogstens {peak} te weinig.",
+        "battery_not_following": "{name} volgt de opdracht niet: sinds {since} opgedragen te {direction} met {command}, maar het vermogen is {actual}. De integratie die de batterij aanstuurt (of de batterij zelf) heeft mogelijk een probleem.",
+        "battery_not_following_explained": "{name} volgt de opdracht om te {direction} met {command} niet (sinds {since}, vermogen {actual}), en dat is verklaarbaar: {reason}.",
+        "battery_not_following_ended": "{name} volgt de opdracht weer (niet van {start} tot {end}).",
     },
 }
 
@@ -231,6 +237,13 @@ TERMS: dict[str, dict[str, str]] = {
         "surplus_plan": " The plan did not count on it: the batteries store it on top of the plan as long as they are not full.",
         "shortage_nom": " The batteries store less and cover the house from what they hold when the sun falls short (zero on the meter).",
         "shortage_plan": " The batteries only charge what is really left over; a planned charge from the grid goes on. The next plan counts with the lower state of charge.",
+        "dir_charge": "charge",
+        "dir_discharge": "discharge",
+        "reason_full": "it is full",
+        "reason_empty": "it is at its minimum state of charge",
+        "reason_charge_off": "charging is switched off on the battery",
+        "reason_discharge_off": "discharging is switched off on the battery",
+        "reason_hysteresis": "after a full charge it only charges again once its state of charge has dropped a little (hysteresis)",
     },
     "nl": {
         "none": "",
@@ -273,6 +286,13 @@ TERMS: dict[str, dict[str, str]] = {
         "surplus_plan": " Het plan rekende er niet op: de batterijen slaan het bovenop het plan op zolang ze niet vol zijn.",
         "shortage_nom": " De batterijen slaan minder op en leveren het huis stroom uit wat ze hebben als de zon tekortschiet (nul op de meter).",
         "shortage_plan": " De batterijen laden alleen wat er echt over is; gepland laden uit het net gaat door. Het volgende plan rekent met de lagere vulling.",
+        "dir_charge": "laden",
+        "dir_discharge": "ontladen",
+        "reason_full": "ze is vol",
+        "reason_empty": "ze zit op haar minimale laadniveau",
+        "reason_charge_off": "laden staat uit op de batterij",
+        "reason_discharge_off": "ontladen staat uit op de batterij",
+        "reason_hysteresis": "na volladen laadt ze pas weer als het laadniveau iets gedaald is (hysterese)",
     },
 }
 

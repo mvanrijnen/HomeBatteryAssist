@@ -71,6 +71,11 @@ CONF_PV_CORRECTOR: Final = "pv_corrector"  # PV correction module (learned)
 # Solar power clearly more / less than forecast right now.
 CONF_PV_DEVIATION_W: Final = "pv_deviation_w"
 CONF_PV_DEVIATION_MINUTES: Final = "pv_deviation_minutes"
+# A battery that does not follow its command (from this power, after so long).
+CONF_COMMAND_CHECK_W: Final = "command_check_w"
+CONF_COMMAND_CHECK_MINUTES: Final = "command_check_minutes"
+DEFAULT_COMMAND_CHECK_W: Final = 100
+DEFAULT_COMMAND_CHECK_MINUTES: Final = 2
 PV_CORRECTION_AUTO: Final = "auto"  # learned from past forecasts
 PV_CORRECTION_FIXED: Final = "fixed"  # only the fixed margin (%)
 PV_CORRECTION_BOTH: Final = "both"

@@ -24,6 +24,8 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_COMMAND_CHECK_MINUTES,
+    CONF_COMMAND_CHECK_W,
     CONF_HISTORY_INTERVAL,
     CONF_INTERCEPTOR,
     CONF_NOTIFY_KINDS,
@@ -33,6 +35,8 @@ from .const import (
     CONF_SPIKE_FILTER,
     CONF_SPIKE_THRESHOLD,
     CONF_VACATION,
+    DEFAULT_COMMAND_CHECK_MINUTES,
+    DEFAULT_COMMAND_CHECK_W,
     DEFAULT_HISTORY_INTERVAL,
     DEFAULT_PV_DEVIATION_MINUTES,
     DEFAULT_SPIKE_DURATION,
@@ -45,6 +49,7 @@ from .engine.control.interceptors import (
 )
 from .engine.coordinator import ForecastCoordinator
 from .engine.devices.batteries.virtual import VirtualBatterySimulator
+from .engine.evaluation.command_check import CommandMonitor
 from .engine.evaluation.forecast_accuracy import ForecastAccuracy
 from .engine.evaluation.plan_check import PlanVerification
 from .engine.evaluation.pv_corrections import async_load_user_pv_correctors
@@ -78,7 +83,7 @@ from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
 from .output.panel import async_setup_panel
 from .services import async_setup_services
 
-PLATFORMS: list[Platform] = [Platform.BUTTON, Platform.SENSOR]
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
@@ -394,6 +399,22 @@ async def async_setup_entry(
 
     entry.async_on_unload(measurements.async_add_listener(_check_surplus))
 
+    # Does each real battery follow the command it has (in this phase from
+    # its own integration; later also HomeBatteryAssist's own commands)?
+    commands = CommandMonitor(
+        hass,
+        batteries,
+        decisions,
+        threshold_w=entry.options.get(CONF_COMMAND_CHECK_W, DEFAULT_COMMAND_CHECK_W),
+        start_after=timedelta(
+            minutes=entry.options.get(
+                CONF_COMMAND_CHECK_MINUTES, DEFAULT_COMMAND_CHECK_MINUTES
+            )
+        ),
+    )
+    commands.async_start()
+    entry.async_on_unload(commands.async_stop)
+
     # Battery control — WRITTEN OUT, NOT ACTIVE (engine/control/control_loop.py;
     # see "Activating" there). Once active it runs next to the simulator, on
     # the same targets, and releases every battery on unload:
@@ -407,6 +428,7 @@ async def async_setup_entry(
     #     measurements,
     #     forecast,
     #     enabled=entry.options.get(CONF_CONTROL_ENABLED, False),
+    #     commands=commands,  # releases a battery that does not follow
     # )
     # control.async_start()
     # entry.async_on_unload(control.async_stop)
@@ -419,6 +441,7 @@ async def async_setup_entry(
         forecast=forecast,
         plan_check=plan_check,
         simulator=simulator,
+        commands=commands,
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # Options and subentry changes (PV sources, excluded loads) require a reload.

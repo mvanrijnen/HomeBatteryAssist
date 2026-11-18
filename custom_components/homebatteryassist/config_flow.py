@@ -74,6 +74,8 @@ from .const import (
     CONF_BATTERY_METER_ADDRESS,
     CONF_CAPACITY,
     CONF_CHARGE_HYSTERESIS,
+    CONF_COMMAND_CHECK_MINUTES,
+    CONF_COMMAND_CHECK_W,
     CONF_CONSUMPTION_FORECASTER,
     CONF_CYCLE_COST,
     CONF_DEVICE_PHASE_SENSORS,
@@ -162,6 +164,8 @@ from .const import (
     CONF_WEATHER_LOCATION,
     CONF_WEATHER_SOURCE,
     DEFAULT_BALANCE_INTERVAL,
+    DEFAULT_COMMAND_CHECK_MINUTES,
+    DEFAULT_COMMAND_CHECK_W,
     DEFAULT_CYCLE_COST,
     DEFAULT_EFFICIENCY,
     DEFAULT_EXPORT_FACTOR,
@@ -450,6 +454,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "spike_filter",
     ),
     "reaction": ("react_interval_s", "react_average", "react_jump", "react_jump_w"),
+    "command_check": ("command_check_w", "command_check_minutes"),
     "full_charge": ("full_charge_window_days", "full_charge_day", "full_charge_solar"),
     "notifications": ("notify_targets", "notify_kinds"),
     "weather": (
@@ -901,6 +906,16 @@ async def _flat_settings_schema(
             ),
         ): _number(1, 60, 1, "min"),
         vol.Required(
+            CONF_COMMAND_CHECK_W,
+            default=current.get(CONF_COMMAND_CHECK_W, DEFAULT_COMMAND_CHECK_W),
+        ): _number(50, 2000, 50, "W"),
+        vol.Required(
+            CONF_COMMAND_CHECK_MINUTES,
+            default=current.get(
+                CONF_COMMAND_CHECK_MINUTES, DEFAULT_COMMAND_CHECK_MINUTES
+            ),
+        ): _number(1, 30, 1, "min"),
+        vol.Required(
             CONF_MAX_CYCLES,
             default=current.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES),
         ): NumberSelector(
@@ -1106,6 +1121,12 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     )
     options[CONF_PV_DEVIATION_MINUTES] = int(
         user_input.get(CONF_PV_DEVIATION_MINUTES, DEFAULT_PV_DEVIATION_MINUTES)
+    )
+    options[CONF_COMMAND_CHECK_W] = int(
+        user_input.get(CONF_COMMAND_CHECK_W, DEFAULT_COMMAND_CHECK_W)
+    )
+    options[CONF_COMMAND_CHECK_MINUTES] = int(
+        user_input.get(CONF_COMMAND_CHECK_MINUTES, DEFAULT_COMMAND_CHECK_MINUTES)
     )
     options[CONF_MAX_CYCLES] = float(
         user_input.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES)

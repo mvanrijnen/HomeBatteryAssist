@@ -59,6 +59,10 @@ async def async_get_config_entry_diagnostics(
                     "max_soc": state.config.max_soc,
                 },
                 "stats": data.batteries.stats.get(state.config.id),
+                # The command it has now and whether it follows it.
+                "command": (
+                    data.commands.state(state.config.id) if data.commands else None
+                ),
             }
             for state in data.batteries.states.values()
         ],
