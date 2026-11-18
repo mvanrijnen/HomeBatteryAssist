@@ -57,7 +57,13 @@ async def test_add_device_three_phase(hass: HomeAssistant, kind: str) -> None:
     )
     assert result["type"] is FlowResultType.FORM
     pv = (
-        {"pv_driver", "pv_address", "inverter_driver", "inverter_address"}
+        {
+            "pv_driver",
+            "pv_address",
+            "inverter_driver",
+            "inverter_address",
+            "possible_sensor",
+        }
         if kind == SUBENTRY_PV_SOURCE
         else set()
     )
@@ -103,6 +109,7 @@ async def test_single_phase_has_no_phase_field(hass: HomeAssistant) -> None:
         "pv_address",
         "inverter_driver",
         "inverter_address",
+        "possible_sensor",
     }
 
     result = await hass.config_entries.subentries.async_configure(

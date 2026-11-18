@@ -49,6 +49,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "value": "Value",
         "k_grid": "Grid",
         "k_pv": "PV source",
+        "k_pv_possible": "PV source (possible power)",
         "k_excluded": "Excluded device",
         "k_heating": "Heating/cooling",
         "k_battery": "Battery",
@@ -89,6 +90,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "value": "Waarde",
         "k_grid": "Net",
         "k_pv": "PV-bron",
+        "k_pv_possible": "PV-bron (mogelijk vermogen)",
         "k_excluded": "Uitgesloten apparaat",
         "k_heating": "Verwarming/koeling",
         "k_battery": "Batterij",
@@ -194,6 +196,7 @@ def input_report(
     rows += [(t["k_current"], s) for s in m.current_sensors if s]
     rows += [(t["k_voltage"], s) for s in m.voltage_sensors if s]
     rows += [(t["k_pv"], s) for s in m.pv_sensors if s]
+    rows += [(t["k_pv_possible"], s) for _, s in getattr(m, "pv_possible", [])]
     rows += [(t["k_excluded"], s) for s in m.excluded_sensors if s]
     rows += [(t["k_heating"], s) for s in m.heating_sensors if s]
     for state in battery_states:

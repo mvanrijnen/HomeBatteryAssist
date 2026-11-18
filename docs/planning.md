@@ -73,6 +73,8 @@ Attributes: *limited*, the reason, the limit as current per phase, the export pr
 
 **In this phase nothing is sent to an inverter.** *Why* tells when the export would be limited (to what, why, how much less the inverters would produce) and when it ends (minutes, kWh not exported, what that was worth at the export price). Settings section *Export limit (PV inverters)*. Which inverter could be limited is chosen per PV source (*Inverter driver*, *Inverter address*) — see [Drivers](drivers.md#pv-inverters--enginedevicesinverters).
 
+**Possible power.** A PV source can get a sensor with what it could produce now (*Possible power*, e.g. an SMA inverter's register read with Home Assistant's [Modbus integration](https://www.home-assistant.io/integrations/modbus/); the register differs per model). Where it is higher than the measured power, PV is being held back: the history, the PV correction and the forecast accuracy then learn from what the sun gave (not from the curtailed power), and *Max export* shows the PV held back now. The house consumption stays measured.
+
 ## Periodic full charge
 
 Per battery (for the battery management's calibration), every so many days, at the cheapest moment, optionally on a preferred weekday and preferably with solar power; batteries charge fully at the same time when the grid connection allows it. The full charge is always inserted **after** the planner, whatever planner is chosen.

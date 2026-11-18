@@ -86,6 +86,11 @@ DEFAULT_EXPORT_LIMIT_MAX_W: Final = 0
 # PV source: the inverter driver that could limit it, and its address.
 CONF_INVERTER_DRIVER: Final = "inverter_driver"
 CONF_INVERTER_ADDRESS: Final = "inverter_address"
+# PV source: optional sensor with what it could produce now (W, e.g. an SMA
+# inverter's register read by Home Assistant's Modbus integration). Where it
+# is higher than the measured power the PV was curtailed: learning (history,
+# PV correction, accuracy) then uses what the sun gave.
+CONF_PV_POSSIBLE_SENSOR: Final = "possible_sensor"
 INVERTER_NONE: Final = "none"
 CONF_COMMAND_CHECK_W: Final = "command_check_w"
 CONF_COMMAND_CHECK_MINUTES: Final = "command_check_minutes"

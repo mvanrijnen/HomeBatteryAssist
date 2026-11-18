@@ -238,6 +238,7 @@ class ExportLimitSensor(HomeBatteryAssistEntity, SensorEntity):
         """Initialize, on the grid connection device."""
         super().__init__(entry, "export_limit")
         self._limiter = entry.runtime_data.export_limit
+        self._measurements = entry.runtime_data.measurements
         self._phases = entry.runtime_data.measurements.phases
         self._attr_device_info = grid_device_info(entry)
 
@@ -268,6 +269,14 @@ class ExportLimitSensor(HomeBatteryAssistEntity, SensorEntity):
             "curtailed_w": round(limiter.curtailed_w),
             "curtailed_today_kwh": round(limiter.today_kwh, 3),
             "would_send": limiter.would_send() if limit.limited else [],
+            # PV the inverters hold back now (possible - measured), when a PV
+            # source has a sensor for what it could produce.
+            "pv_curtailed_now_w": (
+                round(flow.pv_curtailed_w)
+                if (flow := self._measurements.flow) is not None
+                and flow.pv_possible_w is not None
+                else None
+            ),
             "controlled": False,
         }
 

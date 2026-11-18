@@ -518,7 +518,8 @@
     "inverter_driver": {
       "options": {
         "none": "Geen",
-        "sma_modbus": "SMA via Modbus (niet geverifieerd)"
+        "sma_modbus": "SMA via Modbus, zonder Home Manager (registers per model, niet geverifieerd)",
+        "sma_home_manager": "SMA via Sunny Home Manager (met een Home Manager in ennexOS)"
       }
     }
   },
@@ -849,7 +850,8 @@
             "pv_driver": "Gemeten door",
             "pv_address": "IP-adres meter",
             "inverter_driver": "Omvormer-driver (begrenzing teruglevering)",
-            "inverter_address": "Adres omvormer"
+            "inverter_address": "Adres omvormer",
+            "possible_sensor": "Mogelijk vermogen (optioneel)"
           },
           "data_description": {
             "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
@@ -858,7 +860,8 @@
             "pv_driver": "Een sensor van een andere integratie, of een meter die rechtstreeks wordt uitgelezen (ongeveer elke seconde, alleen lezen), bijv. een HomeWizard kWh-meter op de groep van de omvormer.",
             "pv_address": "Alleen bij een rechtstreeks uitgelezen meter.",
             "inverter_driver": "Hoe deze omvormer begrensd zou kunnen worden voor de begrenzing van de teruglevering. In deze fase wordt niets verstuurd: alleen getoond wat hij zou sturen.",
-            "inverter_address": "IP-adres van de omvormer, voor de driver."
+            "inverter_address": "IP-adres van de omvormer, voor de driver.",
+            "possible_sensor": "Wat deze PV-bron nu zou kunnen leveren (W), bijv. een register van een SMA-omvormer, ingelezen met de Modbus-integratie van Home Assistant. Waar het hoger is dan het gemeten vermogen, werd PV tegengehouden (begrensd): HomeBatteryAssist leert dan van wat de zon gaf, en toont wat er tegengehouden wordt."
           }
         },
         "reconfigure": {
@@ -874,7 +877,8 @@
             "pv_driver": "Gemeten door",
             "pv_address": "IP-adres meter",
             "inverter_driver": "Omvormer-driver (begrenzing teruglevering)",
-            "inverter_address": "Adres omvormer"
+            "inverter_address": "Adres omvormer",
+            "possible_sensor": "Mogelijk vermogen (optioneel)"
           },
           "data_description": {
             "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
@@ -883,7 +887,8 @@
             "pv_driver": "Een sensor van een andere integratie, of een meter die rechtstreeks wordt uitgelezen (ongeveer elke seconde, alleen lezen), bijv. een HomeWizard kWh-meter op de groep van de omvormer.",
             "pv_address": "Alleen bij een rechtstreeks uitgelezen meter.",
             "inverter_driver": "Hoe deze omvormer begrensd zou kunnen worden voor de begrenzing van de teruglevering. In deze fase wordt niets verstuurd: alleen getoond wat hij zou sturen.",
-            "inverter_address": "IP-adres van de omvormer, voor de driver."
+            "inverter_address": "IP-adres van de omvormer, voor de driver.",
+            "possible_sensor": "Wat deze PV-bron nu zou kunnen leveren (W), bijv. een register van een SMA-omvormer, ingelezen met de Modbus-integratie van Home Assistant. Waar het hoger is dan het gemeten vermogen, werd PV tegengehouden (begrensd): HomeBatteryAssist leert dan van wat de zon gaf, en toont wat er tegengehouden wordt."
           }
         }
       },
@@ -1606,6 +1611,9 @@
           },
           "controlled": {
             "name": "Aangestuurd"
+          },
+          "pv_curtailed_now_w": {
+            "name": "PV nu tegengehouden"
           }
         }
       }

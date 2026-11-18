@@ -120,3 +120,52 @@ async def test_max_export_sensor(hass: HomeAssistant) -> None:
     assert float(state.state) == connection_w(1, 35)
     assert state.attributes["limited"] is False
     assert state.attributes["controlled"] is False
+
+
+def test_possible_pv_power() -> None:
+    """A PV source that could produce more than it does: the difference is
+    held back, and learning uses what the sun gave."""
+    from custom_components.homebatteryassist.engine.measure.house_measurement import (
+        PowerFlow,
+    )
+
+    flow = PowerFlow(0.0, 1500.0, 0.0, 0.0, 1500.0, (0.0,), pv_possible_w=4000.0)
+    assert flow.pv_potential_w == 4000.0
+    assert flow.pv_curtailed_w == 2500.0
+    plain = PowerFlow(0.0, 1500.0, 0.0, 0.0, 1500.0, (0.0,))
+    assert plain.pv_potential_w == 1500.0 and plain.pv_curtailed_w == 0.0
+
+
+async def test_possible_pv_sensor_in_the_flow(hass: HomeAssistant) -> None:
+    """The possible-power sensor of a PV source feeds ``pv_possible_w``."""
+    from homeassistant.config_entries import ConfigSubentryData
+
+    hass.states.async_set("sensor.l1", "0", {"unit_of_measurement": "W"})
+    hass.states.async_set("sensor.pv", "1500", {"unit_of_measurement": "W"})
+    hass.states.async_set("sensor.pv_possible", "4000", {"unit_of_measurement": "W"})
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_PHASES: 1, CONF_MAX_CURRENT: 35, "sensor_l1": "sensor.l1"},
+        options={CONF_HISTORY_INTERVAL: 15},
+        subentries_data=[
+            ConfigSubentryData(
+                data={
+                    "name": "Roof",
+                    "sensor": "sensor.pv",
+                    "possible_sensor": "sensor.pv_possible",
+                },
+                subentry_type="pv_source",
+                title="Roof",
+                unique_id="sensor.pv",
+            )
+        ],
+    )
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    hass.states.async_set("sensor.pv_possible", "4100", {"unit_of_measurement": "W"})
+    await hass.async_block_till_done()
+    flow = entry.runtime_data.measurements.flow
+    assert flow.pv_w == 1500.0
+    assert flow.pv_possible_w == 4100.0
+    assert flow.house_w == 1500.0  # the house is measured, not possible

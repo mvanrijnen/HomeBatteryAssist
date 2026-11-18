@@ -64,8 +64,8 @@ Naast het vermogen per fase leest elke meterdriver ook de **stroom, spanning en 
 
 Hoe het vermogen van een omvormer begrensd zou kunnen worden voor de [begrenzing van de teruglevering](planning.md#export-limit-pv-inverters). **Voorbereid, niet gebruikt**: elke driver heeft `enabled = False`, `async_set_limit` wordt nooit aangeroepen, en HomeBatteryAssist maakt in deze fase geen verbinding met een omvormer; de sensor *Max. teruglevering* toont alleen wat een driver zou sturen. `base.py` = `InverterDriver` (`points`: de instellingen die hij zou schrijven, `{limit_w}` = de grens in W; `limits`: het eigen vermogen van de omvormer of de teruglevering), `template.py` = een voorbeeld.
 
-- `sma_modbus.py` — SMA Sunny Boy / Sunny Tripower via Modbus TCP (poort 502, unit 3): werkvermogen via communicatie (40151 = 802) met het setpoint in W (40149). Uit de Modbus-documentatie van SMA, *niet geverifieerd op een apparaat*.
-- De **Sunny Home Manager 2.0** kan de teruglevering van alle SMA-omvormers ook begrenzen, maar die grens wordt ingesteld in Sunny Portal / ennexOS; er is geen lokale interface bekend om hem te wijzigen, dus daar is geen driver voor (hij wordt wel uitgelezen als [meter](#meters-enginedevicesmeters)).
+- `sma_home_manager.py` — SMA-omvormers met een **Sunny Home Manager 2.0** (samen in ennexOS / Sunny Portal): de grens hoort dan bij de Home Manager, die al zijn SMA-omvormers begrenst; een omvormer mag daarnaast niet rechtstreeks begrensd worden. Hoe de grens van de Home Manager lokaal te wijzigen is, is nog niet bekend (hij wordt ingesteld in Sunny Portal / ennexOS), dus deze driver zegt alleen dat de begrenzing via de Home Manager zou gaan. De Home Manager wordt al uitgelezen als [meter](#meters-enginedevicesmeters).
+- `sma_modbus.py` — een SMA Sunny Boy / Sunny Tripower **zonder** Home Manager, via Modbus TCP: werkvermogen via communicatie met een setpoint in W. **De registers verschillen per SMA-model**; de driver heeft een voorbeeld (40151 = 802, 40149 = W, unit 3, poort 502) uit de Modbus-documentatie van SMA, *niet geverifieerd op een apparaat*.
 
 ## Nu ondersteund {#supported-now}
 

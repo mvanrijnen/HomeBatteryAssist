@@ -518,7 +518,8 @@
     "inverter_driver": {
       "options": {
         "none": "None",
-        "sma_modbus": "SMA via Modbus (not verified)"
+        "sma_modbus": "SMA via Modbus, without a Home Manager (registers per model, not verified)",
+        "sma_home_manager": "SMA via Sunny Home Manager (with a Home Manager in ennexOS)"
       }
     }
   },
@@ -849,7 +850,8 @@
             "pv_driver": "Measured by",
             "pv_address": "Meter IP address",
             "inverter_driver": "Inverter driver (export limit)",
-            "inverter_address": "Inverter address"
+            "inverter_address": "Inverter address",
+            "possible_sensor": "Possible power (optional)"
           },
           "data_description": {
             "sensor": "Sensor measuring the power (W) or current (A) of this device.",
@@ -858,7 +860,8 @@
             "pv_driver": "A sensor of another integration, or a meter read directly (about every second, read-only), e.g. a HomeWizard kWh meter on the inverter's line.",
             "pv_address": "Only for a meter read directly.",
             "inverter_driver": "How this inverter could be limited for the export limit. In this phase nothing is sent: only shown what it would send.",
-            "inverter_address": "IP address of the inverter, for the driver."
+            "inverter_address": "IP address of the inverter, for the driver.",
+            "possible_sensor": "What this PV source could produce now (W), e.g. an SMA inverter's register read with Home Assistant's Modbus integration. Where it is higher than the measured power, the PV was held back (curtailed): HomeBatteryAssist then learns from what the sun gave, and shows what is held back."
           }
         },
         "reconfigure": {
@@ -874,7 +877,8 @@
             "pv_driver": "Measured by",
             "pv_address": "Meter IP address",
             "inverter_driver": "Inverter driver (export limit)",
-            "inverter_address": "Inverter address"
+            "inverter_address": "Inverter address",
+            "possible_sensor": "Possible power (optional)"
           },
           "data_description": {
             "sensor": "Sensor measuring the power (W) or current (A) of this device.",
@@ -883,7 +887,8 @@
             "pv_driver": "A sensor of another integration, or a meter read directly (about every second, read-only), e.g. a HomeWizard kWh meter on the inverter's line.",
             "pv_address": "Only for a meter read directly.",
             "inverter_driver": "How this inverter could be limited for the export limit. In this phase nothing is sent: only shown what it would send.",
-            "inverter_address": "IP address of the inverter, for the driver."
+            "inverter_address": "IP address of the inverter, for the driver.",
+            "possible_sensor": "What this PV source could produce now (W), e.g. an SMA inverter's register read with Home Assistant's Modbus integration. Where it is higher than the measured power, the PV was held back (curtailed): HomeBatteryAssist then learns from what the sun gave, and shows what is held back."
           }
         }
       },
@@ -1606,6 +1611,9 @@
           },
           "controlled": {
             "name": "Controlled"
+          },
+          "pv_curtailed_now_w": {
+            "name": "PV held back now"
           }
         }
       }

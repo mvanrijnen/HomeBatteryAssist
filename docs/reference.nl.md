@@ -228,6 +228,7 @@ Een meting van zonne-opwek (PV), bijvoorbeeld een omvormer. De opwek wordt bij d
 | **IP-adres meter** | Alleen bij een rechtstreeks uitgelezen meter. |
 | **Omvormer-driver (begrenzing teruglevering)** | Hoe deze omvormer begrensd zou kunnen worden voor de begrenzing van de teruglevering. In deze fase wordt niets verstuurd: alleen getoond wat hij zou sturen. |
 | **Adres omvormer** | IP-adres van de omvormer, voor de driver. |
+| **Mogelijk vermogen (optioneel)** | Wat deze PV-bron nu zou kunnen leveren (W), bijv. een register van een SMA-omvormer, ingelezen met de Modbus-integratie van Home Assistant. Waar het hoger is dan het gemeten vermogen, werd PV tegengehouden (begrensd): HomeBatteryAssist leert dan van wat de zon gaf, en toont wat er tegengehouden wordt. |
 
 ### Uitgesloten apparaat {#device-excluded-load}
 

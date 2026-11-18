@@ -64,8 +64,8 @@ Besides the power per phase every meter driver also reads the **current, voltage
 
 How an inverter's power could be limited for the [export limit](planning.md#export-limit-pv-inverters). **Prepared, not used**: every driver has `enabled = False`, `async_set_limit` is never called, and HomeBatteryAssist opens no connection to an inverter in this phase; the sensor *Max export* only shows what a driver would send. `base.py` = `InverterDriver` (`points`: the settings it would write, `{limit_w}` = the limit in W; `limits`: the inverter's own output or the export), `template.py` = an example.
 
-- `sma_modbus.py` — SMA Sunny Boy / Sunny Tripower via Modbus TCP (port 502, unit 3): active power through communication (40151 = 802) with the setpoint in W (40149). From SMA's Modbus documentation, *not verified on a device*.
-- The **Sunny Home Manager 2.0** can limit the export of all SMA inverters as well, but that limit is set in Sunny Portal / ennexOS; no local interface to change it is known, so there is no driver for it (it is still read as a [meter](#meters--enginedevicesmeters)).
+- `sma_home_manager.py` — SMA inverters with a **Sunny Home Manager 2.0** (together in ennexOS / Sunny Portal): the limit then belongs to the Home Manager, which limits all its SMA inverters; an inverter must not be limited directly beside it. How to change the Home Manager's limit locally is not known yet (it is set in Sunny Portal / ennexOS), so this driver only says the export limit would go through the Home Manager. The Home Manager is read as a [meter](#meters--enginedevicesmeters) already.
+- `sma_modbus.py` — an SMA Sunny Boy / Sunny Tripower **without** a Home Manager, via Modbus TCP: active power through communication with a setpoint in W. **The registers differ per SMA model**; the driver has an example (40151 = 802, 40149 = W, unit 3, port 502) from SMA's Modbus documentation, *not verified on a device*.
 
 ## Supported now
 

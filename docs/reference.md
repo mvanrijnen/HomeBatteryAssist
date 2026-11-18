@@ -228,6 +228,7 @@ A measurement of solar (PV) production, e.g. an inverter. Its production is adde
 | **Meter IP address** | Only for a meter read directly. |
 | **Inverter driver (export limit)** | How this inverter could be limited for the export limit. In this phase nothing is sent: only shown what it would send. |
 | **Inverter address** | IP address of the inverter, for the driver. |
+| **Possible power (optional)** | What this PV source could produce now (W), e.g. an SMA inverter's register read with Home Assistant's Modbus integration. Where it is higher than the measured power, the PV was held back (curtailed): HomeBatteryAssist then learns from what the sun gave, and shows what is held back. |
 
 ### Excluded device {#device-excluded-load}
 

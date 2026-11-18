@@ -54,6 +54,7 @@ from ...const import (
     CONF_PHASES,
     CONF_PV_ADDRESS,
     CONF_PV_DRIVER,
+    CONF_PV_POSSIBLE_SENSOR,
     CONF_SENSOR,
     NOMINAL_VOLTAGE,
     PHASE_NONE,
@@ -108,6 +109,19 @@ class PowerFlow:
     phase_a: tuple[float, ...] = ()
     phase_v: tuple[float, ...] = ()
     phase_pf: tuple[float, ...] = ()
+    # What the PV sources could produce now (W), when a source has a sensor
+    # for it and produced less (curtailed); None = as measured.
+    pv_possible_w: float | None = None
+
+    @property
+    def pv_potential_w(self) -> float:
+        """PV as the sun gave it: the possible power where known, else measured."""
+        return self.pv_possible_w if self.pv_possible_w is not None else self.pv_w
+
+    @property
+    def pv_curtailed_w(self) -> float:
+        """PV held back now by the inverters (possible - measured)."""
+        return max(self.pv_potential_w - self.pv_w, 0.0)
 
     def phase_amps(self, index: int) -> float:
         """The current on a phase (A), as precise as known: measured; else
@@ -193,6 +207,15 @@ class MeasurementInput:
             if (driver := get_meter_driver(driver_key)) is not None:
                 self.pv_meters.append((driver.create(hass, address), phase))
         self.pv_sensors = [sensor for sensor, _, _ in self.pv_sources]
+        # (measured sensor, possible sensor) of PV sources with a sensor for
+        # what they could produce now.
+        self.pv_possible = [
+            (sub.data.get(CONF_SENSOR) or "", sub.data[CONF_PV_POSSIBLE_SENSOR])
+            for sub in entry.subentries.values()
+            if sub.subentry_type == SUBENTRY_PV_SOURCE
+            and sub.data.get(CONF_PV_POSSIBLE_SENSOR)
+            and sub.data.get(CONF_PV_DRIVER, PV_DRIVER_SENSOR) == PV_DRIVER_SENSOR
+        ]
         self.excluded_sensors = [sensor for sensor, _, _ in self.excluded_loads]
         # Heating/cooling: part of the house, measured apart for the forecast.
         self.heating_sensors = [
@@ -228,6 +251,7 @@ class MeasurementInput:
         return [
             *grid,
             *self.pv_sensors,
+            *(possible for _, possible in self.pv_possible),
             *self.excluded_sensors,
             *self.heating_sensors,
             *self._phase_device_sensors,
@@ -427,7 +451,19 @@ class MeasurementInput:
             phase_a,
             phase_v,
             phase_pf,
+            self._pv_possible(pv),
         ), []
+
+    def _pv_possible(self, pv: float) -> float | None:
+        """PV as it could be now: the measured PV plus, per source with a
+        possible-power sensor, what it held back; None when nothing was."""
+        held = 0.0
+        for measured, possible in self.pv_possible:
+            could = self._watts(possible)
+            now = self._watts(measured) if measured else None
+            if could is not None and now is not None:
+                held += max(abs(could) - abs(now), 0.0)
+        return round(pv + held, 1) if held > 0 else None
 
     def _per_phase(
         self, sensors: list[str | None], count: int

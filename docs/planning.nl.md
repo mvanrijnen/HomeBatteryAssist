@@ -73,6 +73,8 @@ Attributen: *begrensd*, de reden, de grens als stroom per fase, de terugleverpri
 
 **In deze fase wordt niets naar een omvormer gestuurd.** *Waarom* meldt wanneer de teruglevering begrensd zou worden (tot hoeveel, waarom, hoeveel minder de omvormers zouden leveren) en wanneer dat voorbij is (minuten, kWh niet teruggeleverd, wat dat waard was tegen de terugleverprijs). Instellingen, sectie *Begrenzing teruglevering (PV-omvormers)*. Welke omvormer begrensd zou kunnen worden kies je per PV-bron (*Omvormer-driver*, *Adres omvormer*) — zie [Drivers](drivers.md#pv-inverters--enginedevicesinverters).
 
+**Mogelijk vermogen.** Een PV-bron kan een sensor krijgen met wat hij nu zou kunnen leveren (*Mogelijk vermogen*, bijv. een register van een SMA-omvormer, ingelezen met de [Modbus-integratie](https://www.home-assistant.io/integrations/modbus/) van Home Assistant; het register verschilt per model). Waar dat hoger is dan het gemeten vermogen, wordt PV tegengehouden: de geschiedenis, de PV-correctie en de nauwkeurigheid van de voorspelling leren dan van wat de zon gaf (niet van het begrensde vermogen), en *Max. teruglevering* toont de PV die nu wordt tegengehouden. Het huisverbruik blijft gemeten.
+
 ## Periodiek volladen {#periodic-full-charge}
 
 Per batterij (voor de kalibratie van het batterijbeheer), om de zoveel dagen, op het goedkoopste moment, eventueel op een voorkeursdag van de week en bij voorkeur met zonnestroom; batterijen laden tegelijk vol als de netaansluiting dat toelaat. Het volladen wordt altijd **na** de planner ingevoegd, welke planner ook gekozen is.

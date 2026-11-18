@@ -142,6 +142,7 @@ from .const import (
     CONF_PV_DRIVER,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
+    CONF_PV_POSSIBLE_SENSOR,
     CONF_REACT_AVERAGE,
     CONF_REACT_INTERVAL,
     CONF_REACT_JUMP,
@@ -1708,6 +1709,9 @@ class PvSourceSubentryFlow(_MeasuredDeviceSubentryFlow):
             )
         ),
         CONF_INVERTER_ADDRESS: TextSelector(),
+        CONF_PV_POSSIBLE_SENSOR: EntitySelector(
+            EntitySelectorConfig(domain="sensor", device_class="power")
+        ),
     }
 
 
