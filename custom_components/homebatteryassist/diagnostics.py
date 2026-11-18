@@ -4,12 +4,22 @@ from __future__ import annotations
 
 from typing import Any
 
+from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
 from .engine.evaluation.pv_corrections import BUILTIN as PV_CORRECTORS
 from .models import HomeBatteryAssistConfigEntry
 
 RECENT_RECORDS = 12
+# Left out of the download (it is often attached to public issues).
+TO_REDACT = {
+    "weather_api_key",
+    "weather_location",
+    "meter_address",
+    "pv_address",
+    "inverter_address",
+    "battery_meter_address",
+}
 RECENT_DECISIONS = 25
 
 
@@ -18,16 +28,20 @@ async def async_get_config_entry_diagnostics(
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry.
 
-    Contains no secrets: only entity ids, config entry ids and measured values.
+    Secrets, addresses and the location are redacted (``TO_REDACT``).
     """
     data = entry.runtime_data
     forecast = data.forecast.data
     return {
         "config": {
-            "data": dict(entry.data),
-            "options": dict(entry.options),
+            "data": async_redact_data(dict(entry.data), TO_REDACT),
+            "options": async_redact_data(dict(entry.options), TO_REDACT),
             "subentries": [
-                {"type": s.subentry_type, "title": s.title, "data": dict(s.data)}
+                {
+                    "type": s.subentry_type,
+                    "title": s.title,
+                    "data": async_redact_data(dict(s.data), TO_REDACT),
+                }
                 for s in entry.subentries.values()
             ],
         },

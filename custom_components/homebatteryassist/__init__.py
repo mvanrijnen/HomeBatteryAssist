@@ -185,6 +185,12 @@ async def async_setup_entry(
         data, now = forecast.data, dt_util.utcnow()
         if data is None:
             return None
+        # The export price point covering now (a slot may average several).
+        point = next(
+            (p.price for p in data.export_prices if p.start <= now < p.end), None
+        )
+        if point is not None:
+            return point
         slot = next((s for s in data.battery if s.start <= now < s.end), None)
         if slot is not None and slot.export_price is not None:
             return slot.export_price
@@ -529,6 +535,7 @@ async def async_setup_entry(
             batteries.export_price_now(),
             measured_grid_w=batteries.grid_now(),
             pv_sources=measurements.pv_per_source(),
+            headroom_w=batteries.charge_headroom_w(),
         )
 
     entry.async_on_unload(measurements.async_add_listener(_check_export))

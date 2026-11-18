@@ -229,6 +229,9 @@ class ExportLimitSensor(HomeBatteryAssistEntity, SensorEntity):
     the grid connection's maximum when not limited. Shown and explained in
     this phase; nothing is sent to an inverter."""
 
+    # Long lists: kept out of the recorder.
+    _unrecorded_attributes = frozenset({"expected", "would_send"})
+
     _attr_device_class = SensorDeviceClass.POWER
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfPower.WATT
@@ -283,7 +286,7 @@ class ExportLimitSensor(HomeBatteryAssistEntity, SensorEntity):
                 else round(limiter.production_limit_w)
             ),
             # The most that can be exported (not limited): connection,
-            # inverter breakers + batteries.
+            # or the sum of the inverter breakers when lower.
             "max_possible_w": round(limiter.connection),
             **limiter.capacity,
             # Coming periods in which export would be limited (plan).
@@ -557,7 +560,12 @@ class PlanPhaseSensor(
     @property
     def native_value(self) -> str:
         """Running now, planned later, or not in the planning window."""
-        current, following, _ = self._phases()
+        current, following, shares = self._phases()
+        if (
+            self._battery_id is not None
+            and not shares.get(self._battery_id, ("", 0.0))[1]
+        ):
+            return "none"  # not planned (e.g. a real battery with a twin)
         return "active" if current else "planned" if following else "none"
 
     @property
@@ -625,6 +633,9 @@ class ForecastAccuracySensor(
 
 class LastDecisionSensor(HomeBatteryAssistEntity, SensorEntity):
     """The most recent decision, explained; recent ones in the attributes."""
+
+    # Long lists: kept out of the recorder.
+    _unrecorded_attributes = frozenset({"recent"})
 
     _attr_should_poll = False
 

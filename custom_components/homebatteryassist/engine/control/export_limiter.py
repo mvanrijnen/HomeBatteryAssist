@@ -74,6 +74,8 @@ class ExportLimiter:
         # the order of ``inverters``) and the grid (W, + import).
         self.pv_sources: list[float | None] = [None] * len(inverters)
         self.grid_w: float | None = None
+        # What the real batteries could still charge on top of now (W).
+        self.headroom_w = 0.0
         self._comma = decimal_comma
         self.limit = ExportLimit(connection, False, "none")
         self.price: float | None = None
@@ -107,12 +109,14 @@ class ExportLimiter:
         *,
         measured_grid_w: float | None = None,
         pv_sources: list[float | None] | None = None,
+        headroom_w: float = 0.0,
     ) -> None:
         """A new measurement: the grid as HomeBatteryAssist's batteries
         make it (W, + import; for the limit and what it would curtail),
         the export price, and for the production limits the measured grid
         and the PV per source."""
         self.grid_w = measured_grid_w
+        self.headroom_w = headroom_w
         if pv_sources is not None:
             self.pv_sources = list(pv_sources)
         hours = (
@@ -292,8 +296,9 @@ class ExportLimiter:
         shares = production_limits(
             self.limit.limit_w,
             self.grid_w,
-            sum(p for p in pv if p is not None),
+            [p for p in pv if p is not None],
             [self.inverter_max[i] for i in power],
+            self.headroom_w,
         )
         for i, share in zip(power, shares, strict=True):
             result[i] = share

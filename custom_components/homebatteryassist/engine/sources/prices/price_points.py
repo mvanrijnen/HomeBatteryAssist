@@ -192,6 +192,10 @@ def calibrate(
         ref = next((r.price for r in reference if r.start <= point.start < r.end), None)
         if ref is not None:
             pairs.append((point.price, ref))
+    if not pairs:
+        # Nothing to put it on the level of the real prices with (e.g. no real
+        # prices yet): unusable, a bare market price is not an all-in price.
+        return []
     a, b = 1.0, 0.0
     if pairs:
         xs = [x for x, _ in pairs]

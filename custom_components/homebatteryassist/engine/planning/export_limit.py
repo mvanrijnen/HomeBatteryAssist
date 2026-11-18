@@ -138,33 +138,53 @@ def export_capacity_w(connection: float, inverters: list[float | None]) -> float
 def production_limits(
     limit_w: float,
     grid_w: float,
-    pv_w: float,
+    pv_now: list[float],
     maxima: list[float | None],
+    headroom_w: float = 0.0,
 ) -> list[float]:
     """What each inverter that limits its own output may produce so the
     export stays within ``limit_w``.
 
     An inverter limits its production, not the export: together they may
-    give what the house and the batteries use now plus the export allowed,
-    minus what other (not limited) PV gives. With ``pv_w`` = the PV of these
-    inverters only and ``grid_w`` = the **measured** grid (+ import /
-    - export, the real batteries as they are): ``pv + grid + limit``, so at
-    0 W export the house is still fed. That total is split over the
-    inverters by their maximum (breaker) when all are known, else equally,
-    and capped at each one's maximum. An export limit (a Home Manager) gets
+    give what the house and the batteries use now, plus the export allowed,
+    plus what the real batteries could still take on top of their charge now
+    (``headroom_w``: else a battery on its own zero-on-meter control sees no
+    surplus and never charges more), minus what other (not limited) PV
+    gives. With ``pv_now`` = what these inverters give now and ``grid_w`` =
+    the **measured** grid (+ import / - export): ``sum(pv) + grid + limit +
+    headroom``. That total is split by what each inverter gives now (a
+    shaded one cannot use a larger share; by breaker, else equally, when
+    none gives anything), at most each one's maximum (breaker), what one
+    cannot take going to the others. An export limit (a Home Manager) gets
     ``limit_w`` itself.
     """
     if not maxima:
         return []
-    total = max(pv_w + grid_w + limit_w, 0.0)
-    known = all(m is not None and m > 0 for m in maxima)
-    weights = [m if known and m is not None else 1.0 for m in maxima]
-    whole = sum(weights)
-    shares = [total * w / whole for w in weights]
-    return [
-        min(share, m) if m is not None and m > 0 else share
-        for share, m in zip(shares, maxima, strict=True)
-    ]
+    total = max(sum(pv_now) + grid_w + limit_w + max(headroom_w, 0.0), 0.0)
+    if sum(pv_now) > 0:
+        weights = [max(p, 0.0) for p in pv_now]
+    elif all(m is not None and m > 0 for m in maxima):
+        weights = [float(m) for m in maxima if m is not None]
+    else:
+        weights = [1.0] * len(maxima)
+    caps = [m if m is not None and m > 0 else float("inf") for m in maxima]
+    shares = [0.0] * len(maxima)
+    left = total
+    open_ = [k for k in range(len(maxima)) if weights[k] > 0] or list(
+        range(len(maxima))
+    )
+    while left > 1e-6 and open_:
+        whole = sum(weights[k] for k in open_) or float(len(open_))
+        for k in list(open_):
+            part = left * (weights[k] / whole if whole else 1 / len(open_))
+            shares[k] += part
+        left = 0.0
+        for k in list(open_):
+            if shares[k] > caps[k]:
+                left += shares[k] - caps[k]
+                shares[k] = caps[k]
+                open_.remove(k)
+    return shares
 
 
 def export_limit(

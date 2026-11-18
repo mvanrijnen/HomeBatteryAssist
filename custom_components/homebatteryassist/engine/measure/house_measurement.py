@@ -128,7 +128,7 @@ class PowerFlow:
         power / (measured voltage x power factor); else power / 230 V."""
         power = abs(self.phase_w[index])
         if index < len(self.phase_a):
-            return self.phase_a[index]
+            return abs(self.phase_a[index])  # some meters sign it with the power
         if index < len(self.phase_v) and self.phase_v[index] > 100:
             factor = self.phase_pf[index] if index < len(self.phase_pf) else 1.0
             factor = factor if 0.1 <= factor <= 1.0 else 1.0
@@ -214,7 +214,7 @@ class MeasurementInput:
         for device, driver, address in _subentry_devices_all(entry, SUBENTRY_PV_SOURCE):
             if driver == PV_DRIVER_SENSOR:
                 self._pv_order.append((device[0], -1))
-            elif address:
+            elif address and get_meter_driver(driver) is not None:
                 self._pv_order.append(("", meter))
                 meter += 1
             else:
@@ -404,10 +404,25 @@ class MeasurementInput:
             ),
             1,
         )
+        # A battery or an excluded device without a value makes the house
+        # unknown (as the grid does): counting it as 0 W would record a 2 kW
+        # discharge or an 11 kW EV charge as house consumption.
+        # (A sensor that does not exist at all counts as 0 W, as before.)
+        unknown = [
+            e
+            for e in self.excluded_sensors
+            if self.hass.states.get(e) is not None and self._watts(e) is None
+        ]
+        powers = [battery_power(self.hass, b) for b in self.batteries]
+        unknown += [
+            b.power_sensor
+            for b, power in zip(self.batteries, powers, strict=True)
+            if power is None and self.hass.states.get(b.power_sensor) is not None
+        ]
+        if unknown:
+            return None, unknown
         excluded = round(self._sum_abs(self.excluded_sensors), 1)
-        battery = round(
-            sum(battery_power(self.hass, b) or 0.0 for b in self.batteries), 1
-        )
+        battery = round(sum(p or 0.0 for p in powers), 1)
         house = max(round(grid + pv - excluded - battery, 1), 0.0)
         count = len(phase_w)
         phase_pv = [0.0] * count

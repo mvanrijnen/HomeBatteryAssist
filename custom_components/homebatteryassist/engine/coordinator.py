@@ -240,6 +240,8 @@ class ForecastData:
     full_charges: list[FullCharge] = field(default_factory=list)
     # Slots (by start) of the night reserve: from the evening until sunrise.
     night: set[datetime] = field(default_factory=set)
+    # What exported energy earns per period (after the tariff), as published.
+    export_prices: list[PricePoint] = field(default_factory=list)
 
     @property
     def selected_plan(self) -> BatteryPlan | None:
@@ -272,6 +274,25 @@ class ForecastData:
     def consumption_at(self, when: datetime) -> ForecastSlot | None:
         """The forecast slot containing ``when``."""
         return next((s for s in self.consumption if s.start <= when < s.end), None)
+
+
+def _pv_end(pv_wh: Mapping[datetime, float]) -> datetime | None:
+    """Until when the PV forecast reaches: its last hour; when it leaves out
+    the night (no hour between local midnight and 03:00 at all, e.g.
+    Forecast.Solar), up to local midnight after its last hour."""
+    if not pv_wh:
+        return None
+    last = max(pv_wh)
+    if any(dt_util.as_local(k).hour < 3 for k in pv_wh):
+        return last + PV_PERIOD
+    return max(last + PV_PERIOD, _end_of_local_day(last))
+
+
+def _end_of_local_day(when: datetime) -> datetime:
+    """Local midnight after ``when`` (UTC)."""
+    local = dt_util.as_local(when)
+    midnight = dt_util.start_of_local_day(local.date() + timedelta(days=1))
+    return dt_util.as_utc(midnight)
 
 
 class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
@@ -562,7 +583,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         pv_wh = await self._async_read_pv(now)
         price_end = prices[-1].end if prices else None
         self._explain_new_prices(prices)
-        pv_end = max(pv_wh) + PV_PERIOD if pv_wh else None
+        # A PV forecast often leaves out the night (sunrise..sunset only):
+        # after its last daylight hour there is no sun, so it covers its last
+        # day up to local midnight (else the window ends at sunset and the
+        # evening peak is never planned).
+        pv_end = _pv_end(pv_wh)
         hour = now.replace(minute=0, second=0, microsecond=0)
         pv_now_w = pv_wh.get(hour) if self.pv_entries else None
 
@@ -767,6 +792,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             night_starts(consumption, pv_plan)
             if self.rules.night_reserve_soc
             else set(),
+            export_prices,
         )
         self._explain_method(data)
         self._log_prices([p for p in prices if not p.estimated], battery, now)
@@ -966,10 +992,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         sensor); other batteries as they are."""
         sensor = state.config.temperature_sensor
         temp = self.hass.states.get(sensor) if sensor else None
-        try:
-            celsius = float(temp.state) if temp else None
-        except ValueError:
-            celsius = None
+        celsius = state_to_celsius(temp)  # °F sensors converted
         if celsius is None:
             # No own sensor: the battery's driver may know the temperature.
             celsius = battery_telemetry(self.hass, state.config).temperature_c

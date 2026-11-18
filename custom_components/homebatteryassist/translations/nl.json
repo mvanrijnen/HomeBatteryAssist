@@ -1055,7 +1055,8 @@
       "error": {
         "sensor_is_phase_sensor": "Deze sensor wordt al gebruikt als netmeting van een fase.",
         "sensor_in_use": "Deze sensor wordt al door een ander apparaat gebruikt.",
-        "soc_range": "De maximale vulling moet hoger zijn dan de minimale."
+        "soc_range": "De maximale vulling moet hoger zijn dan de minimale.",
+        "address_required": "Vul het adres van de meter van de batterij in."
       },
       "abort": {
         "reconfigure_successful": "Instellingen opgeslagen.",

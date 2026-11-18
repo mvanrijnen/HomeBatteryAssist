@@ -48,6 +48,8 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import section
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.selector import (
     BooleanSelector,
     EntitySelector,
@@ -432,7 +434,7 @@ def _price_source_selector(
         if source.forecast_only and not forecasts:
             continue
         driver = get_driver(source.driver)
-        mark = untested(driver is None or driver.verified, dutch)
+        mark = untested(driver is not None and driver.verified, dutch)
         suffix = only if source.forecast_only else ""
         options.append(
             SelectOptionDict(value=source.key, label=f"{source.title}{suffix}{mark}")
@@ -1902,6 +1904,17 @@ def battery_schema(
     return vol.Schema(schema)
 
 
+def _device_model(hass: HomeAssistant, subentry: ConfigSubentry) -> Any:
+    """The battery type of the device behind a battery's SoC sensor, if known."""
+    from .engine.devices.batteries import model_for
+
+    entity = er.async_get(hass).async_get(subentry.data.get(CONF_SOC_SENSOR, ""))
+    if entity is None or entity.device_id is None:
+        return None
+    device = dr.async_get(hass).async_get(entity.device_id)
+    return model_for(device.model) if device else None
+
+
 class BatterySubentryFlow(ConfigSubentryFlow):
     """Link a home battery (read-only): pick a detected one or link manually."""
 
@@ -1973,6 +1986,11 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
         """Change a battery."""
+        if user_input is None:
+            # A type on one phase (e.g. a Marstek Venus): its phase must be
+            # chosen, also when it was linked before this was asked.
+            model = _device_model(self.hass, self._get_reconfigure_subentry())
+            self._single_phase = bool(model and model.phases == 1)
         return await self._async_step_battery("reconfigure", user_input)
 
     async def async_step_battery(

@@ -100,6 +100,14 @@ async def test_signed_grid_with_pv_and_excluded_load(hass: HomeAssistant) -> Non
     # 700 + 2000 - 1500
     assert float(hass.states.get(SENSOR).state) == 1200.0
 
+    # The EV charger without a value: not counted as 0 W, the house is unknown
+    _set(hass, "sensor.ev", "unavailable")
+    await hass.async_block_till_done()
+    assert hass.states.get(SENSOR).state == "unavailable"
+    _set(hass, "sensor.ev", "1500")
+    await hass.async_block_till_done()
+    assert float(hass.states.get(SENSOR).state) == 1200.0
+
     # Grid phase unknown -> consumption unknown
     _set(hass, "sensor.l2", "unavailable")
     await hass.async_block_till_done()

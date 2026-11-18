@@ -329,3 +329,25 @@ async def test_settings_step_lists_pv_forecasts(hass: HomeAssistant) -> None:
         )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["options"][CONF_PV_FORECAST] == [pv.entry_id]
+
+
+def test_pv_forecast_without_night_covers_its_day() -> None:
+    """Forecast.Solar gives sunrise..sunset only: the forecast still covers
+    its last day up to local midnight (no sun after sunset), so the window
+    does not end at sunset; a forecast with night hours ends at its last."""
+    from datetime import datetime
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.homebatteryassist.engine.coordinator import _pv_end
+
+    tz = dt_util.get_default_time_zone()
+    day = [datetime(2026, 11, 19, h, tzinfo=tz) for h in range(8, 17)]
+    end = _pv_end({dt_util.as_utc(k): 100.0 for k in day})
+    assert dt_util.as_local(end) == datetime(2026, 11, 20, 0, tzinfo=tz)
+    full = [datetime(2026, 11, 19, h, tzinfo=tz) for h in range(24)]
+    end = _pv_end({dt_util.as_utc(k): 0.0 for k in full})
+    assert dt_util.as_local(end) == datetime(2026, 11, 20, 0, tzinfo=tz)
+    part = [datetime(2026, 11, 19, h, tzinfo=tz) for h in range(0, 13)]
+    end = _pv_end({dt_util.as_utc(k): 0.0 for k in part})
+    assert dt_util.as_local(end) == datetime(2026, 11, 19, 13, tzinfo=tz)

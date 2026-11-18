@@ -545,6 +545,8 @@ def websocket_history(
     records = entry.runtime_data.history.records
     forecast = entry.runtime_data.forecast
     batteries = entry.runtime_data.batteries
+    # The batteries HomeBatteryAssist plans for (a twin, not its real one).
+    planned_ids = {st.config.id for st in batteries.plan_states()}
     now = dt_util.utcnow()
     since = now - timedelta(days=msg["days"])
     connection.send_result(
@@ -626,15 +628,16 @@ def websocket_history(
                     sum(
                         s.get("value", 0.0)
                         - s.get("value_kwh", 0.0) * forecast.cycle_cost
-                        for s in batteries.stats.values()
+                        for battery_id, s in batteries.stats.items()
+                        if battery_id in planned_ids
                     ),
                     2,
                 ),
                 "since": min(
                     (
                         s["value_since"]
-                        for s in batteries.stats.values()
-                        if "value_since" in s
+                        for battery_id, s in batteries.stats.items()
+                        if "value_since" in s and battery_id in planned_ids
                     ),
                     default=None,
                 ),

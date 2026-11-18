@@ -1055,7 +1055,8 @@
       "error": {
         "sensor_is_phase_sensor": "This sensor is already used as a grid phase measurement.",
         "sensor_in_use": "This sensor is already used by another device.",
-        "soc_range": "The maximum state of charge must be higher than the minimum."
+        "soc_range": "The maximum state of charge must be higher than the minimum.",
+        "address_required": "Enter the address of the battery's meter."
       },
       "abort": {
         "reconfigure_successful": "Settings saved.",

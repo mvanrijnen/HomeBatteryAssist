@@ -16,8 +16,8 @@ PHASE_OPTIONS: Final = (1, 3)
 
 # Standard (Dutch) grid connections: main fuse rating in A per phase count.
 MAX_CURRENT_OPTIONS: Final[dict[int, tuple[int, ...]]] = {
-    1: (10, 25, 35),
-    3: (25, 35, 50, 63, 80),
+    1: (10, 25, 35, 40),
+    3: (25, 35, 40, 50, 63, 80),
 }
 # Most common connection per phase count (1x35A, 3x25A).
 DEFAULT_MAX_CURRENT: Final[dict[int, int]] = {1: 35, 3: 25}

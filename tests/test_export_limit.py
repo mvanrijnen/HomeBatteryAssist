@@ -295,13 +295,17 @@ def test_inverters_limit_production_not_export() -> None:
         production_limits,
     )
 
-    assert production_limits(0, -2000, 3000, [None]) == [1000]
-    assert production_limits(500, -2000, 3000, [None]) == [1500]
-    # Two inverters, 13.8 kW and 4.6 kW breakers: split 3:1.
-    assert production_limits(0, -2000, 6000, [13800, 4600]) == [3000, 1000]
-    # Unknown breaker: equal; capped at a breaker.
-    assert production_limits(0, -2000, 6000, [None, None]) == [2000, 2000]
-    assert production_limits(0, 0, 9000, [4000, 4000]) == [4000, 4000]
+    assert production_limits(0, -2000, [3000], [None]) == [1000]
+    assert production_limits(500, -2000, [3000], [None]) == [1500]
+    # Split by what each gives now: east 3000, shaded west 200 -> 15:1.
+    shares = production_limits(0, -2200, [3000, 200], [5000, 5000])
+    assert abs(shares[0] - 937.5) < 0.01 and abs(shares[1] - 62.5) < 0.01
+    # Capped at a breaker; what one cannot take goes to the other.
+    assert production_limits(0, 0, [6000, 3000], [4000, 9000]) == [4000, 5000]
+    # Nothing produced yet (house 1000 W from the grid): by breaker.
+    assert production_limits(0, 1000, [0, 0], [3000, 1000]) == [750, 250]
+    # A battery that could charge 1500 W more is not cut off: +1500.
+    assert production_limits(0, -3500, [5000], [None], 1500) == [3000]
     # Home Manager (export) gets the export limit, inverter the production.
     limiter = ExportLimiter(
         _Log(),  # type: ignore[arg-type]

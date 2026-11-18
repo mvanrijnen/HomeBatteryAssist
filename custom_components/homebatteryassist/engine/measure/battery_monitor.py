@@ -599,6 +599,19 @@ class BatteryInput:
         )
         return real.soc
 
+    def charge_headroom_w(self) -> float:
+        """What the real batteries could still charge on top of their power
+        now (W): max charge power minus the charge now, for those not full."""
+        total = 0.0
+        for config in self.configs:
+            if config.virtual:
+                continue
+            state = self.states[config.id]
+            if state.soc is None or state.soc >= config.max_soc:
+                continue
+            total += max(config.max_charge_w - max(state.power_w or 0.0, 0.0), 0.0)
+        return total
+
     def grid_planned_w(self) -> float | None:
         """The grid (W, + import) as HomeBatteryAssist's batteries make it:
         measured, with the virtual batteries, without the real batteries
@@ -1009,7 +1022,13 @@ class BatteryInput:
 
     @callback
     def _async_log_soc(self, now: datetime) -> None:
-        """Remember every battery's state of charge (for the dashboard)."""
+        """Remember every battery's state of charge (for the dashboard), and
+        count the real batteries' energy up to now: a battery whose sensors
+        do not change (idle overnight, or a constant power) still starts the
+        new day at midnight and has every quarter valued at its own price."""
+        for config in self.configs:
+            if not config.virtual and config.id in self._last_power:
+                self._count_energy(config.id, now, self._last_power[config.id][1])
         cutoff = (now - SOC_LOG_RETENTION).isoformat()
         for battery_id, state in self.states.items():
             log = self.soc_log.setdefault(battery_id, [])
