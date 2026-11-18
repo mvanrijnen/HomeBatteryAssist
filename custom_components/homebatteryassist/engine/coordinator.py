@@ -768,9 +768,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             if self.rules.night_reserve_soc
             else set(),
         )
-        self._explain_plan(data)
         self._explain_method(data)
         self._log_prices([p for p in prices if not p.estimated], battery, now)
+        # The plan last: it is what *Last decision* should show after a cycle.
+        self._explain_plan(data)
 
         # 5. Remember the raw consumption predictions, also of every
         # forecaster on its own (to compare them).
