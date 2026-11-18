@@ -71,7 +71,7 @@ When the solar surplus can no longer go into the batteries, it goes to the grid.
 
 Attributes: *limited*, the reason, the limit as current per phase, the export price, the export now, what would be curtailed now and today, and per PV source what its inverter driver would send. With a [twin](measuring.md#twin-of-a-real-battery) the export is counted as with the twin instead of the real battery.
 
-**Ahead:** when the plan clearly expects export while it earns too little (at least an hour, at least 0.5 kWh the batteries cannot store, e.g. a sunny afternoon at negative prices), *Why* tells it beforehand once: from when to when, the lowest net export price and the kWh; the sensor's attribute *expected* lists these periods.
+**Ahead:** when the plan clearly expects export while exporting costs money (or earns less than the limit price), so export would be stopped (at least an hour, at least 0.5 kWh the batteries cannot store, e.g. a sunny afternoon at negative prices), *Why* tells it beforehand once: from when to when, the lowest net export price and the kWh; the sensor's attribute *expected* lists these periods.
 
 **In this phase nothing is sent to an inverter.** *Why* tells when the export would be limited (to what, why, how much less the inverters would produce) and when it ends (minutes, kWh not exported, what that was worth at the export price). Settings section *Export limit (PV inverters)*. Which inverter could be limited is chosen per PV source (*Inverter driver*, *Inverter address*) — see [Drivers](drivers.md#pv-inverters--enginedevicesinverters).
 

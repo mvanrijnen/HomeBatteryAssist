@@ -195,6 +195,7 @@ class ExportLimiter:
                 end=f"{local(period.end):%H:%M}",
                 hours=self._num((period.end - period.start).total_seconds() / 3600, 1),
                 energy=self._num(period.kwh, 1),
+                why=self._why_expected(),
                 price=(
                     "-"
                     if period.lowest_price is None
@@ -203,6 +204,19 @@ class ExportLimiter:
             )
         # Forget periods long past.
         self._told = {t for t in self._told if t > now - timedelta(days=2)}
+
+    def _why_expected(self) -> str:
+        """Why export would be stopped: it costs money (limit price 0 or
+        less), or it earns less than the limit price."""
+        dutch = self._comma
+        if self.threshold <= 0:
+            return "kost terugleveren geld" if dutch else "costs money"
+        limit = self._num(self.threshold, 3)
+        return (
+            f"levert terugleveren minder op dan {limit}"
+            if dutch
+            else f"earns less than {limit}"
+        )
 
     def would_send(self) -> list[str]:
         """Per inverter: what its driver would send for the limit now."""
