@@ -534,6 +534,11 @@ class BatteryInput:
                 stats.pop("value_since", None)
                 stats.pop("value_kwh", None)
                 stats["value_basis"] = VALUE_BASIS
+            days = stats.get("days") or []
+            if days and "value" not in days[-1]:
+                # A day start from before the value per day: today counts
+                # from now.
+                days[-1]["value"] = round(stats.get("value", 0.0), 5)
         await self._async_start_meters()
         entity_ids = [
             e
