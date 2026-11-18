@@ -104,6 +104,10 @@ Activating (later, deliberately, with the project owner)
    ``enabled``; add the decision log messages (``control_started``,
    ``control_stopped``, ``control_failed``, ``control_released``) in all
    languages.
+   A real battery with a twin (a virtual battery ``twin_of`` it) is not
+   planned and never controlled (it keeps its own control, to compare);
+   ``_flow`` of the virtual batteries takes it off the grid, so the twin
+   acts in its place.
 4. Adapt ``tests/test_read_only.py`` (this file then may contain code) and
    test the write methods of the reader on a real installation first
    (``verified`` per reader / driver).
@@ -167,6 +171,8 @@ Activating (later, deliberately, with the project owner)
 #         for config in batteries.configs:
 #             if config.virtual or not config.control:  # step 3: per battery
 #                 continue
+#             if config.id in twinned_ids(batteries.configs):
+#                 continue  # its twin is planned in its place: it keeps its own control
 #             reader = reader_for(hass, config)
 #             if reader is None or not reader.can_write:
 #                 continue  # no way to reach this battery

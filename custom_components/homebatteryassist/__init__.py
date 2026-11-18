@@ -140,7 +140,7 @@ async def async_setup_entry(
         history,
         adjustments,
         accuracy,
-        lambda: batteries.states.values(),
+        batteries.plan_states,
         await async_load_user_planners(hass),
         await async_load_user_forecasters(hass),
         await async_load_user_tariffs(hass),
@@ -305,19 +305,21 @@ async def async_setup_entry(
     await plan_check.async_load()
 
     def _battery_totals() -> dict[str, float]:
-        stats = batteries.stats.values()
+        # A real battery with a twin is not planned: left out.
+        planned = [s.config for s in batteries.plan_states()]
+        stats = [batteries.stats[c.id] for c in planned if c.id in batteries.stats]
         totals = {
             "charged_kwh": sum(s.get("charged_kwh", 0.0) for s in stats),
             "discharged_kwh": sum(s.get("discharged_kwh", 0.0) for s in stats),
             "value": sum(s.get("value", 0.0) for s in stats),
         }
         # Per group (real / virtual), for how well each follows the plan.
-        capacity = sum(c.capacity_kwh for c in batteries.configs)
+        capacity = sum(c.capacity_kwh for c in planned)
         if capacity > 0:
-            real = [c for c in batteries.configs if not c.virtual]
+            real = [c for c in planned if not c.virtual]
             totals["real_share"] = sum(c.capacity_kwh for c in real) / capacity
             for group, virtual in (("real", False), ("virtual", True)):
-                ids = [c.id for c in batteries.configs if c.virtual is virtual]
+                ids = [c.id for c in planned if c.virtual is virtual]
                 for key in ("charged_kwh", "discharged_kwh"):
                     totals[f"{group}_{key}"] = sum(
                         batteries.stats[i].get(key, 0.0) for i in ids

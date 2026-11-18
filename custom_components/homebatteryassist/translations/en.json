@@ -1011,6 +1011,7 @@
           "description": "A simulated battery that runs live alongside your real batteries in the selected plan mode, to see how a (second) battery would behave and what it would save. It is included in the battery plan, never in the house consumption.",
           "data": {
             "name": "Name",
+            "twin_of": "Twin of",
             "capacity_kwh": "Capacity",
             "max_charge_power": "Maximum charge power",
             "max_discharge_power": "Maximum discharge power",
@@ -1023,6 +1024,7 @@
             "full_charge_interval_days": "Full charge every"
           },
           "data_description": {
+            "twin_of": "A real battery to copy: the virtual battery takes its properties (the fields below are then not used, the loss is its round-trip efficiency), starts at its state of charge and is planned in its place, on the grid as it would be without it. The real battery is then left out of the plan and keeps its own control (e.g. Omnibattery), so both can be compared.",
             "loss_min": "Round-trip loss (charge + discharge); per simulation step a random value between minimum and maximum is used.",
             "loss_max": "The planner uses the average of minimum and maximum.",
             "full_charge_interval_days": "Charge to 100% at least every this many days (cell balancing). 0 = never."
@@ -1033,6 +1035,7 @@
           "description": "A simulated battery that runs live alongside your real batteries in the selected plan mode, to see how a (second) battery would behave and what it would save. It is included in the battery plan, never in the house consumption.",
           "data": {
             "name": "Name",
+            "twin_of": "Twin of",
             "capacity_kwh": "Capacity",
             "max_charge_power": "Maximum charge power",
             "max_discharge_power": "Maximum discharge power",
@@ -1045,6 +1048,7 @@
             "full_charge_interval_days": "Full charge every"
           },
           "data_description": {
+            "twin_of": "A real battery to copy: the virtual battery takes its properties (the fields below are then not used, the loss is its round-trip efficiency), starts at its state of charge and is planned in its place, on the grid as it would be without it. The real battery is then left out of the plan and keeps its own control (e.g. Omnibattery), so both can be compared.",
             "loss_min": "Round-trip loss (charge + discharge); per simulation step a random value between minimum and maximum is used.",
             "loss_max": "The planner uses the average of minimum and maximum.",
             "full_charge_interval_days": "Charge to 100% at least every this many days (cell balancing). 0 = never."
@@ -1053,7 +1057,8 @@
       },
       "error": {
         "soc_range": "The maximum state of charge must be higher than the minimum.",
-        "loss_range": "The maximum loss must be at least the minimum."
+        "loss_range": "The maximum loss must be at least the minimum.",
+        "twin_taken": "That real battery already has a twin."
       },
       "abort": {
         "reconfigure_successful": "Settings saved.",
@@ -1492,6 +1497,32 @@
           "charging": "Charging (test)",
           "discharging": "Discharging (test)"
         }
+      },
+      "battery_value_today": {
+        "name": "Value today"
+      },
+      "twin_difference_today": {
+        "name": "Difference with the real battery today",
+        "state_attributes": {
+          "real_battery": {
+            "name": "Real battery"
+          },
+          "twin_value_today": {
+            "name": "Value of the twin today"
+          },
+          "real_value_today": {
+            "name": "Value of the real battery today"
+          },
+          "twin_soc": {
+            "name": "State of charge of the twin"
+          },
+          "real_soc": {
+            "name": "State of charge of the real battery"
+          },
+          "stored_difference_kwh": {
+            "name": "Stored more than the real battery since midnight"
+          }
+        }
       }
     },
     "button": {
@@ -1509,6 +1540,9 @@
       },
       "input_test": {
         "name": "Test inputs"
+      },
+      "twin_sync": {
+        "name": "Sync with the real battery"
       }
     },
     "binary_sensor": {

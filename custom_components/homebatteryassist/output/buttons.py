@@ -1,5 +1,6 @@
-"""Button entities: recalculate the forecasts by hand, and per real battery
-the test control (switched off in this phase)."""
+"""Button entities: recalculate the forecasts by hand, test the inputs, per
+real battery the test control (switched off in this phase), and per twin
+*Sync with the real battery*."""
 
 from __future__ import annotations
 
@@ -9,6 +10,7 @@ from homeassistant.components import persistent_notification
 from homeassistant.components.button import ButtonEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from ..const import DOMAIN
@@ -32,6 +34,29 @@ async def async_setup_entry(
         async_add_entities(
             control_test_buttons(entry, battery_id), config_subentry_id=battery_id
         )
+    for config in entry.runtime_data.batteries.configs:
+        if config.twin_of:
+            async_add_entities(
+                [TwinSyncButton(entry, config.id)], config_subentry_id=config.id
+            )
+
+
+class TwinSyncButton(ButtonEntity):
+    """Set a twin to its real battery's state of charge now."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "twin_sync"
+
+    def __init__(self, entry: HomeBatteryAssistConfigEntry, battery_id: str) -> None:
+        """Initialize, on the twin's device."""
+        self._batteries = entry.runtime_data.batteries
+        self._battery_id = battery_id
+        self._attr_unique_id = f"{battery_id}_twin_sync"
+        self._attr_device_info = DeviceInfo(identifiers={(DOMAIN, battery_id)})
+
+    async def async_press(self) -> None:
+        """Copy the real state of charge (told in *Why*)."""
+        self._batteries.sync_twin(self._battery_id)
 
 
 class RecalculateButton(HomeBatteryAssistEntity, ButtonEntity):

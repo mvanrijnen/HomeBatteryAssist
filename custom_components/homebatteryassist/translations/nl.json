@@ -1011,6 +1011,7 @@
           "description": "Een gesimuleerde batterij die live naast je echte batterijen meedraait in de gekozen planmodus, om te zien hoe een (extra) batterij zich zou gedragen en wat hij zou opleveren. Hij telt mee in het batterijplan, nooit in het huisverbruik.",
           "data": {
             "name": "Naam",
+            "twin_of": "Tweeling van",
             "capacity_kwh": "Capaciteit",
             "max_charge_power": "Maximaal laadvermogen",
             "max_discharge_power": "Maximaal ontlaadvermogen",
@@ -1023,6 +1024,7 @@
             "full_charge_interval_days": "Volledig opladen elke"
           },
           "data_description": {
+            "twin_of": "Een echte batterij om te kopiëren: de virtuele batterij neemt haar eigenschappen over (de velden hieronder worden dan niet gebruikt, het verlies is haar rendement), begint op haar laadniveau en wordt in haar plaats gepland, op het net zoals het zonder haar zou zijn. De echte batterij valt dan buiten het plan en houdt haar eigen sturing (bijv. Omnibattery), zodat je ze kunt vergelijken.",
             "loss_min": "Verlies over laden + ontladen; per simulatiestap wordt een willekeurige waarde tussen minimum en maximum gebruikt.",
             "loss_max": "De planner rekent met het gemiddelde van minimum en maximum.",
             "full_charge_interval_days": "Minstens elke zoveel dagen tot 100% laden (balanceren van de cellen). 0 = nooit."
@@ -1033,6 +1035,7 @@
           "description": "Een gesimuleerde batterij die live naast je echte batterijen meedraait in de gekozen planmodus, om te zien hoe een (extra) batterij zich zou gedragen en wat hij zou opleveren. Hij telt mee in het batterijplan, nooit in het huisverbruik.",
           "data": {
             "name": "Naam",
+            "twin_of": "Tweeling van",
             "capacity_kwh": "Capaciteit",
             "max_charge_power": "Maximaal laadvermogen",
             "max_discharge_power": "Maximaal ontlaadvermogen",
@@ -1045,6 +1048,7 @@
             "full_charge_interval_days": "Volledig opladen elke"
           },
           "data_description": {
+            "twin_of": "Een echte batterij om te kopiëren: de virtuele batterij neemt haar eigenschappen over (de velden hieronder worden dan niet gebruikt, het verlies is haar rendement), begint op haar laadniveau en wordt in haar plaats gepland, op het net zoals het zonder haar zou zijn. De echte batterij valt dan buiten het plan en houdt haar eigen sturing (bijv. Omnibattery), zodat je ze kunt vergelijken.",
             "loss_min": "Verlies over laden + ontladen; per simulatiestap wordt een willekeurige waarde tussen minimum en maximum gebruikt.",
             "loss_max": "De planner rekent met het gemiddelde van minimum en maximum.",
             "full_charge_interval_days": "Minstens elke zoveel dagen tot 100% laden (balanceren van de cellen). 0 = nooit."
@@ -1053,7 +1057,8 @@
       },
       "error": {
         "soc_range": "De maximale vulling moet hoger zijn dan de minimale.",
-        "loss_range": "Het maximale verlies moet minstens het minimale zijn."
+        "loss_range": "Het maximale verlies moet minstens het minimale zijn.",
+        "twin_taken": "Die echte batterij heeft al een tweeling."
       },
       "abort": {
         "reconfigure_successful": "Instellingen opgeslagen.",
@@ -1492,6 +1497,32 @@
           "charging": "Laden (test)",
           "discharging": "Ontladen (test)"
         }
+      },
+      "battery_value_today": {
+        "name": "Opbrengst vandaag"
+      },
+      "twin_difference_today": {
+        "name": "Verschil met echte batterij vandaag",
+        "state_attributes": {
+          "real_battery": {
+            "name": "Echte batterij"
+          },
+          "twin_value_today": {
+            "name": "Opbrengst tweeling vandaag"
+          },
+          "real_value_today": {
+            "name": "Opbrengst echte batterij vandaag"
+          },
+          "twin_soc": {
+            "name": "Laadniveau tweeling"
+          },
+          "real_soc": {
+            "name": "Laadniveau echte batterij"
+          },
+          "stored_difference_kwh": {
+            "name": "Meer opgeslagen dan de echte batterij sinds middernacht"
+          }
+        }
       }
     },
     "button": {
@@ -1509,6 +1540,9 @@
       },
       "input_test": {
         "name": "Invoer testen"
+      },
+      "twin_sync": {
+        "name": "Gelijkzetten met echte batterij"
       }
     },
     "binary_sensor": {

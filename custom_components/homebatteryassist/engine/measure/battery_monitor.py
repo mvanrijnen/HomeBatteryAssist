@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any, NotRequired, TypedDict
@@ -52,6 +52,7 @@ from ...const import (
     CONF_POWER_SIGN,
     CONF_SOC_SENSOR,
     CONF_TEMPERATURE_SENSOR,
+    CONF_TWIN_OF,
     DEFAULT_EFFICIENCY,
     DEFAULT_FULL_CHARGE_INTERVAL,
     DEFAULT_INITIAL_SOC,
@@ -67,6 +68,7 @@ from ...const import (
     SIGN_DISCHARGING_POSITIVE,
     SUBENTRY_BATTERY,
     SUBENTRY_VIRTUAL_BATTERY,
+    TWIN_NONE,
     VALUE_BASIS,
 )
 from ..explain import DecisionLog
@@ -152,6 +154,8 @@ class BatteryConfig:
     # (+ into the battery = charging) is used instead of the power sensor.
     meter_driver: str = ""
     meter_address: str = ""
+    # Virtual: the real battery (subentry id) this one is the twin of.
+    twin_of: str = ""
 
     @classmethod
     def from_subentry(cls, subentry: ConfigSubentry) -> BatteryConfig:
@@ -194,6 +198,30 @@ class BatteryConfig:
                 else data[CONF_BATTERY_METER]
             ),
             meter_address="" if virtual else data.get(CONF_BATTERY_METER_ADDRESS, ""),
+            twin_of=(
+                twin
+                if virtual and (twin := data.get(CONF_TWIN_OF)) and twin != TWIN_NONE
+                else ""
+            ),
+        )
+
+    def as_twin_of(self, real: BatteryConfig) -> BatteryConfig:
+        """This virtual battery as the twin of ``real``: its properties (the
+        loss fixed at the real battery's round-trip efficiency)."""
+        loss = 1 - real.efficiency
+        return replace(
+            self,
+            capacity_kwh=real.capacity_kwh,
+            max_charge_w=real.max_charge_w,
+            max_discharge_w=real.max_discharge_w,
+            min_soc=real.min_soc,
+            max_soc=real.max_soc,
+            efficiency=real.efficiency,
+            full_charge_interval_days=real.full_charge_interval_days,
+            phase=real.phase,
+            temperature_sensor=real.temperature_sensor,
+            loss_min=loss,
+            loss_max=loss,
         )
 
 
@@ -272,11 +300,25 @@ def battery_configs(
         if include_virtual
         else {SUBENTRY_BATTERY}
     )
-    return [
+    configs = [
         BatteryConfig.from_subentry(subentry)
         for subentry in entry.subentries.values()
         if subentry.subentry_type in types
     ]
+    real = {c.id: c for c in configs if not c.virtual}
+    return [
+        c.as_twin_of(real[c.twin_of])
+        if c.twin_of in real
+        else replace(c, twin_of="")
+        if c.virtual
+        else c
+        for c in configs
+    ]
+
+
+def twinned_ids(configs: list[BatteryConfig]) -> set[str]:
+    """The real batteries that have a twin (left out of the plan)."""
+    return {t for c in configs if c.virtual and (t := getattr(c, "twin_of", ""))}
 
 
 def _soc(state: State | None) -> float | None:
@@ -329,8 +371,10 @@ class BatteryStats(TypedDict):
     value_since: NotRequired[str]  # ISO 8601: when the value counter started
     value_kwh: NotRequired[float]  # energy through the battery behind the value
     value_basis: NotRequired[int]  # how the value is counted (VALUE_BASIS)
+    twin_of: NotRequired[str]  # virtual: the real battery it started as twin of
     # The counters at the start of each local day (newest last), for "today"
-    # and the measured efficiency: {"date", "charged", "discharged", "stored"}.
+    # and the measured efficiency: {"date", "charged", "discharged", "stored",
+    # "value"}.
     days: NotRequired[list[dict[str, Any]]]
 
 
@@ -353,6 +397,15 @@ def today_energy(stats: Mapping[str, Any]) -> tuple[float, float] | None:
         round(stats["charged_kwh"] - start["charged"], 3),
         round(stats["discharged_kwh"] - start["discharged"], 3),
     )
+
+
+def today_value(stats: Mapping[str, Any]) -> float | None:
+    """Realised value since the start of the local day (None before the
+    first day start that knew it)."""
+    days = stats.get("days") or []
+    if not days or "value" not in days[-1]:
+        return None
+    return round(stats.get("value", 0.0) - days[-1]["value"], 4)
 
 
 def measured_efficiency(
@@ -493,12 +546,58 @@ class BatteryInput:
                 self.hass, entity_ids, self._async_state_changed
             )
         now = dt_util.utcnow()
-        for config in self.configs:
+        # Real batteries first: a new twin starts at its real battery's state
+        # of charge.
+        for config in sorted(self.configs, key=lambda c: c.virtual):
             if config.virtual:
-                soc = self.stats[config.id].get("virtual_soc", config.initial_soc)
+                stats = self.stats[config.id]
+                soc = stats.get("virtual_soc")
+                # New, or just made the twin of (another) real battery: start
+                # where the real battery is.
+                if soc is None or stats.get("twin_of", "") != config.twin_of:
+                    soc = self._twin_start(config) if config.twin_of else soc
+                    stats["twin_of"] = config.twin_of
+                if soc is None:
+                    soc = config.initial_soc
                 self._update(config, now, BatteryState(config, soc, 0.0))
             else:
                 self._update(config, now)
+
+    def _twin_start(self, config: BatteryConfig) -> float:
+        """Where a virtual battery starts: its real battery's state of charge
+        for a twin (when known), else its initial state of charge."""
+        real = self.states.get(config.twin_of) if config.twin_of else None
+        if real is not None and real.soc is not None:
+            return real.soc
+        return config.initial_soc
+
+    def plan_states(self) -> list[BatteryState]:
+        """The batteries HomeBatteryAssist plans for: all, except the real
+        batteries that have a twin (the twin is planned in their place)."""
+        twinned = twinned_ids(self.configs)
+        return [s for s in self.states.values() if s.config.id not in twinned]
+
+    def sync_twin(self, battery_id: str) -> float | None:
+        """Set a twin to its real battery's state of charge now; the new
+        state of charge, or None when it is not known (nothing changed)."""
+        config = next(c for c in self.configs if c.id == battery_id)
+        real = self.states.get(config.twin_of) if config.twin_of else None
+        if real is None or real.soc is None:
+            return None
+        self.set_virtual(battery_id, dt_util.utcnow(), 0.0, real.soc)
+        self._decisions.async_log(
+            "battery",
+            "twin_synced",
+            name=config.name,
+            real=real.config.name,
+            soc=round(real.soc),
+        )
+        return real.soc
+
+    def value_today(self, battery_id: str) -> float | None:
+        """Realised value (currency) today, by HomeBatteryAssist's own
+        counters."""
+        return today_value(self.stats[battery_id])
 
     async def async_stop(self) -> None:
         """Stop following and persist the counters."""
@@ -630,6 +729,7 @@ class BatteryInput:
                 "charged": stats["charged_kwh"],
                 "discharged": stats["discharged_kwh"],
                 "stored": None if stored is None else round(stored, 3),
+                "value": round(stats.get("value", 0.0), 5),
             }
         )
         del days[:-EFFICIENCY_DAYS]
@@ -684,12 +784,22 @@ class BatteryInput:
 
     def _grid_with_batteries(self, battery_id: str, last_power: float) -> float | None:
         """Grid power (W) with all batteries, the virtual ones included, while
-        ``battery_id`` ran at ``last_power``."""
+        ``battery_id`` ran at ``last_power``.
+
+        A twin and its real battery are alternatives: a real battery with a
+        twin counts the grid as measured (no virtual batteries); a virtual
+        battery counts it without the real batteries that have a twin.
+        """
         grid = self.grid_now()
         if grid is None:
             return None
+        twinned = twinned_ids(self.configs)
+        if battery_id in twinned:
+            return grid
         for config in self.configs:
             if not config.virtual:
+                if config.id in twinned:
+                    grid -= self.states[config.id].power_w or 0.0
                 continue
             if config.id == battery_id:
                 grid += last_power

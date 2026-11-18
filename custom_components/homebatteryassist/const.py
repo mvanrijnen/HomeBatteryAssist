@@ -213,6 +213,13 @@ SUBENTRY_BATTERY: Final = "battery"
 # HomeBatteryAssist "controls", because it is not a device).
 SUBENTRY_VIRTUAL_BATTERY: Final = "virtual_battery"
 CONF_INITIAL_SOC: Final = "initial_soc"
+# A virtual battery can be the twin of a real battery: a copy of it (its
+# properties, starting at its state of charge) that HomeBatteryAssist plans
+# and simulates in its place, on the grid as it would be without the real
+# battery. The real battery is then left out of the plan (it keeps its own
+# control), so both can be compared on the same house and prices.
+CONF_TWIN_OF: Final = "twin_of"
+TWIN_NONE: Final = "none"
 DEFAULT_INITIAL_SOC: Final = 50
 # Round-trip loss of a virtual battery: random per simulation step between
 # min and max (%); the planner uses the average.

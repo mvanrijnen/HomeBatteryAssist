@@ -9,7 +9,7 @@
     Ja. HomeBatteryAssist leest de batterij via de entiteiten van zijn integratie en maakt nooit een eigen verbinding met de batterij, dus er wordt niets verstoord. Netmeters worden alleen rechtstreeks uitgelezen als dat passief kan of via een alleen-lezen-interface waar meerdere programma's tegelijk bij mogen (HomeWizard P1 API, SMA Speedwire multicast).
 
 ??? question "Wat is een virtuele batterij?"
-    Een gesimuleerde batterij die live naast je echte batterijen meedraait en de gekozen planmodus volgt, met de echte metingen van je huis: inclusief fasebeveiliging, piekafvlakking en verliezen. Hij heeft dezelfde sensoren en dashboardkaart als een echte batterij. Gebruik hem om te zien wat een (grotere of extra) batterij zou doen en opleveren, of om een planmodus veilig uit te proberen. Zijn naam eindigt altijd op "(virtueel)".
+    Een gesimuleerde batterij die live naast je echte batterijen meedraait en de gekozen planmodus volgt, met de echte metingen van je huis: inclusief fasebeveiliging, piekafvlakking en verliezen. Hij heeft dezelfde sensoren en dashboardkaart als een echte batterij. Gebruik hem om te zien wat een (grotere of extra) batterij zou doen en opleveren, of om een planmodus veilig uit te proberen. Zijn naam eindigt altijd op "(virtueel)". Als [tweeling](measuring.md#twin-of-a-real-battery) van je echte batterij draait hij in haar plaats, zodat je het plan van HomeBatteryAssist dag voor dag kunt vergelijken met de eigen sturing van je batterij.
 
 ??? question "Welke planmodus moet ik kiezen?"
     - **Nul op de meter**: de batterij slaat je zonne-overschot op en levert het huis stroom bij een tekort; hij laadt nooit bewust uit het net en levert niet bewust terug. Eenvoudig en voorspelbaar.

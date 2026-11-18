@@ -259,6 +259,7 @@ A simulated battery that runs live alongside your real batteries in the selected
 | Field | Explanation |
 |---|---|
 | **Name** |  |
+| **Twin of** | A real battery to copy: the virtual battery takes its properties (the fields below are then not used, the loss is its round-trip efficiency), starts at its state of charge and is planned in its place, on the grid as it would be without it. The real battery is then left out of the plan and keeps its own control (e.g. Omnibattery), so both can be compared. |
 | **Capacity** |  |
 | **Maximum charge power** |  |
 | **Maximum discharge power** |  |
@@ -344,11 +345,14 @@ What HomeBatteryAssist creates (names as shown in Home Assistant).
 | Phase charging (solar) | Sensor |
 | Phase grid only | Sensor |
 | Test control | Sensor |
+| Value today | Sensor |
+| Difference with the real battery today | Sensor |
 | Recalculate | Button |
 | Test: charge | Button |
 | Test: discharge | Button |
 | Test: stop | Button |
 | Test inputs | Button |
+| Sync with the real battery | Button |
 | Does not follow its command | binary_sensor |
 | Test power | number |
 | Test duration | number |

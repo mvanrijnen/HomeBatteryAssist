@@ -166,6 +166,7 @@ def test_round_average_over_the_meter() -> None:
     s = timedelta(seconds=1)
     sim = SimpleNamespace(
         _measurements=SimpleNamespace(flow=flow),
+        _flow=lambda: flow,
         _forecast=SimpleNamespace(react_interval=5 * s, react_average=True),
         # 1000 W for 4 s, then 3000 W for the last second
         _samples=[(NOW, 1000.0, 0.0), (NOW + 4 * s, 3000.0, 0.0)],

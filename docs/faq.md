@@ -9,7 +9,7 @@
     Yes. HomeBatteryAssist reads the battery through the entities of its integration and never opens its own connection to it, so nothing competes. Grid meters are only read directly when that is passive or through a read-only interface that allows any number of clients (HomeWizard P1 API, SMA Speedwire multicast).
 
 ??? question "What is a virtual battery?"
-    A simulated battery that runs live next to your real ones and follows the chosen plan mode, with the real measurements of your home: phase protection, peak shaving and losses included. It has the same sensors and dashboard card as a real battery. Use it to see what a (bigger or extra) battery would do and bring, or to try a plan mode safely. Its name always ends with "(virtual)".
+    A simulated battery that runs live next to your real ones and follows the chosen plan mode, with the real measurements of your home: phase protection, peak shaving and losses included. It has the same sensors and dashboard card as a real battery. Use it to see what a (bigger or extra) battery would do and bring, or to try a plan mode safely. Its name always ends with "(virtual)". Made the [twin](measuring.md#twin-of-a-real-battery) of your real battery, it runs in its place, so you can compare HomeBatteryAssist's plan with your battery's own control day by day.
 
 ??? question "Which plan mode should I choose?"
     - **Zero on the meter**: the battery stores your solar surplus and supplies the house when there is a shortage; it never charges from or supplies to the grid on purpose. Simple and predictable.

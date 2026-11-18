@@ -72,6 +72,19 @@ Switching it on is a decision of the project owner, together with the first test
 
 Simulated what-if batteries (capacity, power, state-of-charge limits, losses, phase) that follow the plan live, so you can see what a (bigger) battery would bring before buying one. They also show phase protection and peak shaving at work.
 
+Each battery has **Value today** (realised value since midnight), the virtual ones included.
+
+### Twin of a real battery
+
+To compare HomeBatteryAssist with the integration that controls your battery now (e.g. Omnibattery), make a virtual battery the **twin** of that battery (field *Twin of* when adding or changing it):
+
+- it takes the real battery's properties (capacity, power, state-of-charge limits, round-trip efficiency as its loss, phase, full charges); its own fields are then not used;
+- it **starts at the real battery's state of charge** (also when an existing virtual battery is made a twin); the button **Sync with the real battery** sets it to the real state of charge again at any moment (*Why* says so). It is not synced by itself, so both run on their own from the same start;
+- it is **planned in the real battery's place**: the real battery is left out of the plan (and of *plan followed*), and keeps its own control;
+- it acts on the grid **as it would be without the real battery**: the real battery's power is taken off the grid and its phase, so where the real battery already stores the solar surplus, the twin sees that surplus too. Its value is counted the same way, the real battery's on the grid as measured.
+
+The sensor **Difference with the real battery today** on the twin = its value today − the real battery's (positive: HomeBatteryAssist's plan did better), with attributes for both values, both states of charge and how much more the twin stored since midnight (energy still inside is worth something tomorrow, so look at both). A real battery can have one twin. Other virtual batteries go on as extra what-if batteries on top.
+
 ## PV sources and excluded devices
 
 **PV sources** and **excluded devices** (e.g. an EV charger): on one phase, on all phases (3-phase, spread evenly) or measured per phase with a sensor per phase. A PV source can also be a meter read directly (e.g. a HomeWizard kWh meter on the inverter's line).

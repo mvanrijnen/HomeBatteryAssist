@@ -72,6 +72,19 @@ Aanzetten is een besluit van de projecteigenaar, samen met de eerste test op een
 
 Gesimuleerde wat-als-batterijen (capaciteit, vermogen, grenzen voor het laadniveau, verliezen, fase) die het plan live volgen, zodat je ziet wat een (grotere) batterij zou opleveren voordat je er een koopt. Ze laten ook fasebeveiliging en piekafvlakking aan het werk zien.
 
+Elke batterij heeft **Opbrengst vandaag** (gerealiseerde opbrengst sinds middernacht), ook de virtuele.
+
+### Tweeling van een echte batterij {#twin-of-a-real-battery}
+
+Om HomeBatteryAssist te vergelijken met de integratie die je batterij nu aanstuurt (bijv. Omnibattery), maak je een virtuele batterij de **tweeling** van die batterij (veld *Tweeling van* bij toevoegen of wijzigen):
+
+- hij neemt de eigenschappen van de echte batterij over (capaciteit, vermogen, grenzen voor het laadniveau, rendement als verlies, fase, volledige ladingen); zijn eigen velden worden dan niet gebruikt;
+- hij **begint op het laadniveau van de echte batterij** (ook als een bestaande virtuele batterij een tweeling wordt); de knop **Gelijkzetten met echte batterij** zet hem op elk moment weer op het echte laadniveau (*Waarom* meldt het). Hij wordt niet vanzelf gelijkgezet, zodat beide vanaf dezelfde start hun eigen gang gaan;
+- hij wordt **in de plaats van de echte batterij gepland**: de echte batterij valt buiten het plan (en buiten *plan gevolgd*) en houdt haar eigen sturing;
+- hij werkt op het net **zoals het zonder de echte batterij zou zijn**: het vermogen van de echte batterij gaat van het net en haar fase af, dus waar de echte batterij het zonne-overschot al opslaat, ziet de tweeling dat overschot ook. Zijn opbrengst wordt net zo geteld, die van de echte batterij op het net zoals gemeten.
+
+De sensor **Verschil met echte batterij vandaag** op de tweeling = zijn opbrengst vandaag − die van de echte batterij (positief: het plan van HomeBatteryAssist deed het beter), met attributen voor beide opbrengsten, beide laadniveaus en hoeveel meer de tweeling sinds middernacht heeft opgeslagen (energie die er nog in zit is morgen wat waard, kijk dus naar allebei). Een echte batterij kan één tweeling hebben. Andere virtuele batterijen draaien als extra wat-als-batterijen bovenop.
+
 ## PV-bronnen en uitgesloten apparaten {#pv-sources-and-excluded-devices}
 
 **PV-bronnen** en **uitgesloten apparaten** (bijv. een laadpaal): op één fase, op alle fasen (3-fase, gelijk verdeeld) of per fase gemeten met een sensor per fase. Een PV-bron kan ook een rechtstreeks uitgelezen meter zijn (bijv. een HomeWizard kWh-meter op de groep van de omvormer).

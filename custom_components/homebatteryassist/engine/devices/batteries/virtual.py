@@ -59,7 +59,7 @@ from ...control.interceptors import (
 )
 from ...coordinator import ForecastCoordinator
 from ...explain import DecisionLog
-from ...measure.battery_monitor import BatteryConfig, BatteryInput
+from ...measure.battery_monitor import BatteryConfig, BatteryInput, twinned_ids
 from ...measure.house_measurement import (
     MeasurementInput,
     nom_balance,
@@ -117,6 +117,30 @@ def limit_power(
     return round(power, 1) + 0.0, round(min(max(soc, 0.0), 100.0), 3)
 
 
+def without_batteries(flow: Any, batteries: list[tuple[int | None, float]]) -> Any:
+    """The power flow as it would be without these batteries ((phase index
+    or None = spread, power W + charging)): grid and phases less their power.
+    The measured current of a changed phase no longer holds; it is then
+    derived from the power (``PowerFlow.phase_amps``)."""
+    batteries = [(i, w) for i, w in batteries if w]
+    if not batteries:
+        return flow
+    phases = len(flow.phase_w)
+    phase_w = list(flow.phase_w)
+    for index, power in batteries:
+        for i in range(phases) if index is None else (index,):
+            if i < phases:
+                phase_w[i] -= power / (phases if index is None else 1)
+    total = sum(w for _i, w in batteries)
+    return replace(
+        flow,
+        grid_w=flow.grid_w - total,
+        battery_w=flow.battery_w - total,
+        phase_w=tuple(phase_w),
+        phase_a=(),
+    )
+
+
 def random_efficiency(config: BatteryConfig) -> float:
     """Round-trip efficiency for one step: a random loss within the range."""
     return 1 - random.uniform(config.loss_min, config.loss_max)
@@ -163,6 +187,28 @@ class VirtualBatterySimulator:
         self._intercept_gist = ""
         self._intercept_failed = False
 
+    def _flow(self) -> Any:
+        """The grid as the virtual batteries see it: measured, without the
+        real batteries that have a twin (the twin acts in their place)."""
+        flow = self._measurements.flow
+        if flow is None:
+            return None
+        twinned = twinned_ids(self._batteries.configs)
+        if not twinned:
+            return flow
+        phases = max(len(flow.phase_w), 1)
+        return without_batteries(
+            flow,
+            [
+                (
+                    PhaseDevice.from_config(c, phases).phase,
+                    self._batteries.states[c.id].power_w or 0.0,
+                )
+                for c in self._batteries.configs
+                if c.id in twinned
+            ],
+        )
+
     @property
     def virtual(self) -> list[BatteryConfig]:
         """The virtual batteries."""
@@ -202,7 +248,7 @@ class VirtualBatterySimulator:
         """Keep the grid values of the round; react at once when a phase is
         overloaded (or the virtual batteries on it would overload it), above
         the peak limit, or (when switched on) on a large jump of the grid."""
-        flow = self._measurements.flow
+        flow = self._flow()
         if flow is not None:
             self._samples.append((when, flow.grid_w, flow.excluded_w))
         if self._last is None or when - self._last < REACT_INTERVAL:
@@ -280,7 +326,7 @@ class VirtualBatterySimulator:
     def _round_flow(self, now: datetime):
         """The grid as zero on the meter sees it: the average over the round
         (when switched on, time-weighted), else the last value."""
-        flow = self._measurements.flow
+        flow = self._flow()
         interval = getattr(self._forecast, "react_interval", None) or STEP
         samples = [s for s in self._samples if now - s[0] <= interval]
         if flow is None or not getattr(self._forecast, "react_average", True):
@@ -312,7 +358,7 @@ class VirtualBatterySimulator:
             self._forecast, "interceptor", None
         ) or create_interceptor(None, {})
         data = self._forecast.data
-        flow = self._measurements.flow
+        flow = self._flow()
         plan = data.selected_plan if data is not None else None
         horizon = now + INTERCEPT_HORIZON
         proposals = []
@@ -469,7 +515,7 @@ class VirtualBatterySimulator:
             )
             self._batteries.set_virtual(config.id, now, power, soc)
         # A new round: the grid now (for jumps), and start the average anew.
-        flow = self._measurements.flow
+        flow = self._flow()
         self._step_grid = flow.grid_w if flow is not None else None
         self._samples = self._samples[-1:]
 
@@ -482,7 +528,7 @@ class VirtualBatterySimulator:
         hours: float,
     ) -> dict[str, float]:
         """Phase protection: take load off an overloaded phase; explain it."""
-        flow = self._measurements.flow
+        flow = self._flow()
         if flow is None or not flow.phase_w:
             return wanted
         phases = len(flow.phase_w)
@@ -562,7 +608,7 @@ class VirtualBatterySimulator:
     ) -> dict[str, float]:
         """Keep the total grid import below the peak limit; explain it."""
         peak = self._forecast.peak_w
-        flow = self._measurements.flow
+        flow = self._flow()
         if peak <= 0 or flow is None:
             return wanted
         phases = max(len(flow.phase_w), 1)
@@ -612,7 +658,7 @@ class VirtualBatterySimulator:
         self, wanted: dict[str, float], now: datetime
     ) -> dict[str, float]:
         """Hold the powers within the phase limits; explain when that starts/ends."""
-        flow = self._measurements.flow
+        flow = self._flow()
         if flow is None or not flow.phase_w:
             return wanted
         phases = len(flow.phase_w)
@@ -663,7 +709,7 @@ class VirtualBatterySimulator:
             # Arbitrage: the virtual batteries' share of the planned power (the
             # plan without full charges: those are run per battery).
             slot = next((s for s in plan.slots if s.start <= now < s.end), None)
-            states = [s for s in self._batteries.states.values() if s.soc is not None]
+            states = [s for s in self._batteries.plan_states() if s.soc is not None]
             capacity = sum(s.config.capacity_kwh for s in states)
             virtual_capacity = sum(
                 s.config.capacity_kwh for s in states if s.config.virtual
@@ -673,7 +719,7 @@ class VirtualBatterySimulator:
             )
             # The real solar surplus instead of the forecast one: more is
             # stored on top of the plan, less is not taken from the grid.
-            flow = self._measurements.flow
+            flow = self._flow()
             forecast_slot = data.consumption_at(now)
             if (
                 flow is not None

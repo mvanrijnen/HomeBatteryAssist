@@ -31,6 +31,7 @@ from ..models import HomeBatteryAssistConfigEntry
 from .batteries import (
     BATTERY_SENSORS,
     TOTAL_SENSORS,
+    TWIN_SENSOR,
     BatteriesTotalSensor,
     BatterySensor,
     source_device,
@@ -80,6 +81,12 @@ async def async_setup_entry(
                         entry, config.id, d, source_device(hass, config.soc_sensor)
                     )
                     for d in BATTERY_SENSORS
+                ),
+                # A twin: compared with its real battery.
+                *(
+                    [BatterySensor(entry, config.id, TWIN_SENSOR)]
+                    if config.twin_of
+                    else []
                 ),
                 # Its share of the battery phases of the plan.
                 *(
@@ -444,7 +451,8 @@ class PlanPhaseSensor(
 
     def _phases(self):
         data = self.coordinator.data
-        configs = self._batteries.configs
+        # The planned batteries (a real battery with a twin is not planned).
+        configs = [s.config for s in self._batteries.plan_states()]
         reserve = self.coordinator.rules.reserve_soc
         capacity = sum(c.capacity_kwh for c in configs) or 1.0
         floor = (

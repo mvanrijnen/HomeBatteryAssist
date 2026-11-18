@@ -146,6 +146,12 @@ BATTERY_SENSORS: tuple[BatterySensorDescription, ...] = (
         attrs_fn=lambda b, s: {"since": b.stats[s.config.id].get("value_since")},
     ),
     BatterySensorDescription(
+        key="battery_value_today",
+        device_class=SensorDeviceClass.MONETARY,
+        suggested_display_precision=2,
+        value_fn=lambda b, s: b.value_today(s.config.id),
+    ),
+    BatterySensorDescription(
         key="battery_efficiency_measured",
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
@@ -164,9 +170,68 @@ BATTERY_SENSORS: tuple[BatterySensorDescription, ...] = (
         **ENERGY_STORAGE,
     ),
 )
+
+
+def twin_comparison(batteries: BatteryInput, state: BatteryState) -> dict[str, Any]:
+    """A twin against its real battery today: realised value of both, and
+    how much more the twin stored since the start of the day (kWh; energy
+    still inside is worth something tomorrow, so look at both)."""
+    twin = state.config
+    real = batteries.states.get(twin.twin_of)
+    if real is None:
+        return {}
+    values = {
+        "twin": batteries.value_today(twin.id),
+        "real": batteries.value_today(real.config.id),
+    }
+
+    def stored_change(battery: BatteryState) -> float | None:
+        days = batteries.stats[battery.config.id].get("days") or []
+        start = days[-1].get("stored") if days else None
+        now = battery.stored_kwh
+        return None if start is None or now is None else now - start
+
+    twin_stored, real_stored = stored_change(state), stored_change(real)
+    return {
+        "real_battery": real.config.name,
+        "difference": (
+            None
+            if values["twin"] is None or values["real"] is None
+            else round(values["twin"] - values["real"], 2)
+        ),
+        "twin_value_today": values["twin"],
+        "real_value_today": values["real"],
+        "twin_soc": state.soc,
+        "real_soc": real.soc,
+        "stored_difference_kwh": (
+            None
+            if twin_stored is None or real_stored is None
+            else round(twin_stored - real_stored, 2)
+        ),
+    }
+
+
+# A twin's realised value today minus its real battery's (on the twin).
+TWIN_SENSOR = BatterySensorDescription(
+    key="twin_difference_today",
+    device_class=SensorDeviceClass.MONETARY,
+    suggested_display_precision=2,
+    value_fn=lambda b, s: twin_comparison(b, s).get("difference"),
+    attrs_fn=lambda b, s: {
+        k: v for k, v in twin_comparison(b, s).items() if k != "difference"
+    },
+)
+MONETARY_KEYS = {
+    "battery_realized_value",
+    "battery_value_today",
+    "twin_difference_today",
+}
+
 # Values that are always known (configuration or persisted counters).
 ALWAYS_AVAILABLE = {
     "battery_realized_value",
+    "battery_value_today",
+    "twin_difference_today",
     "battery_capacity",
     "battery_charged_energy",
     "battery_discharged_energy",
@@ -262,7 +327,11 @@ class BatterySensor(_BatteryEntityBase):
         self._attr_unique_id = f"{battery_id}_{description.key}"
         name = self._state.config.name
         manufacturer, model = source
-        if self._state.config.virtual:
+        if self._state.config.twin_of:
+            real = self._batteries.states.get(self._state.config.twin_of)
+            twin = real.config.name if real else "?"
+            manufacturer, model = NAME, f"Twin of {twin} (simulation)"
+        elif self._state.config.virtual:
             manufacturer, model = NAME, "Virtual battery (simulation)"
         else:
             model = f"{model} (read-only)" if model else "Home battery (read-only)"
@@ -281,7 +350,7 @@ class BatterySensor(_BatteryEntityBase):
     @property
     def native_unit_of_measurement(self) -> str | None:
         """Money in Home Assistant's currency."""
-        if self.entity_description.key == "battery_realized_value":
+        if self.entity_description.key in MONETARY_KEYS:
             return self.hass.config.currency if self.hass else None
         return super().native_unit_of_measurement
 

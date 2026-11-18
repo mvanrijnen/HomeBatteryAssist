@@ -587,7 +587,7 @@ def websocket_history(
             "battery_capacity_kwh": round(
                 sum(
                     s.config.capacity_kwh
-                    for s in entry.runtime_data.batteries.states.values()
+                    for s in entry.runtime_data.batteries.plan_states()
                     if s.soc is not None
                 ),
                 2,

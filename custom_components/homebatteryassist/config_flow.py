@@ -158,6 +158,7 @@ from .const import (
     CONF_TEMP_LIMIT,
     CONF_TEMP_MIN_POWER,
     CONF_TEMPERATURE_SENSOR,
+    CONF_TWIN_OF,
     CONF_VACATION,
     CONF_WEATHER_API_KEY,
     CONF_WEATHER_ENTITY,
@@ -218,6 +219,7 @@ from .const import (
     SUBENTRY_PV_SOURCE,
     SUBENTRY_TIME_SLOT,
     SUBENTRY_VIRTUAL_BATTERY,
+    TWIN_NONE,
     phase_return_sensor_keys,
     phase_sensor_keys,
 )
@@ -1913,10 +1915,36 @@ def virtual_name(name: str, language: str | None) -> str:
     return f"{name} ({'virtueel' if dutch else 'virtual'})"
 
 
-def virtual_battery_schema(three_phase: bool) -> vol.Schema:
+def twin_options(entry: ConfigEntry, language: str | None) -> list[SelectOptionDict]:
+    """What a virtual battery can be the twin of: none, or a real battery."""
+    dutch = (language or "").lower().startswith("nl")
+    return [
+        SelectOptionDict(
+            value=TWIN_NONE,
+            label="Geen: een eigen virtuele batterij"
+            if dutch
+            else "None: a virtual battery of its own",
+        ),
+        *(
+            SelectOptionDict(value=sub.subentry_id, label=sub.data[CONF_NAME])
+            for sub in entry.subentries.values()
+            if sub.subentry_type == SUBENTRY_BATTERY
+        ),
+    ]
+
+
+def virtual_battery_schema(
+    three_phase: bool, twins: list[SelectOptionDict] | None = None
+) -> vol.Schema:
     """Properties of a virtual (simulated) battery."""
     schema: dict[Any, Any] = {
         vol.Required(CONF_NAME): TextSelector(),
+    }
+    if twins and len(twins) > 1:
+        schema[vol.Required(CONF_TWIN_OF, default=TWIN_NONE)] = SelectSelector(
+            SelectSelectorConfig(options=twins, mode=SelectSelectorMode.DROPDOWN)
+        )
+    schema |= {
         vol.Required(CONF_CAPACITY, default=5.12): _number(0.1, 1000, 0.01, "kWh"),
         vol.Required(CONF_MAX_CHARGE_POWER, default=2500): _number(1, 50000, 1, "W"),
         vol.Required(CONF_MAX_DISCHARGE_POWER, default=2500): _number(1, 50000, 1, "W"),
@@ -1967,7 +1995,16 @@ class VirtualBatterySubentryFlow(ConfigSubentryFlow):
         current = self._current()
         errors: dict[str, str] = {}
         if user_input is not None:
-            if user_input[CONF_MIN_SOC] >= user_input[CONF_MAX_SOC]:
+            twin = user_input.get(CONF_TWIN_OF, TWIN_NONE)
+            taken = {
+                sub.data.get(CONF_TWIN_OF)
+                for sub in entry.subentries.values()
+                if sub.subentry_type == SUBENTRY_VIRTUAL_BATTERY
+                and (current is None or sub.subentry_id != current.subentry_id)
+            }
+            if twin != TWIN_NONE and twin in taken:
+                errors[CONF_TWIN_OF] = "twin_taken"
+            elif user_input[CONF_MIN_SOC] >= user_input[CONF_MAX_SOC]:
                 errors[CONF_MAX_SOC] = "soc_range"
             elif user_input[CONF_LOSS_MIN] > user_input[CONF_LOSS_MAX]:
                 errors[CONF_LOSS_MAX] = "loss_range"
@@ -1978,6 +2015,7 @@ class VirtualBatterySubentryFlow(ConfigSubentryFlow):
                     ),
                     CONF_CAPACITY: float(user_input[CONF_CAPACITY]),
                     CONF_PHASE: user_input.get(CONF_PHASE, PHASE_NONE),
+                    CONF_TWIN_OF: twin,
                     **{
                         key: int(user_input[key])
                         for key in (
@@ -2001,7 +2039,11 @@ class VirtualBatterySubentryFlow(ConfigSubentryFlow):
         return self.async_show_form(
             step_id=step_id,
             data_schema=self.add_suggested_values_to_schema(
-                virtual_battery_schema(entry.data[CONF_PHASES] == 3), suggested
+                virtual_battery_schema(
+                    entry.data[CONF_PHASES] == 3,
+                    twin_options(entry, self.hass.config.language),
+                ),
+                suggested,
             ),
             errors=errors,
         )

@@ -125,6 +125,12 @@
         "state": {
           "read_only": "mdi:lock-outline"
         }
+      },
+      "battery_value_today": {
+        "default": "mdi:cash-clock"
+      },
+      "twin_difference_today": {
+        "default": "mdi:scale-balance"
       }
     },
     "button": {
@@ -142,6 +148,9 @@
       },
       "input_test": {
         "default": "mdi:clipboard-pulse-outline"
+      },
+      "twin_sync": {
+        "default": "mdi:sync"
       }
     },
     "binary_sensor": {

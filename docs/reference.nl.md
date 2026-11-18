@@ -259,6 +259,7 @@ Een gesimuleerde batterij die live naast je echte batterijen meedraait in de gek
 | Veld | Uitleg |
 |---|---|
 | **Naam** |  |
+| **Tweeling van** | Een echte batterij om te kopiëren: de virtuele batterij neemt haar eigenschappen over (de velden hieronder worden dan niet gebruikt, het verlies is haar rendement), begint op haar laadniveau en wordt in haar plaats gepland, op het net zoals het zonder haar zou zijn. De echte batterij valt dan buiten het plan en houdt haar eigen sturing (bijv. Omnibattery), zodat je ze kunt vergelijken. |
 | **Capaciteit** |  |
 | **Maximaal laadvermogen** |  |
 | **Maximaal ontlaadvermogen** |  |
@@ -344,11 +345,14 @@ Wat HomeBatteryAssist aanmaakt (namen zoals in Home Assistant).
 | Fase laden (zon) | Sensor |
 | Fase alleen net | Sensor |
 | Testbesturing | Sensor |
+| Opbrengst vandaag | Sensor |
+| Verschil met echte batterij vandaag | Sensor |
 | Herbereken | Knop |
 | Test: laden | Knop |
 | Test: ontladen | Knop |
 | Test: stoppen | Knop |
 | Invoer testen | Knop |
+| Gelijkzetten met echte batterij | Knop |
 | Volgt opdracht niet | binary_sensor |
 | Testvermogen | number |
 | Testduur | number |
