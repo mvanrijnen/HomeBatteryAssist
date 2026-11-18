@@ -860,7 +860,7 @@
             "pv_driver": "Gemeten door",
             "pv_address": "IP-adres meter",
             "inverter_driver": "Omvormer-driver (begrenzing teruglevering)",
-            "inverter_address": "Adres omvormer",
+            "inverter_address": "Adres voor de driver",
             "possible_sensor": "Mogelijk vermogen (optioneel)",
             "inverter_max_current": "Automaat van de omvormer (A per fase)"
           },
@@ -870,8 +870,8 @@
             "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken.",
             "pv_driver": "Een sensor van een andere integratie, of een meter die rechtstreeks wordt uitgelezen (ongeveer elke seconde, alleen lezen), bijv. een HomeWizard kWh-meter op de groep van de omvormer.",
             "pv_address": "Alleen bij een rechtstreeks uitgelezen meter.",
-            "inverter_driver": "Hoe deze omvormer begrensd zou kunnen worden voor de begrenzing van de teruglevering. In deze fase wordt niets verstuurd: alleen getoond wat hij zou sturen.",
-            "inverter_address": "Adres van de omvormer voor de driver: IP-adres, eventueel met poort en unit-id (host:poort/unit, bijv. 192.168.1.20:502/126 voor SunSpec op een SMA).",
+            "inverter_driver": "Hoe deze omvormer begrensd zou kunnen worden voor de begrenzing van de teruglevering. Met een Sunny Home Manager 2.0 kies je de Home Manager voor elke SMA-omvormer erachter (de begrenzing gaat dan via de Home Manager). In deze fase wordt niets verstuurd: alleen getoond wat hij zou sturen.",
+            "inverter_address": "Waar de gekozen driver naartoe zou sturen: het IP-adres van het apparaat waarmee hij praat, eventueel met poort en unit-id (host:poort/unit). Bij de driver Sunny Home Manager: het IP-adres van de Home Manager (hetzelfde voor elke PV-bron erachter), niet dat van de omvormer. Bij SMA Modbus of SunSpec: het IP-adres van de omvormer (SunSpec op een SMA: bijv. 192.168.1.20:502/126). Zonder driver: leeg laten.",
             "possible_sensor": "Wat deze PV-bron nu zou kunnen leveren (W), bijv. een register van een SMA-omvormer, ingelezen met de Modbus-integratie van Home Assistant. Waar het hoger is dan het gemeten vermogen, werd PV tegengehouden (begrensd): HomeBatteryAssist leert dan van wat de zon gaf, en toont wat er tegengehouden wordt.",
             "inverter_max_current": "De automaat van de groep van de omvormer (bijv. 20 A): het meeste dat deze omvormer kan leveren (A x 230 V, x 3 als hij op alle fasen zit). Als dit bij elke PV-bron is ingevuld, is Max. teruglevering niet meer dan de omvormers plus de batterijen kunnen leveren, in plaats van het maximum van de netaansluiting."
           }
@@ -889,7 +889,7 @@
             "pv_driver": "Gemeten door",
             "pv_address": "IP-adres meter",
             "inverter_driver": "Omvormer-driver (begrenzing teruglevering)",
-            "inverter_address": "Adres omvormer",
+            "inverter_address": "Adres voor de driver",
             "possible_sensor": "Mogelijk vermogen (optioneel)",
             "inverter_max_current": "Automaat van de omvormer (A per fase)"
           },
@@ -899,8 +899,8 @@
             "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken.",
             "pv_driver": "Een sensor van een andere integratie, of een meter die rechtstreeks wordt uitgelezen (ongeveer elke seconde, alleen lezen), bijv. een HomeWizard kWh-meter op de groep van de omvormer.",
             "pv_address": "Alleen bij een rechtstreeks uitgelezen meter.",
-            "inverter_driver": "Hoe deze omvormer begrensd zou kunnen worden voor de begrenzing van de teruglevering. In deze fase wordt niets verstuurd: alleen getoond wat hij zou sturen.",
-            "inverter_address": "Adres van de omvormer voor de driver: IP-adres, eventueel met poort en unit-id (host:poort/unit, bijv. 192.168.1.20:502/126 voor SunSpec op een SMA).",
+            "inverter_driver": "Hoe deze omvormer begrensd zou kunnen worden voor de begrenzing van de teruglevering. Met een Sunny Home Manager 2.0 kies je de Home Manager voor elke SMA-omvormer erachter (de begrenzing gaat dan via de Home Manager). In deze fase wordt niets verstuurd: alleen getoond wat hij zou sturen.",
+            "inverter_address": "Waar de gekozen driver naartoe zou sturen: het IP-adres van het apparaat waarmee hij praat, eventueel met poort en unit-id (host:poort/unit). Bij de driver Sunny Home Manager: het IP-adres van de Home Manager (hetzelfde voor elke PV-bron erachter), niet dat van de omvormer. Bij SMA Modbus of SunSpec: het IP-adres van de omvormer (SunSpec op een SMA: bijv. 192.168.1.20:502/126). Zonder driver: leeg laten.",
             "possible_sensor": "Wat deze PV-bron nu zou kunnen leveren (W), bijv. een register van een SMA-omvormer, ingelezen met de Modbus-integratie van Home Assistant. Waar het hoger is dan het gemeten vermogen, werd PV tegengehouden (begrensd): HomeBatteryAssist leert dan van wat de zon gaf, en toont wat er tegengehouden wordt.",
             "inverter_max_current": "De automaat van de groep van de omvormer (bijv. 20 A): het meeste dat deze omvormer kan leveren (A x 230 V, x 3 als hij op alle fasen zit). Als dit bij elke PV-bron is ingevuld, is Max. teruglevering niet meer dan de omvormers plus de batterijen kunnen leveren, in plaats van het maximum van de netaansluiting."
           }

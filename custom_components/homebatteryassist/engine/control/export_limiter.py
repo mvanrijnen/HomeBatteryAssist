@@ -236,10 +236,13 @@ class ExportLimiter:
         )
 
     def would_send(self) -> list[str]:
-        """Per inverter: what its driver would send for the limit now."""
-        return [
-            driver.describe(address, self.limit.limit_w)
-            if driver is not None
-            else f"{name}: -"
-            for name, driver, address in self.inverters
-        ]
+        """Per inverter: what its driver would send for the limit now (once
+        per device: PV sources behind one Home Manager share its command)."""
+        return list(
+            dict.fromkeys(
+                driver.describe(address, self.limit.limit_w)
+                if driver is not None
+                else f"{name}: -"
+                for name, driver, address in self.inverters
+            )
+        )

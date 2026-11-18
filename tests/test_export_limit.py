@@ -270,3 +270,17 @@ def test_sma_drivers_per_type() -> None:
         "unit 3 40210=1077, unit 3 40212=3000"
     )
     assert all(not d.enabled and not d.verified for d in DRIVERS)
+
+
+def test_one_command_per_home_manager() -> None:
+    """Two PV sources behind one Home Manager: one command, not two."""
+    shm = get_driver("sma_home_manager")
+    limiter = ExportLimiter(
+        _Log(),  # type: ignore[arg-type]
+        enabled=True,
+        threshold=0.0,
+        fixed_w=0.0,
+        connection=CONNECTION,
+        inverters=[("Roof", shm, "192.168.1.5"), ("Garage", shm, "192.168.1.5")],
+    )
+    assert len(limiter.would_send()) == 1
