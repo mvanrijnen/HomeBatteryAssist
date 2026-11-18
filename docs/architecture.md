@@ -16,6 +16,81 @@ HomeBatteryAssist is built in layers. Data flows one way, from the devices to th
 
 `engine/coordinator.py` runs one cycle through the layers (by default every 15 minutes, and when new prices arrive).
 
+## At a glance
+
+How the layers hang together. Solid arrows: data; dotted arrows: messages for *Why*, and the control that is built but not active yet (dashed box).
+
+```mermaid
+flowchart TB
+  subgraph HA["Home Assistant"]
+    INT["Other integrations<br/>batteries, meters, prices,<br/>PV forecast, weather"]
+    OUT["HomeBatteryAssist in HA<br/>sensors, dashboard,<br/>actions, notifications"]
+  end
+  DEV["1 · Devices<br/>drivers: batteries, meters"]
+  SRC["2 · External sources<br/>prices, PV forecasts,<br/>weather, tariffs"]
+  MEA["3 · Measuring<br/>the house now, grid per phase,<br/>batteries and their counters"]
+  HIS["4 · History<br/>consumption per interval"]
+  FOR["5 · Forecasting<br/>planning window, consumption,<br/>temperature"]
+  PLA["6 · Planning<br/>planners, final check,<br/>full charges"]
+  EVA["7 · Evaluation<br/>accuracy, plan check,<br/>live checks"]
+  EXP["8 · Explanation<br/>Why, notifications"]
+  CTL["Control<br/>built, not active"]
+  INT --> DEV
+  INT --> SRC
+  DEV --> MEA
+  MEA --> HIS
+  HIS --> FOR
+  SRC --> FOR
+  FOR --> PLA
+  PLA --> EVA
+  MEA --> EVA
+  MEA -.-> EXP
+  PLA -.-> EXP
+  EVA -.-> EXP
+  MEA --> OUT
+  PLA --> OUT
+  EVA --> OUT
+  EXP --> OUT
+  PLA -.-> CTL
+  CTL -.-> DEV
+  classDef off stroke-dasharray: 6 4
+  class CTL off
+```
+
+### One forecast cycle
+
+What `engine/coordinator.py` does every 15 minutes and when new prices arrive:
+
+```mermaid
+flowchart LR
+  C1["Read inputs<br/>batteries, prices, PV forecast, weather"] --> C2["Planning window<br/>how far all forecasts reach"] --> C3["Settle earlier forecasts<br/>accuracy per lead time"]
+  C3 --> C4["Consumption forecast<br/>forecaster → temperature →<br/>correction → your adjustments"]
+  C3 --> C5["PV forecast<br/>+ learned correction"]
+  C3 --> C6["Prices<br/>+ tariff: what a kWh costs / earns"]
+  C4 --> C7["Plans per mode<br/>planner → final check →<br/>full charges"]
+  C5 --> C7
+  C6 --> C7
+  C7 --> C8["Explanations<br/>plan story, phases, Why"] --> C9["Sensors and dashboard"]
+```
+
+### Live, every few seconds
+
+What happens between two cycles, on every new measurement:
+
+```mermaid
+flowchart LR
+  L1["Grid meter, PV, battery sensors"] --> L2["Measuring<br/>house consumption, short peaks"]
+  L2 --> L3["History<br/>recorded per interval"]
+  L2 --> L4["Virtual batteries<br/>zero on the meter or the plan with the real sun →<br/>phase protection, peak shaving → interceptor →<br/>final check"]
+  L2 --> L5["Live checks<br/>more / less sun than forecast,<br/>battery follows its command"]
+  L4 -.-> L6["Why, notifications,<br/>problem sensors"]
+  L5 -.-> L6
+  L2 -.-> L7["Control loop<br/>built, not active"]
+  L7 -.-> L8["Battery<br/>via its integration or a direct driver"]
+  classDef off stroke-dasharray: 6 4
+  class L7,L8 off
+```
+
 ## Drivers and modules
 
 - **Drivers** connect HomeBatteryAssist to *devices* (layer 1). They are part of the code; a new one is added through a pull request. → [Drivers](drivers.md)

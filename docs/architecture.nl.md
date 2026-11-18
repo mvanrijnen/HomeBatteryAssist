@@ -16,6 +16,81 @@ HomeBatteryAssist is in lagen opgebouwd. Gegevens stromen één kant op, van de 
 
 `engine/coordinator.py` doorloopt de lagen in één cyclus (standaard elke 15 minuten, en wanneer er nieuwe prijzen binnenkomen).
 
+## In één oogopslag {#at-a-glance}
+
+Hoe de lagen samenhangen. Doorgetrokken pijlen: gegevens; gestippelde pijlen: berichten voor *Waarom*, en de besturing die gebouwd is maar nog niet actief (gestreept vak).
+
+```mermaid
+flowchart TB
+  subgraph HA["Home Assistant"]
+    INT["Andere integraties<br/>batterijen, meters, prijzen,<br/>PV-voorspelling, weer"]
+    OUT["HomeBatteryAssist in HA<br/>sensoren, dashboard,<br/>acties, meldingen"]
+  end
+  DEV["1 · Apparaten<br/>drivers: batterijen, meters"]
+  SRC["2 · Externe bronnen<br/>prijzen, PV-voorspellingen,<br/>weer, tarieven"]
+  MEA["3 · Meten<br/>het huis nu, net per fase,<br/>batterijen en hun tellers"]
+  HIS["4 · Historie<br/>verbruik per interval"]
+  FOR["5 · Voorspellen<br/>planningsvenster, verbruik,<br/>temperatuur"]
+  PLA["6 · Planning<br/>planners, eindcontrole,<br/>volladingen"]
+  EVA["7 · Evaluatie<br/>nauwkeurigheid, plancontrole,<br/>live controles"]
+  EXP["8 · Uitleg<br/>Waarom, meldingen"]
+  CTL["Besturing<br/>gebouwd, niet actief"]
+  INT --> DEV
+  INT --> SRC
+  DEV --> MEA
+  MEA --> HIS
+  HIS --> FOR
+  SRC --> FOR
+  FOR --> PLA
+  PLA --> EVA
+  MEA --> EVA
+  MEA -.-> EXP
+  PLA -.-> EXP
+  EVA -.-> EXP
+  MEA --> OUT
+  PLA --> OUT
+  EVA --> OUT
+  EXP --> OUT
+  PLA -.-> CTL
+  CTL -.-> DEV
+  classDef off stroke-dasharray: 6 4
+  class CTL off
+```
+
+### Eén voorspelcyclus {#one-forecast-cycle}
+
+Wat `engine/coordinator.py` elke 15 minuten doet, en wanneer er nieuwe prijzen binnenkomen:
+
+```mermaid
+flowchart LR
+  C1["Invoer lezen<br/>batterijen, prijzen, PV-voorspelling, weer"] --> C2["Planningsvenster<br/>hoe ver alle voorspellingen reiken"] --> C3["Eerdere voorspellingen afrekenen<br/>nauwkeurigheid per vooruitzicht"]
+  C3 --> C4["Verbruiksvoorspelling<br/>voorspeller → temperatuur →<br/>correctie → jouw aanpassingen"]
+  C3 --> C5["PV-voorspelling<br/>+ geleerde correctie"]
+  C3 --> C6["Prijzen<br/>+ tarief: wat een kWh kost / oplevert"]
+  C4 --> C7["Plannen per modus<br/>planner → eindcontrole →<br/>volladingen"]
+  C5 --> C7
+  C6 --> C7
+  C7 --> C8["Uitleg<br/>planverhaal, fasen, Waarom"] --> C9["Sensoren en dashboard"]
+```
+
+### Live, om de paar seconden {#live-every-few-seconds}
+
+Wat er tussen twee cycli gebeurt, bij elke nieuwe meting:
+
+```mermaid
+flowchart LR
+  L1["Netmeter, PV, batterijsensoren"] --> L2["Meten<br/>huisverbruik, korte pieken"]
+  L2 --> L3["Historie<br/>vastgelegd per interval"]
+  L2 --> L4["Virtuele batterijen<br/>nul op de meter of het plan met de echte zon →<br/>fasebeveiliging, piekafvlakking → interceptor →<br/>eindcontrole"]
+  L2 --> L5["Live controles<br/>meer / minder zon dan voorspeld,<br/>batterij volgt opdracht"]
+  L4 -.-> L6["Waarom, meldingen,<br/>probleem-sensoren"]
+  L5 -.-> L6
+  L2 -.-> L7["Regellus<br/>gebouwd, niet actief"]
+  L7 -.-> L8["Batterij<br/>via haar integratie of een directe driver"]
+  classDef off stroke-dasharray: 6 4
+  class L7,L8 off
+```
+
 ## Drivers en modules {#drivers-and-modules}
 
 - **Drivers** verbinden HomeBatteryAssist met *apparaten* (laag 1). Ze maken deel uit van de code; een nieuwe voeg je toe via een pull request. → [Drivers](drivers.md)
