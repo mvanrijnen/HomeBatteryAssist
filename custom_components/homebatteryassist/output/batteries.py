@@ -26,7 +26,12 @@ from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME
-from ..engine.measure.battery_monitor import BatteryInput, BatteryState, BatteryStatus
+from ..engine.measure.battery_monitor import (
+    BatteryInput,
+    BatteryState,
+    BatteryStatus,
+    twinned_ids,
+)
 from ..models import HomeBatteryAssistConfigEntry
 
 
@@ -334,7 +339,10 @@ class BatterySensor(_BatteryEntityBase):
         elif self._state.config.virtual:
             manufacturer, model = NAME, "Virtual battery (simulation)"
         else:
-            model = f"{model} (read-only)" if model else "Home battery (read-only)"
+            # With a twin it is only measured: the twin is planned in its place.
+            twinned = battery_id in twinned_ids(self._batteries.configs)
+            note = "measured only, the twin is planned" if twinned else "read-only"
+            model = f"{model} ({note})" if model else f"Home battery ({note})"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, battery_id)},
             name=name,

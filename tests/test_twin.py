@@ -140,6 +140,12 @@ async def test_twin_copies_and_replaces_the_real_battery(
         if (DOMAIN, "twin1") in d.identifiers
     )
     assert device.model == "Twin of Venus (simulation)"
+    real = next(
+        d
+        for d in dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+        if (DOMAIN, "real1") in d.identifiers
+    )
+    assert real.model.endswith("(measured only, the twin is planned)")
     assert _value(hass, "twin1", "twin_difference_today") is not None
 
 
