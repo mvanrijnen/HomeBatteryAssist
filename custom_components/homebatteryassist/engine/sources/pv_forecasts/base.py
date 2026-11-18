@@ -38,6 +38,9 @@ class PvForecastSource:
 
     key: str = ""
     name: str = ""
+    # Tested on a real setup; until then it is shown as "not tested" (own
+    # sources too: set True only after testing).
+    verified: bool = False
     description: str = ""
 
     async def async_find(self, hass: HomeAssistant) -> list[PvForecastOption]:

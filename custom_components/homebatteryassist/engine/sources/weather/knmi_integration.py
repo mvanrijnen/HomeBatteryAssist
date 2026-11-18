@@ -35,6 +35,7 @@ class KnmiWeatherSource(WeatherEntitySource):
     """The weather entity of the KNMI integration."""
 
     key = "knmi"
+    verified = False
     name = "KNMI (integration)"
 
     def __init__(self, settings=None) -> None:

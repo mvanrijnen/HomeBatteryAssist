@@ -233,6 +233,7 @@ class ArbitragePlanner(Planner):
     """Cost-optimal for own use (no battery energy to the grid)."""
 
     key = "arbitrage"
+    verified = True
     name = "Arbitrage"
     allow_export = False
 
@@ -272,5 +273,6 @@ class ArbitrageFullPlanner(ArbitragePlanner):
     """Maximum profit: may also discharge to the grid."""
 
     key = "arbitrage_full"
+    verified = False
     name = "Full arbitrage"
     allow_export = True

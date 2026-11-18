@@ -374,9 +374,9 @@
       "options": {
         "nom": "Nul op de meter (NOM)",
         "arbitrage": "Arbitrage (kostenoptimaal)",
-        "arbitrage_full": "Arbitrage volledig (ook terugleveren)",
-        "time_slots": "Tijdvakken",
-        "manual": "Handmatig (vast vermogen)"
+        "arbitrage_full": "Arbitrage volledig (ook terugleveren) (niet getest)",
+        "time_slots": "Tijdvakken (niet getest)",
+        "manual": "Handmatig (vast vermogen) (niet getest)"
       }
     },
     "balance_interval": {
@@ -404,9 +404,9 @@
       "options": {
         "homewizard": "HomeWizard P1- of kWh-meter (lokale API)",
         "speedwire": "SMA Home Manager / Energy Meter (Speedwire)",
-        "shelly": "Shelly Pro 3EM / 3EM",
-        "shelly_em": "Shelly EM / Pro EM (1 fase)",
-        "iammeter": "Iammeter WEM3080 / WEM3080T"
+        "shelly": "Shelly Pro 3EM / 3EM (niet getest)",
+        "shelly_em": "Shelly EM / Pro EM (1 fase) (niet getest)",
+        "iammeter": "Iammeter WEM3080 / WEM3080T (niet getest)"
       }
     },
     "weekday": {
@@ -437,11 +437,11 @@
     },
     "weather_source": {
       "options": {
-        "weather_entity": "Weer-entiteit (hieronder kiezen)",
-        "knmi": "KNMI-integratie",
-        "weerlive": "Weerlive (KNMI, API-sleutel)",
+        "weather_entity": "Weer-entiteit (hieronder kiezen) (niet getest)",
+        "knmi": "KNMI-integratie (niet getest)",
+        "weerlive": "Weerlive (KNMI, API-sleutel) (niet getest)",
         "open_meteo": "Open-Meteo",
-        "open_meteo_knmi": "Open-Meteo, KNMI-model"
+        "open_meteo_knmi": "Open-Meteo, KNMI-model (niet getest)"
       }
     },
     "interceptor": {
@@ -522,10 +522,10 @@
     "inverter_driver": {
       "options": {
         "none": "Geen",
-        "sma_modbus": "SMA oudere types via Modbus (SB TL-21, STP TL-10/20/30), zonder Home Manager (niet geverifieerd)",
-        "sma_home_manager": "SMA via Sunny Home Manager 2.0 (begrenzing teruglevering, Modbus unit 2; niet geverifieerd)",
-        "sunspec_modbus": "SunSpec via Modbus (SMA SB 1AV-40/41, STP 3AV-40, CORE1; Fronius, SolarEdge, ...; niet geverifieerd)",
-        "sma_storage_x": "SMA Sunny Tripower Storage X / Sunny Island X via Modbus, zonder Home Manager (niet geverifieerd)"
+        "sma_modbus": "SMA oudere types via Modbus (SB TL-21, STP TL-10/20/30), zonder Home Manager (niet getest)",
+        "sma_home_manager": "SMA via Sunny Home Manager 2.0 (begrenzing teruglevering, Modbus unit 2) (niet getest)",
+        "sunspec_modbus": "SunSpec via Modbus (SMA SB 1AV-40/41, STP 3AV-40, CORE1; Fronius, SolarEdge, ...) (niet getest)",
+        "sma_storage_x": "SMA Sunny Tripower Storage X / Sunny Island X via Modbus, zonder Home Manager (niet getest)"
       }
     }
   },

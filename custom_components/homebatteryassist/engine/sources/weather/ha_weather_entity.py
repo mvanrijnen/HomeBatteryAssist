@@ -86,6 +86,7 @@ class WeatherEntitySource(WeatherSource):
     """One Home Assistant weather entity (``settings.entity_id``)."""
 
     key = "weather_entity"
+    verified = False
     name = "Home Assistant weather entity"
 
     def __init__(self, settings: WeatherSettings | str | None = None) -> None:

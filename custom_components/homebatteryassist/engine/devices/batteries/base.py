@@ -129,6 +129,8 @@ class BatteryProfile:
     max_soc: tuple[str, str] | None = None  # %
     efficiency: tuple[str, str] | None = None  # %
     phase: tuple[str, str] | None = None  # select with options l1/l2/l3
+    # Recognition tested on a real installation (else "not tested").
+    verified: bool = False
 
 
 class BatteryReader:

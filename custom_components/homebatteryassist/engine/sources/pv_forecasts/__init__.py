@@ -71,7 +71,7 @@ def choice_value(key: str, option_id: str) -> str:
 
 
 async def async_find_pv_forecasts(
-    hass: HomeAssistant, own: Mapping[str, PvForecastSource]
+    hass: HomeAssistant, own: Mapping[str, PvForecastSource], dutch: bool = False
 ) -> list[tuple[str, str]]:
     """(stored value, label) of every forecast offered now."""
     found: list[tuple[str, str]] = []
@@ -82,6 +82,8 @@ async def async_find_pv_forecasts(
             _LOGGER.exception("PV forecast source %s failed to list its forecasts", key)
             continue
         suffix = "" if key == DEFAULT_SOURCE else f" ({source.name or key})"
+        if not source.verified:
+            suffix += " (niet getest)" if dutch else " (not tested)"
         found.extend(
             (choice_value(key, option.id), f"{option.label}{suffix}")
             for option in options

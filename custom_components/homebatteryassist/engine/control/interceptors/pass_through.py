@@ -9,6 +9,7 @@ class PassThrough(Interceptor):
     """Approves every proposal."""
 
     key = "none"
+    verified = True
     name = "None (everything as proposed)"
 
     def intercept(self, data: InterceptInput) -> InterceptResult:

@@ -51,6 +51,9 @@ class SpikeFilter:
 
     key: str = ""
     name: str = ""
+    # Tested on a real setup; until then every place where it is chosen
+    # says "not tested". Own modules too: set True only after testing.
+    verified: bool = False
     threshold_w: float = 2000.0  # a rise of at least this much can be a peak
     max_duration_s: float = 300.0  # a peak lasts at most this long
 

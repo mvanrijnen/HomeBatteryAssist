@@ -249,6 +249,7 @@ from .engine.devices.batteries.recognition import (
 )
 from .engine.devices.inverters import DRIVERS as INVERTER_DRIVERS
 from .engine.devices.meters import DRIVERS as METER_DRIVERS
+from .engine.devices.meters import get_driver as get_meter_driver
 from .engine.devices.meters.discovery import (
     DIRECT_SOURCES,
     SOURCE_HOMEWIZARD,
@@ -399,6 +400,19 @@ def phase_selector() -> SelectSelector:
     )
 
 
+def untested(verified: bool, dutch: bool) -> str:
+    """The suffix for a driver or module not tested on a real setup yet
+    (also own ones, until they set ``verified = True``)."""
+    if verified:
+        return ""
+    return " (niet getest)" if dutch else " (not tested)"
+
+
+def _own_label(module: Any, key: str, dutch: bool) -> str:
+    """Label of an own module: its name, and "not tested" until it says so."""
+    return f"{module.name or key}{untested(getattr(module, 'verified', False), dutch)}"
+
+
 def _price_source_selector(
     hass: HomeAssistant,
     first: str,
@@ -418,12 +432,10 @@ def _price_source_selector(
         if source.forecast_only and not forecasts:
             continue
         driver = get_driver(source.driver)
-        untested = "" if driver is None or driver.verified else " *"
+        mark = untested(driver is None or driver.verified, dutch)
         suffix = only if source.forecast_only else ""
         options.append(
-            SelectOptionDict(
-                value=source.key, label=f"{source.title}{suffix}{untested}"
-            )
+            SelectOptionDict(value=source.key, label=f"{source.title}{suffix}{mark}")
         )
     if keep and keep not in {o["value"] for o in options}:
         # The chosen source is not available right now (e.g. its integration is
@@ -616,6 +628,7 @@ async def _flat_settings_schema(
     """All settings fields (setup step 4 and options), not grouped."""
     current = current or {}
     own_planners = await async_load_user_planners(hass)
+    dutch = (hass.config.language or "").startswith("nl")
     schema: dict[Any, Any] = {
         vol.Required(
             CONF_HISTORY_INTERVAL,
@@ -679,7 +692,7 @@ async def _flat_settings_schema(
                 options=[
                     *(SelectOptionDict(value=k, label=k) for k in WEATHER_SOURCES),
                     *(
-                        SelectOptionDict(value=k, label=c.name or k)
+                        SelectOptionDict(value=k, label=_own_label(c, k, dutch))
                         for k, c in (
                             await async_load_user_weather_sources(hass)
                         ).items()
@@ -706,7 +719,7 @@ async def _flat_settings_schema(
                 options=[
                     *(SelectOptionDict(value=m, label=m) for m in PLAN_MODES),
                     *(
-                        SelectOptionDict(value=key, label=p.name or key)
+                        SelectOptionDict(value=key, label=_own_label(p, key, dutch))
                         for key, p in own_planners.items()
                     ),
                 ],
@@ -722,7 +735,7 @@ async def _flat_settings_schema(
                 options=[
                     *(SelectOptionDict(value=k, label=k) for k in FORECASTERS),
                     *(
-                        SelectOptionDict(value=k, label=f.name or k)
+                        SelectOptionDict(value=k, label=_own_label(f, k, dutch))
                         for k, f in (await async_load_user_forecasters(hass)).items()
                     ),
                 ],
@@ -737,7 +750,7 @@ async def _flat_settings_schema(
                 options=[
                     *(SelectOptionDict(value=k, label=k) for k in TARIFFS),
                     *(
-                        SelectOptionDict(value=k, label=t.name or k)
+                        SelectOptionDict(value=k, label=_own_label(t, k, dutch))
                         for k, t in (await async_load_user_tariffs(hass)).items()
                     ),
                 ],
@@ -787,7 +800,7 @@ async def _flat_settings_schema(
                 options=[
                     *(SelectOptionDict(value=k, label=k) for k in INTERCEPTORS),
                     *(
-                        SelectOptionDict(value=k, label=i.name or k)
+                        SelectOptionDict(value=k, label=_own_label(i, k, dutch))
                         for k, i in (await async_load_user_interceptors(hass)).items()
                     ),
                 ],
@@ -880,7 +893,7 @@ async def _flat_settings_schema(
                 options=[
                     *(SelectOptionDict(value=k, label=k) for k in SPIKE_FILTERS),
                     *(
-                        SelectOptionDict(value=k, label=f.name or k)
+                        SelectOptionDict(value=k, label=_own_label(f, k, dutch))
                         for k, f in (await async_load_user_spike_filters(hass)).items()
                     ),
                 ],
@@ -914,7 +927,7 @@ async def _flat_settings_schema(
                 options=[
                     *(SelectOptionDict(value=k, label=k) for k in PV_CORRECTORS),
                     *(
-                        SelectOptionDict(value=k, label=c.name or k)
+                        SelectOptionDict(value=k, label=_own_label(c, k, dutch))
                         for k, c in (await async_load_user_pv_correctors(hass)).items()
                     ),
                 ],
@@ -1042,7 +1055,7 @@ async def _flat_settings_schema(
     pv_options = [
         SelectOptionDict(value=value, label=label)
         for value, label in await async_find_pv_forecasts(
-            hass, await async_load_user_pv_sources(hass)
+            hass, await async_load_user_pv_sources(hass), dutch
         )
     ]
     # Keep earlier choices selectable even if that integration is not loaded now.
@@ -1236,7 +1249,9 @@ def _direct_label(candidate: DirectCandidate, dutch: bool) -> str:
         if dutch
         else "read directly, every second, read-only"
     )
-    return f"{candidate.name} {candidate.address} ({how})"
+    driver = get_meter_driver(candidate.source)
+    mark = untested(driver is not None and driver.verified, dutch)
+    return f"{candidate.name} {candidate.address} ({how}){mark}"
 
 
 class _GridSteps:
@@ -1346,7 +1361,11 @@ class _GridSteps:
                                     for key, c in self._direct.items()
                                 ),
                                 *(
-                                    SelectOptionDict(value=c.device_id, label=c.label)
+                                    SelectOptionDict(
+                                        value=c.device_id,
+                                        label=c.label
+                                        + untested(c.profile.verified, dutch),
+                                    )
                                     for c in self._meters.values()
                                 ),
                                 SelectOptionDict(
@@ -1679,6 +1698,7 @@ class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):
                 )
 
         schema: dict[Any, Any] = {vol.Required(CONF_NAME): TextSelector()}
+        dutch = (self.hass.config.language or "").startswith("nl")
         if direct:
             schema[vol.Required(CONF_PV_DRIVER, default=PV_DRIVER_SENSOR)] = (
                 SelectSelector(
@@ -1688,7 +1708,10 @@ class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):
                                 value=PV_DRIVER_SENSOR, label=PV_DRIVER_SENSOR
                             ),
                             *(
-                                SelectOptionDict(value=d.key, label=d.name)
+                                SelectOptionDict(
+                                    value=d.key,
+                                    label=f"{d.name}{untested(d.verified, dutch)}",
+                                )
                                 for d in METER_DRIVERS
                                 if d.pv_capable
                             ),
@@ -1807,7 +1830,9 @@ def used_sensors(entry: ConfigEntry) -> set[str]:
     return used
 
 
-def battery_schema(three_phase: bool, single_phase: bool = False) -> vol.Schema:
+def battery_schema(
+    three_phase: bool, single_phase: bool = False, dutch: bool = False
+) -> vol.Schema:
     """Reading and properties of a battery. ``single_phase``: a battery
     on one phase (a plug-in battery): on a 3-phase connection its phase
     must be chosen (spreading it over all phases under-counts the phase)."""
@@ -1850,7 +1875,10 @@ def battery_schema(three_phase: bool, single_phase: bool = False) -> vol.Schema:
                         value=BATTERY_METER_NONE, label=BATTERY_METER_NONE
                     ),
                     *(
-                        SelectOptionDict(value=d.key, label=d.name)
+                        SelectOptionDict(
+                            value=d.key,
+                            label=f"{d.name}{untested(d.verified, dutch)}",
+                        )
                         for d in METER_DRIVERS
                         if d.pv_capable
                     ),
@@ -1912,7 +1940,13 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         if not found:
             return await self.async_step_battery()
         self._candidates = {c.device_id: c for c in found}
-        options = [SelectOptionDict(value=c.device_id, label=c.label) for c in found]
+        dutch = (self.hass.config.language or "").startswith("nl")
+        options = [
+            SelectOptionDict(
+                value=c.device_id, label=c.label + untested(c.profile.verified, dutch)
+            )
+            for c in found
+        ]
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
@@ -1978,7 +2012,11 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         return self.async_show_form(
             step_id=step_id,
             data_schema=self.add_suggested_values_to_schema(
-                battery_schema(entry.data[CONF_PHASES] == 3, self._single_phase),
+                battery_schema(
+                    entry.data[CONF_PHASES] == 3,
+                    self._single_phase,
+                    (self.hass.config.language or "").startswith("nl"),
+                ),
                 suggested,
             ),
             errors=errors,

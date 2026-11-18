@@ -25,6 +25,7 @@ class ShortPeakFilter(SpikeFilter):
     """Short rises above a threshold."""
 
     key = "short_peaks"
+    verified = True
     name = "Short peaks above a threshold"
 
     def __init__(self) -> None:

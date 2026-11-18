@@ -8,7 +8,7 @@ Drivers are part of the integration: a new driver is added to the code and share
 
 - For now a driver **only reads**: Home Assistant states and registries, a read-only local API, or data a device broadcasts anyway. It never changes a setting and never opens a connection that could compete with the device's own integration (e.g. a Marstek Venus allows only one Modbus TCP client).
 - Battery drivers already *describe* how a battery is controlled (write methods); in this phase of development HomeBatteryAssist does not call them yet.
-- Mark a driver **verified** only after testing it on a real installation.
+- Mark a driver **verified** only after testing it on a real installation. Until then every list where it can be chosen shows it as **(not tested)** — built-in modules, drivers, recognised devices and your own modules alike (a test checks the labels against the flags).
 
 ## Batteries — `engine/devices/batteries/`
 

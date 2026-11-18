@@ -35,6 +35,7 @@ class MarstekModbusReader(EntityReader):
         max_charge=("number", "max_charge_power"),
         max_discharge=("number", "max_discharge_power"),
         efficiency=("sensor", "round_trip_efficiency_total"),
+        verified=True,
     )
     sensors: ClassVar[dict[str, str]] = {
         "temperature_c": "max_cell_temperature",

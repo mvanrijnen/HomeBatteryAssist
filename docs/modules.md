@@ -58,7 +58,7 @@ For now everything is **advice**: in this phase of development no module control
    | Interceptor | `engine/control/interceptors/template.py` (no discharging of a cold battery, no grid charging while a big device runs, at most 1500 W); `pass_through.py` |
 
 3. Give the class its own `key` and `name`. In a copied built-in module, change the relative imports (`from .base import ...`) into absolute ones (`from custom_components.homebatteryassist.<package>.base import ...`), as in the templates.
-4. Reload HomeBatteryAssist (Settings → Devices & services → HomeBatteryAssist → ⋮ → Reload). Your module appears in the settings as `custom_<key>`.
+4. Reload HomeBatteryAssist (Settings → Devices & services → HomeBatteryAssist → ⋮ → Reload). Your module appears in the settings as `custom_<key>`, marked **(not tested)** until you set `verified = True` in the class — do that only after testing it on your own setup.
 
 A file whose name starts with `_` is ignored; a file that does not load is skipped and logged. After changing a file, reload again.
 

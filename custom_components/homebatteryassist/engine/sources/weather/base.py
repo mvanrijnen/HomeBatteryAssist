@@ -136,6 +136,9 @@ class WeatherSource:
 
     key: str = ""
     name: str = ""
+    # Tested on a real setup; until then every place where it is chosen
+    # says "not tested". Own modules too: set True only after testing.
+    verified: bool = False
 
     def __init__(self, settings: WeatherSettings | None = None) -> None:
         """Initialize with the user's weather settings."""

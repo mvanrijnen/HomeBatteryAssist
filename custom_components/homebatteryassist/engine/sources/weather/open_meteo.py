@@ -81,6 +81,7 @@ class OpenMeteoWeatherSource(WeatherSource):
     """Open-Meteo for the user's place (best model)."""
 
     key = "open_meteo"
+    verified = True
     name = "Open-Meteo (direct)"
     model: str | None = None  # Open-Meteo's ``models`` parameter
 
@@ -159,5 +160,6 @@ class OpenMeteoKnmiSource(OpenMeteoWeatherSource):
     """Open-Meteo with the KNMI models (HARMONIE, then ECMWF)."""
 
     key = "open_meteo_knmi"
+    verified = False
     name = "Open-Meteo, KNMI model (direct)"
     model = "knmi_seamless"

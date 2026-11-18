@@ -85,6 +85,7 @@ class WeerliveWeatherSource(WeatherSource):
     """The Weerlive API with the user's key and place."""
 
     key = "weerlive"
+    verified = False
     name = "Weerlive (KNMI, direct)"
 
     def __init__(self, settings=None) -> None:

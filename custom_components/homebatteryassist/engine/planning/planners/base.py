@@ -107,6 +107,9 @@ class Planner:
     key: str = ""
     name: str = ""
     description: str = ""
+    # Tested on a real setup; until then every place where it is chosen
+    # says "not tested". Own modules too: set True only after testing.
+    verified: bool = False
 
     def plan(self, data: PlannerInput) -> PlannerResult | list[float]:
         """Requested battery power per slot of ``data.slots``, in W

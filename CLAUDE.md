@@ -22,7 +22,7 @@ engine/devices (1) -> engine/sources (2) -> engine/measure (3) -> engine/history
 engine/explain (8) is used by all; engine/coordinator.py runs one forecast cycle
 ```
 
-**Devices are drivers** (`engine/devices/`, part of the code; one file per brand / type); **everything else that is swappable is a module** (built-in in its layer, own ones loaded from `/config/homebatteryassist/<kind>/` by `engine/own_modules.py`, keyed `custom_<key>`). Every extension point has `base.py` (interface), `template.py` (example, never registered) and one file per built-in variant.
+**Devices are drivers** (`engine/devices/`, part of the code; one file per brand / type); **everything else that is swappable is a module** (built-in in its layer, own ones loaded from `/config/homebatteryassist/<kind>/` by `engine/own_modules.py`, keyed `custom_<key>`). Every extension point has `base.py` (interface), `template.py` (example, never registered) and one file per built-in variant. Every driver/module/profile has `verified` (default False; True only after a real test); every place it is chosen shows "(not tested)" / "(niet getest)" until then (`config_flow.untested`/`_own_label`; built-in option translations checked by `tests/test_untested_labels.py`), own modules included.
 
 `__init__.py` only wires the parts of a config entry into `HomeBatteryAssistData` (`models.py`, on `entry.runtime_data`). Root platform files (`sensor.py`, `button.py`) only delegate to `output/`. `async_setup` registers the actions (`services.py`) and the sidebar panel (`output/panel.py` + `frontend/panel.js`, websockets `homebatteryassist/status` and `/history`) once per HA start; HA only runs `async_setup` when a config entry exists, so the panel appears after the integration is added.
 

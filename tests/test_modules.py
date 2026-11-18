@@ -193,7 +193,7 @@ async def test_pv_sources(hass: HomeAssistant) -> None:
     """Own sources are offered next to the integrations and checked when read."""
     own = {"custom_flat": Flat()}
     found = await async_find_pv_forecasts(hass, own)
-    assert ("custom_flat:roof", "Roof (Flat)") in found
+    assert ("custom_flat:roof", "Roof (Flat) (not tested)") in found
     assert split_choice("custom_flat:roof") == ("custom_flat", "roof")
     assert split_choice("01ABC") == ("energy", "01ABC")  # older settings
     total = await async_read_pv_forecasts(

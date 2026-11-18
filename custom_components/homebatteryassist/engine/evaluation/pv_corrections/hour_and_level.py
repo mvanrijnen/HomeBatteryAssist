@@ -52,6 +52,7 @@ class HourAndLevelCorrector(PvCorrector):
     """A factor per lead time x per hour of the day x per level."""
 
     key = "hour_and_level"
+    verified = True
     name = "Per lead time, hour and level"
 
     def __init__(self) -> None:

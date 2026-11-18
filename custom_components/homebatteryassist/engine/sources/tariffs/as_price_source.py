@@ -13,6 +13,7 @@ class SourceTariff(Tariff):
     """The source's prices, unchanged."""
 
     key = "source"
+    verified = True
     name = "As the price source gives them"
 
     def prices(self, data: TariffInput) -> TariffResult:

@@ -17,6 +17,7 @@ class LeadTimeCorrector(PvCorrector):
     """A factor per lead time."""
 
     key = "lead_time"
+    verified = True
     name = "Per lead time"
 
     def correct(self, data: PvCorrectionInput) -> Sequence[float | None]:

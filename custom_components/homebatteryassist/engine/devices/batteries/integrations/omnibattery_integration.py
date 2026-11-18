@@ -39,6 +39,7 @@ class OmnibatteryReader(EntityReader):
         max_soc=("number", "charging_cutoff_capacity"),
         efficiency=("sensor", "round_trip_efficiency_total"),
         phase=("select", "battery_phase"),
+        verified=True,
     )
     sensors: ClassVar[dict[str, str]] = {
         "temperature_c": "internal_temperature",

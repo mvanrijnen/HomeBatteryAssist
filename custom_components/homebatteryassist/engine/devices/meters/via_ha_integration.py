@@ -32,6 +32,8 @@ class MeterProfile:
     phase_pattern: str  # regex on the unique id, group 1 = phase number
     address_key: str | None = None  # config entry data key with the IP address
     direct: str | None = None  # direct source that can read this meter
+    # Tested on a real installation (else shown as "not tested").
+    verified: bool = False
 
 
 PROFILES: tuple[MeterProfile, ...] = (
@@ -46,6 +48,7 @@ PROFILES: tuple[MeterProfile, ...] = (
         phase_pattern=r"_active_power_l([123])_w$",
         address_key="ip_address",
         direct="homewizard",
+        verified=True,
     ),
 )
 

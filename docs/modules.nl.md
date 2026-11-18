@@ -58,7 +58,7 @@ Voorlopig is alles **advies**: in deze fase van de ontwikkeling stuurt geen enke
    | Onderschepper | `engine/control/interceptors/template.py` (een koude batterij niet ontladen, niet uit het net laden terwijl een groot apparaat draait, hoogstens 1500 W); `pass_through.py` |
 
 3. Geef de klasse een eigen `key` en `name`. Verander in een gekopieerde ingebouwde module de relatieve imports (`from .base import ...`) in absolute (`from custom_components.homebatteryassist.<package>.base import ...`), zoals in de sjablonen.
-4. Herlaad HomeBatteryAssist (Instellingen → Apparaten & diensten → HomeBatteryAssist → ⋮ → Herladen). Je module verschijnt in de instellingen als `custom_<key>`.
+4. Herlaad HomeBatteryAssist (Instellingen → Apparaten & diensten → HomeBatteryAssist → ⋮ → Herladen). Je module verschijnt in de instellingen als `custom_<key>`, met **(niet getest)** erachter tot je `verified = True` in de klasse zet — doe dat pas nadat je hem op je eigen installatie hebt getest.
 
 Een bestand waarvan de naam met `_` begint wordt genegeerd; een bestand dat niet laadt wordt overgeslagen en gelogd. Herlaad opnieuw nadat je een bestand hebt gewijzigd.
 

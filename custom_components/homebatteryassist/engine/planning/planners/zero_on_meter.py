@@ -77,6 +77,7 @@ class NomPlanner(Planner):
     """Zero on the meter."""
 
     key = "nom"
+    verified = True
     name = "Zero on the meter"
 
     def plan(self, data: PlannerInput) -> PlannerResult:
@@ -89,6 +90,7 @@ class ManualPlanner(Planner):
     """A fixed power, as set."""
 
     key = "manual"
+    verified = False
     name = "Manual"
 
     def plan(self, data: PlannerInput) -> PlannerResult:
@@ -101,6 +103,7 @@ class TimeSlotsPlanner(Planner):
     """The configured time slots; zero on the meter outside them."""
 
     key = "time_slots"
+    verified = False
     name = "Time slots"
 
     def plan(self, data: PlannerInput) -> PlannerResult:

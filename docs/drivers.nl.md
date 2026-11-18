@@ -8,7 +8,7 @@ Drivers zijn onderdeel van de integratie: een nieuwe driver wordt aan de code to
 
 - Voorlopig **leest** een driver **alleen**: states en registers van Home Assistant, een lokale API die alleen lezen toestaat, of gegevens die een apparaat toch al uitzendt. Hij wijzigt nooit een instelling en opent nooit een verbinding die zou kunnen concurreren met de eigen integratie van het apparaat (een Marstek Venus staat bijvoorbeeld maar één Modbus TCP-client toe).
 - Batterijdrivers *beschrijven* al hoe een batterij wordt aangestuurd (schrijfmethoden); in deze fase van de ontwikkeling roept HomeBatteryAssist die nog niet aan.
-- Markeer een driver pas als **geverifieerd** nadat je hem op een echte installatie hebt getest.
+- Markeer een driver pas als **geverifieerd** nadat je hem op een echte installatie hebt getest. Tot die tijd staat hij in elke lijst waarin hij gekozen kan worden als **(niet getest)** — ingebouwde modules, drivers, herkende apparaten en je eigen modules (een test controleert de labels tegen de vlaggen).
 
 ## Batterijen — `engine/devices/batteries/` {#batteries-enginedevicesbatteries}
 

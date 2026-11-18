@@ -23,6 +23,7 @@ class LastWeeksForecaster(Forecaster):
     """Same weekday and time, last weeks."""
 
     key = "last_weeks"
+    verified = True
     name = "Same time in the last weeks"
 
     def forecast(self, data: ForecasterInput) -> ForecasterResult:

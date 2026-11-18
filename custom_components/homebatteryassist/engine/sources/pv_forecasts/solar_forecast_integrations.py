@@ -22,6 +22,7 @@ class EnergyPlatformSource(PvForecastSource):
     """Solar forecasts of other integrations (Energy dashboard)."""
 
     key = "energy"
+    verified = True
     name = "Solar forecast integrations"
 
     async def async_find(self, hass: HomeAssistant) -> list[PvForecastOption]:

@@ -106,6 +106,7 @@ class ProfileForecaster(Forecaster):
     """The average per weekday and hour, recent days counting more."""
 
     key = "profile"
+    verified = True
     name = "Weekday and hour profile"
 
     def forecast(self, data: ForecasterInput) -> ForecasterResult:

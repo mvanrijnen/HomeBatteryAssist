@@ -56,6 +56,9 @@ class PvCorrector:
 
     key: str = ""
     name: str = ""
+    # Tested on a real setup; until then every place where it is chosen
+    # says "not tested". Own modules too: set True only after testing.
+    verified: bool = False
 
     def correct(self, data: PvCorrectionInput) -> Sequence[float | None]:
         """Corrected Wh per slot of ``data.slots`` (None = the built-in one)."""
