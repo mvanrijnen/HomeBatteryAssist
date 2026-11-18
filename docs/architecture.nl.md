@@ -18,23 +18,23 @@ HomeBatteryAssist is in lagen opgebouwd. Gegevens stromen één kant op, van de 
 
 ## In één oogopslag {#at-a-glance}
 
-Hoe de lagen samenhangen. Doorgetrokken pijlen: gegevens; gestippelde pijlen: berichten voor *Waarom*, en de besturing die gebouwd is maar nog niet actief (gestreept vak).
+Hoe de lagen samenhangen: gegevens komen bovenaan binnen en stromen naar beneden. Gestippelde pijlen: berichten voor *Waarom*, en de besturing die gebouwd is maar nog niet actief (gestreept vak).
 
 ```mermaid
 flowchart TB
-  subgraph HA["Home Assistant"]
-    INT["Andere integraties<br/>batterijen, meters, prijzen,<br/>PV-voorspelling, weer"]
-    OUT["HomeBatteryAssist in HA<br/>sensoren, dashboard,<br/>acties, meldingen"]
+  INT["Home Assistant: andere integraties<br/>batterijen, meters, prijzen, PV-voorspelling, weer"]
+  subgraph ENGINE["engine/"]
+    DEV["1 · Apparaten<br/>drivers: batterijen, meters"]
+    SRC["2 · Externe bronnen<br/>prijzen, PV-voorspellingen,<br/>weer, tarieven"]
+    MEA["3 · Meten<br/>het huis nu, net per fase,<br/>batterijen en hun tellers"]
+    HIS["4 · Historie<br/>verbruik per interval"]
+    FOR["5 · Voorspellen<br/>planningsvenster, verbruik,<br/>temperatuur"]
+    PLA["6 · Planning<br/>planners, eindcontrole,<br/>volladingen"]
+    EVA["7 · Evaluatie<br/>nauwkeurigheid, plancontrole,<br/>live controles"]
+    EXP["8 · Uitleg<br/>Waarom, meldingen"]
+    CTL["Besturing<br/>gebouwd, niet actief"]
   end
-  DEV["1 · Apparaten<br/>drivers: batterijen, meters"]
-  SRC["2 · Externe bronnen<br/>prijzen, PV-voorspellingen,<br/>weer, tarieven"]
-  MEA["3 · Meten<br/>het huis nu, net per fase,<br/>batterijen en hun tellers"]
-  HIS["4 · Historie<br/>verbruik per interval"]
-  FOR["5 · Voorspellen<br/>planningsvenster, verbruik,<br/>temperatuur"]
-  PLA["6 · Planning<br/>planners, eindcontrole,<br/>volladingen"]
-  EVA["7 · Evaluatie<br/>nauwkeurigheid, plancontrole,<br/>live controles"]
-  EXP["8 · Uitleg<br/>Waarom, meldingen"]
-  CTL["Besturing<br/>gebouwd, niet actief"]
+  OUT["Home Assistant: HomeBatteryAssist<br/>sensoren, dashboard, acties, meldingen"]
   INT --> DEV
   INT --> SRC
   DEV --> MEA
@@ -47,7 +47,6 @@ flowchart TB
   MEA -.-> EXP
   PLA -.-> EXP
   EVA -.-> EXP
-  MEA --> OUT
   PLA --> OUT
   EVA --> OUT
   EXP --> OUT

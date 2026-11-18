@@ -18,23 +18,23 @@ HomeBatteryAssist is built in layers. Data flows one way, from the devices to th
 
 ## At a glance
 
-How the layers hang together. Solid arrows: data; dotted arrows: messages for *Why*, and the control that is built but not active yet (dashed box).
+How the layers hang together: data comes in at the top and flows down. Dotted arrows: messages for *Why*, and the control that is built but not active yet (dashed box).
 
 ```mermaid
 flowchart TB
-  subgraph HA["Home Assistant"]
-    INT["Other integrations<br/>batteries, meters, prices,<br/>PV forecast, weather"]
-    OUT["HomeBatteryAssist in HA<br/>sensors, dashboard,<br/>actions, notifications"]
+  INT["Home Assistant: other integrations<br/>batteries, meters, prices, PV forecast, weather"]
+  subgraph ENGINE["engine/"]
+    DEV["1 · Devices<br/>drivers: batteries, meters"]
+    SRC["2 · External sources<br/>prices, PV forecasts,<br/>weather, tariffs"]
+    MEA["3 · Measuring<br/>the house now, grid per phase,<br/>batteries and their counters"]
+    HIS["4 · History<br/>consumption per interval"]
+    FOR["5 · Forecasting<br/>planning window, consumption,<br/>temperature"]
+    PLA["6 · Planning<br/>planners, final check,<br/>full charges"]
+    EVA["7 · Evaluation<br/>accuracy, plan check,<br/>live checks"]
+    EXP["8 · Explanation<br/>Why, notifications"]
+    CTL["Control<br/>built, not active"]
   end
-  DEV["1 · Devices<br/>drivers: batteries, meters"]
-  SRC["2 · External sources<br/>prices, PV forecasts,<br/>weather, tariffs"]
-  MEA["3 · Measuring<br/>the house now, grid per phase,<br/>batteries and their counters"]
-  HIS["4 · History<br/>consumption per interval"]
-  FOR["5 · Forecasting<br/>planning window, consumption,<br/>temperature"]
-  PLA["6 · Planning<br/>planners, final check,<br/>full charges"]
-  EVA["7 · Evaluation<br/>accuracy, plan check,<br/>live checks"]
-  EXP["8 · Explanation<br/>Why, notifications"]
-  CTL["Control<br/>built, not active"]
+  OUT["Home Assistant: HomeBatteryAssist<br/>sensors, dashboard, actions, notifications"]
   INT --> DEV
   INT --> SRC
   DEV --> MEA
@@ -47,7 +47,6 @@ flowchart TB
   MEA -.-> EXP
   PLA -.-> EXP
   EVA -.-> EXP
-  MEA --> OUT
   PLA --> OUT
   EVA --> OUT
   EXP --> OUT
