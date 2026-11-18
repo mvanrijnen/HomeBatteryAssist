@@ -275,6 +275,16 @@ class ExportLimitSensor(HomeBatteryAssistEntity, SensorEntity):
             "curtailed_w": round(limiter.curtailed_w),
             "curtailed_today_kwh": round(limiter.today_kwh, 3),
             "would_send": limiter.would_send() if limit.limited else [],
+            # Coming periods in which export would be limited (plan).
+            "expected": [
+                {
+                    "start": p.start.isoformat(),
+                    "end": p.end.isoformat(),
+                    "kwh": p.kwh,
+                    "lowest_net_price": p.lowest_price,
+                }
+                for p in limiter.expected
+            ],
             # PV the inverters hold back now (possible - measured), when a PV
             # source has a sensor for what it could produce.
             "pv_curtailed_now_w": (

@@ -174,3 +174,47 @@ async def test_possible_pv_sensor_in_the_flow(hass: HomeAssistant) -> None:
     assert flow.pv_w == 1500.0
     assert flow.pv_possible_w == 4100.0
     assert flow.house_w == 1500.0  # the house is measured, not possible
+
+
+def test_expected_limits_from_the_plan() -> None:
+    """Export planned at a negative price for 2 hours: one clear period,
+    told once in Why; a short or tiny one is not told."""
+    from types import SimpleNamespace
+
+    def slot(hour: int, grid_w: float, price: float) -> SimpleNamespace:
+        start = NOW + timedelta(hours=hour)
+        return SimpleNamespace(
+            start=start,
+            end=start + timedelta(hours=1),
+            grid_w=grid_w,
+            price=price,
+            export_price=price,
+        )
+
+    slots = [
+        slot(0, -500, 0.10),  # earns: no limit
+        slot(1, -1500, -0.02),
+        slot(2, -2500, -0.05),
+        slot(3, 300, -0.05),  # importing: nothing to hold back
+        slot(4, -200, -0.01),  # 1 hour but only 0.2 kWh: not clear
+    ]
+    log = _Log()
+    limiter = ExportLimiter(
+        log,  # type: ignore[arg-type]
+        enabled=True,
+        threshold=0.0,
+        fixed_w=0.0,
+        connection=CONNECTION,
+        inverters=[],
+    )
+    limiter.plan_updated(slots, NOW)
+    assert len(limiter.expected) == 1
+    period = limiter.expected[0]
+    assert (period.start, period.end) == (
+        NOW + timedelta(hours=1),
+        NOW + timedelta(hours=3),
+    )
+    assert period.kwh == 4.0 and period.lowest_price == -0.05
+    assert [k for k, _ in log.keys] == ["export_limit_expected"]
+    limiter.plan_updated(slots, NOW + timedelta(minutes=5))
+    assert len(log.keys) == 1  # told once

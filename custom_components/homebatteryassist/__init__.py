@@ -500,6 +500,15 @@ async def async_setup_entry(
 
     entry.async_on_unload(measurements.async_add_listener(_check_export))
 
+    @callback
+    def _expect_export_limit() -> None:
+        if forecast.data is not None:
+            export_limiter.plan_updated(
+                forecast.data.battery, dt_util.utcnow(), forecast.export_factor
+            )
+
+    entry.async_on_unload(forecast.async_add_listener(_expect_export_limit))
+
     entry.runtime_data = HomeBatteryAssistData(
         decisions=decisions,
         measurements=measurements,

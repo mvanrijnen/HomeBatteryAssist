@@ -1624,6 +1624,9 @@
           },
           "net_export_price": {
             "name": "Net export price"
+          },
+          "expected": {
+            "name": "Expected limits"
           }
         }
       }

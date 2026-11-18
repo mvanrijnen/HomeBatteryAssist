@@ -1624,6 +1624,9 @@
           },
           "net_export_price": {
             "name": "Netto terugleverprijs"
+          },
+          "expected": {
+            "name": "Verwachte begrenzingen"
           }
         }
       }

@@ -19,7 +19,13 @@ from homeassistant.core import CALLBACK_TYPE, callback
 from homeassistant.util import dt as dt_util
 
 from ..explain import DecisionLog
-from ..planning.export_limit import REASON_PRICE, ExportLimit, export_limit
+from ..planning.export_limit import (
+    REASON_PRICE,
+    ExpectedLimit,
+    ExportLimit,
+    expected_limits,
+    export_limit,
+)
 
 # Nothing is sent to an inverter in this phase (tested).
 CONTROL = False
@@ -64,6 +70,9 @@ class ExportLimiter:
         self._day = ""
         self.today_kwh = 0.0
         self._listeners: list[Callable[[], None]] = []
+        # Coming periods in which export would be limited (from the plan).
+        self.expected: list[ExpectedLimit] = []
+        self._told: set[datetime] = set()  # starts of periods told
         self._notified: datetime | None = None
 
     @callback
@@ -158,6 +167,42 @@ class ExportLimiter:
                 else f"net export price {price} below {threshold}"
             )
         return "vaste grens" if dutch else "fixed limit"
+
+    def plan_updated(
+        self, slots: list[Any], now: datetime, export_factor: float = 1.0
+    ) -> None:
+        """A new plan: the coming periods in which export would be limited;
+        a new clear one is told once in *Why* (before it starts)."""
+        self.expected = expected_limits(
+            slots,
+            now,
+            enabled=self.enabled,
+            threshold=self.threshold,
+            cost=self.cost,
+            export_factor=export_factor,
+        )
+        for period in self.expected:
+            if period.start in self._told or period.start <= now:
+                continue
+            self._told.add(period.start)
+            local = dt_util.as_local
+            same_day = local(period.start).date() == local(now).date()
+            day = "" if same_day else f"{local(period.start):%d-%m} "
+            self._decisions.async_log(
+                "forecast",
+                "export_limit_expected",
+                start=f"{day}{local(period.start):%H:%M}",
+                end=f"{local(period.end):%H:%M}",
+                hours=self._num((period.end - period.start).total_seconds() / 3600, 1),
+                energy=self._num(period.kwh, 1),
+                price=(
+                    "-"
+                    if period.lowest_price is None
+                    else self._num(period.lowest_price, 3)
+                ),
+            )
+        # Forget periods long past.
+        self._told = {t for t in self._told if t > now - timedelta(days=2)}
 
     def would_send(self) -> list[str]:
         """Per inverter: what its driver would send for the limit now."""

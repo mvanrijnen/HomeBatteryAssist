@@ -14,12 +14,84 @@ connection, *Why*); later the inverter drivers would carry it out.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Any
 
 from ...const import NOMINAL_VOLTAGE
 
 REASON_NONE = "none"
 REASON_PRICE = "price"
 REASON_FIXED = "fixed"
+
+
+# A coming period is told in *Why* when it is clear: at least this long,
+# with at least this much export expected (by the plan).
+EXPECT_MIN = timedelta(hours=1)
+EXPECT_MIN_KWH = 0.5
+
+
+@dataclass(frozen=True, slots=True)
+class ExpectedLimit:
+    """A coming period in which the plan exports while that earns too little."""
+
+    start: datetime
+    end: datetime
+    kwh: float  # export the plan expects then (what would be held back)
+    lowest_price: float | None  # lowest net export price in the period
+
+
+def expected_limits(
+    slots: list[Any],
+    now: datetime,
+    *,
+    enabled: bool,
+    threshold: float,
+    cost: float = 0.0,
+    export_factor: float = 1.0,
+) -> list[ExpectedLimit]:
+    """Coming periods (from now) in which the plan expects export while the
+    net export price is below the limit price, merged over adjacent slots;
+    only the clear ones (``EXPECT_MIN``, ``EXPECT_MIN_KWH``)."""
+    if not enabled:
+        return []
+    periods: list[ExpectedLimit] = []
+    run: list[Any] = []
+
+    def close() -> None:
+        if not run:
+            return
+        kwh = sum(
+            -s.grid_w * (s.end - s.start).total_seconds() / 3_600_000 for s in run
+        )
+        prices = [p for s in run if (p := _net(s, cost, export_factor)) is not None]
+        if run[-1].end - run[0].start >= EXPECT_MIN and kwh >= EXPECT_MIN_KWH:
+            periods.append(
+                ExpectedLimit(
+                    run[0].start, run[-1].end, round(kwh, 2), min(prices, default=None)
+                )
+            )
+        run.clear()
+
+    for slot in slots:
+        if slot.end <= now:
+            continue
+        net = _net(slot, cost, export_factor)
+        if slot.grid_w < -1 and net is not None and net < threshold:
+            if run and run[-1].end != slot.start:
+                close()
+            run.append(slot)
+        else:
+            close()
+    close()
+    return periods
+
+
+def _net(slot: Any, cost: float, export_factor: float) -> float | None:
+    """What a kWh exported in this slot earns after the export costs."""
+    price = slot.export_price
+    if price is None and slot.price is not None:
+        price = slot.price * export_factor
+    return None if price is None else price - cost
 
 
 @dataclass(frozen=True, slots=True)
