@@ -348,6 +348,7 @@ What HomeBatteryAssist creates (names as shown in Home Assistant).
 | Test: charge | Button |
 | Test: discharge | Button |
 | Test: stop | Button |
+| Test inputs | Button |
 | Does not follow its command | binary_sensor |
 | Test power | number |
 | Test duration | number |

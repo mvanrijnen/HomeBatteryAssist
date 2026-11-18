@@ -1506,6 +1506,9 @@
       },
       "control_test_stop": {
         "name": "Test: stop"
+      },
+      "input_test": {
+        "name": "Test inputs"
       }
     },
     "binary_sensor": {
@@ -1665,6 +1668,11 @@
     },
     "pv_factor_range": {
       "message": "The PV correction is a factor between 0.5 and 1.5."
+    }
+  },
+  "device": {
+    "grid": {
+      "name": "Grid connection"
     }
   }
 }

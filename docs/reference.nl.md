@@ -348,6 +348,7 @@ Wat HomeBatteryAssist aanmaakt (namen zoals in Home Assistant).
 | Test: laden | Knop |
 | Test: ontladen | Knop |
 | Test: stoppen | Knop |
+| Invoer testen | Knop |
 | Volgt opdracht niet | binary_sensor |
 | Testvermogen | number |
 | Testduur | number |

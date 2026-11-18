@@ -2,6 +2,8 @@
 
 ## Grid connection and meter
 
+The grid connection is its own device, *Grid connection* (model: the meter read directly; next to the HomeBatteryAssist device, with the grid power, import, export and the load per phase). It is part of the basic setup, not a sub-item: change it with the cog of HomeBatteryAssist → *Grid connection*. Its button **Test inputs** listens to the meter for 10 seconds and then shows a notification with everything HomeBatteryAssist reads: the source and how many values it sent, per phase power, current, voltage, power factor and load, the power flows derived from it, and every sensor read (grid, PV sources, excluded devices, heating/cooling, batteries) with its value now — handy after setting up, or when something looks wrong.
+
 - **Grid connection** with 1 or 3 phases and its size (1x10A up to 3x80A).
 - **Grid meter**, chosen during setup:
   - **read directly**, about once a second, read-only (nothing on the meter is changed, and the meter's own integration keeps working):

@@ -139,6 +139,9 @@
       },
       "control_test_stop": {
         "default": "mdi:battery-off-outline"
+      },
+      "input_test": {
+        "default": "mdi:clipboard-pulse-outline"
       }
     },
     "binary_sensor": {

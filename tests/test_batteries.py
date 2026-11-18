@@ -312,7 +312,11 @@ async def test_battery_values(
 
     # The battery is its own device, next to the HomeBatteryAssist device.
     devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
-    assert sorted(d.name for d in devices) == ["HomeBatteryAssist", "Venus"]
+    assert sorted(d.name for d in devices) == [
+        "Grid connection",
+        "HomeBatteryAssist",
+        "Venus",
+    ]
 
     # Its problem sensor (does not follow its command), on the same device.
     (battery_id,) = entry.subentries

@@ -23,6 +23,7 @@ from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME
 from ..engine.coordinator import ForecastCoordinator
+from ..engine.devices.meters import SOURCE_NAMES
 from ..engine.explain.plan_phases import KINDS as PHASE_KINDS
 from ..engine.explain.plan_phases import current_and_next, phase_attributes
 from ..engine.measure.house_measurement import MeasurementInput, PowerFlow
@@ -95,6 +96,24 @@ async def async_setup_entry(
             ],
             config_subentry_id=config.id,
         )
+
+
+# Flow sensors on the grid connection device (the rest on the main device).
+GRID_KEYS = ("grid_power", "grid_import_power", "grid_export_power")
+
+
+def grid_device_info(entry: HomeBatteryAssistConfigEntry) -> DeviceInfo:
+    """The grid connection: its own device, with the meter as model."""
+    measurements = entry.runtime_data.measurements
+    direct = measurements.direct is not None
+    return DeviceInfo(
+        identifiers={(DOMAIN, f"{entry.entry_id}_grid")},
+        translation_key="grid",
+        manufacturer=NAME,
+        model=SOURCE_NAMES.get(measurements.source) if direct else None,
+        model_id=f"{measurements.phases} x {measurements.max_current} A",
+        entry_type=DeviceEntryType.SERVICE,
+    )
 
 
 def main_device_info(entry: HomeBatteryAssistConfigEntry) -> DeviceInfo:
@@ -210,6 +229,8 @@ class FlowSensor(HomeBatteryAssistEntity, SensorEntity):
         super().__init__(entry, description.key)
         self.entity_description = description
         self._measurements = entry.runtime_data.measurements
+        if description.key in GRID_KEYS or description.key.startswith("phase_l"):
+            self._attr_device_info = grid_device_info(entry)
 
     async def async_added_to_hass(self) -> None:
         """Follow updates of the measurements."""

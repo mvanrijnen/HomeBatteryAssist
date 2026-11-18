@@ -2,6 +2,8 @@
 
 ## Netaansluiting en meter {#grid-connection-and-meter}
 
+De netaansluiting is een eigen apparaat, *Netaansluiting* (model: de rechtstreeks uitgelezen meter; naast het apparaat HomeBatteryAssist, met het netvermogen, afname, teruglevering en de belasting per fase). Ze hoort bij de basisinstallatie, niet bij de sub-items: wijzigen via het tandwiel van HomeBatteryAssist → *Netaansluiting*. De knop **Invoer testen** luistert 10 seconden naar de meter en toont daarna een melding met alles wat HomeBatteryAssist uitleest: de bron en hoeveel waarden die stuurde, per fase vermogen, stroom, spanning, arbeidsfactor en belasting, de energiestromen die daaruit volgen, en elke uitgelezen sensor (net, PV-bronnen, uitgesloten apparaten, verwarming/koeling, batterijen) met de waarde nu — handig na het instellen, of als iets niet klopt.
+
 - **Netaansluiting** met 1 of 3 fasen en de grootte ervan (1x10A tot en met 3x80A).
 - **Netmeter**, gekozen tijdens de installatie:
   - **rechtstreeks uitgelezen**, ongeveer eens per seconde, alleen lezen (er wordt niets aan de meter veranderd, en de eigen integratie van de meter blijft gewoon werken):
