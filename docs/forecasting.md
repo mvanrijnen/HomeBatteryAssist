@@ -53,7 +53,7 @@ Every calculation (plans, comparisons and the realised value of the batteries) a
 - **dynamic contract**: per hour the export price of the contract plus the energy tax incl. VAT that is netted (setting, 2026: € 0.1108/kWh);
 - **fixed contract**: the same as a kWh imported (the import price).
 
-From 2027 the export price applies again, so the plan already counts on that for the days after New Year. Not counted: export above what you import over the year (that part earns only the export price).
+From 2027 the export price applies again, so the plan already counts on that for the days after New Year. Not counted: export above what you import over the year (that part earns only the export price). Leave the setting on *None* when the price source already includes net metering in its export price (e.g. DynTarNL), else it is counted twice.
 
 Without net metering: Imported energy costs the import price; exported energy earns only the export price, so charging from solar power costs what that power would have earned, and discharging saves the import price only for energy the house would otherwise have bought.
 

@@ -53,7 +53,7 @@ Elke berekening (plannen, vergelijkingen en de gerealiseerde waarde van de batte
 - **dynamisch contract**: per uur de terugleverprijs van het contract plus de energiebelasting met btw die gesaldeerd wordt (instelling, 2026: € 0,1108/kWh);
 - **vast contract**: evenveel als een afgenomen kWh (de inkoopprijs).
 
-Vanaf 2027 geldt weer de terugleverprijs, dus het plan rekent voor de dagen na nieuwjaar daar al mee. Niet meegeteld: teruglevering boven wat je over het jaar afneemt (dat deel levert alleen de terugleverprijs op).
+Vanaf 2027 geldt weer de terugleverprijs, dus het plan rekent voor de dagen na nieuwjaar daar al mee. Niet meegeteld: teruglevering boven wat je over het jaar afneemt (dat deel levert alleen de terugleverprijs op). Laat de instelling op *Geen* als de prijsbron saldering al in de terugleverprijs meeneemt (bijv. DynTarNL), anders telt het dubbel.
 
 Zonder saldering: Afgenomen stroom kost de inkoopprijs; teruggeleverde stroom levert alleen de terugleverprijs op. Laden met zonnestroom kost dus wat die stroom had opgeleverd, en ontladen bespaart alleen de inkoopprijs voor stroom die het huis anders had gekocht.
 
