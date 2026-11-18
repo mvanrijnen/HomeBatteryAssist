@@ -10,6 +10,8 @@ De sensoren hebben een vaste betekenis en kunnen door andere integraties en add-
 
 **Volgt opdracht niet.** Elke echte batterij heeft een probleem-sensor die aan staat zolang de batterij de opdracht van de integratie die haar aanstuurt niet volgt, zonder verklaring (zie [Meten](measuring.md#does-the-battery-follow-its-command)); attributen: de opdracht, het vermogen van de batterij, de reden als het verklaarbaar is, en sinds wanneer.
 
+**Testbesturing.** Het apparaat van elke echte batterij heeft ook de [testbesturing](architecture.md#control-layer-built-not-active) (knoppen *Test: laden / ontladen / stoppen*, *Testvermogen*, *Testduur*, status *Testbesturing*). In deze fase staat die uit: de knoppen versturen niets.
+
 ## Acties {#actions}
 
 | Actie | Wat het doet |

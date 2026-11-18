@@ -43,6 +43,7 @@ from .const import (
     DEFAULT_SPIKE_THRESHOLD,
     DOMAIN,
 )
+from .engine.control.control_test import ControlTest
 from .engine.control.interceptors import (
     async_load_user_interceptors,
     create_interceptor,
@@ -83,7 +84,12 @@ from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
 from .output.panel import async_setup_panel
 from .services import async_setup_services
 
-PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.NUMBER,
+    Platform.SENSOR,
+]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 _LOGGER = logging.getLogger(__name__)
@@ -415,6 +421,18 @@ async def async_setup_entry(
     commands.async_start()
     entry.async_on_unload(commands.async_stop)
 
+    # Test control per real battery: built, switched off in this phase
+    # (CONTROL_TEST_ALLOWED); a test always ends with the battery back on its
+    # own control, also on unload.
+    control_test = ControlTest(
+        hass,
+        batteries,
+        decisions,
+        reserve_soc=lambda: forecast.rules.reserve_soc,
+        commands=commands,
+    )
+    entry.async_on_unload(control_test.async_stop_all)
+
     # Battery control — WRITTEN OUT, NOT ACTIVE (engine/control/control_loop.py;
     # see "Activating" there). Once active it runs next to the simulator, on
     # the same targets, and releases every battery on unload:
@@ -442,6 +460,7 @@ async def async_setup_entry(
         plan_check=plan_check,
         simulator=simulator,
         commands=commands,
+        control_test=control_test,
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # Options and subentry changes (PV sources, excluded loads) require a reload.

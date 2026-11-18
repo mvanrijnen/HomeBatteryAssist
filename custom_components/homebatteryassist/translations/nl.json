@@ -1482,16 +1482,43 @@
             "name": "Volgende: kWh per batterij"
           }
         }
+      },
+      "control_test_status": {
+        "name": "Testbesturing",
+        "state": {
+          "read_only": "Uitgeschakeld (alleen lezen)",
+          "not_possible": "Niet mogelijk",
+          "ready": "Gereed",
+          "charging": "Laden (test)",
+          "discharging": "Ontladen (test)"
+        }
       }
     },
     "button": {
       "recalculate": {
         "name": "Herbereken"
+      },
+      "control_test_charge": {
+        "name": "Test: laden"
+      },
+      "control_test_discharge": {
+        "name": "Test: ontladen"
+      },
+      "control_test_stop": {
+        "name": "Test: stoppen"
       }
     },
     "binary_sensor": {
       "battery_not_following": {
         "name": "Volgt opdracht niet"
+      }
+    },
+    "number": {
+      "control_test_power": {
+        "name": "Testvermogen"
+      },
+      "control_test_minutes": {
+        "name": "Testduur"
       }
     }
   },

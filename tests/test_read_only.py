@@ -14,7 +14,7 @@ from custom_components.homebatteryassist.engine.devices.batteries import (
 )
 
 PACKAGE = Path(__file__).parent.parent / "custom_components" / "homebatteryassist"
-# Where write methods are *defined* (never called).
+# Where write methods are *defined* (and, behind switches that are off, called).
 DEFINITIONS = (
     "engine/control/",
     "engine/devices/transports/",
@@ -84,3 +84,12 @@ def test_control_loop_is_only_comment() -> None:
     tree = ast.parse((PACKAGE / "engine/control/control_loop.py").read_text("utf-8"))
     assert len(tree.body) == 1  # the docstring
     assert isinstance(tree.body[0], ast.Expr)
+
+
+def test_control_test_switched_off() -> None:
+    """The test control per battery is built, but sends nothing in this phase."""
+    from custom_components.homebatteryassist.engine.control.control_test import (
+        CONTROL_TEST_ALLOWED,
+    )
+
+    assert CONTROL_TEST_ALLOWED is False

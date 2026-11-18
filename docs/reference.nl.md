@@ -343,8 +343,14 @@ Wat HomeBatteryAssist aanmaakt (namen zoals in Home Assistant).
 | Fase laden (net) | Sensor |
 | Fase laden (zon) | Sensor |
 | Fase alleen net | Sensor |
+| Testbesturing | Sensor |
 | Herbereken | Knop |
+| Test: laden | Knop |
+| Test: ontladen | Knop |
+| Test: stoppen | Knop |
 | Volgt opdracht niet | binary_sensor |
+| Testvermogen | number |
+| Testduur | number |
 
 ## Acties {#actions}
 

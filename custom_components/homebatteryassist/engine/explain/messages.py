@@ -91,6 +91,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "battery_not_following": "{name} does not follow its command: since {since} told to {direction} at {command}, but its power is {actual}. The integration that controls it (or the battery itself) may have a problem.",
         "battery_not_following_explained": "{name} does not follow its command to {direction} at {command} (since {since}, power {actual}), and that is explained: {reason}.",
         "battery_not_following_ended": "{name} follows its command again (it did not from {start} to {end}).",
+        "control_test_blocked": "Test control of {name}: not started. In this phase HomeBatteryAssist only reads; the test control is built but switched off.",
+        "control_test_refused": "Test control of {name}: not started, {reason}.",
+        "control_test_started": "Test control of {name}: {direction} at {power} for {minutes} min (until {until}), through {integration}. Afterwards, or at once with Test: stop, it goes back to its own control.",
+        "control_test_stopped": "Test control of {name} ended ({reason}) after {minutes} min: charged {charged} kWh, discharged {discharged} kWh. Back to its own control.",
     },
     "nl": {
         "horizon_setting": "Planning {hours} uur vooruit (tot {end}): het ingestelde maximum van {days} dagen.",
@@ -169,6 +173,10 @@ MESSAGES: dict[str, dict[str, str]] = {
         "battery_not_following": "{name} volgt de opdracht niet: sinds {since} opgedragen te {direction} met {command}, maar het vermogen is {actual}. De integratie die de batterij aanstuurt (of de batterij zelf) heeft mogelijk een probleem.",
         "battery_not_following_explained": "{name} volgt de opdracht om te {direction} met {command} niet (sinds {since}, vermogen {actual}), en dat is verklaarbaar: {reason}.",
         "battery_not_following_ended": "{name} volgt de opdracht weer (niet van {start} tot {end}).",
+        "control_test_blocked": "Testbesturing van {name}: niet gestart. In deze fase leest HomeBatteryAssist alleen; de testbesturing is gebouwd maar staat uit.",
+        "control_test_refused": "Testbesturing van {name}: niet gestart, {reason}.",
+        "control_test_started": "Testbesturing van {name}: {direction} met {power} gedurende {minutes} min (tot {until}), via {integration}. Daarna, of meteen met Test: stoppen, gaat ze terug naar haar eigen sturing.",
+        "control_test_stopped": "Testbesturing van {name} beëindigd ({reason}) na {minutes} min: {charged} kWh geladen, {discharged} kWh ontladen. Terug naar haar eigen sturing.",
     },
 }
 
@@ -244,6 +252,15 @@ TERMS: dict[str, dict[str, str]] = {
         "reason_charge_off": "charging is switched off on the battery",
         "reason_discharge_off": "discharging is switched off on the battery",
         "reason_hysteresis": "after a full charge it only charges again once its state of charge has dropped a little (hysteresis)",
+        "test_no_writer": "its integration cannot be controlled by HomeBatteryAssist",
+        "test_unknown": "its state of charge is unknown",
+        "test_full": "it is full",
+        "test_empty": "it is at its lowest allowed state of charge",
+        "test_done": "time is up",
+        "test_stopped": "stopped by hand",
+        "test_not_following": "it did not follow the command",
+        "test_error": "a command failed, see the log",
+        "test_unload": "HomeBatteryAssist stopped or reloaded",
     },
     "nl": {
         "none": "",
@@ -293,6 +310,15 @@ TERMS: dict[str, dict[str, str]] = {
         "reason_charge_off": "laden staat uit op de batterij",
         "reason_discharge_off": "ontladen staat uit op de batterij",
         "reason_hysteresis": "na volladen laadt ze pas weer als het laadniveau iets gedaald is (hysterese)",
+        "test_no_writer": "haar integratie kan niet door HomeBatteryAssist worden aangestuurd",
+        "test_unknown": "haar laadniveau is onbekend",
+        "test_full": "ze is vol",
+        "test_empty": "ze zit op haar laagst toegestane laadniveau",
+        "test_done": "de tijd is om",
+        "test_stopped": "met de hand gestopt",
+        "test_not_following": "ze volgde de opdracht niet",
+        "test_error": "een opdracht mislukte, zie het log",
+        "test_unload": "HomeBatteryAssist is gestopt of herladen",
     },
 }
 

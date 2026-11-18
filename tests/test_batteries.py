@@ -322,6 +322,22 @@ async def test_battery_values(
     assert problem is not None
     assert hass.states.get(problem).state == "off"
 
+    # The test control: on the battery's device, switched off in this phase.
+    registry = er.async_get(hass)
+    for domain, key in (
+        ("button", "control_test_charge"),
+        ("button", "control_test_discharge"),
+        ("button", "control_test_stop"),
+        ("number", "control_test_power"),
+        ("number", "control_test_minutes"),
+        ("sensor", "control_test_status"),
+    ):
+        assert registry.async_get_entity_id(domain, DOMAIN, f"{battery_id}_{key}"), key
+    status = registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{battery_id}_control_test_status"
+    )
+    assert hass.states.get(status).state == "read_only"
+
 
 async def test_battery_kept_out_of_house_consumption(hass: HomeAssistant) -> None:
     """Charging from the grid is not house consumption; discharging adds to it."""

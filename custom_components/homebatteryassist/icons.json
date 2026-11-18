@@ -119,11 +119,26 @@
       },
       "phase_grid_only": {
         "default": "mdi:transmission-tower"
+      },
+      "control_test_status": {
+        "default": "mdi:battery-sync-outline",
+        "state": {
+          "read_only": "mdi:lock-outline"
+        }
       }
     },
     "button": {
       "recalculate": {
         "default": "mdi:refresh"
+      },
+      "control_test_charge": {
+        "default": "mdi:battery-arrow-up"
+      },
+      "control_test_discharge": {
+        "default": "mdi:battery-arrow-down"
+      },
+      "control_test_stop": {
+        "default": "mdi:battery-off-outline"
       }
     },
     "binary_sensor": {
@@ -132,6 +147,14 @@
         "state": {
           "off": "mdi:battery-check-outline"
         }
+      }
+    },
+    "number": {
+      "control_test_power": {
+        "default": "mdi:flash"
+      },
+      "control_test_minutes": {
+        "default": "mdi:timer-outline"
       }
     }
   },

@@ -343,8 +343,14 @@ What HomeBatteryAssist creates (names as shown in Home Assistant).
 | Phase charging (grid) | Sensor |
 | Phase charging (solar) | Sensor |
 | Phase grid only | Sensor |
+| Test control | Sensor |
 | Recalculate | Button |
+| Test: charge | Button |
+| Test: discharge | Button |
+| Test: stop | Button |
 | Does not follow its command | binary_sensor |
+| Test power | number |
+| Test duration | number |
 
 ## Actions {#actions}
 

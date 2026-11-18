@@ -1482,16 +1482,43 @@
             "name": "Next: kWh per battery"
           }
         }
+      },
+      "control_test_status": {
+        "name": "Test control",
+        "state": {
+          "read_only": "Switched off (read-only)",
+          "not_possible": "Not possible",
+          "ready": "Ready",
+          "charging": "Charging (test)",
+          "discharging": "Discharging (test)"
+        }
       }
     },
     "button": {
       "recalculate": {
         "name": "Recalculate"
+      },
+      "control_test_charge": {
+        "name": "Test: charge"
+      },
+      "control_test_discharge": {
+        "name": "Test: discharge"
+      },
+      "control_test_stop": {
+        "name": "Test: stop"
       }
     },
     "binary_sensor": {
       "battery_not_following": {
         "name": "Does not follow its command"
+      }
+    },
+    "number": {
+      "control_test_power": {
+        "name": "Test power"
+      },
+      "control_test_minutes": {
+        "name": "Test duration"
       }
     }
   },

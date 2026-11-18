@@ -34,6 +34,7 @@ from .batteries import (
     BatterySensor,
     source_device,
 )
+from .control_test import ControlTestStatus
 
 MAX_STATE_LENGTH = 255
 RECENT_DECISIONS = 10
@@ -84,6 +85,12 @@ async def async_setup_entry(
                     PlanPhaseSensor(entry, kind, config.id)
                     for kind in PHASE_KINDS
                     if kind != "grid_only"
+                ),
+                # The test control's status (real batteries).
+                *(
+                    [ControlTestStatus(entry, config.id)]
+                    if config.id in entry.runtime_data.control_test.configs
+                    else []
                 ),
             ],
             config_subentry_id=config.id,

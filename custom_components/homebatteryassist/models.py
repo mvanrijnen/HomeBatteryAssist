@@ -27,6 +27,7 @@ class HomeBatteryAssistData:
     plan_check: PlanVerification
     simulator: Any = None  # VirtualBatterySimulator (live protections)
     commands: Any = None  # CommandMonitor (does each battery follow its command)
+    control_test: Any = None  # ControlTest (switched off in this phase)
 
 
 type HomeBatteryAssistConfigEntry = ConfigEntry[HomeBatteryAssistData]

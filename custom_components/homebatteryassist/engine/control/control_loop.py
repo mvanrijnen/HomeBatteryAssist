@@ -76,7 +76,7 @@ full/empty, not switched off, no hysteresis) is released to its own control
 (``control_released``) instead of being commanded on; it is commanded again
 once the check is clear.
 
-How a battery is reached (``ReaderDriver`` below):
+How a battery is reached (``ReaderDriver``, ``reader_driver.py``):
 
 - through the integration it is linked with — the reader's
   ``async_set_power`` / ``async_release`` (e.g. Omnibattery: manual mode +
@@ -124,13 +124,12 @@ Activating (later, deliberately, with the project owner)
 # from homeassistant.util import dt as dt_util
 #
 # from ..devices.batteries import reader_for
-# from ..devices.batteries.base import BatteryReader
-# from ..devices.batteries.direct.base import DirectBatteryDriver, DirectReading
 # from ..explain import DecisionLog
 # from ..measure.battery_monitor import BatteryConfig, BatteryInput
 # from ..measure.house_measurement import MeasurementInput
 # from .battery_controller import BatteryController
 # from .interceptors import run_interceptor
+# from .reader_driver import ReaderDriver  # active code, shared with control_test
 # from .targets import (  # step 1 of "Activating"
 #     battery_targets,
 #     intercept_input,
@@ -141,38 +140,6 @@ Activating (later, deliberately, with the project owner)
 #
 # STEP = timedelta(seconds=5)  # fallback; the round is forecast.react_interval
 # REACT_INTERVAL = timedelta(seconds=0.5)  # fastest extra round on the meter
-#
-#
-# class ReaderDriver(DirectBatteryDriver):
-#     """A battery controlled through the integration it is linked with, in
-#     the shape of a driver (what ``BatteryController`` needs)."""
-#
-#     transport = "integration"
-#     can_write = True
-#     # Integrations write through entities: not more often than this, and
-#     # only for a real change (each write is a state change in HA).
-#     min_interval_s = 5.0
-#     deadband_w = 50.0
-#
-#     def __init__(
-#         self, hass: HomeAssistant, reader: BatteryReader, config: BatteryConfig
-#     ) -> None:
-#         super().__init__(hass, config.power_sensor)
-#         self.reader = reader
-#         self.config = config
-#         self.name = config.name
-#         self.max_charge_w = config.max_charge_w
-#         self.max_discharge_w = config.max_discharge_w
-#         self.enabled = True  # the controller's master switch decides
-#
-#     async def async_read(self) -> DirectReading:
-#         return DirectReading()  # reading stays with BatteryInput
-#
-#     async def async_set_power(self, power_w: float) -> None:
-#         await self.reader.async_set_power(self.hass, self.config, power_w)
-#
-#     async def async_release(self) -> None:
-#         await self.reader.async_release(self.hass, self.config)
 #
 #
 # class ControlLoop:
