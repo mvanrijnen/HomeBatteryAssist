@@ -7,7 +7,9 @@ selected plan mode, using the real measurements:
   grid right now (after the real batteries);
 - the other modes (arbitrage, time slots, manual): follow the battery plan of
   the current slot, for the virtual batteries' share of the planned capacity;
-  an unexpected solar surplus (``plan_balance``) is stored on top.
+  an unexpected solar surplus (``plan_balance``) is stored on top; when the
+  sun falls short, the part of a planned charge that was to come from it is
+  only charged as far as it is really there.
 
 The total is spread over the virtual batteries with
 ``planning.distribution.distribute`` (minimum power per battery).
@@ -669,7 +671,8 @@ class VirtualBatterySimulator:
             total = (
                 slot.power_w * virtual_capacity / capacity if slot and capacity else 0.0
             )
-            # An unexpected solar surplus is stored on top of the plan.
+            # The real solar surplus instead of the forecast one: more is
+            # stored on top of the plan, less is not taken from the grid.
             flow = self._measurements.flow
             forecast_slot = data.consumption_at(now)
             if (
@@ -683,6 +686,7 @@ class VirtualBatterySimulator:
                     total,
                     solar_surplus_w(flow),
                     data.pv_now_w - forecast_slot.power_w,
+                    self._forecast.pv_deviation_w,
                 )
         else:
             # NOM: the real surplus (+) / shortage (-) on the grid right now,

@@ -68,6 +68,9 @@ CONF_MAX_CYCLES: Final = "max_cycles_per_day"
 CONF_PV_MARGIN: Final = "pv_forecast_margin"
 CONF_PV_CORRECTION: Final = "pv_correction"
 CONF_PV_CORRECTOR: Final = "pv_corrector"  # PV correction module (learned)
+# Solar power clearly more / less than forecast right now.
+CONF_PV_DEVIATION_W: Final = "pv_deviation_w"
+CONF_PV_DEVIATION_MINUTES: Final = "pv_deviation_minutes"
 PV_CORRECTION_AUTO: Final = "auto"  # learned from past forecasts
 PV_CORRECTION_FIXED: Final = "fixed"  # only the fixed margin (%)
 PV_CORRECTION_BOTH: Final = "both"
@@ -127,6 +130,8 @@ DEFAULT_MANUAL_POWER: Final = 0
 SUBENTRY_TIME_SLOT: Final = "time_slot"
 DEFAULT_PEAK_LIMIT: Final = 0  # W grid import (all phases); 0 = no peak shaving
 DEFAULT_PV_MARGIN: Final = 0  # % of the PV forecast the plan does not count on
+DEFAULT_PV_DEVIATION_W: Final = 300  # W more / less solar left over than forecast
+DEFAULT_PV_DEVIATION_MINUTES: Final = 5  # before Why tells it
 DEFAULT_MAX_CYCLES: Final = 1.0  # full cycles per day for arbitrage (0 = no limit)
 CONF_EXPORT_ENTITIES: Final = "export_price_entities"
 EXPORT_FACTOR: Final = "factor"  # import price x factor

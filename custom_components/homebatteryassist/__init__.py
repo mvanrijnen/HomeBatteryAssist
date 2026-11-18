@@ -11,7 +11,7 @@ This file only wires the modules of a config entry together.
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
@@ -28,11 +28,13 @@ from .const import (
     CONF_INTERCEPTOR,
     CONF_NOTIFY_KINDS,
     CONF_NOTIFY_TARGETS,
+    CONF_PV_DEVIATION_MINUTES,
     CONF_SPIKE_DURATION,
     CONF_SPIKE_FILTER,
     CONF_SPIKE_THRESHOLD,
     CONF_VACATION,
     DEFAULT_HISTORY_INTERVAL,
+    DEFAULT_PV_DEVIATION_MINUTES,
     DEFAULT_SPIKE_DURATION,
     DEFAULT_SPIKE_THRESHOLD,
     DOMAIN,
@@ -336,10 +338,23 @@ async def async_setup_entry(
     simulator.async_start()
     entry.async_on_unload(simulator.async_stop)
 
-    # Why: an unexpected solar surplus, measured against the forecast now.
-    surplus_check = UnexpectedSurplus(
-        decimal_comma=(hass.config.language or "").startswith("nl")
+    # Why: an unexpected solar surplus or shortage, measured against the
+    # forecast now.
+    comma = (hass.config.language or "").startswith("nl")
+    deviation_after = timedelta(
+        minutes=entry.options.get(
+            CONF_PV_DEVIATION_MINUTES, DEFAULT_PV_DEVIATION_MINUTES
+        )
     )
+    solar_checks = [
+        UnexpectedSurplus(
+            decimal_comma=comma,
+            shortage=shortage,
+            threshold_w=forecast.pv_deviation_w,
+            start_after=deviation_after,
+        )
+        for shortage in (False, True)
+    ]
 
     @callback
     def _check_surplus(when: datetime, _power: float | None) -> None:
@@ -354,15 +369,16 @@ async def async_setup_entry(
             and data.pv_now_w is not None
             and slot is not None
         )
-        result = surplus_check.update(
-            when,
-            solar_surplus_w(flow) if known else None,
-            data.pv_now_w - slot.power_w if known else None,
-            nom=data is None or data.plan_mode == MODE_NOM,
-        )
-        if result is not None:
-            key, params = result
-            decisions.async_log("forecast", key, **params)
+        for check in solar_checks:
+            result = check.update(
+                when,
+                solar_surplus_w(flow) if known else None,
+                data.pv_now_w - slot.power_w if known else None,
+                nom=data is None or data.plan_mode == MODE_NOM,
+            )
+            if result is not None:
+                key, params = result
+                decisions.async_log("forecast", key, **params)
 
     entry.async_on_unload(measurements.async_add_listener(_check_surplus))
 

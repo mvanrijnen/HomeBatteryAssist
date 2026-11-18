@@ -6,7 +6,7 @@ HomeBatteryAssist plant wat de batterijen het beste kunnen doen binnen het [plan
 
 Elke planmodus is een [planner (planningsmodule)](modules.md); ze worden allemaal elke ronde berekend, met de verwachte besparing vergeleken met geen batterij:
 
-- **Onverwacht zonne-overschot**: in elke modus slaan de batterijen ook zonnestroom op waar het plan niet op rekende — minstens 300 W over (PV − huis − uitgesloten apparaten) terwijl er voor dit uur minder dan de helft van voorspeld was — bovenop het geplande vermogen (niet meer dan het overschot, dus nooit van het net; een geplande ontlading wordt gewoon gevolgd). *Waarom* meldt het ([Voorspellen](forecasting.md#unexpected-solar-surplus)).
+- **Meer of minder zon dan verwacht**: in elke modus volgen de batterijen het zonne-overschot dat er echt is — een onverwacht overschot wordt bovenop het plan opgeslagen, ontbrekende zon wordt niet uit het net gehaald. Zie [Als de zon afwijkt van de voorspelling](#when-the-sun-differs-from-the-forecast).
 - **Nul op de meter (NOM)**: laden met overtollige zonnestroom, het huis voeden bij een tekort — niet de uitgesloten apparaten (bijv. een laadpaal) en, als dat aanstaat, niet willekeurige [korte pieken](measuring.md#short-peaks).
 - **Arbitrage** (eigen gebruik): laden als stroom goedkoop is, het huis voeden als stroom duur is.
 - **Arbitrage volledig**: zoals arbitrage, maar mag ook ontladen naar het net als de terugleverprijs dat de moeite waard maakt.
@@ -15,6 +15,39 @@ Elke planmodus is een [planner (planningsmodule)](modules.md); ze worden allemaa
 - **Je eigen planner**: zie [Modules](modules.md).
 
 Kies de modus in de instellingen, op het dashboard of met de actie `set_plan_mode`. HomeBatteryAssist controleert elk plan achteraf (vermogen, fasen, laadniveau, prijsregels) — zie [het laatste woord](modules.md#homebatteryassist-keeps-the-final-say).
+
+## Als de zon afwijkt van de voorspelling {#when-the-sun-differs-from-the-forecast}
+
+Een plan wordt gemaakt met de voorspelde zonnestroom en het voorspelde verbruik per tijdvak. Doet de zon iets anders — een wolk, of een zonnige periode die niemand voorspelde — dan volgen de batterijen wat er **echt gemeten** wordt, niet de voorspelling.
+
+HomeBatteryAssist vergelijkt het **overschot** nu (PV − huis − uitgesloten apparaten: wat de batterijen zouden kunnen opslaan) met het **verwachte** overschot voor dit uur (de zonvoorspelling, gecorrigeerd, min de verbruiksvoorspelling):
+
+| | Meer zon dan verwacht | Minder zon dan verwacht |
+|---|---|---|
+| **Wanneer** | minstens **300 W** over, en minder dan de helft daarvan was voorspeld | minstens **300 W** voorspeld, en er is minder dan de helft van over |
+| **Nul op de meter** | opgeslagen, zoals elk overschot | minder op te slaan; bij een tekort leveren de batterijen het huis stroom uit wat ze hebben |
+| **Arbitrage en andere plannen per tijdvak** | **bovenop** het geplande vermogen opgeslagen — nooit meer dan het overschot, dus nooit uit het net | het deel van gepland laden dat **van de zon** moest komen, wordt alleen geladen voor zover het overschot er echt is: het net vult de ontbrekende zon niet aan; gepland laden **uit het net** gaat door |
+| **Een geplande ontlading** | gevolgd zoals gepland | gevolgd zoals gepland |
+| **Waarom** | na **5 minuten**: *Onverwacht zonne-overschot* | na **5 minuten**: *Minder zon dan verwacht* |
+
+!!! example "Voorbeeld"
+    Arbitrage plande tussen 12:00 en 13:00 te laden met 1.000 W zonnestroom.
+
+    - **Een wolk**: er is maar 200 W over. De batterij laadt 200 W — niet 1.000 W waarvan 800 W uit het net.
+    - **Meer zon**: er is 2.500 W over terwijl 1.000 W voorspeld was. De batterij laadt 2.500 W (voor zover hij kan en niet vol is).
+    - Had het plan 2.000 W geladen bij een lage prijs, waarvan 800 W van de zon, dan wordt dat bij de wolk 1.200 W uit het net + 200 W van de zon.
+
+Wat er daarna gebeurt:
+
+1. **Meteen**: de batterijen reageren bij hun volgende ronde (standaard elke 5 s). Alleen het bericht in *Waarom* wacht, zodat een voorbijtrekkende wolk of opklaring geen bericht geeft.
+2. **Na 5 minuten**: *Waarom* meldt het — hoeveel er over is, wat er voorspeld was, en wat het betekent voor de batterijen. Kan ook als [melding](integration.md#notifications) worden verstuurd (soort *Onverwacht zonne-overschot of -tekort*).
+3. **Elk kwartier**: het plan wordt opnieuw berekend met de echte vulling, zodat een batterij die voller of leger is dan gepland een passend plan krijgt (bijv. minder laden uit het net vannacht).
+4. **Als het voorbij is** (10 minuten zonder): een tweede bericht geeft de energie die over was en hoeveel er voorspeld was.
+5. **Achteraf**: de [PV-correctie](forecasting.md#pv-correction) vergelijkt de voorspelling met wat er gemeten is en stelt voorspellingen bij die steeds afwijken.
+
+Beide waarden zijn in te stellen onder **Instellingen → Zonvoorspelling**: *Meer of minder zon dan verwacht: vanaf dit verschil* (standaard 300 W) en *Meer of minder zon dan verwacht: melden na* (standaard 5 min). Hiervoor zijn een gemeten [PV-bron](measuring.md) en een zonvoorspelling nodig; zonder die wordt een plan gevolgd zoals het is.
+
+In deze ontwikkelfase doen de [virtuele batterijen](measuring.md#virtual-batteries) dit; je echte batterijen worden aangestuurd door hun eigen integratie. Zodra HomeBatteryAssist batterijen aanstuurt, gebruikt het dezelfde regel.
 
 ## Regels en grenzen {#rules-and-limits}
 

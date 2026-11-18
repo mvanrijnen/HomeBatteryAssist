@@ -130,6 +130,8 @@ from .const import (
     CONF_PV_ADDRESS,
     CONF_PV_CORRECTION,
     CONF_PV_CORRECTOR,
+    CONF_PV_DEVIATION_MINUTES,
+    CONF_PV_DEVIATION_W,
     CONF_PV_DRIVER,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
@@ -180,6 +182,8 @@ from .const import (
     DEFAULT_PEAK_LIMIT,
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
+    DEFAULT_PV_DEVIATION_MINUTES,
+    DEFAULT_PV_DEVIATION_W,
     DEFAULT_PV_MARGIN,
     DEFAULT_REACT_INTERVAL,
     DEFAULT_REACT_JUMP_W,
@@ -407,7 +411,13 @@ def _price_source_selector(
 # Settings grouped in collapsible sections; the rest stays at the top.
 SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
     "export": ("export_price_mode", "export_price_entities", "export_price_factor"),
-    "solar": ("pv_correction", "pv_corrector", "pv_forecast_margin"),
+    "solar": (
+        "pv_correction",
+        "pv_corrector",
+        "pv_forecast_margin",
+        "pv_deviation_w",
+        "pv_deviation_minutes",
+    ),
     "planning": (
         "cycle_cost",
         "max_cycles_per_day",
@@ -881,6 +891,16 @@ async def _flat_settings_schema(
             default=current.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN),
         ): _number(0, 50, 1, "%"),
         vol.Required(
+            CONF_PV_DEVIATION_W,
+            default=current.get(CONF_PV_DEVIATION_W, DEFAULT_PV_DEVIATION_W),
+        ): _number(100, 5000, 50, "W"),
+        vol.Required(
+            CONF_PV_DEVIATION_MINUTES,
+            default=current.get(
+                CONF_PV_DEVIATION_MINUTES, DEFAULT_PV_DEVIATION_MINUTES
+            ),
+        ): _number(1, 60, 1, "min"),
+        vol.Required(
             CONF_MAX_CYCLES,
             default=current.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES),
         ): NumberSelector(
@@ -1081,6 +1101,12 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     options[CONF_PV_CORRECTION] = user_input.get(CONF_PV_CORRECTION, PV_CORRECTION_BOTH)
     options[CONF_PV_CORRECTOR] = user_input.get(CONF_PV_CORRECTOR, DEFAULT_PV_CORRECTOR)
     options[CONF_PV_MARGIN] = int(user_input.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN))
+    options[CONF_PV_DEVIATION_W] = int(
+        user_input.get(CONF_PV_DEVIATION_W, DEFAULT_PV_DEVIATION_W)
+    )
+    options[CONF_PV_DEVIATION_MINUTES] = int(
+        user_input.get(CONF_PV_DEVIATION_MINUTES, DEFAULT_PV_DEVIATION_MINUTES)
+    )
     options[CONF_MAX_CYCLES] = float(
         user_input.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES)
     )

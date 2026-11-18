@@ -86,6 +86,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "meter_back_resume": "The grid is measured again; the batteries follow the meter again.",
         "pv_surplus_unexpected": "Unexpected solar surplus: since {since} about {surplus} more solar power than the house uses, while {expected} was forecast for this hour.{battery}",
         "pv_surplus_unexpected_ended": "The unexpected solar surplus is over ({start} to {end}): {energy} kWh left over, of which {expected} kWh was forecast; at most {peak}.",
+        "pv_shortage_unexpected": "Less solar than forecast: since {since} about {surplus} of solar power left over beyond what the house uses, while {expected} was forecast for this hour.{battery}",
+        "pv_shortage_unexpected_ended": "The solar shortage is over ({start} to {end}): {energy} kWh left over, while {expected} kWh was forecast; at most {peak} missing.",
     },
     "nl": {
         "horizon_setting": "Planning {hours} uur vooruit (tot {end}): het ingestelde maximum van {days} dagen.",
@@ -159,6 +161,8 @@ MESSAGES: dict[str, dict[str, str]] = {
         "meter_back_resume": "Het net wordt weer gemeten; de batterijen volgen de meter weer.",
         "pv_surplus_unexpected": "Onverwacht zonne-overschot: sinds {since} ongeveer {surplus} meer zonnestroom dan het huis gebruikt, terwijl voor dit uur {expected} verwacht werd.{battery}",
         "pv_surplus_unexpected_ended": "Het onverwachte zonne-overschot is voorbij ({start} tot {end}): {energy} kWh over, waarvan {expected} kWh voorspeld; hoogstens {peak}.",
+        "pv_shortage_unexpected": "Minder zon dan verwacht: sinds {since} ongeveer {surplus} zonnestroom over na het verbruik van het huis, terwijl voor dit uur {expected} verwacht werd.{battery}",
+        "pv_shortage_unexpected_ended": "Het zonnetekort is voorbij ({start} tot {end}): {energy} kWh over, terwijl {expected} kWh voorspeld was; hoogstens {peak} te weinig.",
     },
 }
 
@@ -225,6 +229,8 @@ TERMS: dict[str, dict[str, str]] = {
         "plan_idle": " The plan said: neither charge nor supply now. The battery follows its own control; HomeBatteryAssist only advises.",
         "surplus_nom": " The batteries store it as long as they are not full (zero on the meter).",
         "surplus_plan": " The plan did not count on it: the batteries store it on top of the plan as long as they are not full.",
+        "shortage_nom": " The batteries store less and cover the house from what they hold when the sun falls short (zero on the meter).",
+        "shortage_plan": " The batteries only charge what is really left over; a planned charge from the grid goes on. The next plan counts with the lower state of charge.",
     },
     "nl": {
         "none": "",
@@ -265,6 +271,8 @@ TERMS: dict[str, dict[str, str]] = {
         "plan_idle": " Het plan zei: nu niet laden of leveren. De batterij volgt haar eigen sturing; HomeBatteryAssist geeft alleen advies.",
         "surplus_nom": " De batterijen slaan het op zolang ze niet vol zijn (nul op de meter).",
         "surplus_plan": " Het plan rekende er niet op: de batterijen slaan het bovenop het plan op zolang ze niet vol zijn.",
+        "shortage_nom": " De batterijen slaan minder op en leveren het huis stroom uit wat ze hebben als de zon tekortschiet (nul op de meter).",
+        "shortage_plan": " De batterijen laden alleen wat er echt over is; gepland laden uit het net gaat door. Het volgende plan rekent met de lagere vulling.",
     },
 }
 

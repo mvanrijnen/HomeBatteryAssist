@@ -41,7 +41,12 @@ KINDS: dict[str, tuple[str, ...]] = {
         "meter_lost_hold",
         "meter_back_resume",
     ),
-    "solar": ("pv_surplus_unexpected", "pv_surplus_unexpected_ended"),
+    "solar": (
+        "pv_surplus_unexpected",
+        "pv_surplus_unexpected_ended",
+        "pv_shortage_unexpected",
+        "pv_shortage_unexpected_ended",
+    ),
 }
 
 

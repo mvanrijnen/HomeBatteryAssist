@@ -6,7 +6,7 @@ HomeBatteryAssist plans what the batteries could best do over the [planning wind
 
 Every plan mode is a [planner module](modules.md); all are calculated every cycle, with the expected saving compared with no battery:
 
-- **Unexpected solar surplus**: in every mode the batteries also store solar power the plan did not count on — at least 300 W left over (PV − house − excluded devices) while less than half of it was forecast for this hour — on top of the planned power (not more than the surplus, so never from the grid; a planned discharge is followed as it is). *Why* reports it ([Forecasting](forecasting.md#unexpected-solar-surplus)).
+- **More or less sun than forecast**: in every mode the batteries follow the solar surplus that is really there — an unexpected surplus is stored on top of the plan, missing sun is not taken from the grid. See [When the sun differs from the forecast](#when-the-sun-differs-from-the-forecast).
 - **Zero on the meter (NOM)**: charge with surplus solar power, supply the house on shortage — not excluded devices (e.g. an EV charger) and, when switched on, not random [short peaks](measuring.md#short-peaks).
 - **Arbitrage** (own use): charge when power is cheap, supply the house when it is expensive.
 - **Full arbitrage**: like arbitrage, but may also discharge to the grid when the export price makes that worthwhile.
@@ -15,6 +15,39 @@ Every plan mode is a [planner module](modules.md); all are calculated every cycl
 - **Your own planner**: see [Modules](modules.md).
 
 Choose the mode in the settings, on the dashboard or with the action `set_plan_mode`. HomeBatteryAssist checks every plan afterwards (power, phases, state of charge, price rules) — see [the final say](modules.md#homebatteryassist-keeps-the-final-say).
+
+## When the sun differs from the forecast
+
+A plan is made with the forecast PV and consumption per slot. When the sun does something else — a cloud, or a sunny spell nobody forecast — the batteries follow what is **really measured**, not the forecast.
+
+HomeBatteryAssist compares the **surplus** now (PV − house − excluded devices: what the batteries could store) with the surplus **expected** for this hour (the PV forecast, corrected, minus the consumption forecast):
+
+| | More sun than forecast | Less sun than forecast |
+|---|---|---|
+| **When** | at least **300 W** left over, and less than half of it was forecast | at least **300 W** was forecast, and less than half of it is left over |
+| **Zero on the meter** | stored, like any surplus | less to store; on a shortage the batteries supply the house from what they hold |
+| **Arbitrage and other plans per slot** | stored **on top of** the planned power — never more than the surplus, so never from the grid | the part of a planned charge that was to come **from the sun** is only charged as far as the surplus is really there: the grid does not fill in for the missing sun; a planned charge **from the grid** goes on |
+| **A planned discharge** | followed as planned | followed as planned |
+| **Why** | after **5 minutes**: *Unexpected solar surplus* | after **5 minutes**: *Less solar than forecast* |
+
+!!! example "Example"
+    Arbitrage planned to charge 1,000 W with solar power between 12:00 and 13:00.
+
+    - **A cloud**: only 200 W is left over. The battery charges 200 W — not 1,000 W of which 800 W from the grid.
+    - **More sun**: 2,500 W is left over while 1,000 W was forecast. The battery charges 2,500 W (as far as it can and is not full).
+    - Had the plan charged 2,000 W at a cheap price, 800 W of it from the sun, the cloud leaves 1,200 W from the grid + 200 W from the sun.
+
+What happens next:
+
+1. **At once**: the batteries react at their next round (every 5 s by default). Only the message in *Why* waits, so a passing cloud or a gap in the clouds gives no message.
+2. **After 5 minutes**: *Why* says it — how much is left over, what was forecast, and what it means for the batteries. It can also be sent as a [notification](integration.md#notifications) (kind *Unexpected solar surplus or shortage*).
+3. **Every quarter of an hour**: the plan is calculated again with the real state of charge, so a battery that is fuller or emptier than planned gets a fitting plan (e.g. less charging from the grid tonight).
+4. **When it is over** (10 minutes without it): a second message gives the energy left over and how much was forecast.
+5. **Afterwards**: the [PV correction](forecasting.md#pv-correction) compares the forecast with what was measured and corrects forecasts that are consistently off.
+
+Both values can be set under **Settings → Solar forecast**: *More or less sun than forecast: from this difference* (default 300 W) and *More or less sun than forecast: tell after* (default 5 min). This needs a measured [PV source](measuring.md) and a PV forecast; without them a plan is followed as it is.
+
+In this phase of development the [virtual batteries](measuring.md#virtual-batteries) do this; your real batteries are controlled by their own integration. Once HomeBatteryAssist controls batteries, it uses the same rule.
 
 ## Rules and limits
 

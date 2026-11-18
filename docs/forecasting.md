@@ -74,9 +74,9 @@ Every hour the PV forecast is checked against the PV measured afterwards. The au
 
 All corrections are calculated every cycle; the *Accuracy* tab compares them with each other and with the uncorrected forecast. The diagnostics show what the chosen one learned (factors per hour and level). A correction set by hand or switched off (action `set_forecast_correction`) is followed as set.
 
-### Unexpected solar surplus
+### Unexpected solar surplus or shortage
 
-The correction works afterwards; *Why* also says it while it happens. When clearly more solar power is left over than forecast — the measured surplus (PV − house − excluded devices) is at least 300 W and less than half of it was forecast for this hour (PV forecast, corrected, minus the consumption forecast), for 5 minutes on end — *Why* reports an **unexpected solar surplus**: how much, what was forecast, and what it means for the batteries (they store it: with zero on the meter by themselves, with a plan per slot on top of the plan — see [Planning](planning.md)). When it has been over for 10 minutes a second message gives the energy left over and how much of it was forecast. Needs a measured PV source and a PV forecast. Can also be sent as a notification (kind *Unexpected solar surplus*).
+The correction works afterwards; *Why* also says it while it happens. When clearly more solar power is left over than forecast — the measured surplus (PV − house − excluded devices) is at least 300 W and less than half of it was forecast for this hour (PV forecast, corrected, minus the consumption forecast), for 5 minutes on end — *Why* reports an **unexpected solar surplus**; when at least 300 W was forecast and less than half of it is there, *Why* reports **less solar than forecast**. Each message says how much, what was forecast, and what it means for the batteries. When it has been over for 10 minutes a second message gives the energy left over and how much of it was forecast. Both values are settings (section *Solar forecast*). Needs a measured PV source and a PV forecast. Can also be sent as a notification (kind *Unexpected solar surplus or shortage*). What the batteries do: [Planning: when the sun differs from the forecast](planning.md#when-the-sun-differs-from-the-forecast).
 
 ## Accuracy
 

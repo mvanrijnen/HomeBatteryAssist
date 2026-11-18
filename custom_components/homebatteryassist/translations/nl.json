@@ -95,16 +95,20 @@
           },
           "solar": {
             "name": "Zonvoorspelling",
-            "description": "Correctie van de zonvoorspelling.",
+            "description": "Correctie van de zonvoorspelling, en wat er gebeurt als de zon ervan afwijkt.",
             "data": {
               "pv_correction": "Correctie zonvoorspelling",
               "pv_corrector": "PV-correctie",
-              "pv_forecast_margin": "Marge op de zonvoorspelling"
+              "pv_forecast_margin": "Marge op de zonvoorspelling",
+              "pv_deviation_w": "Meer of minder zon dan verwacht: vanaf dit verschil",
+              "pv_deviation_minutes": "Meer of minder zon dan verwacht: melden na"
             },
             "data_description": {
               "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet.",
               "pv_corrector": "Bij 'automatisch': welke correctiemodule leert van eerdere voorspellingen. 'Per vooruitzicht, uur en niveau' (standaard) leert ook per uur van de dag (schaduw, dakrichting) en per niveau (somber of zonnig uur); 'Per vooruitzicht' is de oorspronkelijke. Eigen correcties uit /config/homebatteryassist/pv_corrections staan hier ook (na herladen). Het tabblad Nauwkeurigheid vergelijkt ze.",
-              "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen."
+              "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen.",
+              "pv_deviation_w": "Is er minstens zoveel meer zonnestroom over dan voor dit uur voorspeld (en was minder dan de helft ervan voorspeld), dan slaan de batterijen het bovenop het plan op. Was er minstens zoveel voorspeld en is er minder dan de helft van, dan laden ze alleen wat er echt over is: het net vult de ontbrekende zon niet aan. Standaard 300 W.",
+              "pv_deviation_minutes": "Waarom meldt het (en stuurt een melding, bij 'Onverwacht zonne-overschot of -tekort') zodra het zo lang duurt, zodat een voorbijtrekkende wolk of opklaring geen bericht geeft. De batterijen reageren meteen. Standaard 5 min."
             }
           },
           "planning": {
@@ -455,7 +459,7 @@
         "protection": "Fasebeveiliging, grenzen en piekafvlakking",
         "full_charge": "Volladen",
         "measurement": "Meting weggevallen / terug",
-        "solar": "Onverwacht zonne-overschot"
+        "solar": "Onverwacht zonne-overschot of -tekort"
       }
     },
     "pv_driver": {
@@ -539,16 +543,20 @@
           },
           "solar": {
             "name": "Zonvoorspelling",
-            "description": "Correctie van de zonvoorspelling.",
+            "description": "Correctie van de zonvoorspelling, en wat er gebeurt als de zon ervan afwijkt.",
             "data": {
               "pv_correction": "Correctie zonvoorspelling",
               "pv_corrector": "PV-correctie",
-              "pv_forecast_margin": "Marge op de zonvoorspelling"
+              "pv_forecast_margin": "Marge op de zonvoorspelling",
+              "pv_deviation_w": "Meer of minder zon dan verwacht: vanaf dit verschil",
+              "pv_deviation_minutes": "Meer of minder zon dan verwacht: melden na"
             },
             "data_description": {
               "pv_correction": "Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet.",
               "pv_corrector": "Bij 'automatisch': welke correctiemodule leert van eerdere voorspellingen. 'Per vooruitzicht, uur en niveau' (standaard) leert ook per uur van de dag (schaduw, dakrichting) en per niveau (somber of zonnig uur); 'Per vooruitzicht' is de oorspronkelijke. Eigen correcties uit /config/homebatteryassist/pv_corrections staan hier ook (na herladen). Het tabblad Nauwkeurigheid vergelijkt ze.",
-              "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen."
+              "pv_forecast_margin": "Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen.",
+              "pv_deviation_w": "Is er minstens zoveel meer zonnestroom over dan voor dit uur voorspeld (en was minder dan de helft ervan voorspeld), dan slaan de batterijen het bovenop het plan op. Was er minstens zoveel voorspeld en is er minder dan de helft van, dan laden ze alleen wat er echt over is: het net vult de ontbrekende zon niet aan. Standaard 300 W.",
+              "pv_deviation_minutes": "Waarom meldt het (en stuurt een melding, bij 'Onverwacht zonne-overschot of -tekort') zodra het zo lang duurt, zodat een voorbijtrekkende wolk of opklaring geen bericht geeft. De batterijen reageren meteen. Standaard 5 min."
             }
           },
           "planning": {

@@ -80,13 +80,15 @@ Wat teruggeleverde stroom oplevert.
 
 ### Zonvoorspelling {#settings-solar}
 
-Correctie van de zonvoorspelling.
+Correctie van de zonvoorspelling, en wat er gebeurt als de zon ervan afwijkt.
 
 | Veld | Uitleg |
 |---|---|
 | **Correctie zonvoorspelling** | Hoe de zonvoorspelling vóór het plannen wordt gecorrigeerd: automatisch (geleerd uit hoe goed eerdere voorspellingen waren), met een vaste marge (hieronder), beide, of niet. |
 | **PV-correctie** | Bij 'automatisch': welke correctiemodule leert van eerdere voorspellingen. 'Per vooruitzicht, uur en niveau' (standaard) leert ook per uur van de dag (schaduw, dakrichting) en per niveau (somber of zonnig uur); 'Per vooruitzicht' is de oorspronkelijke. Eigen correcties uit /config/homebatteryassist/pv_corrections staan hier ook (na herladen). Het tabblad Nauwkeurigheid vergelijkt ze. |
 | **Marge op de zonvoorspelling** | Bij 'vaste marge' en 'beide': de plannen rekenen op zoveel minder zonnestroom, als buffer tegen te optimistische voorspellingen. |
+| **Meer of minder zon dan verwacht: vanaf dit verschil** | Is er minstens zoveel meer zonnestroom over dan voor dit uur voorspeld (en was minder dan de helft ervan voorspeld), dan slaan de batterijen het bovenop het plan op. Was er minstens zoveel voorspeld en is er minder dan de helft van, dan laden ze alleen wat er echt over is: het net vult de ontbrekende zon niet aan. Standaard 300 W. |
+| **Meer of minder zon dan verwacht: melden na** | Waarom meldt het (en stuurt een melding, bij 'Onverwacht zonne-overschot of -tekort') zodra het zo lang duurt, zodat een voorbijtrekkende wolk of opklaring geen bericht geeft. De batterijen reageren meteen. Standaard 5 min. |
 
 ### Planning {#settings-planning}
 

@@ -1,15 +1,18 @@
-"""Unexpected solar surplus: what is measured now against the forecast.
+"""Unexpected solar surplus or shortage: what is measured now against the forecast.
 
 The accuracy per lead time (``forecast_accuracy.py``) settles a forecast
-afterwards; this check says it while it happens: when there is clearly more
-solar power left over than the forecast for this hour expected, *Why* tells
-so once (and once more when it is over), with what it means for the batteries.
+afterwards; this check says it while it happens: when clearly more solar power
+is left over than the forecast for this hour expected (a *surplus*), or
+clearly less (a *shortage*: clouds, or the house uses more), *Why* tells so
+once (and once more when it is over), with what it means for the batteries.
 
 Surplus = PV - house - excluded devices (what the batteries could store);
 expected = PV forecast for this hour (corrected) - consumption forecast for
-this slot. Unexpected: at least ``MIN_SURPLUS_W`` measured, and less than
-half of it forecast, for ``START_AFTER`` on end (a passing gap in the
-clouds is no message); over after ``END_AFTER`` without it.
+this slot. Unexpected surplus: at least ``threshold_w`` measured and less than
+half of it forecast; unexpected shortage: at least ``threshold_w`` forecast
+and less than half of it measured (the rules are in ``house_measurement``).
+Told after ``start_after`` on end (a passing gap in the clouds is no
+message); over after ``END_AFTER`` without it.
 """
 
 from __future__ import annotations
@@ -18,7 +21,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-from ..measure.house_measurement import unexpected_surplus
+from ..measure.house_measurement import (
+    MIN_SURPLUS_W,
+    unexpected_shortage,
+    unexpected_surplus,
+)
 
 START_AFTER = timedelta(minutes=5)
 END_AFTER = timedelta(minutes=10)
@@ -31,25 +38,51 @@ class _Event:
     seen: datetime
     wh: float = 0.0  # measured surplus during the event
     expected_wh: float = 0.0  # what was forecast of it
-    peak_w: float = 0.0
+    peak_w: float = 0.0  # most surplus (surplus) / most missing (shortage)
 
 
-def unexpected(surplus_w: float, expected_w: float) -> bool:
-    """A surplus the forecast did not see coming (``MIN_SURPLUS_W`` and more,
-    less than half of it forecast; the rule is in ``house_measurement``)."""
-    return unexpected_surplus(surplus_w, expected_w)
+def unexpected(
+    surplus_w: float,
+    expected_w: float,
+    threshold_w: float = MIN_SURPLUS_W,
+    shortage: bool = False,
+) -> bool:
+    """A surplus (or, with ``shortage``, a lack of one) the forecast did not
+    see coming."""
+    if shortage:
+        return unexpected_shortage(surplus_w, expected_w, threshold_w)
+    return unexpected_surplus(surplus_w, expected_w, threshold_w)
 
 
 class UnexpectedSurplus:
-    """Follows the measured surplus; ``update`` returns a message to log."""
+    """Follows the measured surplus; ``update`` returns a message to log.
 
-    def __init__(self, decimal_comma: bool = False) -> None:
+    ``shortage=True`` follows the other direction: a forecast surplus that is
+    not there.
+    """
+
+    def __init__(
+        self,
+        decimal_comma: bool = False,
+        shortage: bool = False,
+        threshold_w: float = MIN_SURPLUS_W,
+        start_after: timedelta = START_AFTER,
+    ) -> None:
         """Initialize."""
         self._comma = decimal_comma
+        self.shortage = shortage
+        self.threshold_w = threshold_w
+        self.start_after = start_after
+        self._key = "pv_shortage_unexpected" if shortage else "pv_surplus_unexpected"
         self.event: _Event | None = None
         self._since: datetime | None = None  # unexpected since (before start)
         self._quiet: datetime | None = None  # expected again since (in event)
         self._last: datetime | None = None
+
+    def _peak(self, surplus_w: float, expected_w: float) -> float:
+        if self.shortage:
+            return max(expected_w, 0.0) - max(surplus_w, 0.0)
+        return surplus_w
 
     def update(
         self,
@@ -61,7 +94,7 @@ class UnexpectedSurplus:
         """One measurement; ``None`` values = unknown (no PV or forecast).
 
         ``nom``: the batteries follow zero on the meter (they store a surplus
-        by themselves) rather than a plan per slot.
+        and cover a shortage by themselves) rather than a plan per slot.
         """
         last, self._last = self._last, when
         if surplus_w is None or expected_w is None:
@@ -72,7 +105,7 @@ class UnexpectedSurplus:
             if last is not None and when - last <= MAX_GAP
             else 0.0
         )
-        if not unexpected(surplus_w, expected_w):
+        if not unexpected(surplus_w, expected_w, self.threshold_w, self.shortage):
             self._since = None
             if self.event is None:
                 return None
@@ -81,30 +114,33 @@ class UnexpectedSurplus:
         if self.event is not None:
             self._quiet = None
             self.event.seen = when
-            self.event.peak_w = max(self.event.peak_w, surplus_w)
+            self.event.peak_w = max(
+                self.event.peak_w, self._peak(surplus_w, expected_w)
+            )
             self._add(surplus_w, expected_w, hours)
             return None
         if self._since is None or hours == 0.0:
             self._since = when
-        if when - self._since < START_AFTER:
+        if when - self._since < self.start_after:
             return None
         # What was left over since it began counts too.
         start_hours = (when - self._since).total_seconds() / 3600
         self.event = _Event(
             self._since,
             when,
-            wh=surplus_w * start_hours,
+            wh=max(surplus_w, 0.0) * start_hours,
             expected_wh=max(expected_w, 0.0) * start_hours,
-            peak_w=surplus_w,
+            peak_w=self._peak(surplus_w, expected_w),
         )
         self._since = None
+        kind = "shortage" if self.shortage else "surplus"
         return (
-            "pv_surplus_unexpected",
+            self._key,
             {
-                "surplus": f"{surplus_w:.0f} W",
+                "surplus": f"{max(surplus_w, 0.0):.0f} W",
                 "expected": f"{max(expected_w, 0.0):.0f} W",
                 "since": self.event.start,
-                "battery": "@surplus_nom" if nom else "@surplus_plan",
+                "battery": f"@{kind}_nom" if nom else f"@{kind}_plan",
             },
         )
 
@@ -122,7 +158,7 @@ class UnexpectedSurplus:
         self.event = None
         self._quiet = None
         return (
-            "pv_surplus_unexpected_ended",
+            f"{self._key}_ended",
             {
                 "start": event.start,
                 "end": event.seen,

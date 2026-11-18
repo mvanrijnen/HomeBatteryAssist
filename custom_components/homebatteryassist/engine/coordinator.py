@@ -67,6 +67,7 @@ from ..const import (
     CONF_PRICE_SOURCE,
     CONF_PV_CORRECTION,
     CONF_PV_CORRECTOR,
+    CONF_PV_DEVIATION_W,
     CONF_PV_FORECAST,
     CONF_PV_MARGIN,
     CONF_REACT_AVERAGE,
@@ -99,6 +100,7 @@ from ..const import (
     DEFAULT_PEAK_LIMIT,
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
+    DEFAULT_PV_DEVIATION_W,
     DEFAULT_PV_MARGIN,
     DEFAULT_REACT_INTERVAL,
     DEFAULT_REACT_JUMP_W,
@@ -357,6 +359,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             entry.options.get(CONF_PV_MARGIN, DEFAULT_PV_MARGIN)
             if self.pv_correction in (PV_CORRECTION_FIXED, PV_CORRECTION_BOTH)
             else 0
+        )
+        # Solar clearly more / less than forecast now (virtual batteries, Why).
+        self.pv_deviation_w: float = float(
+            entry.options.get(CONF_PV_DEVIATION_W, DEFAULT_PV_DEVIATION_W)
         )
         self.peak_w: float = entry.options.get(CONF_PEAK_LIMIT, DEFAULT_PEAK_LIMIT)
         self.peak_include_excluded: bool = entry.options.get(

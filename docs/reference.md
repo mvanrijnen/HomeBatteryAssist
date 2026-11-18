@@ -80,13 +80,15 @@ What returning power earns.
 
 ### Solar forecast {#settings-solar}
 
-Correction of the PV forecast.
+Correction of the PV forecast, and what to do when the sun differs from it.
 
 | Field | Explanation |
 |---|---|
 | **Correction of the PV forecast** | How the PV forecast is corrected before planning: automatically (learned from how accurate past forecasts were), with a fixed margin (below), both, or not at all. |
 | **PV correction** | With 'automatic': which correction module learns from past forecasts. 'Per lead time, hour and level' (default) also learns per hour of the day (shade, roof direction) and per level (dull or sunny hour); 'Per lead time' is the original. Own corrections from /config/homebatteryassist/pv_corrections appear here too (after a reload). The Accuracy tab compares them. |
 | **Margin on the PV forecast** | Used with 'fixed margin' and 'both': the plans count on this much less solar power, as a buffer against optimistic forecasts. |
+| **More or less sun than forecast: from this difference** | When at least this much more solar power is left over than forecast for this hour (and less than half of it was forecast), the batteries store it on top of the plan. When at least this much was forecast and less than half of it is there, they only charge what is really left over: the grid does not fill in for the missing sun. Default 300 W. |
+| **More or less sun than forecast: tell after** | Why tells it (and notifies, with 'Unexpected solar surplus or shortage') once it lasts this long, so a passing cloud or gap in the clouds is no message. The batteries react at once. Default 5 min. |
 
 ### Planning {#settings-planning}
 

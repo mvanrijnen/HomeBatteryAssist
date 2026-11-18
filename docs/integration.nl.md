@@ -39,6 +39,6 @@ De sensoren hebben een vaste betekenis en kunnen door andere integraties en add-
 
 ## Meldingen {#notifications}
 
-Kies in de instellingen over welke beslissingen je een melding wilt krijgen — wijzigingen in het plan, nieuwe prijzen of een gewijzigd bereik van de voorspelling, fasebeveiliging / limieten / piekafvlakking, volledige oplaadbeurten, een weggevallen of herstelde meting, een onverwacht zonne-overschot — en stuur ze naar notify-diensten (bijvoorbeeld de companion-app) en/of als melding in Home Assistant.
+Kies in de instellingen over welke beslissingen je een melding wilt krijgen — wijzigingen in het plan, nieuwe prijzen of een gewijzigd bereik van de voorspelling, fasebeveiliging / limieten / piekafvlakking, volledige oplaadbeurten, een weggevallen of herstelde meting, een onverwacht zonne-overschot of -tekort — en stuur ze naar notify-diensten (bijvoorbeeld de companion-app) en/of als melding in Home Assistant.
 
 **Virtuele batterijen** zeggen dat altijd in hun naam (bijvoorbeeld *Marstek Venus 1 (virtueel)*): HomeBatteryAssist voegt het toe als de naam het niet al doet.
