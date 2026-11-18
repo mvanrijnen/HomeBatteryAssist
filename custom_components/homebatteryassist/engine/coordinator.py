@@ -52,6 +52,8 @@ from ..const import (
     CONF_MIN_BATTERY_POWER,
     CONF_MIN_DISCHARGE_PRICE,
     CONF_MIN_MARGIN,
+    CONF_NET_METERING,
+    CONF_NET_METERING_TAX,
     CONF_NIGHT_RESERVE_SOC,
     CONF_NOM_TARGET,
     CONF_OUTDOOR_TEMPERATURE,
@@ -97,6 +99,8 @@ from ..const import (
     DEFAULT_MANUAL_POWER,
     DEFAULT_MAX_CYCLES,
     DEFAULT_MIN_BATTERY_POWER,
+    DEFAULT_NET_METERING,
+    DEFAULT_NET_METERING_TAX,
     DEFAULT_PEAK_LIMIT,
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
@@ -108,6 +112,7 @@ from ..const import (
     EXPORT_FACTOR,
     EXPORT_MARKET,
     EXPORT_SENSOR,
+    NET_METERING_UNTIL,
     PRICE_EXTENSION_NONE,
     PRICE_SOURCE_SENSOR,
     PV_CORRECTION_AUTO,
@@ -196,6 +201,7 @@ from .sources.pv_forecasts.energy_dashboard_platform import PV_PERIOD
 from .sources.tariffs import BUILTIN as TARIFFS
 from .sources.tariffs import DEFAULT_TARIFF, Tariff, apply_tariff
 from .sources.tariffs.as_price_source import SourceTariff
+from .sources.tariffs.net_metering import apply_net_metering
 from .sources.weather import (
     DEFAULT_WEATHER_SOURCE,
     WeatherSettings,
@@ -469,6 +475,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             CONF_PRICE_EXTENSION, PRICE_EXTENSION_NONE
         )
         self.export_mode: str = options.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE)
+        self.net_metering: str = options.get(CONF_NET_METERING, DEFAULT_NET_METERING)
+        self.net_metering_tax = float(
+            options.get(CONF_NET_METERING_TAX, DEFAULT_NET_METERING_TAX)
+        )
+        self.net_metering_until = datetime(
+            *NET_METERING_UNTIL, tzinfo=dt_util.get_default_time_zone()
+        )
         self._export_market_only = False
         self.export_entities: list[str] = list(options.get(CONF_EXPORT_ENTITIES) or [])
         if self.export_mode == EXPORT_MARKET and not self.export_entities:
@@ -631,6 +644,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         # What a kWh really costs and earns: the chosen tariff module.
         prices, export_prices = await self._async_apply_tariff(
             prices, export_prices, now, price_unit
+        )
+        # Net metering (NL, until 2027): exported energy is worth more.
+        export_prices = apply_net_metering(
+            prices,
+            export_prices,
+            mode=self.net_metering,
+            tax=self.net_metering_tax,
+            until=self.net_metering_until,
+            export_factor=self.export_factor,
         )
 
         _LOGGER.debug(

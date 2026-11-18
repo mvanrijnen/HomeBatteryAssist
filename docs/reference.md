@@ -76,7 +76,9 @@ What returning power earns.
 |---|---|
 | **Export price** | What energy returned to the grid earns. Import price x factor (below), the bare market price (EPEX, from the selected sensors, or from market attributes of the price sensor), or the export price: from the price source when it has one (DynTarNL: the market price minus the supplier's purchase fee), otherwise from the selected sensors. Where these do not reach, import price x factor is used. |
 | **Export price sensors** | One or more sensors with prices (state and/or price list attributes), e.g. a market price sensor for today/tomorrow plus a forecast sensor for the days after. For overlapping periods the first sensor wins. |
-| **Export compensation** | Used with 'Import price x factor', and wherever the export price sensors give no price. All calculations assume no net metering (ends in the Netherlands on 1 January 2027): export earns only this compensation. Default 0.25 (a quarter of the import price); 1.0 equals net metering. |
+| **Export compensation** | Used with 'Import price x factor', and wherever the export price sensors give no price. Without net metering (see below; it ends in the Netherlands on 1 January 2027) export earns only this compensation. Default 0.25 (a quarter of the import price); 1.0 equals net metering. |
+| **Net metering (until 2027)** | Net metering (NL: salderen) still applies until 1 January 2027: exported energy, up to what you import over the year, is worth more. Dynamic contract: per hour the export price plus the energy tax incl. VAT that is netted (below). Fixed contract: the same as a kWh imported (the import price). From 2027 the export price above applies again. None: no net metering. |
+| **Energy tax netted (incl. VAT)** | Dynamic contract with net metering: the energy tax incl. VAT per kWh that you get back for exported energy. 2026: 0.1108 per kWh. |
 
 ### Solar forecast {#settings-solar}
 

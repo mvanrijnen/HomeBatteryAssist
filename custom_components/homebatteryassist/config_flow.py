@@ -115,6 +115,8 @@ from .const import (
     CONF_MIN_DISCHARGE_PRICE,
     CONF_MIN_MARGIN,
     CONF_MIN_SOC,
+    CONF_NET_METERING,
+    CONF_NET_METERING_TAX,
     CONF_NIGHT_RESERVE_SOC,
     CONF_NOM_TARGET,
     CONF_NOTIFY_KINDS,
@@ -198,6 +200,8 @@ from .const import (
     DEFAULT_MAX_SOC,
     DEFAULT_MIN_BATTERY_POWER,
     DEFAULT_MIN_SOC,
+    DEFAULT_NET_METERING,
+    DEFAULT_NET_METERING_TAX,
     DEFAULT_PEAK_LIMIT,
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
@@ -290,6 +294,7 @@ from .engine.sources.pv_forecasts import (
 )
 from .engine.sources.tariffs import BUILTIN as TARIFFS
 from .engine.sources.tariffs import DEFAULT_TARIFF, async_load_user_tariffs
+from .engine.sources.tariffs.net_metering import NET_METERING_MODES
 from .engine.sources.weather import BUILTIN as WEATHER_SOURCES
 from .engine.sources.weather import (
     DEFAULT_WEATHER_SOURCE,
@@ -450,7 +455,13 @@ def _price_source_selector(
 
 # Settings grouped in collapsible sections; the rest stays at the top.
 SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
-    "export": ("export_price_mode", "export_price_entities", "export_price_factor"),
+    "export": (
+        "export_price_mode",
+        "export_price_entities",
+        "export_price_factor",
+        "net_metering",
+        "net_metering_tax",
+    ),
     "solar": (
         "pv_correction",
         "pv_corrector",
@@ -1007,6 +1018,22 @@ async def _flat_settings_schema(
             )
         ),
         vol.Required(
+            CONF_NET_METERING,
+            default=current.get(CONF_NET_METERING, DEFAULT_NET_METERING),
+        ): _select(list(NET_METERING_MODES), CONF_NET_METERING),
+        vol.Required(
+            CONF_NET_METERING_TAX,
+            default=current.get(CONF_NET_METERING_TAX, DEFAULT_NET_METERING_TAX),
+        ): NumberSelector(
+            NumberSelectorConfig(
+                min=0,
+                max=0.5,
+                step="any",
+                unit_of_measurement="/kWh",
+                mode=NumberSelectorMode.BOX,
+            )
+        ),
+        vol.Required(
             CONF_MIN_BATTERY_POWER,
             default=current.get(CONF_MIN_BATTERY_POWER, DEFAULT_MIN_BATTERY_POWER),
         ): NumberSelector(
@@ -1101,6 +1128,10 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
             user_input.get(CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR)
         ),
         CONF_CYCLE_COST: float(user_input.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)),
+        CONF_NET_METERING: user_input.get(CONF_NET_METERING, DEFAULT_NET_METERING),
+        CONF_NET_METERING_TAX: float(
+            user_input.get(CONF_NET_METERING_TAX, DEFAULT_NET_METERING_TAX)
+        ),
         CONF_MIN_BATTERY_POWER: int(
             user_input.get(CONF_MIN_BATTERY_POWER, DEFAULT_MIN_BATTERY_POWER)
         ),

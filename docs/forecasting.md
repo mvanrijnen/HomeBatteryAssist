@@ -48,7 +48,14 @@ From a price source of your choice (*price [drivers](drivers.md)*): [DynTarNL](h
 
 ### Export price and no net metering
 
-Every calculation (plans, comparisons and the realised value of the batteries) assumes there is **no net metering** (in the Netherlands it ends on 1 January 2027). Imported energy costs the import price; exported energy earns only the export price, so charging from solar power costs what that power would have earned, and discharging saves the import price only for energy the house would otherwise have bought.
+Every calculation (plans, comparisons and the realised value of the batteries) assumes there is **no net metering** (in the Netherlands it ends on 1 January 2027), unless the setting **Net metering (until 2027)** says otherwise. Until 1 January 2027 it then counts exported energy as:
+
+- **dynamic contract**: per hour the export price of the contract plus the energy tax incl. VAT that is netted (setting, 2026: € 0.1108/kWh);
+- **fixed contract**: the same as a kWh imported (the import price).
+
+From 2027 the export price applies again, so the plan already counts on that for the days after New Year. Not counted: export above what you import over the year (that part earns only the export price).
+
+Without net metering: Imported energy costs the import price; exported energy earns only the export price, so charging from solar power costs what that power would have earned, and discharging saves the import price only for energy the house would otherwise have bought.
 
 The export price is the bare market price (EPEX, default), the export price — from the price source when it has one, otherwise from one or more sensors — or import price × factor (default 0.25; 1.0 equals net metering). On a dynamic contract the supplier usually deducts a purchase fee from the market price for exported energy (e.g. Essent about € 0.025/kWh); with DynTarNL as price source, *Export price from the price source* gives exactly that. From DynTarNL 1.2.0 the export prices are read directly — the published ones from *export price now* (attribute `prices`), then the forecast ones (`forecast_export`, when DynTarNL's forecasts are on) after the last published hour; negative export prices are kept (exporting costs money then). Older DynTarNL versions work too: the market price minus the purchase fee DynTarNL reports.
 
