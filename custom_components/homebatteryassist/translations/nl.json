@@ -85,16 +85,12 @@
             "data": {
               "export_price_mode": "Terugleverprijs",
               "export_price_entities": "Terugleverprijs-sensoren",
-              "export_price_factor": "Vergoeding teruglevering",
-              "net_metering": "Saldering (tot 2027)",
-              "net_metering_tax": "Gesaldeerde energiebelasting (incl. btw)"
+              "export_price_factor": "Vergoeding teruglevering"
             },
             "data_description": {
               "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of de terugleverprijs: van de prijsbron als die er een heeft (DynTarNL: de marktprijs min de inkoopvergoeding van je leverancier), anders uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
               "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
-              "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven. Zonder saldering (zie hieronder; in Nederland afgeschaft per 1 januari 2027) levert teruglevering alleen deze vergoeding op. Standaard 0,25 (een kwart van de inkoopprijs); 1,0 staat gelijk aan salderen.",
-              "net_metering": "Salderen geldt nog tot 1 januari 2027: teruggeleverde stroom, tot wat je over het jaar afneemt, is meer waard. Dynamisch contract: per uur de terugleverprijs plus de energiebelasting met btw die gesaldeerd wordt (hieronder). Vast contract: evenveel als een afgenomen kWh (de inkoopprijs). Vanaf 2027 geldt weer de terugleverprijs hierboven. Geen: geen saldering. Laat dit op Geen als je prijsbron saldering al in de terugleverprijs meeneemt (bijv. DynTarNL), anders telt het dubbel.",
-              "net_metering_tax": "Dynamisch contract met saldering: de energiebelasting met btw per kWh die je terugkrijgt voor teruggeleverde stroom. 2026: 0,1108 per kWh."
+              "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven. De berekeningen gaan uit van geen saldering (in Nederland afgeschaft per 1 januari 2027): teruglevering levert alleen deze vergoeding op. Standaard 0,25 (een kwart van de inkoopprijs); 1,0 staat gelijk aan salderen."
             }
           },
           "solar": {
@@ -532,13 +528,6 @@
         "sma_storage_x": "SMA Sunny Tripower Storage X / Sunny Island X via Modbus, zonder Home Manager (niet getest)",
         "victron_gx_feed_in": "Victron GX: maximale teruglevering van het systeem (ESS, Modbus unit 100) (niet getest)"
       }
-    },
-    "net_metering": {
-      "options": {
-        "none": "Geen",
-        "dynamic": "Dynamisch contract (terugleverprijs + energiebelasting)",
-        "fixed": "Vast contract (teruglevering = inkoopprijs)"
-      }
     }
   },
   "options": {
@@ -585,16 +574,12 @@
             "data": {
               "export_price_mode": "Terugleverprijs",
               "export_price_entities": "Terugleverprijs-sensoren",
-              "export_price_factor": "Vergoeding teruglevering",
-              "net_metering": "Saldering (tot 2027)",
-              "net_metering_tax": "Gesaldeerde energiebelasting (incl. btw)"
+              "export_price_factor": "Vergoeding teruglevering"
             },
             "data_description": {
               "export_price_mode": "Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of de terugleverprijs: van de prijsbron als die er een heeft (DynTarNL: de marktprijs min de inkoopvergoeding van je leverancier), anders uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor.",
               "export_price_entities": "Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor.",
-              "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven. Zonder saldering (zie hieronder; in Nederland afgeschaft per 1 januari 2027) levert teruglevering alleen deze vergoeding op. Standaard 0,25 (een kwart van de inkoopprijs); 1,0 staat gelijk aan salderen.",
-              "net_metering": "Salderen geldt nog tot 1 januari 2027: teruggeleverde stroom, tot wat je over het jaar afneemt, is meer waard. Dynamisch contract: per uur de terugleverprijs plus de energiebelasting met btw die gesaldeerd wordt (hieronder). Vast contract: evenveel als een afgenomen kWh (de inkoopprijs). Vanaf 2027 geldt weer de terugleverprijs hierboven. Geen: geen saldering. Laat dit op Geen als je prijsbron saldering al in de terugleverprijs meeneemt (bijv. DynTarNL), anders telt het dubbel.",
-              "net_metering_tax": "Dynamisch contract met saldering: de energiebelasting met btw per kWh die je terugkrijgt voor teruggeleverde stroom. 2026: 0,1108 per kWh."
+              "export_price_factor": "Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven. De berekeningen gaan uit van geen saldering (in Nederland afgeschaft per 1 januari 2027): teruglevering levert alleen deze vergoeding op. Standaard 0,25 (een kwart van de inkoopprijs); 1,0 staat gelijk aan salderen."
             }
           },
           "solar": {

@@ -172,14 +172,6 @@ EXPORT_MARKET: Final = "market"  # bare market price (EPEX) from sensor(s)
 EXPORT_MODES: Final = (EXPORT_FACTOR, EXPORT_MARKET, EXPORT_SENSOR)
 DEFAULT_EXPORT_MODE: Final = EXPORT_MARKET
 CONF_CYCLE_COST: Final = "cycle_cost"
-# Net metering (NL: salderen) until it ends: none, dynamic or fixed contract,
-# with the energy tax incl. VAT that is netted (dynamic; 2026: 0.1108/kWh).
-CONF_NET_METERING: Final = "net_metering"
-DEFAULT_NET_METERING: Final = "none"
-CONF_NET_METERING_TAX: Final = "net_metering_tax"
-DEFAULT_NET_METERING_TAX: Final = 0.1108
-# Net metering ends in the Netherlands on 1 January 2027 (local time).
-NET_METERING_UNTIL: Final = (2027, 1, 1)
 # No net metering (NL: ends 1 January 2027): export earns far less than the
 # import price. 1.0 would mean net metering.
 DEFAULT_EXPORT_FACTOR: Final = 0.25

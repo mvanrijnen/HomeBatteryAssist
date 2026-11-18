@@ -48,14 +48,7 @@ Uit een prijsbron naar keuze (*prijs-[drivers](drivers.md)*): [DynTarNL](https:/
 
 ### Terugleverprijs en geen salderen {#export-price-and-no-net-metering}
 
-Elke berekening (plannen, vergelijkingen en de gerealiseerde waarde van de batterijen) gaat ervan uit dat er **geen salderingsregeling** is (in Nederland stopt die op 1 januari 2027), tenzij de instelling **Saldering (tot 2027)** anders zegt. Tot 1 januari 2027 telt teruggeleverde stroom dan als:
-
-- **dynamisch contract**: per uur de terugleverprijs van het contract plus de energiebelasting met btw die gesaldeerd wordt (instelling, 2026: € 0,1108/kWh);
-- **vast contract**: evenveel als een afgenomen kWh (de inkoopprijs).
-
-Vanaf 2027 geldt weer de terugleverprijs, dus het plan rekent voor de dagen na nieuwjaar daar al mee. Niet meegeteld: teruglevering boven wat je over het jaar afneemt (dat deel levert alleen de terugleverprijs op). Laat de instelling op *Geen* als de prijsbron saldering al in de terugleverprijs meeneemt (bijv. DynTarNL), anders telt het dubbel.
-
-Zonder saldering: Afgenomen stroom kost de inkoopprijs; teruggeleverde stroom levert alleen de terugleverprijs op. Laden met zonnestroom kost dus wat die stroom had opgeleverd, en ontladen bespaart alleen de inkoopprijs voor stroom die het huis anders had gekocht.
+Elke berekening (plannen, vergelijkingen en de gerealiseerde waarde van de batterijen) gaat ervan uit dat er **geen salderingsregeling** is (in Nederland stopt die op 1 januari 2027). Afgenomen stroom kost de inkoopprijs; teruggeleverde stroom levert alleen de terugleverprijs op. Laden met zonnestroom kost dus wat die stroom had opgeleverd, en ontladen bespaart alleen de inkoopprijs voor stroom die het huis anders had gekocht.
 
 De terugleverprijs is de kale marktprijs (EPEX, standaard), de terugleverprijs — van de prijsbron als die er een heeft, anders uit een of meer sensoren — of de inkoopprijs × factor (standaard 0,25; 1,0 staat gelijk aan salderen). Bij een dynamisch contract trekt de leverancier voor teruggeleverde stroom meestal een inkoopvergoeding van de marktprijs af (bijv. Essent ongeveer € 0,025/kWh); met DynTarNL als prijsbron geeft *Terugleverprijs van de prijsbron of sensor(en)* precies dat. Vanaf DynTarNL 1.2.0 worden de terugleverprijzen rechtstreeks gelezen — de gepubliceerde uit *export price now* (attribuut `prices`), daarna de voorspelde (`forecast_export`, als de voorspellingen van DynTarNL aan staan) na het laatste gepubliceerde uur; negatieve terugleverprijzen blijven staan (terugleveren kost dan geld). Oudere versies van DynTarNL werken ook: de marktprijs min de inkoopvergoeding die DynTarNL doorgeeft.
 

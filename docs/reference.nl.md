@@ -76,9 +76,7 @@ Wat teruggeleverde stroom oplevert.
 |---|---|
 | **Terugleverprijs** | Wat stroom die je teruglevert oplevert: de inkoopprijs x factor (hieronder), de kale marktprijs (EPEX, uit de gekozen sensoren of uit marktprijs-attributen van de prijssensor), of de terugleverprijs: van de prijsbron als die er een heeft (DynTarNL: de marktprijs min de inkoopvergoeding van je leverancier), anders uit de gekozen sensoren. Waar die niet reiken, geldt inkoopprijs x factor. |
 | **Terugleverprijs-sensoren** | Eén of meer sensoren met prijzen (status en/of prijslijst in attributen), bijv. een marktprijssensor voor vandaag/morgen plus een voorspellingssensor voor de dagen daarna. Bij overlap wint de eerste sensor. |
-| **Vergoeding teruglevering** | Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven. Zonder saldering (zie hieronder; in Nederland afgeschaft per 1 januari 2027) levert teruglevering alleen deze vergoeding op. Standaard 0,25 (een kwart van de inkoopprijs); 1,0 staat gelijk aan salderen. |
-| **Saldering (tot 2027)** | Salderen geldt nog tot 1 januari 2027: teruggeleverde stroom, tot wat je over het jaar afneemt, is meer waard. Dynamisch contract: per uur de terugleverprijs plus de energiebelasting met btw die gesaldeerd wordt (hieronder). Vast contract: evenveel als een afgenomen kWh (de inkoopprijs). Vanaf 2027 geldt weer de terugleverprijs hierboven. Geen: geen saldering. Laat dit op Geen als je prijsbron saldering al in de terugleverprijs meeneemt (bijv. DynTarNL), anders telt het dubbel. |
-| **Gesaldeerde energiebelasting (incl. btw)** | Dynamisch contract met saldering: de energiebelasting met btw per kWh die je terugkrijgt voor teruggeleverde stroom. 2026: 0,1108 per kWh. |
+| **Vergoeding teruglevering** | Bij 'Inkoopprijs x factor', en overal waar de terugleverprijs-sensoren geen prijs geven. De berekeningen gaan uit van geen saldering (in Nederland afgeschaft per 1 januari 2027): teruglevering levert alleen deze vergoeding op. Standaard 0,25 (een kwart van de inkoopprijs); 1,0 staat gelijk aan salderen. |
 
 ### Zonvoorspelling {#settings-solar}
 
