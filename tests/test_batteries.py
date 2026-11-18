@@ -314,6 +314,14 @@ async def test_battery_values(
     devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
     assert sorted(d.name for d in devices) == ["HomeBatteryAssist", "Venus"]
 
+    # Its problem sensor (does not follow its command), on the same device.
+    (battery_id,) = entry.subentries
+    problem = er.async_get(hass).async_get_entity_id(
+        "binary_sensor", DOMAIN, f"{battery_id}_battery_not_following"
+    )
+    assert problem is not None
+    assert hass.states.get(problem).state == "off"
+
 
 async def test_battery_kept_out_of_house_consumption(hass: HomeAssistant) -> None:
     """Charging from the grid is not house consumption; discharging adds to it."""

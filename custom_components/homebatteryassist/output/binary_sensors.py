@@ -25,9 +25,12 @@ async def async_setup_entry(
     commands = entry.runtime_data.commands
     if commands is None:
         return
-    async_add_entities(
-        BatteryCommandProblem(entry, battery_id) for battery_id in commands.checks
-    )
+    for battery_id in commands.checks:
+        # On the battery's device, which belongs to its subentry.
+        async_add_entities(
+            [BatteryCommandProblem(entry, battery_id)],
+            config_subentry_id=battery_id,
+        )
 
 
 class BatteryCommandProblem(BinarySensorEntity):
