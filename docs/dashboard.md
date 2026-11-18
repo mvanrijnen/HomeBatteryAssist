@@ -7,7 +7,7 @@ A dashboard in the sidebar (*HomeBatteryAssist*), in tabs. The chosen tab is rem
   - **Planning**: how far ahead can be planned and what limits it, with a bar per forecast showing how far it reaches: consumption, prices, PV and (with a weather source) the outdoor temperature.
   - **Temperature** (on *Forecast*, with a weather source): the forecast outdoor temperature, the learned room temperature and the heating/cooling power to expect, with the expected kWh per day; until 7 days are learned only the outdoor temperature.
 - **Return**: the expected and realised return of each mode compared with no battery and with each other; the plan compared with what really happened, per day.
-- **Batteries**: each battery with its state of charge, power, time to full/empty (now, by the plan and at zero on the meter) and the details its driver adds.
-- **Accuracy**: the accuracy of the consumption, PV and price forecasts per lead time, with their corrections; the consumption forecasters compared; and the PV corrections compared (with the uncorrected forecast for reference).
+- **Batteries**: each battery with its state of charge, power, time to full/empty (now, by the plan and at zero on the meter), the details its driver adds (temperature, voltages, cells, cycles), the energy charged and discharged today and the [measured efficiency](measuring.md#today-and-measured-efficiency).
+- **Accuracy**: how well the [plan was followed](planning.md#plan-check) (last 7 days, virtual and real batteries); the accuracy of the consumption (and its heating/cooling part), PV and price forecasts per lead time, with their corrections; the consumption forecasters compared; and the PV corrections compared (with the uncorrected forecast for reference).
 
 The plan mode can be chosen right on the dashboard.

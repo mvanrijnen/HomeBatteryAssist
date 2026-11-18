@@ -22,7 +22,7 @@ from ..const import DOMAIN, NAME, NOMINAL_VOLTAGE, SUBENTRY_EXCLUDED_LOAD
 from ..engine.devices.batteries import telemetry as battery_telemetry
 from ..engine.devices.meters.discovery import SOURCE_NAMES, find_direct_meters
 from ..engine.devices.meters.via_ha_integration import find_meter_candidates
-from ..engine.evaluation.forecast_accuracy import BUCKET_KEYS, KINDS
+from ..engine.evaluation.forecast_accuracy import BUCKET_KEYS, HEATING_KIND, KINDS
 from ..engine.evaluation.plan_check import slot_saving
 from ..engine.evaluation.pv_corrections import BUILTIN as PV_CORRECTORS
 from ..engine.forecast.forecasters import BUILTIN as FORECASTERS
@@ -107,6 +107,22 @@ def _entity_ids(registry: er.EntityRegistry, prefix: str, keys: Any) -> dict[str
 
 def _iso(value: Any) -> str | None:
     return value.isoformat() if value else None
+
+
+def _battery_details(hass: HomeAssistant, batteries: Any, config: Any) -> dict:
+    """Details for a battery card: what its driver reads, the cell spread now,
+    and today's energy and the measured efficiency from HomeBatteryAssist's
+    own counters (the same for every battery, the virtual ones included)."""
+    details: dict[str, float] = battery_telemetry(hass, config).as_dict()
+    if "cell_min_v" in details and "cell_max_v" in details:
+        details["cell_spread_v"] = round(
+            details["cell_max_v"] - details["cell_min_v"], 3
+        )
+    if (today := batteries.today(config.id)) is not None:
+        details["charged_today_kwh"], details["discharged_today_kwh"] = today
+    if (efficiency := batteries.efficiency(config.id)) is not None:
+        details["efficiency_measured_pct"] = efficiency.pct
+    return details
 
 
 def _expected_reach(data: Any, battery_id: str) -> dict[str, str | None]:
@@ -432,8 +448,9 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
                 "max_charge_w": config.max_charge_w,
                 "max_discharge_w": config.max_discharge_w,
                 "phase": config.phase,
-                # Extra details from the battery's driver (temperature, cells, ...)
-                "details": battery_telemetry(hass, config).as_dict(),
+                # Extra details: the battery's driver (temperature, cells,
+                # ...) and HomeBatteryAssist's own counters.
+                "details": _battery_details(hass, data.batteries, config),
                 "entities": _entity_ids(
                     registry, config.id, (d.key for d in BATTERY_SENSORS)
                 ),
@@ -688,7 +705,19 @@ def websocket_history(
                     "lead_times": forecast.accuracy.summary(kind),
                 }
                 for kind in KINDS
-            },
+            }
+            # The heating/cooling part on its own (only measured, no
+            # correction), once it is followed.
+            | (
+                {
+                    HEATING_KIND: {
+                        "mode": None,
+                        "lead_times": forecast.accuracy.summary(HEATING_KIND),
+                    }
+                }
+                if HEATING_KIND in forecast.accuracy.kinds
+                else {}
+            ),
             "price_unit": forecast.data.price_unit,
             # Accuracy of every consumption forecaster, side by side.
             "forecasters": {
@@ -725,6 +754,8 @@ def websocket_history(
             ],
             # The plan afterwards, per day: planned saving vs realised value.
             "plan_check": entry.runtime_data.plan_check.days(7),
+            # How well the plan was followed, last 7 days, real and virtual.
+            "plan_followed": entry.runtime_data.plan_check.followed(now, 7),
             "profile": day_profile(records),
             "profile_weeks": week_profiles(records),
         },

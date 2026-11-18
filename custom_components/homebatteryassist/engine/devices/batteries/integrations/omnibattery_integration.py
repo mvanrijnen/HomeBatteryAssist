@@ -46,6 +46,7 @@ class OmnibatteryReader(EntityReader):
         "cell_max_v": "max_cell_voltage",
         "cycles": "battery_cycle_count",
         "charged_today_kwh": "total_daily_charging_energy",
+        "discharged_today_kwh": "total_daily_discharging_energy",
         "efficiency_pct": "round_trip_efficiency_total",
         "cell_delta_v": "cell_delta",
     }

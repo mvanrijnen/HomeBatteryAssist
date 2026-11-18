@@ -18,6 +18,7 @@ from custom_components.homebatteryassist.const import (
     DOMAIN,
 )
 from custom_components.homebatteryassist.engine.evaluation.forecast_accuracy import (
+    HEATING_KIND,
     MIN_SAMPLES,
     ForecastAccuracy,
     bucket_for,
@@ -78,6 +79,22 @@ async def test_consumption_learning_and_correction(hass: HomeAssistant) -> None:
     assert acc.stats("consumption")["6-24h"].correction == pytest.approx(-100.0)
     # Never more than half of the value.
     assert acc.correct("consumption", 150.0, now + 13 * H, now) == 75.0
+
+
+async def test_heating_part_checked_on_its_own(hass: HomeAssistant) -> None:
+    """The expected heating/cooling power against the measured devices."""
+    acc = ForecastAccuracy(hass, "t")
+    assert acc.evaluate_heating([_record(MONDAY, 500.0, heating_w=200.0)]) == 0
+    acc.track(HEATING_KIND)
+    slots = [MONDAY + i * H for i in range(4)]
+    for s in slots:  # each predicted 3 h ahead (1-6h)
+        acc.record(HEATING_KIND, [(s, s + H, 300.0)], s - 3 * H)
+    records = [_record(s, 900.0, heating_w=250.0) for s in slots[:3]]
+    records.append(_record(slots[3], 900.0))  # no heating measured
+    assert acc.evaluate_heating(records) == 3
+    acc.refresh_stats(MONDAY + D)
+    stats = acc.stats(HEATING_KIND)["1-6h"]
+    assert stats.samples == 3 and stats.mae == pytest.approx(50.0)
 
 
 async def test_pv_factor_from_measured_production(hass: HomeAssistant) -> None:

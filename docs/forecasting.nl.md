@@ -81,3 +81,5 @@ De correctie werkt achteraf; *Waarom* meldt het ook terwijl het gebeurt. Als er 
 ## Nauwkeurigheid {#accuracy}
 
 Elke voorspelling wordt achteraf gecontroleerd per vooruitzicht (0–1 u … 5 dagen+): verbruik tegen het gemeten verbruik, PV tegen de gemeten PV, geschatte prijzen tegen de prijzen die later zijn gepubliceerd. Geleerde correcties worden automatisch toegepast, of met de hand ingesteld (actie `set_forecast_correction`).
+
+Worden verwarmings-/koelapparaten apart gemeten en is het temperatuureffect geleerd, dan wordt ook het **verwarmings-/koeldeel** apart gecontroleerd: het vermogen dat de [temperatuurstap](#outdoor-temperature-optional) per tijdvak verwachtte tegen wat de apparaten echt gebruikten (rij *waarvan verwarming/koeling* op het tabblad *Nauwkeurigheid*). Dat wordt alleen gemeten, niet gebruikt om iets te corrigeren.

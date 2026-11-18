@@ -72,11 +72,13 @@ const TEXT = {
       voltage_v: ["Voltage", "V", 1],
       cell_min_v: ["Cell min.", "V", 3],
       cell_max_v: ["Cell max.", "V", 3],
-      cell_delta_v: ["Cell difference", "V", 3],
+      cell_spread_v: ["Cell difference", "V", 3],
+      cell_delta_v: ["Cell difference at 100%", "V", 3],
       cycles: ["Cycles", "", 0],
       charged_today_kwh: ["Charged today", "kWh", 2],
       discharged_today_kwh: ["Discharged today", "kWh", 2],
-      efficiency_pct: ["Efficiency (measured)", "%", 1],
+      efficiency_measured_pct: ["Efficiency (measured by HBA)", "%", 1],
+      efficiency_pct: ["Efficiency (according to the battery)", "%", 1],
     },
     allPhases: "all phases",
     withVirtual: "with virtual batteries",
@@ -189,7 +191,14 @@ const TEXT = {
     checkRealized: "Realised",
     checkDiff: "Difference",
     checkDev: "Avg. power deviation",
-    checkNote: "Per slot the plan when the slot started, compared with what all batteries (also virtual) really did and brought. Collected from now on.",
+    checkVirtual: "Followed (virtual)",
+    checkReal: "Followed (real)",
+    checkNote: "Per slot the plan when the slot started, compared with what all batteries (also virtual) really did and brought. Followed: how closely the batteries' power matched their share of the plan, per slot (100% = exactly; idle as planned counts as followed). In this phase your real batteries are controlled by their own integration, so their figure shows how close that comes to this plan.",
+    followTitle: "Plan followed (last {d} days)",
+    followVirtual: "Virtual batteries",
+    followReal: "Real batteries",
+    followHelp: "How closely the batteries' power matched their share of the plan, per slot, on average. Virtual batteries follow the plan (lower = they hit a limit, or the sun differed from the forecast). Real batteries are in this phase controlled by their own integration: this shows how close that comes to HomeBatteryAssist's plan.",
+    followNone: "Not measured yet.",
     checkEmpty: "No complete slots measured yet.",
     modeLabel: "Plan mode",
     modeSwitching: "switching…",
@@ -218,7 +227,7 @@ const TEXT = {
     reachTitle: "How far the forecasts reach",
     accTitle: "Forecast accuracy (running, last weeks)",
     accHelp: "Per lead time: average deviation, and the correction applied to new forecasts.",
-    accKinds: { consumption: "Consumption", pv: "PV", price: "Prices" },
+    accKinds: { consumption: "Consumption", heating: "of which heating/cooling", pv: "PV", price: "Prices" },
     accModes: { learned: "learned", off: "off", manual: "manual" },
     accNoData: "No comparisons yet: forecasts are checked as soon as the real values are known.",
     leads: { "0-1h": "0-1 h", "1-6h": "1-6 h", "6-24h": "6-24 h", "1-2d": "1-2 d", "2-3d": "2-3 d", "3-5d": "3-5 d", "5d+": "5+ d" },
@@ -302,11 +311,13 @@ const TEXT = {
       voltage_v: ["Spanning", "V", 1],
       cell_min_v: ["Cel min.", "V", 3],
       cell_max_v: ["Cel max.", "V", 3],
-      cell_delta_v: ["Celverschil", "V", 3],
+      cell_spread_v: ["Celverschil", "V", 3],
+      cell_delta_v: ["Celverschil bij 100%", "V", 3],
       cycles: ["Cycli", "", 0],
       charged_today_kwh: ["Geladen vandaag", "kWh", 2],
       discharged_today_kwh: ["Ontladen vandaag", "kWh", 2],
-      efficiency_pct: ["Rendement (gemeten)", "%", 1],
+      efficiency_measured_pct: ["Rendement (gemeten door HBA)", "%", 1],
+      efficiency_pct: ["Rendement (volgens de batterij)", "%", 1],
     },
     allPhases: "alle fasen",
     withVirtual: "met virtuele batterijen",
@@ -419,7 +430,14 @@ const TEXT = {
     checkRealized: "Gerealiseerd",
     checkDiff: "Verschil",
     checkDev: "Gem. afwijking vermogen",
-    checkNote: "Per kwartier het plan bij de start ervan, vergeleken met wat alle batterijen (ook virtuele) echt deden en opleverden. Wordt vanaf nu verzameld.",
+    checkVirtual: "Gevolgd (virtueel)",
+    checkReal: "Gevolgd (echt)",
+    checkNote: "Per kwartier het plan bij de start ervan, vergeleken met wat alle batterijen (ook virtuele) echt deden en opleverden. Gevolgd: hoe dicht het vermogen van de batterijen per kwartier bij hun deel van het plan lag (100% = precies; niets doen zoals gepland telt als gevolgd). In deze fase worden je echte batterijen door hun eigen integratie aangestuurd; hun cijfer laat zien hoe dicht die bij dit plan komt.",
+    followTitle: "Plan gevolgd (afgelopen {d} dagen)",
+    followVirtual: "Virtuele batterijen",
+    followReal: "Echte batterijen",
+    followHelp: "Hoe dicht het vermogen van de batterijen per kwartier gemiddeld bij hun deel van het plan lag. Virtuele batterijen volgen het plan (lager = ze liepen tegen een grens aan, of de zon week af van de voorspelling). Echte batterijen worden in deze fase door hun eigen integratie aangestuurd: dit laat zien hoe dicht die bij het plan van HomeBatteryAssist komt.",
+    followNone: "Nog niet gemeten.",
     checkEmpty: "Nog geen volledige kwartieren gemeten.",
     modeLabel: "Planmodus",
     modeSwitching: "wisselen…",
@@ -448,7 +466,7 @@ const TEXT = {
     reachTitle: "Hoe ver de voorspellingen reiken",
     accTitle: "Nauwkeurigheid voorspellingen (meelopend, afgelopen weken)",
     accHelp: "Per vooruitzicht: gemiddelde afwijking, en de correctie die op nieuwe voorspellingen wordt toegepast.",
-    accKinds: { consumption: "Verbruik", pv: "PV", price: "Prijzen" },
+    accKinds: { consumption: "Verbruik", heating: "waarvan verwarming/koeling", pv: "PV", price: "Prijzen" },
     accModes: { learned: "geleerd", off: "uit", manual: "handmatig" },
     accNoData: "Nog geen vergelijkingen: voorspellingen worden gecontroleerd zodra de werkelijke waarden bekend zijn.",
     leads: { "0-1h": "0-1 u", "1-6h": "1-6 u", "6-24h": "6-24 u", "1-2d": "1-2 d", "2-3d": "2-3 d", "3-5d": "3-5 d", "5d+": "5+ d" },
@@ -1141,13 +1159,17 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const currency = this._history?.value?.currency || "EUR";
     const money = (v) => new Intl.NumberFormat(lang, { style: "currency", currency }).format(v);
     const signed = (v) => `${v > 0 ? "+" : ""}${money(v)}`;
+    // Only the groups that exist (real and/or virtual batteries).
+    const followGroups = ["virtual", "real"].filter((g) => s.batteries.some((b) => !!b.virtual === (g === "virtual")));
     const rows = days.map((d) => {
       const day = new Date(`${d.day}T12:00:00`).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" });
       const diff = d.realized - d.planned;
+      const groups = followGroups.map((g) => `<td class="num">${d[`followed_${g}`] == null ? "–" : `${Math.round(d[`followed_${g}`])}%`}</td>`).join("");
       return `<tr><td>${esc(day)}</td><td class="num">${esc(money(d.planned))}</td><td class="num">${esc(money(d.realized))}</td>
-        <td class="num"><b>${esc(signed(diff))}</b></td><td class="num">${esc(this._power(d.power_deviation_w))}</td></tr>`;
+        <td class="num"><b>${esc(signed(diff))}</b></td><td class="num">${esc(this._power(d.power_deviation_w))}</td>${groups}</tr>`;
     });
-    const head = `<tr><th>${esc(t.checkDay)}</th><th class="num">${esc(t.checkPlanned)}</th><th class="num">${esc(t.checkRealized)}</th><th class="num">${esc(t.checkDiff)}</th><th class="num">${esc(t.checkDev)}</th></tr>`;
+    const groupHead = followGroups.map((g) => `<th class="num">${esc(g === "real" ? t.checkReal : t.checkVirtual)}</th>`).join("");
+    const head = `<tr><th>${esc(t.checkDay)}</th><th class="num">${esc(t.checkPlanned)}</th><th class="num">${esc(t.checkRealized)}</th><th class="num">${esc(t.checkDiff)}</th><th class="num">${esc(t.checkDev)}</th>${groupHead}</tr>`;
     const body = rows.length ? `<table class="compare">${head}${rows.join("")}</table>` : `<div class="muted">${esc(t.checkEmpty)}</div>`;
     return `<div class="card"><h2>${esc(t.checkTitle)}</h2>${body}<div class="muted">${esc(t.checkNote)}</div></div>`;
   }
@@ -1175,8 +1197,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
       ${b.expected_empty ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.emptyExpected)}</span><b>${this._time(b.expected_empty)}</b></div>` : ""}
       ${b.nom_full && b.nom_full !== b.expected_full ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.fullNom)}</span><b>${this._time(b.nom_full)}</b></div>` : ""}
       ${b.nom_empty && b.nom_empty !== b.expected_empty ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.emptyNom)}</span><b>${this._time(b.nom_empty)}</b></div>` : ""}
-      ${Object.entries(b.details || {})
-        .filter(([k]) => t.detail[k])
+      ${Object.keys(t.detail)
+        .filter((k) => b.details && b.details[k] !== undefined)
+        .map((k) => [k, b.details[k]])
         .map(([k, v]) => {
           const [label, unit, digits] = t.detail[k];
           const lang = this._hass.locale?.language || this._hass.language;
@@ -2048,24 +2071,44 @@ class HomeBatteryAssistPanel extends HTMLElement {
       if (kind === "pv") return `×${b.correction.toFixed(2)}`;
       return kind === "price" ? `${b.correction >= 0 ? "+" : ""}${b.correction.toFixed(3)}` : `${b.correction >= 0 ? "+" : ""}${Math.round(b.correction)} W`;
     };
-    const rows = Object.entries(acc)
+    const rows = Object.keys(t.accKinds)
+      .filter((kind) => acc[kind])
+      .map((kind) => [kind, acc[kind]])
       .map(([kind, k]) => {
         const cells = leads
           .map((lead) => {
             const b = k.lead_times[lead];
             if (!b || !b.samples) return "<td>–</td>";
-            const c = corr(kind, b);
+            const c = k.mode ? corr(kind, b) : "";
             return `<td title="${esc(`${b.samples} · bias ${fmt(kind, b.bias)}${b.mape != null ? ` · ${b.mape}%` : ""}`)}">${esc(fmt(kind, b.mae))}${c ? `<small>${esc(c)}</small>` : ""}</td>`;
           })
           .join("");
-        return `<tr><td>${esc(t.accKinds[kind])}<small>${esc(t.accModes[k.mode] || k.mode)}</small></td>${cells}</tr>`;
+        return `<tr><td>${esc(t.accKinds[kind] || kind)}${k.mode ? `<small>${esc(t.accModes[k.mode] || k.mode)}</small>` : ""}</td>${cells}</tr>`;
       })
       .join("");
     const head = `<tr><th></th>${leads.map((l) => `<th>${esc(t.leads[l])}</th>`).join("")}</tr>`;
     const body = any
       ? `<div class="acc-wrap"><table class="acc">${head}${rows}</table></div><div class="muted">${esc(t.accHelp)}</div>`
       : `<div class="muted">${esc(t.accNoData)}</div>`;
-    return `<div class="card"><h2>${esc(t.accTitle)}</h2>${body}</div>${this._forecasterAccuracy(t, leads, head)}${this._pvCorrectorAccuracy(t, leads, head)}`;
+    return `${this._planFollowed(t)}<div class="card"><h2>${esc(t.accTitle)}</h2>${body}</div>${this._forecasterAccuracy(t, leads, head)}${this._pvCorrectorAccuracy(t, leads, head)}`;
+  }
+
+  // How well the plan was followed (last days), real and virtual batteries.
+  _planFollowed(t) {
+    const f = this._history?.plan_followed;
+    const batteries = this._status?.batteries || [];
+    if (!f || !batteries.length) return "";
+    const groups = [
+      ["virtual", t.followVirtual],
+      ["real", t.followReal],
+    ].filter(([g]) => batteries.some((b) => !!b.virtual === (g === "virtual")));
+    const tiles = groups
+      .map(([g, label]) => {
+        const v = f[g];
+        return `<div class="flow"><div class="value">${v == null ? `<small>${esc(t.followNone)}</small>` : `${Math.round(v)}%`}</div><div class="label">${esc(label)}</div></div>`;
+      })
+      .join("");
+    return `<div class="card"><h2>${esc(t.followTitle.replace("{d}", f.days))}</h2><div class="flows">${tiles}</div><div class="muted">${esc(t.followHelp)}</div></div>`;
   }
 
   _forecasterAccuracy(t, leads, head) {

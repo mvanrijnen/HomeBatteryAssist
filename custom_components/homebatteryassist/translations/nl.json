@@ -1190,6 +1190,9 @@
       "battery_capacity": {
         "name": "Capaciteit"
       },
+      "battery_efficiency_measured": {
+        "name": "Rendement laden en ontladen (gemeten)"
+      },
       "batteries_soc": {
         "name": "Vulling batterijen"
       },

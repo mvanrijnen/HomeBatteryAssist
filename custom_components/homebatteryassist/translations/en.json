@@ -1190,6 +1190,9 @@
       "battery_capacity": {
         "name": "Capacity"
       },
+      "battery_efficiency_measured": {
+        "name": "Round-trip efficiency (measured)"
+      },
       "batteries_soc": {
         "name": "Batteries state of charge"
       },

@@ -24,6 +24,15 @@ Een batterij kan optioneel een **externe meter** op zijn groep krijgen (bijv. ee
 
 Per batterij: laadniveau, vermogen, status, opgeslagen/bruikbare energie, tijd tot vol/leeg, geladen/ontladen energie, laatste keer volladen en gerealiseerd rendement, plus totalen over alle batterijen.
 
+### Vandaag en gemeten rendement {#today-and-measured-efficiency}
+
+HomeBatteryAssist houdt per batterij eigen energietellers bij (uit het vermogen, aan de AC-kant van de batterij), ook voor de virtuele batterijen. Daaruit komen:
+
+- **Geladen / ontladen vandaag** — sinds middernacht; voor elke batterij hetzelfde, wat haar integratie ook biedt.
+- **Rendement laden en ontladen (gemeten)** — van een echte batterij: (ontladen + opgeslagen energie nu − opgeslagen energie toen) / geladen, over hoogstens de afgelopen 30 dagen. Wordt getoond zodra er minstens één volle capaciteit is geladen en de opgeslagen energie daartegen weinig veranderde (zodat de schatting van wat er nog in zit nauwelijks uitmaakt). Ook als sensor per batterij (*Rendement laden en ontladen (gemeten)*, met de dagen en kWh waarop het gebaseerd is). Het eigen cijfer van de batterij, als haar integratie dat heeft, staat ernaast als *rendement (volgens de batterij)*.
+
+De batterijkaart toont ook het **celverschil** nu (hoogste − laagste celspanning) als de driver de cellen uitleest.
+
 Wat een batterij door zijn eigen aansturing doet (laden, leveren, stoppen) wordt als periodes uitgelegd in *Waarom*, vergeleken met het plan — zie [Planning](planning.md#explanation).
 
 ## Virtuele batterijen {#virtual-batteries}

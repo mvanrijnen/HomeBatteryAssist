@@ -146,6 +146,18 @@ BATTERY_SENSORS: tuple[BatterySensorDescription, ...] = (
         attrs_fn=lambda b, s: {"since": b.stats[s.config.id].get("value_since")},
     ),
     BatterySensorDescription(
+        key="battery_efficiency_measured",
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=PERCENTAGE,
+        suggested_display_precision=1,
+        value_fn=lambda b, s: e.pct if (e := b.efficiency(s.config.id)) else None,
+        attrs_fn=lambda b, s: (
+            {"days": e.days, "charged_kwh": e.charged_kwh}
+            if (e := b.efficiency(s.config.id))
+            else {}
+        ),
+    ),
+    BatterySensorDescription(
         key="battery_capacity",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda b, s: s.config.capacity_kwh,

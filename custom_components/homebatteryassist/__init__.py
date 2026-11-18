@@ -295,11 +295,23 @@ async def async_setup_entry(
 
     def _battery_totals() -> dict[str, float]:
         stats = batteries.stats.values()
-        return {
+        totals = {
             "charged_kwh": sum(s.get("charged_kwh", 0.0) for s in stats),
             "discharged_kwh": sum(s.get("discharged_kwh", 0.0) for s in stats),
             "value": sum(s.get("value", 0.0) for s in stats),
         }
+        # Per group (real / virtual), for how well each follows the plan.
+        capacity = sum(c.capacity_kwh for c in batteries.configs)
+        if capacity > 0:
+            real = [c for c in batteries.configs if not c.virtual]
+            totals["real_share"] = sum(c.capacity_kwh for c in real) / capacity
+            for group, virtual in (("real", False), ("virtual", True)):
+                ids = [c.id for c in batteries.configs if c.virtual is virtual]
+                for key in ("charged_kwh", "discharged_kwh"):
+                    totals[f"{group}_{key}"] = sum(
+                        batteries.stats[i].get(key, 0.0) for i in ids
+                    )
+        return totals
 
     @callback
     def _check_plan(now: datetime) -> None:

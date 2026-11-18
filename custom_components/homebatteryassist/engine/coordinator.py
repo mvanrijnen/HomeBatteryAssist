@@ -118,6 +118,7 @@ from ..const import (
 from .devices.batteries import telemetry as battery_telemetry
 from .evaluation.forecast_accuracy import (
     FORECASTER_KIND,
+    HEATING_KIND,
     KINDS,
     PV_CORRECTOR_KIND,
     ForecastAccuracy,
@@ -587,6 +588,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         accuracy = self.accuracy
         accuracy.evaluate_consumption(self.forecast_records())
         accuracy.evaluate_pv(self.history.records)
+        accuracy.evaluate_heating(self.history.records)
         accuracy.evaluate_prices(
             {p.start.isoformat(): p.price for p in prices if not p.estimated}
         )
@@ -776,6 +778,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             "consumption", [(s.start, s.end, s.raw) for s in consumption], now
         )
         self._record_forecasters(window, step, now)
+        self._record_heating(step, now)
         self.hass.bus.async_fire(EVENT_FORECAST_UPDATED, summarise(data))
         return data
 
@@ -802,6 +805,27 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             kind = f"{FORECASTER_KIND}{key}"
             self.accuracy.track(kind)
             self.accuracy.record(kind, [(a, b, v) for a, b, v, _m in slots], now)
+
+    def _record_heating(self, step: timedelta, now: datetime) -> None:
+        """The heating/cooling power the temperature step expects per slot,
+        to check it afterwards against the measured heating/cooling devices
+        (only when they are measured apart, not for the whole house)."""
+        model = self.temperature_model
+        if (
+            model is None
+            or not model.active
+            or getattr(model, "target", "zone") == "avg_w"
+            or not self.temperature_slots
+        ):
+            return
+        slots = [
+            (start, start + step, demand)
+            for start, temp in self.temperature_slots
+            if (demand := model.demand(start, temp)) is not None
+        ]
+        if slots:
+            self.accuracy.track(HEATING_KIND)
+            self.accuracy.record(HEATING_KIND, slots, now)
 
     def forecast_records(self) -> list:
         """The history the forecasts learn from: without random short peaks

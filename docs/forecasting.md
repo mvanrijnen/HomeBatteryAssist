@@ -81,3 +81,5 @@ The correction works afterwards; *Why* also says it while it happens. When clear
 ## Accuracy
 
 Every forecast is verified afterwards per lead time (0–1 h … 5 days+): consumption against the measured consumption, PV against the measured PV, estimated prices against the prices published later. Learned corrections are applied automatically, or set by hand (action `set_forecast_correction`).
+
+With heating/cooling devices measured apart and the temperature effect learned, the **heating/cooling part** is also checked on its own: the power the [temperature step](#outdoor-temperature-optional) expected per slot against what the devices really used (row *of which heating/cooling* on the *Accuracy* tab). It is only measured, not used to correct anything.

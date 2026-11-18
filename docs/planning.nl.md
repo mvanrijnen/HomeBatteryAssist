@@ -84,3 +84,8 @@ Wat elke echte batterij uit zichzelf doet, wordt ook als periodes uitgelegd — 
 ## Plancontrole {#plan-check}
 
 Achteraf wordt het plan per dag vergeleken met wat er echt gebeurde (dashboard, tab *Rendement*).
+
+**Plan gevolgd**: per kwartier hoe dicht het vermogen van de batterijen bij hun deel van het plan lag (100 % = precies; niets doen zoals gepland telt als gevolgd), apart voor de **virtuele** en de **echte** batterijen; het plan geldt voor alle batterijen samen, het deel van elke groep is haar deel van de capaciteit. Per dag in de plancontrole en over de afgelopen 7 dagen op het tabblad *Nauwkeurigheid*.
+
+- **Virtuele batterijen** volgen het plan: lager betekent dat ze tegen een grens aanliepen (vol, leeg, een fase) of dat de zon afweek van de voorspelling.
+- **Echte batterijen** worden in deze fase door hun eigen integratie aangestuurd: hun cijfer laat zien hoe dicht die bij het plan van HomeBatteryAssist komt.

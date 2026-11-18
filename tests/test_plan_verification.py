@@ -7,6 +7,7 @@ from homeassistant.util import dt as dt_util
 
 from custom_components.homebatteryassist.engine.evaluation.plan_check import (
     PlanVerification,
+    slot_followed,
     slot_saving,
 )
 from custom_components.homebatteryassist.engine.planning.battery_plan import PlanSlot
@@ -59,3 +60,48 @@ async def test_realised_value_after_wear(hass: HomeAssistant) -> None:
     check.settle(T0 + Q, lambda: dict(totals), 0.05)
     (record,) = check.records
     assert record["value"] == round(-0.04 - 0.4 * 0.05, 5)
+
+
+def test_slot_followed() -> None:
+    assert slot_followed(1000.0, 1000.0) == 1.0
+    assert slot_followed(1000.0, 800.0) == 0.8
+    assert slot_followed(0.0, 0.0) == 1.0  # idle as planned
+    assert slot_followed(0.0, 20.0) == 0.6  # small: against at least 50 W
+    assert slot_followed(-1000.0, 1000.0) == 0.0  # the wrong way
+
+
+async def test_plan_followed_per_group(hass: HomeAssistant) -> None:
+    """The plan for all batteries, split by capacity: the virtual battery
+    follows its half, the real one (own control) does nothing."""
+    check = PlanVerification(hass, "test")
+    totals = {
+        "charged_kwh": 0.0,
+        "discharged_kwh": 0.0,
+        "value": 0.0,
+        "real_share": 0.5,
+        "real_charged_kwh": 0.0,
+        "real_discharged_kwh": 0.0,
+        "virtual_charged_kwh": 0.0,
+        "virtual_discharged_kwh": 0.0,
+    }
+    check.settle(T0, lambda: dict(totals))
+    check.record_plan([_slot(T0, 2000.0, 2500.0)], "arbitrage", T0, 1.0, 0.0)
+    # Virtual: 0.25 kWh in 15 min = 1000 W, its half of 2000 W.
+    totals.update(charged_kwh=0.25, virtual_charged_kwh=0.25)
+    check.settle(T0 + Q, lambda: dict(totals))
+    (record,) = check.records
+    assert record["virtual_w"] == 1000.0 and record["real_w"] == 0.0
+    (day,) = check.days()
+    assert day["followed_virtual"] == 100.0 and day["followed_real"] == 0.0
+    followed = check.followed(T0 + Q)
+    assert followed == {"days": 7, "real": 0.0, "virtual": 100.0}
+
+
+async def test_plan_followed_without_groups(hass: HomeAssistant) -> None:
+    """Records from before (no groups): nothing to tell."""
+    check = PlanVerification(hass, "test")
+    totals = {"charged_kwh": 0.0, "discharged_kwh": 0.0, "value": 0.0}
+    check.settle(T0, lambda: dict(totals))
+    check.record_plan([_slot(T0, 1000.0, 1500.0)], "arbitrage", T0, 1.0, 0.0)
+    check.settle(T0 + Q, lambda: dict(totals))
+    assert check.followed(T0 + Q) == {"days": 7, "real": None, "virtual": None}

@@ -310,6 +310,7 @@ Wat HomeBatteryAssist aanmaakt (namen zoals in Home Assistant).
 | Ontladen energie | Sensor |
 | Laatste volledige oplading | Sensor |
 | Capaciteit | Sensor |
+| Rendement laden en ontladen (gemeten) | Sensor |
 | Vulling batterijen | Sensor |
 | Vermogen batterijen | Sensor |
 | Opgeslagen energie batterijen | Sensor |

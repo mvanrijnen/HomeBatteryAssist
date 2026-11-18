@@ -84,3 +84,8 @@ What each real battery does by its own control is explained as periods too — s
 ## Plan check
 
 Afterwards, the plan is compared with what really happened, per day (dashboard, *Return* tab).
+
+**Plan followed**: per slot, how closely the batteries' power matched their share of the plan (100 % = exactly; idle as planned counts as followed), apart for the **virtual** and the **real** batteries; the plan is for all batteries together, each group's share is its share of the capacity. Shown per day in the plan check and for the last 7 days on the *Accuracy* tab.
+
+- **Virtual batteries** follow the plan: lower means they hit a limit (full, empty, a phase) or the sun differed from the forecast.
+- **Real batteries** are in this phase controlled by their own integration: their figure shows how close that comes to HomeBatteryAssist's plan.

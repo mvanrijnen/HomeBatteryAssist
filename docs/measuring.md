@@ -24,6 +24,15 @@ Optionally a battery gets an **external meter** on its line (e.g. a HomeWizard k
 
 Per battery: state of charge, power, status, stored/usable energy, time to full/empty, charged/discharged energy, last full charge and realised return, plus totals over all batteries.
 
+### Today and measured efficiency
+
+HomeBatteryAssist keeps its own energy counters per battery (from its power, at the battery's AC side), the virtual batteries included. From them come:
+
+- **Charged / discharged today** — since local midnight; the same for every battery, whatever its integration offers.
+- **Round-trip efficiency (measured)** — of a real battery: (discharged + stored energy now − stored energy then) / charged, over the last 30 days at most. Shown once at least one full capacity was charged and the stored energy changed little against it (so the guess for what is still inside hardly matters). Also a sensor per battery (*Round-trip efficiency (measured)*, with the days and kWh it is based on). The battery's own figure, if its integration has one, is shown next to it as *efficiency (according to the battery)*.
+
+The battery card also shows the **cell difference** now (highest − lowest cell voltage) when the driver reads the cells.
+
 What a battery does by its own control (charging, supplying, stopping) is explained as periods in *Why*, compared with the plan — see [Planning](planning.md#explanation).
 
 ## Virtual batteries

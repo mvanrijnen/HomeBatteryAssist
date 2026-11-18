@@ -7,7 +7,7 @@ Een dashboard in de zijbalk (*HomeBatteryAssist*), in tabs. De gekozen tab wordt
   - **Planning**: hoe ver vooruit gepland kan worden en wat dat begrenst, met een balk per voorspelling die laat zien hoe ver die reikt: verbruik, prijzen, PV en (met een weerbron) de buitentemperatuur.
   - **Temperatuur** (op *Voorspelling*, met een weerbron): de voorspelde buitentemperatuur, de geleerde kamertemperatuur en het te verwachten verwarmings-/koelvermogen, met de verwachte kWh per dag; tot er 7 dagen geleerd zijn alleen de buitentemperatuur.
 - **Rendement**: het verwachte en gerealiseerde rendement van elke modus vergeleken met geen batterij en met elkaar; het plan per dag vergeleken met wat er echt gebeurde.
-- **Batterijen**: elke batterij met haar laadniveau, vermogen, tijd tot vol/leeg (nu, volgens het plan en bij nul op de meter) en de details die haar driver toevoegt.
-- **Nauwkeurigheid**: de nauwkeurigheid van de verbruiks-, PV- en prijsvoorspellingen per vooruitlooptijd, met hun correcties; de verbruiksvoorspellers vergeleken; en de PV-correcties vergeleken (met de ongecorrigeerde voorspelling als referentie).
+- **Batterijen**: elke batterij met haar laadniveau, vermogen, tijd tot vol/leeg (nu, volgens het plan en bij nul op de meter), de details die haar driver toevoegt (temperatuur, spanningen, cellen, cycli), de energie die vandaag geladen en ontladen is en het [gemeten rendement](measuring.md#today-and-measured-efficiency).
+- **Nauwkeurigheid**: hoe goed het [plan gevolgd](planning.md#plan-check) werd (afgelopen 7 dagen, virtuele en echte batterijen); de nauwkeurigheid van de verbruiks- (en het verwarmings-/koeldeel daarvan), PV- en prijsvoorspellingen per vooruitlooptijd, met hun correcties; de verbruiksvoorspellers vergeleken; en de PV-correcties vergeleken (met de ongecorrigeerde voorspelling als referentie).
 
 De planmodus kun je direct op het dashboard kiezen.

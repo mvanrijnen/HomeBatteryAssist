@@ -84,6 +84,9 @@
       "battery_capacity": {
         "default": "mdi:battery-heart-variant"
       },
+      "battery_efficiency_measured": {
+        "default": "mdi:battery-sync"
+      },
       "batteries_soc": {
         "default": "mdi:home-battery"
       },

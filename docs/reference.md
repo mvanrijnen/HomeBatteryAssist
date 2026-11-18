@@ -310,6 +310,7 @@ What HomeBatteryAssist creates (names as shown in Home Assistant).
 | Discharged energy | Sensor |
 | Last full charge | Sensor |
 | Capacity | Sensor |
+| Round-trip efficiency (measured) | Sensor |
 | Batteries state of charge | Sensor |
 | Batteries power | Sensor |
 | Batteries stored energy | Sensor |

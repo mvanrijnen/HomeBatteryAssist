@@ -76,6 +76,11 @@ _LOGGER = logging.getLogger(__name__)
 
 STORAGE_VERSION = 1
 SOC_LOG_RETENTION = timedelta(days=7)
+# Measured round-trip efficiency: from the counters over (at most) this many
+# days, once at least one full capacity was charged through the battery.
+EFFICIENCY_DAYS = 30
+EFFICIENCY_MIN_CYCLES = 1.0
+EFFICIENCY_MAX_STORED_SHARE = 0.25  # |change of stored energy| / charged
 SAVE_DELAY = 60  # seconds
 # A real battery's activity (charging / discharging / idle) is explained once
 # it has lasted this long, so short swings are not logged.
@@ -324,6 +329,62 @@ class BatteryStats(TypedDict):
     value_since: NotRequired[str]  # ISO 8601: when the value counter started
     value_kwh: NotRequired[float]  # energy through the battery behind the value
     value_basis: NotRequired[int]  # how the value is counted (VALUE_BASIS)
+    # The counters at the start of each local day (newest last), for "today"
+    # and the measured efficiency: {"date", "charged", "discharged", "stored"}.
+    days: NotRequired[list[dict[str, Any]]]
+
+
+@dataclass(frozen=True, slots=True)
+class MeasuredEfficiency:
+    """Round-trip efficiency measured from the battery's own counters."""
+
+    pct: float  # discharged + change of stored energy, per charged kWh
+    days: int  # over how many days
+    charged_kwh: float
+
+
+def today_energy(stats: Mapping[str, Any]) -> tuple[float, float] | None:
+    """Charged and discharged energy (kWh) since the start of the local day."""
+    days = stats.get("days") or []
+    if not days:
+        return None
+    start = days[-1]
+    return (
+        round(stats["charged_kwh"] - start["charged"], 3),
+        round(stats["discharged_kwh"] - start["discharged"], 3),
+    )
+
+
+def measured_efficiency(
+    stats: Mapping[str, Any], stored_kwh: float | None, capacity_kwh: float
+) -> MeasuredEfficiency | None:
+    """Round trip from the counters: (discharged + stored now - stored then)
+    / charged, from the oldest day start that knew the stored energy.
+
+    Only when at least ``EFFICIENCY_MIN_CYCLES`` capacity was charged and the
+    stored energy changed little against it, so the guess for what is still
+    inside hardly matters. Measured at the battery's AC side, like its power.
+    """
+    if stored_kwh is None or capacity_kwh <= 0:
+        return None
+    start = next(
+        (d for d in stats.get("days") or [] if d.get("stored") is not None), None
+    )
+    if start is None:
+        return None
+    charged = stats["charged_kwh"] - start["charged"]
+    discharged = stats["discharged_kwh"] - start["discharged"]
+    stored = stored_kwh - start["stored"]
+    if charged < EFFICIENCY_MIN_CYCLES * capacity_kwh:
+        return None
+    if abs(stored) > EFFICIENCY_MAX_STORED_SHARE * charged:
+        return None
+    pct = (discharged + stored) / charged * 100
+    if not 30 <= pct <= 100:
+        return None  # counters or state of charge not trustworthy
+    return MeasuredEfficiency(
+        round(pct, 1), len(stats.get("days") or []), round(charged, 2)
+    )
 
 
 def realised_value(
@@ -555,6 +616,38 @@ class BatteryInput:
         for listener in list(self._listeners):
             listener()
 
+    def _roll_day(self, battery_id: str, when: datetime) -> None:
+        """Remember the counters at the start of a new local day."""
+        stats = self.stats[battery_id]
+        day = dt_util.as_local(when).date().isoformat()
+        days = stats.setdefault("days", [])
+        if days and days[-1]["date"] == day:
+            return
+        stored = self.states[battery_id].stored_kwh
+        days.append(
+            {
+                "date": day,
+                "charged": stats["charged_kwh"],
+                "discharged": stats["discharged_kwh"],
+                "stored": None if stored is None else round(stored, 3),
+            }
+        )
+        del days[:-EFFICIENCY_DAYS]
+
+    def today(self, battery_id: str) -> tuple[float, float] | None:
+        """Charged and discharged energy (kWh) today, by HomeBatteryAssist's
+        own counters."""
+        return today_energy(self.stats[battery_id])
+
+    def efficiency(self, battery_id: str) -> MeasuredEfficiency | None:
+        """Measured round-trip efficiency of a real battery, if known yet."""
+        state = self.states[battery_id]
+        if state.config.virtual:
+            return None  # simulated: it is what is configured
+        return measured_efficiency(
+            self.stats[battery_id], state.stored_kwh, state.config.capacity_kwh
+        )
+
     def _count_energy(
         self, battery_id: str, when: datetime, power: float | None
     ) -> None:
@@ -585,6 +678,7 @@ class BatteryInput:
                     ),
                     5,
                 )
+        self._roll_day(battery_id, when)
         if power is not None:
             self._last_power[battery_id] = (when, power)
 

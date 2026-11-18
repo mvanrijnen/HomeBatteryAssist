@@ -61,6 +61,10 @@ FORECASTER_KIND = "consumption@"
 # Extra kinds "pv@<correction key>": every PV correction's corrected forecast,
 # to compare the corrections.
 PV_CORRECTOR_KIND = "pv@"
+# Extra kind: the heating/cooling part of the consumption (W per slot) that the
+# temperature step expects, against the measured heating/cooling devices. Only
+# measured (never used to correct anything).
+HEATING_KIND = "heating"
 type Mode = Literal["learned", "off", "manual"]
 MODES: tuple[Mode, ...] = ("learned", "off", "manual")
 ALL_BUCKETS = "all"
@@ -172,7 +176,7 @@ class ForecastAccuracy:
         """Load stored predictions and results."""
         if (data := await self._store.async_load()) is not None:
             for kind in data.get("predictions", {}) | data.get("results", {}):
-                if kind.startswith((FORECASTER_KIND, PV_CORRECTOR_KIND)):
+                if kind.startswith((FORECASTER_KIND, PV_CORRECTOR_KIND, HEATING_KIND)):
                     self.track(kind)
             for kind in self.kinds:
                 self.predictions[kind] = data.get("predictions", {}).get(kind, {})
@@ -230,6 +234,19 @@ class ForecastAccuracy:
             if kind.startswith(FORECASTER_KIND):
                 self._settle(kind, actuals)
         return count
+
+    def evaluate_heating(self, records: Iterable[ConsumptionRecord]) -> int:
+        """Compare the expected heating/cooling power with the measured one."""
+        if HEATING_KIND not in self.kinds:
+            return 0
+        actuals = {
+            r["start"]: r["heating_w"]
+            for r in records
+            if "heating_w" in r
+            and r.get("source") != "import"
+            and r["coverage"] >= MIN_COVERAGE
+        }
+        return self._settle(HEATING_KIND, actuals)
 
     def evaluate_pv(self, records: Iterable[ConsumptionRecord]) -> int:
         """Compare with measured PV energy per hour (Wh) from the history."""
