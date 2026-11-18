@@ -32,6 +32,7 @@ from ..engine.history.chart_series import (
     hourly_series,
     week_profiles,
 )
+from ..engine.measure.battery_monitor import twinned_ids
 from ..engine.measure.house_measurement import MeasurementInput
 from ..engine.planning.battery_plan import (
     ARBITRAGE_MODES,
@@ -42,7 +43,7 @@ from ..engine.planning.battery_plan import (
 )
 from ..engine.planning.phase_limit import phase_limit_w
 from ..models import HomeBatteryAssistConfigEntry
-from .batteries import BATTERY_SENSORS, TOTAL_SENSORS
+from .batteries import BATTERY_SENSORS, TOTAL_SENSORS, TWIN_SENSOR
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -442,6 +443,10 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
                 "id": config.id,
                 "name": config.name,
                 "virtual": config.virtual,
+                # A twin: the real battery it replaces in the plan; a real
+                # battery with a twin: not planned (its own control).
+                "twin_of": config.twin_of,
+                "twinned": config.id in twinned_ids(data.batteries.configs),
                 "capacity_kwh": config.capacity_kwh,
                 "min_soc": config.min_soc,
                 "max_soc": config.max_soc,
@@ -454,7 +459,9 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
                 # The command it has now and whether it follows it.
                 "command": (data.commands.state(config.id) if data.commands else None),
                 "entities": _entity_ids(
-                    registry, config.id, (d.key for d in BATTERY_SENSORS)
+                    registry,
+                    config.id,
+                    (*(d.key for d in BATTERY_SENSORS), TWIN_SENSOR.key),
                 ),
                 **_expected_reach(data, config.id),
             }

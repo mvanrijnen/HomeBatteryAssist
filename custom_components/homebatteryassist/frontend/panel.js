@@ -96,6 +96,11 @@ const TEXT = {
     },
     allPhases: "all phases",
     withVirtual: "with virtual batteries",
+    withTwin: "with the twin instead",
+    realBattery: "Real battery",
+    twinDiff: "Difference today (twin − real)",
+    twinOf: "twin of {name}",
+    ownControl: "own control, outside the plan",
     phaseLimit: "limit {a} A (fuse with {m}% margin)",
     fromGrid: "from the grid",
     phaseTotal: "Total",
@@ -349,6 +354,11 @@ const TEXT = {
     },
     allPhases: "alle fasen",
     withVirtual: "met virtuele batterijen",
+    withTwin: "met de tweeling ervoor in de plaats",
+    realBattery: "Echte batterij",
+    twinDiff: "Verschil vandaag (tweeling − echt)",
+    twinOf: "tweeling van {name}",
+    ownControl: "eigen sturing, buiten het plan",
     phaseLimit: "grens {a} A (zekering met {m}% marge)",
     fromGrid: "van het net",
     phaseTotal: "Totaal",
@@ -1128,6 +1138,28 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return `<div class="card"><h2>${esc(t.flows)}</h2><div class="flows">${parts.join("")}</div></div>`;
   }
 
+  // On a twin: its real battery now and the difference in value today.
+  _twinRows(s, b, t) {
+    const real = b.twin_of && s.batteries.find((x) => x.id === b.twin_of);
+    if (!real) return "";
+    const soc = this._num(real.entities.battery_soc);
+    const p = this._num(real.entities.battery_power);
+    const what = p === null ? "–" : Math.abs(p) < 1 ? t.idle : `${p > 0 ? t.charging : t.discharging} ${this._power(Math.abs(p))}`;
+    const diff = this._num(b.entities.twin_difference_today);
+    const money = diff === null ? "–" : `${diff >= 0 ? "+" : "−"}${Math.abs(diff).toFixed(2)} ${this._hass.config?.currency || ""}`.trim();
+    return `<div class="row"><span>${esc(t.realBattery)} (${esc(real.name)})</span><b>${soc === null ? "–" : `${Math.round(soc)}%`} · ${esc(what.toLowerCase())}</b></div>
+      <div class="row"><span>${esc(t.twinDiff)}</span><b>${esc(money)}</b></div>`;
+  }
+
+  _twinNote(s, b, t) {
+    // A twin names the real battery it replaces; that one runs outside the plan.
+    if (b.twin_of) {
+      const real = s.batteries.find((x) => x.id === b.twin_of);
+      return ` <small class="muted">· ${esc(t.twinOf.replace("{name}", real ? real.name : "?"))}</small>`;
+    }
+    return b.twinned ? ` <small class="muted">· ${esc(t.ownControl)}</small>` : "";
+  }
+
   _markVirtual(b, t) {
     // "(virtual)" after a virtual battery's name, unless the name says so.
     return b.virtual && !String(b.name || "").toLowerCase().includes(String(t.virtual).toLowerCase());
@@ -1189,7 +1221,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const money = (v) => new Intl.NumberFormat(lang, { style: "currency", currency }).format(v);
     const signed = (v) => `${v > 0 ? "+" : ""}${money(v)}`;
     // Only the groups that exist (real and/or virtual batteries).
-    const followGroups = ["virtual", "real"].filter((g) => s.batteries.some((b) => !!b.virtual === (g === "virtual")));
+    const followGroups = ["virtual", "real"].filter((g) => s.batteries.some((b) => !b.twinned && !!b.virtual === (g === "virtual")));
     const rows = days.map((d) => {
       const day = new Date(`${d.day}T12:00:00`).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" });
       const diff = d.realized - d.planned;
@@ -1203,7 +1235,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return `<div class="card"><h2>${esc(t.checkTitle)}</h2>${body}<div class="muted">${esc(t.checkNote)}</div></div>`;
   }
 
-  _battery(b, t) {
+  _battery(b, t, s) {
     const e = b.entities;
     const soc = this._num(e.battery_soc);
     const power = this._num(e.battery_power);
@@ -1212,7 +1244,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const fill = soc === null ? 0 : soc;
     const cls = soc !== null && soc <= b.min_soc ? "alert" : soc !== null && soc < b.min_soc + 10 ? "warn" : "";
     return `<div class="battery">
-      <div class="head"><span class="name">${esc(b.name)}${this._markVirtual(b, t) ? ` <small class="muted">(${esc(t.virtual)})</small>` : ""}</span>
+      <div class="head"><span class="name">${esc(b.name)}${this._markVirtual(b, t) ? ` <small class="muted">(${esc(t.virtual)})</small>` : ""}${this._twinNote(s, b, t)}</span>
         <span class="status ${esc(status || "")}">${esc(status ? t[status] || status : t.unavailable)}</span></div>
       <div class="bar"><div class="fill ${cls}" style="width:${fill}%"></div>
         <div class="mark" style="left:${b.min_soc}%"></div><div class="mark" style="left:${b.max_soc}%"></div>
@@ -1227,6 +1259,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       ${b.nom_full && b.nom_full !== b.expected_full ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.fullNom)}</span><b>${this._time(b.nom_full)}</b></div>` : ""}
       ${b.nom_empty && b.nom_empty !== b.expected_empty ? `<div class="row" title="${esc(t.reachInfo)}"><span>${esc(t.emptyNom)}</span><b>${this._time(b.nom_empty)}</b></div>` : ""}
       ${this._command(b, t)}
+      ${this._twinRows(s, b, t)}
       ${Object.keys(t.detail)
         .filter((k) => b.details && b.details[k] !== undefined)
         .map((k) => [k, b.details[k]])
@@ -1260,7 +1293,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
 
   _batteries(s, t) {
     const body = s.batteries.length
-      ? `<div class="batteries">${s.batteries.map((b) => this._battery(b, t)).join("")}</div>`
+      ? `<div class="batteries">${s.batteries.filter((b) => !b.twinned).map((b) => this._battery(b, t, s)).join("")}</div>`
       : `<div class="muted">${esc(t.noBatteries)}</div>`;
     return `<div class="card"><h2>${esc(t.battery)}</h2>${body}</div>`;
   }
@@ -1276,19 +1309,27 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const cls = load !== null && load >= 90 ? "alert" : load !== null && load >= 75 ? "warn" : "";
       // Batteries on this phase (a battery without a phase is spread over all).
       const share = (b) => (s.phases === 1 || b.phase === `l${i}` ? 1 : !b.phase || b.phase === "none" ? 1 / s.phases : 0);
-      const here = s.batteries.filter((b) => share(b) > 0);
+      // A real battery with a twin is not shown: the twin acts in its place.
+      const here = s.batteries.filter((b) => share(b) > 0 && !b.twinned);
+      const twinned = s.batteries.filter((b) => share(b) > 0 && b.twinned);
       let virtualW = 0;
+      let twinnedW = 0; // real batteries with a twin: the twin replaces them
       const who = here.map((b) => {
         const p = this._num(b.entities.battery_power);
         if (b.virtual && p !== null) virtualW += p * share(b);
         const what = p === null ? "–" : Math.abs(p) < 1 ? t.idle : `${p > 0 ? t.charging : t.discharging} ${this._power(Math.abs(p * share(b)))}`;
         return `<span class="${b.virtual ? "virtual" : ""}">${esc(b.name)}${share(b) < 1 ? " (⅓)" : ""}: ${esc(what.toLowerCase())}</span>`;
       });
+      for (const b of twinned) {
+        const p = this._num(b.entities.battery_power);
+        if (p !== null) twinnedW += p * share(b);
+      }
       let withVirtual = "";
-      if (virtualW && power !== null) {
-        const amps = Math.abs(power + virtualW) / 230;
+      if ((virtualW || twinnedW) && power !== null) {
+        const amps = Math.abs(power - twinnedW + virtualW) / 230;
         const wcls = amps >= s.phase_limit_a ? "alert" : amps >= 0.75 * s.max_current ? "warn" : "";
-        withVirtual = `<span class="${wcls}">${esc(t.withVirtual)}: <b>${amps.toFixed(1)} A</b></span>`;
+        const label = s.batteries.some((b) => b.twinned) ? t.withTwin : t.withVirtual;
+        withVirtual = `<span class="${wcls}">${esc(label)}: <b>${amps.toFixed(1)} A</b></span>`;
       }
       rows.push(`<div class="phase"><span>L${i}</span>
         ${this._phaseBar(load, power, cls, t)}

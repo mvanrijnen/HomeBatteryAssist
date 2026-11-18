@@ -83,7 +83,7 @@ To compare HomeBatteryAssist with the integration that controls your battery now
 - it is **planned in the real battery's place**: the real battery is left out of the plan (and of *plan followed*), and keeps its own control;
 - it acts on the grid **as it would be without the real battery**: the real battery's power is taken off the grid and its phase, so where the real battery already stores the solar surplus, the twin sees that surplus too. Its value is counted the same way, the real battery's on the grid as measured.
 
-The sensor **Difference with the real battery today** on the twin = its value today − the real battery's (positive: HomeBatteryAssist's plan did better), with attributes for both values, both states of charge and how much more the twin stored since midnight (energy still inside is worth something tomorrow, so look at both). A real battery can have one twin. Other virtual batteries go on as extra what-if batteries on top.
+The sensor **Difference with the real battery today** on the twin = its value today − the real battery's (positive: HomeBatteryAssist's plan did better), with attributes for both values, both states of charge and how much more the twin stored since midnight (energy still inside is worth something tomorrow, so look at both). The overview then shows only the twin (its card with the real battery's state of charge and power and the difference today; the phases with *with the twin instead*): HomeBatteryAssist is linked with the twin only. A real battery can have one twin. Other virtual batteries go on as extra what-if batteries on top.
 
 ## PV sources and excluded devices
 
