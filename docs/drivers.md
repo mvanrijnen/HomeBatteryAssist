@@ -43,6 +43,7 @@ Generic bases in `direct/` (a brand only adds its specifics): `modbus_driver.py`
 | Zendure | `zendure/solarflow_direct_http.py` | SolarFlow 800, 800 Plus, 800 Pro, 1600 AC+, 2400 AC+, 2400 Pro | local HTTP |
 | Sessy | `sessy/sessy_direct_http.py` | Sessy home battery | local HTTP |
 | Indevolt | `indevolt/flex_direct_http.py` | SolidFlex/PowerFlex 1200, 2000, 3000, SolidFlex 3600, BK1600 | local HTTP |
+| Victron | `victron/gx_direct_modbus.py` | ESS (MultiPlus-II / Quattro) through the GX, unit 100 | Modbus TCP |
 | Hoymiles | `hoymiles/smiles_direct_mqtt.py` | MS-A2, HiBattery 1920 AC, 4020 X, 4020 AC | MQTT |
 
 None is verified on a device yet. The device facts (registers, endpoints, scales, signs, control sequences) were taken from Omnibattery's drivers (GPL-3.0) and, where available, the vendors' own documentation — facts only; the code is HomeBatteryAssist's own. Each driver also states how it must be controlled (`refresh_s`, `min_interval_s`, `deadband_w`, `idle_is_release`, limits), which the control layer enforces — see [Architecture](architecture.md#control-layer-built-not-active).
@@ -58,7 +59,7 @@ One file per brand, sharing `direct_reading.py` (reading about once a second; a 
 | `shelly.py` | Shelly Pro 3EM / 3EM / EM / Pro EM, local API | from the API documentation |
 | `iammeter.py` | Iammeter WEM3080 / WEM3080T, local API | from the API documentation |
 
-Besides the power per phase every meter driver also reads the **current, voltage and power factor per phase** when the meter gives them (SMA Home Manager: current, voltage and power factor, verified; HomeWizard P1: current and voltage; Shelly 3EM: current, voltage and power factor; IAMMETER: current and voltage), for the phase protection: the main fuse sees current, not power. `discovery.py` finds these meters in Home Assistant and creates the right reader; `__init__.py` lists them (`DRIVERS`). Meters can also be read through the sensors of their own integration (`via_ha_integration.py`, HomeWizard P1 recognised). `template.py` is an example of a new meter. The same drivers serve every role: the grid connection, a PV source (a kWh meter on the inverter's line) and a battery (a kWh meter on the battery's line, see below). The role is a setting; the folder follows brand and type.
+Besides the power per phase every meter driver also reads the **current, voltage and power factor per phase** when the meter gives them (SMA Home Manager: current, voltage and power factor, verified; HomeWizard P1: current and voltage; Shelly 3EM: current, voltage and power factor; IAMMETER: current and voltage), for the phase protection: the main fuse sees current, not power. `discovery.py` finds these meters in Home Assistant and creates the right reader; `__init__.py` lists them (`DRIVERS`). Meters can also be read through the sensors of their own integration (`via_ha_integration.py`, HomeWizard P1 recognised; Victron GX recognised, not tested). `template.py` is an example of a new meter. The same drivers serve every role: the grid connection, a PV source (a kWh meter on the inverter's line) and a battery (a kWh meter on the battery's line, see below). The role is a setting; the folder follows brand and type.
 
 ## PV inverters — `engine/devices/inverters/`
 
@@ -68,6 +69,7 @@ How an inverter's power could be limited for the [export limit](planning.md#expo
 - `sma_modbus.py` — older SMA types (Sunny Boy TL-21, Sunny Tripower TL-10/-20/-30) **without** a Home Manager: register **40023** = limit in % × 100 of WMax (unit 3). The fallback is set in the inverter's web interface (*Use fallback setting*); otherwise it keeps the last limit.
 - `sma_storage_x.py` — SMA Sunny Tripower Storage X / Sunny Island X without a Home Manager: 40210 = 1077 (manual in W), 40212 = limit in W, fallback 41193 = 2507 with timeout 41195 (unit 3).
 - `sunspec_modbus.py` — **any inverter with SunSpec Modbus** (SMA, Fronius, SolarEdge, Kostal, Huawei, ABB / FIMER, ...): the vendor-neutral register map. It starts at 40000 (`SunS`), followed by a chain of models whose addresses differ per device, so the driver walks the chain. The limit goes through model **123** (*Immediate Controls*): `WMaxLimPct` (offset 3, % of `WMax` from model 121, scaled by `WMaxLimPct_SF`), `WMaxLimPct_RvrtTms` (offset 5: after 60 s without a new write the inverter returns to full power by itself) and `WMaxLim_Ena` (offset 7, 1 = on). Address `host[:port][/unit]`; the unit id differs per brand (SMA 126, Fronius and SolarEdge 1). Newer devices with model 704 (SunSpec 2018 / IEEE 1547) are not covered yet. From the SunSpec specification. With a Sunny Home Manager the SHM driver applies, not this one.
+- `victron_gx_feed_in.py` — a **Victron ESS**: the GX limits the feed-in of the whole system itself (register 2706 on unit 100, in units of 100 W, -1 = no limit; in Home Assistant the number *max feed-in power* of the Victron GX integration), so this limits the **export**. Not tested.
 
 All from the manufacturers' documentation and users' reports, *not verified on a device*.
 
@@ -90,5 +92,5 @@ All from the manufacturers' documentation and users' reports, *not verified on a
 
 ## Supported now
 
-- **Batteries**: Marstek Venus E v3 (model); read through Omnibattery or Marstek Modbus (verified). Any other battery can be linked manually through its entities.
+- **Batteries**: Marstek Venus E v3 (model); read through Omnibattery or Marstek Modbus (verified). A **Victron ESS** (MultiPlus-II / Quattro with a GX) is recognised through Home Assistant's *Victron GX* integration (`integrations/victron_gx_integration.py`: state of charge and battery power of the system, + charging, on the DC side; ESS limits and minimum SoC as starting values; enter the capacity yourself) — not tested. Any other battery can be linked manually through its entities.
 - **Meters**: see the table above.

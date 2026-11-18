@@ -6,7 +6,8 @@ battery profiles this only reads the entity registry; it never talks to the
 meter, so it cannot interfere with the integration that owns it. Choosing the
 sensors manually always remains possible.
 
-Only add profiles whose entity keys were verified against a real installation.
+Profiles not verified against a real installation keep ``verified = False``
+and are shown as "not tested".
 """
 
 from __future__ import annotations
@@ -49,6 +50,17 @@ PROFILES: tuple[MeterProfile, ...] = (
         address_key="ip_address",
         direct="homewizard",
         verified=True,
+    ),
+    # Victron GX (core integration "victron_gx", local MQTT): the system's
+    # grid power per phase, + import; all phases share one translation key,
+    # the phase is in the unique id. From the integration's library, NOT
+    # tested on a real installation.
+    MeterProfile(
+        platform="victron_gx",
+        label="Victron GX",
+        marker="system_grid_phases",
+        phase_power="system_grid_power_phase",
+        phase_pattern=r"_system_grid_power_l([123])$",
     ),
 )
 

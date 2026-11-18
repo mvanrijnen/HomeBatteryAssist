@@ -43,6 +43,7 @@ Generieke basissen in `direct/` (een merk voegt alleen zijn eigen specifieke zak
 | Zendure | `zendure/solarflow_direct_http.py` | SolarFlow 800, 800 Plus, 800 Pro, 1600 AC+, 2400 AC+, 2400 Pro | lokale HTTP |
 | Sessy | `sessy/sessy_direct_http.py` | Sessy thuisbatterij | lokale HTTP |
 | Indevolt | `indevolt/flex_direct_http.py` | SolidFlex/PowerFlex 1200, 2000, 3000, SolidFlex 3600, BK1600 | lokale HTTP |
+| Victron | `victron/gx_direct_modbus.py` | ESS (MultiPlus-II / Quattro) via de GX, unit 100 | Modbus TCP |
 | Hoymiles | `hoymiles/smiles_direct_mqtt.py` | MS-A2, HiBattery 1920 AC, 4020 X, 4020 AC | MQTT |
 
 Geen ervan is al op een apparaat geverifieerd. De apparaatfeiten (registers, endpoints, schalen, tekens, stuurvolgordes) komen uit de drivers van Omnibattery (GPL-3.0) en, waar beschikbaar, uit de eigen documentatie van de fabrikanten — alleen feiten; de code is van HomeBatteryAssist zelf. Elke driver geeft ook aan hoe hij moet worden aangestuurd (`refresh_s`, `min_interval_s`, `deadband_w`, `idle_is_release`, limieten), wat de stuurlaag afdwingt — zie [Architectuur](architecture.md#control-layer-built-not-active).
@@ -58,7 +59,7 @@ Eén bestand per merk, die samen `direct_reading.py` gebruiken (ongeveer één k
 | `shelly.py` | Shelly Pro 3EM / 3EM / EM / Pro EM, lokale API | uit de API-documentatie |
 | `iammeter.py` | Iammeter WEM3080 / WEM3080T, lokale API | uit de API-documentatie |
 
-Naast het vermogen per fase leest elke meterdriver ook de **stroom, spanning en arbeidsfactor per fase** als de meter die geeft (SMA Home Manager: stroom, spanning en arbeidsfactor, geverifieerd; HomeWizard P1: stroom en spanning; Shelly 3EM: stroom, spanning en arbeidsfactor; IAMMETER: stroom en spanning), voor de fasebeveiliging: de hoofdzekering ziet stroom, geen vermogen. `discovery.py` vindt deze meters in Home Assistant en maakt de juiste lezer aan; `__init__.py` somt ze op (`DRIVERS`). Meters kunnen ook worden uitgelezen via de sensoren van hun eigen integratie (`via_ha_integration.py`, HomeWizard P1 wordt herkend). `template.py` is een voorbeeld van een nieuwe meter. Dezelfde drivers dienen elke rol: de netaansluiting, een PV-bron (een kWh-meter op de lijn van de omvormer) en een batterij (een kWh-meter op de lijn van de batterij, zie hierboven). De rol is een instelling; de map volgt merk en type.
+Naast het vermogen per fase leest elke meterdriver ook de **stroom, spanning en arbeidsfactor per fase** als de meter die geeft (SMA Home Manager: stroom, spanning en arbeidsfactor, geverifieerd; HomeWizard P1: stroom en spanning; Shelly 3EM: stroom, spanning en arbeidsfactor; IAMMETER: stroom en spanning), voor de fasebeveiliging: de hoofdzekering ziet stroom, geen vermogen. `discovery.py` vindt deze meters in Home Assistant en maakt de juiste lezer aan; `__init__.py` somt ze op (`DRIVERS`). Meters kunnen ook worden uitgelezen via de sensoren van hun eigen integratie (`via_ha_integration.py`, HomeWizard P1 wordt herkend; Victron GX wordt herkend, niet getest). `template.py` is een voorbeeld van een nieuwe meter. Dezelfde drivers dienen elke rol: de netaansluiting, een PV-bron (een kWh-meter op de lijn van de omvormer) en een batterij (een kWh-meter op de lijn van de batterij, zie hierboven). De rol is een instelling; de map volgt merk en type.
 
 ## PV-omvormers — `engine/devices/inverters/` {#pv-inverters--enginedevicesinverters}
 
@@ -68,6 +69,7 @@ Hoe het vermogen van een omvormer begrensd zou kunnen worden voor de [begrenzing
 - `sma_modbus.py` — oudere SMA-types (Sunny Boy TL-21, Sunny Tripower TL-10/-20/-30) **zonder** Home Manager: register **40023** = grens in % × 100 van WMax (unit 3). Het terugvallen stel je in de webinterface van de omvormer in (*Use fallback setting*); anders houdt hij de laatste grens vast.
 - `sma_storage_x.py` — SMA Sunny Tripower Storage X / Sunny Island X zonder Home Manager: 40210 = 1077 (handmatig in W), 40212 = grens in W, terugvallen 41193 = 2507 met time-out 41195 (unit 3).
 - `sunspec_modbus.py` — **elke omvormer met SunSpec Modbus** (SMA, Fronius, SolarEdge, Kostal, Huawei, ABB / FIMER, ...): de merkonafhankelijke registerindeling. Die begint op 40000 (`SunS`), gevolgd door een keten van modellen waarvan de adressen per apparaat verschillen; de driver loopt die keten dus af. De begrenzing gaat via model **123** (*Immediate Controls*): `WMaxLimPct` (offset 3, % van `WMax` uit model 121, geschaald met `WMaxLimPct_SF`), `WMaxLimPct_RvrtTms` (offset 5: na 60 s zonder nieuwe opdracht gaat de omvormer zelf terug naar vol vermogen) en `WMaxLim_Ena` (offset 7, 1 = aan). Adres `host[:poort][/unit]`; het unit-id verschilt per merk (SMA 126, Fronius en SolarEdge 1). Nieuwere apparaten met model 704 (SunSpec 2018 / IEEE 1547) worden nog niet ondersteund. Uit de SunSpec-specificatie. Met een Sunny Home Manager geldt de SHM-driver, niet deze.
+- `victron_gx_feed_in.py` — een **Victron ESS**: de GX begrenst zelf de teruglevering van het hele systeem (register 2706 op unit 100, in eenheden van 100 W, -1 = geen grens; in Home Assistant het getal *max feed-in power* van de Victron GX-integratie), dus dit begrenst de **teruglevering**. Niet getest.
 
 Alles uit de documentatie van de fabrikanten en ervaringen van gebruikers, *niet geverifieerd op een apparaat*.
 
@@ -90,5 +92,5 @@ Alles uit de documentatie van de fabrikanten en ervaringen van gebruikers, *niet
 
 ## Nu ondersteund {#supported-now}
 
-- **Batterijen**: Marstek Venus E v3 (model); uitgelezen via Omnibattery of Marstek Modbus (geverifieerd). Elke andere batterij kun je handmatig koppelen via de entiteiten ervan.
+- **Batterijen**: Marstek Venus E v3 (model); uitgelezen via Omnibattery of Marstek Modbus (geverifieerd). Een **Victron ESS** (MultiPlus-II / Quattro met een GX) wordt herkend via de integratie *Victron GX* van Home Assistant (`integrations/victron_gx_integration.py`: vulling en batterijvermogen van het systeem, + laden, aan de DC-kant; ESS-grenzen en minimale vulling als startwaarden; de capaciteit vul je zelf in) — niet getest. Elke andere batterij kun je handmatig koppelen via de entiteiten ervan.
 - **Meters**: zie de tabel hierboven.

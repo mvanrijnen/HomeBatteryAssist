@@ -49,6 +49,8 @@ from .marstek.venus_e_v2 import MarstekVenusEV2
 from .marstek.venus_e_v3 import MarstekVenusEV3
 from .sessy.sessy import Sessy
 from .sessy.sessy_direct_http import SessyHttpDriver
+from .victron.ess import VictronEss
+from .victron.gx_direct_modbus import VictronGxModbusDriver
 from .zendure.solarflow_800 import ZendureSolarFlow800
 from .zendure.solarflow_800_plus import ZendureSolarFlow800Plus
 from .zendure.solarflow_800_pro import ZendureSolarFlow800Pro
@@ -84,6 +86,7 @@ MODELS: tuple[BatteryModel, ...] = (
     HoymilesHiBattery1920Ac(),
     HoymilesHiBattery4020X(),
     HoymilesHiBattery4020Ac(),
+    VictronEss(),
 )
 
 # Direct drivers (own connection to the battery): PREPARED, NOT USED. Listed
@@ -99,6 +102,7 @@ DIRECT_DRIVERS: tuple[type[DirectBatteryDriver], ...] = (
     ZendureHttpDriver,
     SessyHttpDriver,
     IndevoltHttpDriver,
+    VictronGxModbusDriver,
 )
 
 __all__ = [

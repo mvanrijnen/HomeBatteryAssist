@@ -7,12 +7,14 @@ from .sma_home_manager import SmaHomeManagerInverterDriver
 from .sma_modbus import SmaModbusInverterDriver
 from .sma_storage_x import SmaStorageXInverterDriver
 from .sunspec_modbus import SunSpecModbusInverterDriver
+from .victron_gx_feed_in import VictronGxFeedInDriver
 
 DRIVERS: tuple[InverterDriver, ...] = (
     SmaHomeManagerInverterDriver(),
     SmaModbusInverterDriver(),
     SmaStorageXInverterDriver(),
     SunSpecModbusInverterDriver(),
+    VictronGxFeedInDriver(),
 )
 
 

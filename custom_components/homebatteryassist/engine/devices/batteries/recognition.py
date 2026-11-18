@@ -6,7 +6,8 @@ linked with all values filled in; a recognised battery type (``marstek/...``)
 fills in what the integration does not tell. This only reads the entity registry and states; it never talks to the
 battery itself, so it cannot interfere with the integration that owns it.
 
-Only add profiles whose entity keys were verified against a real installation.
+Profiles not verified against a real installation keep ``verified = False``
+and are shown as "not tested".
 """
 
 from __future__ import annotations
@@ -135,6 +136,8 @@ def _suggest(
         (CONF_EFFICIENCY, profile.efficiency),
     ):
         if ref and (value := parse_float(_value(hass, keyed.get(ref)))) is not None:
+            if value <= 0 and field != CONF_MIN_SOC:
+                continue  # e.g. -1 = "no limit" (Victron ESS): not a start value
             data[field] = round(value, 2) if field == CONF_CAPACITY else round(value)
     # What the integration does not tell, the recognised battery type may know.
     if battery_model is not None:

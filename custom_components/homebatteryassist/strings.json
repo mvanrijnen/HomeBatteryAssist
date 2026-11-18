@@ -529,7 +529,8 @@
         "sma_modbus": "SMA older types via Modbus (SB TL-21, STP TL-10/20/30), without a Home Manager (not tested)",
         "sma_home_manager": "SMA via Sunny Home Manager 2.0 (export limit, Modbus unit 2) (not tested)",
         "sunspec_modbus": "SunSpec via Modbus (SMA SB 1AV-40/41, STP 3AV-40, CORE1; Fronius, SolarEdge, ...) (not tested)",
-        "sma_storage_x": "SMA Sunny Tripower Storage X / Sunny Island X via Modbus, without a Home Manager (not tested)"
+        "sma_storage_x": "SMA Sunny Tripower Storage X / Sunny Island X via Modbus, without a Home Manager (not tested)",
+        "victron_gx_feed_in": "Victron GX: maximum system feed-in (ESS, Modbus unit 100) (not tested)"
       }
     },
     "net_metering": {
