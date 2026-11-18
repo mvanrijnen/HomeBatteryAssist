@@ -381,3 +381,33 @@ def test_arbitrage_covers_the_house_load_exactly() -> None:
     dear = plan.slots[:4]
     assert [s.power_w for s in dear] == pytest.approx([-640.0] * 4, abs=1)
     assert all(abs(s.grid_w) < 1 for s in dear)
+
+
+def test_slot_price_is_the_average_of_its_quarters() -> None:
+    """An hour slot with four quarter-hour prices gets their average, not
+    the price of the first quarter."""
+    from datetime import UTC, datetime, timedelta
+
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        _price_over,
+    )
+    from custom_components.homebatteryassist.engine.sources.prices.price_points import (
+        PricePoint,
+    )
+
+    start = datetime(2026, 11, 18, 7, tzinfo=UTC)
+    quarters = [
+        PricePoint(
+            start + timedelta(minutes=15 * i),
+            start + timedelta(minutes=15 * (i + 1)),
+            p,
+        )
+        for i, p in enumerate((0.20, 0.30, 0.35, 0.35))
+    ]
+    hour = _price_over(quarters, start, start + timedelta(hours=1))
+    assert hour is not None and abs(hour - 0.30) < 1e-9
+    assert _price_over(quarters, start, start + timedelta(minutes=15)) == 0.20
+    assert (
+        _price_over(quarters, start + timedelta(hours=2), start + timedelta(hours=3))
+        is None
+    )

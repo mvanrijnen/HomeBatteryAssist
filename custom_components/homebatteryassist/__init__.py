@@ -523,12 +523,12 @@ async def async_setup_entry(
 
     @callback
     def _check_export(when: datetime, _power: float | None) -> None:
-        flow = measurements.flow
         export_limiter.update(
             when,
             batteries.grid_planned_w(),
             batteries.export_price_now(),
-            flow.pv_w if flow is not None else None,
+            measured_grid_w=batteries.grid_now(),
+            pv_sources=measurements.pv_per_source(),
         )
 
     entry.async_on_unload(measurements.async_add_listener(_check_export))

@@ -32,7 +32,7 @@ Kies de grootte van je netaansluiting (hoofdzekering per fase). Je vindt deze op
 
 ### Metingen per fase {#setup-sensors}
 
-Kies per fase de sensor die het vermogen (W) of de stroom (A) op die fase meet, meestal afkomstig van je slimme meter (P1). Is deze sensor positief bij afname en negatief bij teruglevering, laat dan de terugleversensor leeg. Heeft je meter aparte sensoren voor afname en teruglevering, kies dan beide. Let op: stroomsensoren kunnen afname en teruglevering meestal niet onderscheiden.
+Kies per fase de sensor die het vermogen (W) op die fase meet, meestal afkomstig van je slimme meter (P1). Is deze sensor positief bij afname en negatief bij teruglevering, laat dan de terugleversensor leeg. Heeft je meter aparte sensoren voor afname en teruglevering, kies dan beide. Een stroomsensor (A) kan afname en teruglevering niet onderscheiden; die hoort in de optionele stroomvelden hieronder.
 
 | Veld | Uitleg |
 |---|---|

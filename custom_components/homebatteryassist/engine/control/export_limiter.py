@@ -70,8 +70,10 @@ class ExportLimiter:
         self.capacity = capacity or {}
         self.inverters = inverters
         self.inverter_max = inverter_max or [None] * len(inverters)
-        self.pv_w: float | None = None  # PV now (W)
-        self.grid_w: float | None = None  # grid now (W, + import)
+        # Measured now, for the production limits: PV per source (W, in
+        # the order of ``inverters``) and the grid (W, + import).
+        self.pv_sources: list[float | None] = [None] * len(inverters)
+        self.grid_w: float | None = None
         self._comma = decimal_comma
         self.limit = ExportLimit(connection, False, "none")
         self.price: float | None = None
@@ -102,11 +104,17 @@ class ExportLimiter:
         when: datetime,
         grid_w: float | None,
         price: float | None,
-        pv_w: float | None = None,
+        *,
+        measured_grid_w: float | None = None,
+        pv_sources: list[float | None] | None = None,
     ) -> None:
-        """A new measurement: the grid (W, + import), the export price and
-        the PV power now."""
-        self.grid_w, self.pv_w = grid_w, pv_w
+        """A new measurement: the grid as HomeBatteryAssist's batteries
+        make it (W, + import; for the limit and what it would curtail),
+        the export price, and for the production limits the measured grid
+        and the PV per source."""
+        self.grid_w = measured_grid_w
+        if pv_sources is not None:
+            self.pv_sources = list(pv_sources)
         hours = (
             min((when - self._last).total_seconds(), 60.0) / 3600 if self._last else 0
         )
@@ -276,14 +284,15 @@ class ExportLimiter:
         result: list[float | None] = [self.limit.limit_w] * len(self.inverters)
         if not power:
             return result
-        if self.pv_w is None or self.grid_w is None:
+        pv = [self.pv_sources[i] for i in power]
+        if self.grid_w is None or any(p is None for p in pv):
             for i in power:
                 result[i] = None
             return result
         shares = production_limits(
             self.limit.limit_w,
             self.grid_w,
-            self.pv_w,
+            sum(p for p in pv if p is not None),
             [self.inverter_max[i] for i in power],
         )
         for i, share in zip(power, shares, strict=True):

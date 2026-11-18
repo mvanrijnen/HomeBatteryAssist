@@ -227,7 +227,11 @@ class ForecastAccuracy:
         actuals = {
             r["start"]: r["avg_w"]
             for r in records
-            if r.get("source") != "import" and r["coverage"] >= MIN_COVERAGE
+            if r.get("source") != "import"
+            and r["coverage"] >= MIN_COVERAGE
+            # Vacation: the profile does not learn from it, so neither does
+            # the correction (else it pulls the forecast down after a trip).
+            and not r.get("vacation")
         }
         count = self._settle("consumption", actuals)
         for kind in self.kinds:
@@ -243,6 +247,7 @@ class ForecastAccuracy:
             r["start"]: r["heating_w"]
             for r in records
             if "heating_w" in r
+            and not r.get("vacation")
             and r.get("source") != "import"
             and r["coverage"] >= MIN_COVERAGE
         }

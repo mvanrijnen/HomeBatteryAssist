@@ -94,6 +94,9 @@ class BatteryModel:
     usable_pct: float | None = None  # usable part of the capacity per cycle
     rated_cycles: int | None = None
     warranty_years: int | None = None
+    # Phases it is connected to: 1 = one phase (a plug-in battery), so on a
+    # 3-phase connection its phase must be chosen; None = unknown.
+    phases: int | None = None
 
     @property
     def name(self) -> str:

@@ -14,7 +14,7 @@ The grid connection is its own device, *Grid connection* (model: the meter read 
 
     Meters already in Home Assistant are offered automatically; any of these can also be entered by IP address;
   - **via the sensors of its integration** (e.g. a HomeWizard P1 is recognised and filled in);
-  - **your own sensors** per phase: one signed sensor, or separate import and return sensors; power (W) or current (A).
+  - **your own sensors** per phase: one signed sensor, or separate import and return sensors, in power (W); a current sensor (A) has no sign, so it only goes in the optional current fields (phase protection).
 
 New meters are added as [drivers](drivers.md).
 

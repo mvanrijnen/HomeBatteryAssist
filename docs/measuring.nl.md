@@ -14,7 +14,7 @@ De netaansluiting is een eigen apparaat, *Netaansluiting* (model: de rechtstreek
 
     Meters die al in Home Assistant zitten worden automatisch aangeboden; elk van deze meters kun je ook op IP-adres invoeren;
   - **via de sensoren van zijn integratie** (bijv. een HomeWizard P1 wordt herkend en ingevuld);
-  - **je eigen sensoren** per fase: één sensor met plus/min-teken, of aparte sensoren voor afname en teruglevering; vermogen (W) of stroom (A).
+  - **je eigen sensoren** per fase: één sensor met plus/min-teken, of aparte sensoren voor afname en teruglevering, in vermogen (W); een stroomsensor (A) heeft geen teken en hoort daarom alleen in de optionele stroomvelden (fasebeveiliging).
 
 Nieuwe meters worden toegevoegd als [drivers](drivers.md).
 

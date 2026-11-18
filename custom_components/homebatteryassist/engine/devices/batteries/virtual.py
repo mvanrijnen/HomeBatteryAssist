@@ -64,6 +64,7 @@ from ...measure.house_measurement import (
     MeasurementInput,
     nom_balance,
     plan_balance,
+    planned_discharge,
     solar_surplus_w,
 )
 from ...planning.battery_distribution import Candidate, Distributor
@@ -734,6 +735,10 @@ class VirtualBatterySimulator:
                     data.pv_now_w - forecast_slot.power_w,
                     self._forecast.pv_deviation_w,
                 )
+            # A planned discharge only as far as it is needed now: never
+            # battery energy into the grid that the plan did not choose.
+            if flow is not None and slot is not None:
+                total = planned_discharge(total, flow, slot.grid_w)
         else:
             # NOM: the real surplus (+) / shortage (-) on the grid right now,
             # around the target grid power; a shortage never for excluded

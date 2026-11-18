@@ -338,6 +338,12 @@ PHASE_SENSOR_SELECTOR = EntitySelector(
 CURRENT_SENSOR_SELECTOR = EntitySelector(
     EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.CURRENT)
 )
+# The grid per phase: power only. A current sensor has no sign (import and
+# export look the same), so export would count as import; current goes in
+# the optional current fields (phase protection).
+GRID_POWER_SELECTOR = EntitySelector(
+    EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.POWER)
+)
 VOLTAGE_SENSOR_SELECTOR = EntitySelector(
     EntitySelectorConfig(domain="sensor", device_class=SensorDeviceClass.VOLTAGE)
 )
@@ -350,8 +356,8 @@ def sensors_schema(phases: int) -> vol.Schema:
     for key, return_key in zip(
         phase_sensor_keys(phases), phase_return_sensor_keys(phases), strict=True
     ):
-        schema[vol.Required(key)] = PHASE_SENSOR_SELECTOR
-        schema[vol.Optional(return_key)] = PHASE_SENSOR_SELECTOR
+        schema[vol.Required(key)] = GRID_POWER_SELECTOR
+        schema[vol.Optional(return_key)] = GRID_POWER_SELECTOR
     for key in CONF_PHASE_CURRENT_SENSORS[:phases]:
         schema[vol.Optional(key)] = CURRENT_SENSOR_SELECTOR
     for key in CONF_PHASE_VOLTAGE_SENSORS[:phases]:
@@ -1801,8 +1807,10 @@ def used_sensors(entry: ConfigEntry) -> set[str]:
     return used
 
 
-def battery_schema(three_phase: bool) -> vol.Schema:
-    """Reading and properties of a battery."""
+def battery_schema(three_phase: bool, single_phase: bool = False) -> vol.Schema:
+    """Reading and properties of a battery. ``single_phase``: a battery
+    on one phase (a plug-in battery): on a 3-phase connection its phase
+    must be chosen (spreading it over all phases under-counts the phase)."""
     schema: dict[Any, Any] = {
         vol.Required(CONF_NAME): TextSelector(),
         vol.Required(CONF_SOC_SENSOR): EntitySelector(
@@ -1853,7 +1861,15 @@ def battery_schema(three_phase: bool) -> vol.Schema:
         ),
         vol.Optional(CONF_BATTERY_METER_ADDRESS): TextSelector(),
     }
-    if three_phase:
+    if three_phase and single_phase:
+        schema[vol.Required(CONF_PHASE)] = SelectSelector(
+            SelectSelectorConfig(
+                options=list(PHASE_IDS),
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_PHASE,
+            )
+        )
+    elif three_phase:
         schema[vol.Required(CONF_PHASE, default=PHASE_NONE)] = phase_selector()
     return vol.Schema(schema)
 
@@ -1865,6 +1881,7 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         """Initialize."""
         self._candidates: dict[str, BatteryCandidate] = {}
         self._suggested_data: dict[str, Any] | None = None
+        self._single_phase = False  # the recognised type is on one phase
 
     def _current(self) -> ConfigSubentry | None:
         return (
@@ -1878,6 +1895,17 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         if user_input is not None:
             candidate = self._candidates.get(user_input[CONF_SOURCE])
             self._suggested_data = dict(candidate.data) if candidate else None
+            self._single_phase = bool(
+                candidate
+                and candidate.battery_model
+                and candidate.battery_model.phases == 1
+            )
+            if (
+                self._single_phase
+                and self._suggested_data
+                and self._suggested_data.get(CONF_PHASE) not in PHASE_IDS
+            ):
+                self._suggested_data.pop(CONF_PHASE, None)
             return await self.async_step_battery()
 
         found = find_battery_candidates(self.hass, used_sensors(self._get_entry()))
@@ -1950,7 +1978,8 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         return self.async_show_form(
             step_id=step_id,
             data_schema=self.add_suggested_values_to_schema(
-                battery_schema(entry.data[CONF_PHASES] == 3), suggested
+                battery_schema(entry.data[CONF_PHASES] == 3, self._single_phase),
+                suggested,
             ),
             errors=errors,
         )

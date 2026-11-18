@@ -77,7 +77,9 @@ def test_limiter_explains_what_it_would_curtail() -> None:
     )
     when = NOW
     for _ in range(60):  # a value a minute; with the last one: 1 hour
-        limiter.update(when, -2000.0, -0.10, 3000.0)
+        limiter.update(
+            when, -2000.0, -0.10, measured_grid_w=-2000.0, pv_sources=[3000.0]
+        )
         when += timedelta(minutes=1)
     assert limiter.limit.limit_w == 0.0
     assert limiter.curtailed_w == 2000.0
@@ -312,8 +314,31 @@ def test_inverters_limit_production_not_export() -> None:
             ("Roof", get_driver("sunspec_modbus"), "192.168.1.20"),
         ],
     )
-    limiter.update(NOW, -2000.0, -0.10, 3000.0)
+    limiter.update(
+        NOW, -2000.0, -0.10, measured_grid_w=-2000.0, pv_sources=[0.0, 3000.0]
+    )
     assert limiter.targets() == [0.0, 1000.0]
     assert limiter.production_limit_w == 1000.0
-    limiter.update(NOW, -2000.0, -0.10)  # PV unknown
+    limiter.update(
+        NOW, -2000.0, -0.10, measured_grid_w=-2000.0, pv_sources=[0.0, None]
+    )  # PV unknown
     assert limiter.targets() == [0.0, None]
+    # Other PV that is not limited: the limited inverter gives less.
+    # Uncontrolled 2 kW + SunSpec 3 kW, house 500 W, export 4.5 kW.
+    other = ExportLimiter(
+        _Log(),  # type: ignore[arg-type]
+        enabled=True,
+        threshold=0.0,
+        fixed_w=0.0,
+        connection=CONNECTION,
+        inverters=[
+            ("Old", None, ""),
+            ("Roof", get_driver("sunspec_modbus"), "192.168.1.20"),
+        ],
+    )
+    # The twin's grid (planned) differs from the measured one: the
+    # production limit follows the measured grid.
+    other.update(
+        NOW, -2000.0, -0.10, measured_grid_w=-4500.0, pv_sources=[2000.0, 3000.0]
+    )
+    assert other.targets()[1] == 0.0

@@ -9,3 +9,4 @@ class MarstekVenus(Marstek):
     """The Venus range."""
 
     range = "Venus"
+    phases = 1  # plug-in, on one phase

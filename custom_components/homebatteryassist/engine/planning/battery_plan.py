@@ -20,6 +20,7 @@ The plan is designed so it can later be turned into battery commands 1:1.
 from __future__ import annotations
 
 import math
+from bisect import bisect_right
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import date, datetime
@@ -241,11 +242,24 @@ def night_starts(
     return result
 
 
-def _price_at(prices: Sequence[PricePoint], when: datetime) -> float | None:
-    for point in prices:
-        if point.start <= when < point.end:
-            return point.price
-    return None
+def _price_over(
+    prices: Sequence[PricePoint], start: datetime, end: datetime
+) -> float | None:
+    """The price over a slot: the time-weighted average of the prices in it
+    (e.g. four quarter-hour prices in an hour slot), over the part that has
+    a price; None when no price covers the slot."""
+    total = 0.0
+    seconds = 0.0
+    # Prices are in time order: start a little before the slot.
+    first = max(bisect_right(prices, start, key=lambda p: p.start) - 1, 0)
+    for point in prices[first:]:
+        if point.start >= end:
+            break
+        overlap = (min(point.end, end) - max(point.start, start)).total_seconds()
+        if overlap > 0:
+            total += point.price * overlap
+            seconds += overlap
+    return total / seconds if seconds > 0 else None
 
 
 def plan_batteries(
@@ -273,6 +287,8 @@ def plan_batteries(
     ``export_prices``: what exported energy earns per period; where it is not
     known, the import price x ``export_factor``.
     """
+    prices = sorted(prices, key=lambda p: p.start)
+    export_prices = sorted(export_prices, key=lambda p: p.start)
     data = planner_input(
         states,
         consumption,
@@ -324,8 +340,8 @@ def planner_input(
         max_c, max_d = (limits or {}).get(
             slot.start, (pack.max_charge, pack.max_discharge)
         )
-        price = _price_at(prices, slot.start)
-        export = _price_at(export_prices, slot.start)
+        price = _price_over(prices, slot.start, slot.end)
+        export = _price_over(export_prices, slot.start, slot.end)
         if export is None and price is not None:
             export = price * export_factor
         slots.append(

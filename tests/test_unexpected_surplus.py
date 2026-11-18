@@ -12,6 +12,7 @@ from custom_components.homebatteryassist.engine.explain.messages import render
 from custom_components.homebatteryassist.engine.explain.notifications import kind_of
 from custom_components.homebatteryassist.engine.measure.house_measurement import (
     plan_balance,
+    planned_discharge,
 )
 
 T0 = datetime(2026, 11, 17, 11, 0, tzinfo=dt_util.UTC)
@@ -118,3 +119,23 @@ def test_shortage_reported_with_own_wait() -> None:
     # The surplus check stays quiet on a shortage, and the other way round.
     assert _run(UnexpectedSurplus(), cloudy) == []
     assert _run(UnexpectedSurplus(shortage=True), [(1500.0, 0.0)] * 60) == []
+
+
+def test_planned_discharge_only_as_needed() -> None:
+    """The plan discharges 1500 W for a forecast 1500 W house; the house uses
+    400 W now: only 400 W, no battery energy into the grid. An export the
+    plan chose (grid -1000 W) is kept."""
+    from types import SimpleNamespace
+
+    flow = SimpleNamespace(grid_w=400.0, excluded_w=0.0)
+    assert planned_discharge(-1500.0, flow, 0.0) == -400.0  # type: ignore[arg-type]
+    assert planned_discharge(-1500.0, flow, 200.0) == -400.0  # type: ignore[arg-type]
+    assert planned_discharge(-1500.0, flow, -1000.0) == -1400.0  # type: ignore[arg-type]
+    assert planned_discharge(-300.0, flow, 0.0) == -300.0  # type: ignore[arg-type]
+    assert planned_discharge(800.0, flow, 0.0) == 800.0  # type: ignore[arg-type]
+    # Exporting already (sun): no discharge at all.
+    sunny = SimpleNamespace(grid_w=-500.0, excluded_w=0.0)
+    assert planned_discharge(-1500.0, sunny, 0.0) == 0.0  # type: ignore[arg-type]
+    # Not for an EV charger (excluded): the grid supplies it.
+    ev = SimpleNamespace(grid_w=7400.0, excluded_w=7000.0)
+    assert planned_discharge(-1500.0, ev, 0.0) == -400.0  # type: ignore[arg-type]

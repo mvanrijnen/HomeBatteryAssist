@@ -207,6 +207,18 @@ class MeasurementInput:
             if (driver := get_meter_driver(driver_key)) is not None:
                 self.pv_meters.append((driver.create(hass, address), phase))
         self.pv_sensors = [sensor for sensor, _, _ in self.pv_sources]
+        # Per PV source (subentry order): its sensor, or the index of its
+        # directly read meter.
+        self._pv_order: list[tuple[str, int]] = []
+        meter = 0
+        for device, driver, address in _subentry_devices_all(entry, SUBENTRY_PV_SOURCE):
+            if driver == PV_DRIVER_SENSOR:
+                self._pv_order.append((device[0], -1))
+            elif address:
+                self._pv_order.append(("", meter))
+                meter += 1
+            else:
+                self._pv_order.append(("", -1))
         # (measured sensor, possible sensor) of PV sources with a sensor for
         # what they could produce now.
         self.pv_possible = [
@@ -487,6 +499,28 @@ class MeasurementInput:
     def _watts(self, entity_id: str) -> float | None:
         return state_to_watts(self.hass.states.get(entity_id))
 
+    def pv_per_source(self) -> list[float | None]:
+        """The PV power now (W) of each PV source, in subentry order (None:
+        unknown)."""
+        result: list[float | None] = []
+        for sensor, meter in self._pv_order:
+            if meter >= 0:
+                if meter < len(self.pv_meters):
+                    reader = self.pv_meters[meter][0]
+                    result.append(
+                        abs(sum(reader.phase_w))
+                        if reader.available and reader.phase_w
+                        else None
+                    )
+                else:
+                    result.append(None)
+            elif sensor:
+                value = self._watts(sensor)
+                result.append(None if value is None else abs(value))
+            else:
+                result.append(None)
+        return result
+
     @property
     def has_pv(self) -> bool:
         """PV is measured (sensors or meters read directly)."""
@@ -618,6 +652,24 @@ def nom_balance(flow: PowerFlow, target_w: float, ignore_w: float = 0.0) -> floa
     if need <= 0:
         return -need
     return -max(need - flow.excluded_w - max(ignore_w, 0.0), 0.0)
+
+
+def planned_discharge(
+    planned_w: float, flow: PowerFlow, planned_grid_w: float
+) -> float:
+    """A planned discharge (W, < 0) as far as it is needed now.
+
+    The plan sized the discharge to the *forecast* need. When the house uses
+    less now (or the sun shines), discharging the planned power would push
+    battery energy into the grid. So a discharge goes no further than the
+    grid the plan expected for this slot (``planned_grid_w``: 0 or more = no
+    export; less = an export the plan chose), never for excluded devices
+    (``nom_balance``). A charge (>= 0) is returned as it is.
+    """
+    if planned_w >= 0:
+        return planned_w
+    need = nom_balance(flow, min(planned_grid_w, 0.0))
+    return max(planned_w, min(need, 0.0))
 
 
 # Solar power clearly more or less than forecast: a difference of at least

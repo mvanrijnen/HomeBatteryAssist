@@ -144,12 +144,15 @@ def production_limits(
     """What each inverter that limits its own output may produce so the
     export stays within ``limit_w``.
 
-    An inverter limits its production, not the export: it may give what the
-    house and the batteries use now plus the export allowed,
-    ``pv + grid + limit`` (grid + import / - export), so at 0 W export the
-    house is still fed. That total is split over the inverters by their
-    maximum (breaker) when all are known, else equally, and capped at each
-    one's maximum. An export limit (a Home Manager) gets ``limit_w`` itself.
+    An inverter limits its production, not the export: together they may
+    give what the house and the batteries use now plus the export allowed,
+    minus what other (not limited) PV gives. With ``pv_w`` = the PV of these
+    inverters only and ``grid_w`` = the **measured** grid (+ import /
+    - export, the real batteries as they are): ``pv + grid + limit``, so at
+    0 W export the house is still fed. That total is split over the
+    inverters by their maximum (breaker) when all are known, else equally,
+    and capped at each one's maximum. An export limit (a Home Manager) gets
+    ``limit_w`` itself.
     """
     if not maxima:
         return []

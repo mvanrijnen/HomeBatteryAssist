@@ -807,16 +807,18 @@ class BatteryInput:
         """Grid power (W) with all batteries, the virtual ones included, while
         ``battery_id`` ran at ``last_power``.
 
-        A twin and its real battery are alternatives: a real battery with a
-        twin counts the grid as measured (no virtual batteries); a virtual
-        battery counts it without the real batteries that have a twin.
+        A real battery counts the grid as measured: what it really did is
+        never valued against a simulation (the virtual batteries are a
+        what-if). A virtual battery counts it with the other virtual ones and
+        without the real batteries that have a twin (the twin acts in their
+        place).
         """
         grid = self.grid_now()
         if grid is None:
             return None
-        twinned = twinned_ids(self.configs)
-        if battery_id in twinned:
+        if not next(c for c in self.configs if c.id == battery_id).virtual:
             return grid
+        twinned = twinned_ids(self.configs)
         for config in self.configs:
             if not config.virtual:
                 if config.id in twinned:

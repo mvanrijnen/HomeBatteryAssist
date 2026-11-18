@@ -6,6 +6,7 @@ HomeBatteryAssist plans what the batteries could best do over the [planning wind
 
 Every plan mode is a [planner module](modules.md); all are calculated every cycle, with the expected saving compared with no battery:
 
+- **Less consumption than forecast**: a planned discharge goes no further than the house needs now, so battery energy never goes into the grid unless the plan chose that export.
 - **More or less sun than forecast**: in every mode the batteries follow the solar surplus that is really there — an unexpected surplus is stored on top of the plan, missing sun is not taken from the grid. See [When the sun differs from the forecast](#when-the-sun-differs-from-the-forecast).
 - **Zero on the meter (NOM)**: charge with surplus solar power, supply the house on shortage — not excluded devices (e.g. an EV charger) and, when switched on, not random [short peaks](measuring.md#short-peaks).
 - **Arbitrage** (own use): charge when power is cheap, supply the house when it is expensive.

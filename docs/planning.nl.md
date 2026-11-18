@@ -6,6 +6,7 @@ HomeBatteryAssist plant wat de batterijen het beste kunnen doen binnen het [plan
 
 Elke planmodus is een [planner (planningsmodule)](modules.md); ze worden allemaal elke ronde berekend, met de verwachte besparing vergeleken met geen batterij:
 
+- **Minder verbruik dan voorspeld**: gepland ontladen gaat niet verder dan het huis nu nodig heeft, dus batterijstroom gaat nooit het net op tenzij het plan die teruglevering koos.
 - **Meer of minder zon dan verwacht**: in elke modus volgen de batterijen het zonne-overschot dat er echt is — een onverwacht overschot wordt bovenop het plan opgeslagen, ontbrekende zon wordt niet uit het net gehaald. Zie [Als de zon afwijkt van de voorspelling](#when-the-sun-differs-from-the-forecast).
 - **Nul op de meter (NOM)**: laden met overtollige zonnestroom, het huis voeden bij een tekort — niet de uitgesloten apparaten (bijv. een laadpaal) en, als dat aanstaat, niet willekeurige [korte pieken](measuring.md#short-peaks).
 - **Arbitrage** (eigen gebruik): laden als stroom goedkoop is, het huis voeden als stroom duur is.

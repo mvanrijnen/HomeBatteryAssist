@@ -32,7 +32,7 @@ Select the size of your grid connection (main fuse rating per phase). You can fi
 
 ### Phase measurements {#setup-sensors}
 
-Select for each phase the sensor that measures the power (W) or current (A) on that phase, typically from your smart meter (P1). If this sensor is positive for import and negative for export, leave the return sensor empty. If your meter has separate sensors for import and export (return), select both. Note: current sensors usually cannot tell import from export.
+Select for each phase the sensor that measures the power (W) on that phase, typically from your smart meter (P1). If this sensor is positive for import and negative for export, leave the return sensor empty. If your meter has separate sensors for import and export (return), select both. A current sensor (A) cannot tell import from export, so it goes in the optional current fields below.
 
 | Field | Explanation |
 |---|---|

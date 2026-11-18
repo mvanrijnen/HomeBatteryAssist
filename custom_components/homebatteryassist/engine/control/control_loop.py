@@ -25,7 +25,8 @@ the dashboard simulates is what would be sent:
    charge at its max power up to 100 %.
 2. **Target total**: the selected plan's power for the current slot
    (arbitrage, time slots, manual, own planners), with the real solar
-   surplus instead of the forecast one (``plan_balance``, threshold
+   surplus instead of the forecast one (``plan_balance``; a planned
+   discharge only as far as needed now, ``planned_discharge``, threshold
    ``ForecastCoordinator.pv_deviation_w``): an unexpected surplus stored on
    top, a planned charge from the sun that is not there not taken from the
    grid; or, for zero on the meter,
