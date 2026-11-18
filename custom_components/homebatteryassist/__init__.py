@@ -30,6 +30,7 @@ from .const import (
     CONF_EXPORT_LIMIT_COST,
     CONF_EXPORT_LIMIT_MAX_W,
     CONF_EXPORT_LIMIT_PRICE,
+    CONF_EXPORT_NEVER,
     CONF_HISTORY_INTERVAL,
     CONF_INTERCEPTOR,
     CONF_INVERTER_ADDRESS,
@@ -47,6 +48,7 @@ from .const import (
     DEFAULT_EXPORT_LIMIT_COST,
     DEFAULT_EXPORT_LIMIT_MAX_W,
     DEFAULT_EXPORT_LIMIT_PRICE,
+    DEFAULT_EXPORT_NEVER,
     DEFAULT_HISTORY_INTERVAL,
     DEFAULT_PV_DEVIATION_MINUTES,
     DEFAULT_SPIKE_DURATION,
@@ -479,6 +481,7 @@ async def async_setup_entry(
         ),
         fixed_w=float(options.get(CONF_EXPORT_LIMIT_MAX_W, DEFAULT_EXPORT_LIMIT_MAX_W)),
         cost=float(options.get(CONF_EXPORT_LIMIT_COST, DEFAULT_EXPORT_LIMIT_COST)),
+        never=bool(options.get(CONF_EXPORT_NEVER, DEFAULT_EXPORT_NEVER)),
         connection=connection_w(measurements.phases, measurements.max_current),
         inverters=[
             (

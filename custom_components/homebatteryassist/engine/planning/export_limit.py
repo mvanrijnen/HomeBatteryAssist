@@ -4,6 +4,7 @@
   costs of the contract (a fee or penalty per kWh) below the export limit
   price (default 0: only when exporting earns money) -> nothing is exported: limit 0 W (the batteries still take what they can;
   the inverters would produce no more than the house and batteries use);
+- never export (setting): always 0 W;
 - else a fixed maximum when set (e.g. a grid operator's limit);
 - else no limit: the grid connection's maximum (phases x fuse x 230 V).
 
@@ -22,6 +23,7 @@ from ...const import NOMINAL_VOLTAGE
 REASON_NONE = "none"
 REASON_PRICE = "price"
 REASON_FIXED = "fixed"
+REASON_NEVER = "never"
 
 
 # A coming period is told in *Why* when it is clear: at least this long,
@@ -48,11 +50,12 @@ def expected_limits(
     threshold: float,
     cost: float = 0.0,
     export_factor: float = 1.0,
+    never: bool = False,
 ) -> list[ExpectedLimit]:
     """Coming periods (from now) in which the plan expects export while the
     net export price is below the limit price, merged over adjacent slots;
     only the clear ones (``EXPECT_MIN``, ``EXPECT_MIN_KWH``)."""
-    if not enabled:
+    if not enabled and not never:
         return []
     periods: list[ExpectedLimit] = []
     run: list[Any] = []
@@ -76,7 +79,8 @@ def expected_limits(
         if slot.end <= now:
             continue
         net = _net(slot, cost, export_factor)
-        if slot.grid_w < -1 and net is not None and net < threshold:
+        stopped = never or (net is not None and net < threshold)
+        if slot.grid_w < -1 and stopped:
             if run and run[-1].end != slot.start:
                 close()
             run.append(slot)
@@ -120,8 +124,11 @@ def export_limit(
     cost: float = 0.0,
     fixed_w: float,
     connection: float,
+    never: bool = False,
 ) -> ExportLimit:
     """The export limit now (see the module docstring)."""
+    if never:
+        return ExportLimit(0.0, True, REASON_NEVER)
     if enabled and price is not None and price - cost < threshold:
         return ExportLimit(0.0, True, REASON_PRICE)
     if fixed_w > 0 and fixed_w < connection:

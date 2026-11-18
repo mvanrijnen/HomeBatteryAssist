@@ -20,6 +20,7 @@ from homeassistant.util import dt as dt_util
 
 from ..explain import DecisionLog
 from ..planning.export_limit import (
+    REASON_NEVER,
     REASON_PRICE,
     ExpectedLimit,
     ExportLimit,
@@ -48,6 +49,7 @@ class ExportLimiter:
         threshold: float,
         fixed_w: float,
         cost: float = 0.0,
+        never: bool = False,
         connection: float,
         inverters: list[tuple[str, Any, str]],  # (name, driver, address)
         decimal_comma: bool = False,
@@ -57,6 +59,7 @@ class ExportLimiter:
         self.enabled = enabled
         self.threshold = threshold
         self.cost = cost
+        self.never = never
         self.fixed_w = fixed_w
         self.connection = connection
         self.inverters = inverters
@@ -103,6 +106,7 @@ class ExportLimiter:
             cost=self.cost,
             fixed_w=self.fixed_w,
             connection=self.connection,
+            never=self.never,
         )
         self.export_w = None if grid_w is None else max(-grid_w, 0.0)
         over = (self.export_w or 0.0) - self.limit.limit_w
@@ -158,6 +162,8 @@ class ExportLimiter:
 
     def _reason(self) -> str:
         dutch = self._comma
+        if self.limit.reason == REASON_NEVER:
+            return "nooit terugleveren (ingesteld)" if dutch else "never export (set)"
         if self.limit.reason == REASON_PRICE:
             price = self._num((self.price or 0.0) - self.cost, 3)
             threshold = self._num(self.threshold, 3)
@@ -180,6 +186,7 @@ class ExportLimiter:
             threshold=self.threshold,
             cost=self.cost,
             export_factor=export_factor,
+            never=self.never,
         )
         for period in self.expected:
             if period.start in self._told or period.start <= now:
@@ -209,6 +216,12 @@ class ExportLimiter:
         """Why export would be stopped: it costs money (limit price 0 or
         less), or it earns less than the limit price."""
         dutch = self._comma
+        if self.never:
+            return (
+                "wordt nooit teruggeleverd (ingesteld)"
+                if dutch
+                else "export is switched off (set)"
+            )
         if self.threshold <= 0:
             return "kost terugleveren geld" if dutch else "costs money"
         limit = self._num(self.threshold, 3)

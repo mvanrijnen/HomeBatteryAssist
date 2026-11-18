@@ -204,6 +204,7 @@ Hoeveel er nu maximaal teruggeleverd mag worden, als de sensor Max. terugleverin
 
 | Veld | Uitleg |
 |---|---|
+| **Nooit terugleveren** | Optioneel: terugleveren wordt altijd gestopt (Max. teruglevering 0 W), wat de prijs ook is; de batterijen slaan nog op wat ze kunnen, de omvormers zouden niet meer leveren dan huis en batterijen gebruiken. |
 | **Niet terugleveren als het te weinig oplevert** | Onder de grensprijs (terugleverprijs min terugleverkosten) is de grens 0 W: de batterijen slaan nog op wat ze kunnen, de omvormers zouden niet meer leveren dan huis en batterijen gebruiken. Uit: alleen een vaste maximum begrenst. |
 | **Terugleverkosten (vergoeding of boete)** | Per teruggeleverde kWh, bovenop de terugleverprijs: bijv. de terugleverkosten van een vast contract. Alleen terugleveren als de terugleverprijs min deze kosten boven de grensprijs ligt. Standaard 0. |
 | **Grensprijs (netto)** | Alleen terugleveren als de terugleverprijs (na het tarief, min de terugleverkosten) hierboven ligt, per kWh. Standaard 0: alleen als terugleveren geld oplevert; bij een negatieve prijs nooit. |

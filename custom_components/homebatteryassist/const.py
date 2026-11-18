@@ -83,6 +83,9 @@ CONF_EXPORT_LIMIT_MAX_W: Final = "export_limit_max_w"
 # Costs of exporting per kWh on top of the export price (a fee or penalty of
 # the contract): export only when price - costs is above the limit price.
 CONF_EXPORT_LIMIT_COST: Final = "export_limit_cost"
+# Never export (optional): the limit is always 0 W.
+CONF_EXPORT_NEVER: Final = "export_never"
+DEFAULT_EXPORT_NEVER: Final = False
 DEFAULT_EXPORT_LIMIT_COST: Final = 0.0
 DEFAULT_EXPORT_LIMIT: Final = True
 DEFAULT_EXPORT_LIMIT_PRICE: Final = 0.0

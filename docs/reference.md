@@ -204,6 +204,7 @@ The most that may be exported now, as the sensor Max export on the grid connecti
 
 | Field | Explanation |
 |---|---|
+| **Never export** | Optional: export is always stopped (Max export 0 W), whatever the price; the batteries still store what they can, the inverters would produce no more than the house and batteries use. |
 | **No export when it earns too little** | Below the limit price (the export price minus the export costs), the limit is 0 W: the batteries still store what they can, the inverters would produce no more than the house and batteries use. Off: only a fixed maximum limits. |
 | **Export costs (fee or penalty)** | Per kWh exported, on top of the export price: e.g. the export fee of a fixed contract. Export only when the export price minus these costs is above the limit price. Default 0. |
 | **Limit price (net)** | Export only when the export price (after the tariff, minus the export costs) is above this, per kWh. Default 0: only when exporting earns money; at a negative price never. |

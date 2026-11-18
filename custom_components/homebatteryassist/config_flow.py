@@ -87,6 +87,7 @@ from .const import (
     CONF_EXPORT_LIMIT_MAX_W,
     CONF_EXPORT_LIMIT_PRICE,
     CONF_EXPORT_MODE,
+    CONF_EXPORT_NEVER,
     CONF_FORECAST_INTERVAL,
     CONF_FULL_CHARGE_DAY,
     CONF_FULL_CHARGE_INTERVAL,
@@ -182,6 +183,7 @@ from .const import (
     DEFAULT_EXPORT_LIMIT_MAX_W,
     DEFAULT_EXPORT_LIMIT_PRICE,
     DEFAULT_EXPORT_MODE,
+    DEFAULT_EXPORT_NEVER,
     DEFAULT_FORECAST_INTERVAL,
     DEFAULT_FULL_CHARGE_INTERVAL,
     DEFAULT_FULL_CHARGE_WINDOW,
@@ -471,6 +473,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
     "reaction": ("react_interval_s", "react_average", "react_jump", "react_jump_w"),
     "command_check": ("command_check_w", "command_check_minutes"),
     "export_limit": (
+        "export_never",
         "export_limit_on",
         "export_limit_cost",
         "export_limit_price",
@@ -937,6 +940,10 @@ async def _flat_settings_schema(
             ),
         ): _number(1, 30, 1, "min"),
         vol.Required(
+            CONF_EXPORT_NEVER,
+            default=current.get(CONF_EXPORT_NEVER, DEFAULT_EXPORT_NEVER),
+        ): BooleanSelector(),
+        vol.Required(
             CONF_EXPORT_LIMIT,
             default=current.get(CONF_EXPORT_LIMIT, DEFAULT_EXPORT_LIMIT),
         ): BooleanSelector(),
@@ -1170,6 +1177,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     )
     options[CONF_EXPORT_LIMIT_PRICE] = float(
         user_input.get(CONF_EXPORT_LIMIT_PRICE, DEFAULT_EXPORT_LIMIT_PRICE)
+    )
+    options[CONF_EXPORT_NEVER] = bool(
+        user_input.get(CONF_EXPORT_NEVER, DEFAULT_EXPORT_NEVER)
     )
     options[CONF_EXPORT_LIMIT_COST] = float(
         user_input.get(CONF_EXPORT_LIMIT_COST, DEFAULT_EXPORT_LIMIT_COST)

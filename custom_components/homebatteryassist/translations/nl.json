@@ -277,12 +277,14 @@
             "name": "Begrenzing teruglevering (PV-omvormers)",
             "description": "Hoeveel er nu maximaal teruggeleverd mag worden, als de sensor Max. teruglevering op de netaansluiting (0 W = niet terugleveren): alleen terugleveren als het na kosten geld oplevert (terugleverprijs van het tarief, min de terugleverkosten van je contract), of een vaste maximum. In deze fase alleen getoond en uitgelegd in Waarom; er wordt niets naar een omvormer gestuurd.",
             "data": {
+              "export_never": "Nooit terugleveren",
               "export_limit_on": "Niet terugleveren als het te weinig oplevert",
               "export_limit_cost": "Terugleverkosten (vergoeding of boete)",
               "export_limit_price": "Grensprijs (netto)",
               "export_limit_max_w": "Vaste maximale teruglevering"
             },
             "data_description": {
+              "export_never": "Optioneel: terugleveren wordt altijd gestopt (Max. teruglevering 0 W), wat de prijs ook is; de batterijen slaan nog op wat ze kunnen, de omvormers zouden niet meer leveren dan huis en batterijen gebruiken.",
               "export_limit_on": "Onder de grensprijs (terugleverprijs min terugleverkosten) is de grens 0 W: de batterijen slaan nog op wat ze kunnen, de omvormers zouden niet meer leveren dan huis en batterijen gebruiken. Uit: alleen een vaste maximum begrenst.",
               "export_limit_cost": "Per teruggeleverde kWh, bovenop de terugleverprijs: bijv. de terugleverkosten van een vast contract. Alleen terugleveren als de terugleverprijs min deze kosten boven de grensprijs ligt. Standaard 0.",
               "export_limit_price": "Alleen terugleveren als de terugleverprijs (na het tarief, min de terugleverkosten) hierboven ligt, per kWh. Standaard 0: alleen als terugleveren geld oplevert; bij een negatieve prijs nooit.",
@@ -761,12 +763,14 @@
             "name": "Begrenzing teruglevering (PV-omvormers)",
             "description": "Hoeveel er nu maximaal teruggeleverd mag worden, als de sensor Max. teruglevering op de netaansluiting (0 W = niet terugleveren): alleen terugleveren als het na kosten geld oplevert (terugleverprijs van het tarief, min de terugleverkosten van je contract), of een vaste maximum. In deze fase alleen getoond en uitgelegd in Waarom; er wordt niets naar een omvormer gestuurd.",
             "data": {
+              "export_never": "Nooit terugleveren",
               "export_limit_on": "Niet terugleveren als het te weinig oplevert",
               "export_limit_cost": "Terugleverkosten (vergoeding of boete)",
               "export_limit_price": "Grensprijs (netto)",
               "export_limit_max_w": "Vaste maximale teruglevering"
             },
             "data_description": {
+              "export_never": "Optioneel: terugleveren wordt altijd gestopt (Max. teruglevering 0 W), wat de prijs ook is; de batterijen slaan nog op wat ze kunnen, de omvormers zouden niet meer leveren dan huis en batterijen gebruiken.",
               "export_limit_on": "Onder de grensprijs (terugleverprijs min terugleverkosten) is de grens 0 W: de batterijen slaan nog op wat ze kunnen, de omvormers zouden niet meer leveren dan huis en batterijen gebruiken. Uit: alleen een vaste maximum begrenst.",
               "export_limit_cost": "Per teruggeleverde kWh, bovenop de terugleverprijs: bijv. de terugleverkosten van een vast contract. Alleen terugleveren als de terugleverprijs min deze kosten boven de grensprijs ligt. Standaard 0.",
               "export_limit_price": "Alleen terugleveren als de terugleverprijs (na het tarief, min de terugleverkosten) hierboven ligt, per kWh. Standaard 0: alleen als terugleveren geld oplevert; bij een negatieve prijs nooit.",
@@ -1586,7 +1590,8 @@
             "state": {
               "none": "Niet begrensd",
               "price": "Lage terugleverprijs",
-              "fixed": "Vaste maximum"
+              "fixed": "Vaste maximum",
+              "never": "Nooit terugleveren (ingesteld)"
             }
           },
           "max_current_per_phase": {

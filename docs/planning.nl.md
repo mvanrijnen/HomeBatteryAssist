@@ -66,12 +66,15 @@ In deze ontwikkelfase doen de [virtuele batterijen](measuring.md#virtual-batteri
 Als het zonne-overschot niet meer in de batterijen kan, gaat het naar het net. Bij een negatieve terugleverprijs kost dat geld; en een netbeheerder kan de teruglevering begrenzen. De sensor **Max. teruglevering** op het apparaat *Netaansluiting* zegt hoeveel er nu teruggeleverd mag worden:
 
 - **0 W** — niet terugleveren, want het levert geen geld op: de terugleverprijs van het tarief (bij een dynamisch contract de marktprijs min de opslag van de leverancier) min de **terugleverkosten** van je contract (instelling *Terugleverkosten*, bijv. de terugleverkosten of -boete van een vast contract) ligt onder de *grensprijs* (standaard 0). Dus: een zeer lage of negatieve prijs, of een vast contract met hogere terugleverkosten dan het oplevert, betekent niet terugleveren. De batterijen slaan nog op wat ze kunnen; de omvormers zouden niet meer leveren dan huis en batterijen gebruiken. *Niet terugleveren als het te weinig oplevert* zet dit uit.
+- **altijd 0 W** met de instelling **Nooit terugleveren** (optioneel): terugleveren wordt helemaal gestopt, wat de prijs ook is;
 - **een vaste maximum** (instelling *Vaste maximale teruglevering*, bijv. de grens van de netbeheerder; 0 = geen);
 - anders het **maximum van de netaansluiting** (fasen × zekering × 230 V): niet begrensd.
 
 Attributen: *begrensd*, de reden, de grens als stroom per fase, de terugleverprijs, de teruglevering nu, wat nu en vandaag begrensd zou worden, en per PV-bron wat de omvormer-driver zou sturen. Met een [tweeling](measuring.md#twin-of-a-real-battery) wordt de teruglevering geteld zoals met de tweeling in plaats van de echte batterij.
 
 **Vooruit:** als het plan duidelijk teruglevering verwacht terwijl terugleveren geld kost (of minder oplevert dan de grensprijs), zodat terugleveren gestopt zou worden (minstens een uur, minstens 0,5 kWh die de batterijen niet kunnen opslaan, bijv. een zonnige middag met negatieve prijzen), meldt *Waarom* dat één keer vooraf: van wanneer tot wanneer, de laagste netto terugleverprijs en de kWh; het attribuut *verwachte begrenzingen* van de sensor toont deze periodes.
+
+**Geen garantie op nul teruglevering:** een grens wordt achteraf gevolgd (een meting, de reactie van de omvormer, voorbijtrekkende wolken), dus af en toe wordt er altijd even iets teruggeleverd.
 
 **In deze fase wordt niets naar een omvormer gestuurd.** *Waarom* meldt wanneer de teruglevering begrensd zou worden (tot hoeveel, waarom, hoeveel minder de omvormers zouden leveren) en wanneer dat voorbij is (minuten, kWh niet teruggeleverd, wat dat waard was tegen de terugleverprijs). Instellingen, sectie *Begrenzing teruglevering (PV-omvormers)*. Welke omvormer begrensd zou kunnen worden kies je per PV-bron (*Omvormer-driver*, *Adres omvormer*) — zie [Drivers](drivers.md#pv-inverters--enginedevicesinverters).
 

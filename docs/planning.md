@@ -66,12 +66,15 @@ In this phase of development the [virtual batteries](measuring.md#virtual-batter
 When the solar surplus can no longer go into the batteries, it goes to the grid. At a negative export price that costs money; and a grid operator may cap the export. The sensor **Max export** on the *Grid connection* device says how much may be exported now:
 
 - **0 W** — do not export, because it does not earn money: the export price of the tariff (for a dynamic contract the market price minus the supplier's fee) minus the **export costs** of your contract (setting *Export costs*, e.g. the export fee or penalty of a fixed contract) is below the *limit price* (default 0). So: a very low or negative price, or a fixed contract whose export costs are higher than what it pays, means no export. The batteries still store what they can; the inverters would produce no more than the house and batteries use. *No export when it earns too little* switches this off.
+- **0 W always** with the setting **Never export** (optional): export is stopped altogether, whatever the price;
 - **a fixed maximum** (setting *Fixed maximum export*, e.g. the grid operator's limit; 0 = none);
 - else the **grid connection's maximum** (phases × fuse × 230 V): not limited.
 
 Attributes: *limited*, the reason, the limit as current per phase, the export price, the export now, what would be curtailed now and today, and per PV source what its inverter driver would send. With a [twin](measuring.md#twin-of-a-real-battery) the export is counted as with the twin instead of the real battery.
 
 **Ahead:** when the plan clearly expects export while exporting costs money (or earns less than the limit price), so export would be stopped (at least an hour, at least 0.5 kWh the batteries cannot store, e.g. a sunny afternoon at negative prices), *Why* tells it beforehand once: from when to when, the lowest net export price and the kWh; the sensor's attribute *expected* lists these periods.
+
+**No guarantee of zero export:** a limit is followed after the fact (a measurement, the reaction of the inverter, clouds passing), so a short moment of export will always happen now and then.
 
 **In this phase nothing is sent to an inverter.** *Why* tells when the export would be limited (to what, why, how much less the inverters would produce) and when it ends (minutes, kWh not exported, what that was worth at the export price). Settings section *Export limit (PV inverters)*. Which inverter could be limited is chosen per PV source (*Inverter driver*, *Inverter address*) — see [Drivers](drivers.md#pv-inverters--enginedevicesinverters).
 
