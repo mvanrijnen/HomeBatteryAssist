@@ -93,3 +93,22 @@ def test_control_test_switched_off() -> None:
     )
 
     assert CONTROL_TEST_ALLOWED is False
+
+
+def test_export_limit_sends_nothing() -> None:
+    """The export limit is shown and explained; no inverter driver is
+    enabled and none implements sending yet."""
+    import asyncio
+
+    import pytest
+
+    from custom_components.homebatteryassist.engine.control.export_limiter import (
+        CONTROL,
+    )
+    from custom_components.homebatteryassist.engine.devices.inverters import DRIVERS
+
+    assert CONTROL is False
+    for driver in DRIVERS:
+        assert driver.enabled is False
+        with pytest.raises(NotImplementedError):
+            asyncio.run(driver.async_set_limit(None, "1.2.3.4", 0))  # type: ignore[arg-type]

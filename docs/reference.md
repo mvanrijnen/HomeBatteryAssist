@@ -198,6 +198,16 @@ Whether each battery does what it is told (in this phase by its own integration,
 | **Check commands from** | A command to charge or discharge at least this power is checked: the battery should move at least half of it (or of its maximum power) in that direction. Default 100 W. |
 | **Tell after** | Why tells it (and notifies, with 'A battery does not follow its command') once it lasts this long, so starting up and ramping are no message. Full, empty, charging/discharging switched off and the battery's hysteresis are explained, not reported as a problem. Default 2 min. |
 
+### Export limit (PV inverters) {#settings-export-limit}
+
+The most that may be exported now, as the sensor Max export on the grid connection (0 W = no export). In this phase only shown and explained in Why (what the inverters would produce less, and what that is worth); nothing is sent to an inverter.
+
+| Field | Explanation |
+|---|---|
+| **No export at a low export price** | Below the export price below, the limit is 0 W: the batteries still store what they can, the inverters would produce no more than the house and batteries use. |
+| **Export price below which nothing is exported** | Per kWh, in the price unit of the price source (after the tariff). Default 0: only at a negative export price. |
+| **Fixed maximum export** | E.g. a limit of the grid operator. 0 = none. |
+
 ## Devices and time slots {#devices}
 
 Added under the integration (**+ Add …**) and changed with the gear icon next to each one.
@@ -216,6 +226,8 @@ A measurement of solar (PV) production, e.g. an inverter. Its production is adde
 | **Power L3 (optional, 3-phase)** |  |
 | **Measured by** | A sensor of another integration, or a meter read directly (about every second, read-only), e.g. a HomeWizard kWh meter on the inverter's line. |
 | **Meter IP address** | Only for a meter read directly. |
+| **Inverter driver (export limit)** | How this inverter could be limited for the export limit. In this phase nothing is sent: only shown what it would send. |
+| **Inverter address** | IP address of the inverter, for the driver. |
 
 ### Excluded device {#device-excluded-load}
 
@@ -347,6 +359,7 @@ What HomeBatteryAssist creates (names as shown in Home Assistant).
 | Test control | Sensor |
 | Value today | Sensor |
 | Difference with the real battery today | Sensor |
+| Max export | Sensor |
 | Recalculate | Button |
 | Test: charge | Button |
 | Test: discharge | Button |

@@ -599,6 +599,22 @@ class BatteryInput:
         )
         return real.soc
 
+    def grid_planned_w(self) -> float | None:
+        """The grid (W, + import) as HomeBatteryAssist's batteries make it:
+        measured, with the virtual batteries, without the real batteries
+        that have a twin (the twin acts in their place)."""
+        grid = self.grid_now()
+        if grid is None:
+            return None
+        twinned = twinned_ids(self.configs)
+        for config in self.configs:
+            power = self.states[config.id].power_w or 0.0
+            if config.virtual:
+                grid += power
+            elif config.id in twinned:
+                grid -= power
+        return grid
+
     def value_today(self, battery_id: str) -> float | None:
         """Realised value (currency) today, by HomeBatteryAssist's own
         counters."""

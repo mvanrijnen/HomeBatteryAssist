@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 
-from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
+from homeassistant.const import CONF_NAME, EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import (
@@ -26,8 +26,13 @@ from homeassistant.util import dt as dt_util
 from .const import (
     CONF_COMMAND_CHECK_MINUTES,
     CONF_COMMAND_CHECK_W,
+    CONF_EXPORT_LIMIT,
+    CONF_EXPORT_LIMIT_MAX_W,
+    CONF_EXPORT_LIMIT_PRICE,
     CONF_HISTORY_INTERVAL,
     CONF_INTERCEPTOR,
+    CONF_INVERTER_ADDRESS,
+    CONF_INVERTER_DRIVER,
     CONF_NOTIFY_KINDS,
     CONF_NOTIFY_TARGETS,
     CONF_PV_DEVIATION_MINUTES,
@@ -37,19 +42,25 @@ from .const import (
     CONF_VACATION,
     DEFAULT_COMMAND_CHECK_MINUTES,
     DEFAULT_COMMAND_CHECK_W,
+    DEFAULT_EXPORT_LIMIT,
+    DEFAULT_EXPORT_LIMIT_MAX_W,
+    DEFAULT_EXPORT_LIMIT_PRICE,
     DEFAULT_HISTORY_INTERVAL,
     DEFAULT_PV_DEVIATION_MINUTES,
     DEFAULT_SPIKE_DURATION,
     DEFAULT_SPIKE_THRESHOLD,
     DOMAIN,
+    SUBENTRY_PV_SOURCE,
 )
 from .engine.control.control_test import ControlTest
+from .engine.control.export_limiter import ExportLimiter
 from .engine.control.interceptors import (
     async_load_user_interceptors,
     create_interceptor,
 )
 from .engine.coordinator import ForecastCoordinator
 from .engine.devices.batteries.virtual import VirtualBatterySimulator
+from .engine.devices.inverters import get_driver as get_inverter_driver
 from .engine.evaluation.command_check import CommandMonitor
 from .engine.evaluation.forecast_accuracy import ForecastAccuracy
 from .engine.evaluation.plan_check import PlanVerification
@@ -76,6 +87,7 @@ from .engine.measure.spike_filters import (
     create_spike_filter,
 )
 from .engine.planning.battery_plan import MODE_NOM
+from .engine.planning.export_limit import connection_w
 from .engine.planning.planners import async_load_user_planners
 from .engine.sources.pv_forecasts import async_load_user_pv_sources
 from .engine.sources.tariffs import async_load_user_tariffs
@@ -453,6 +465,36 @@ async def async_setup_entry(
     # control.async_start()
     # entry.async_on_unload(control.async_stop)
 
+    # The export limit (PV inverters): shown and explained; nothing is sent.
+    options = entry.options
+    export_limiter = ExportLimiter(
+        decisions,
+        enabled=bool(options.get(CONF_EXPORT_LIMIT, DEFAULT_EXPORT_LIMIT)),
+        threshold=float(
+            options.get(CONF_EXPORT_LIMIT_PRICE, DEFAULT_EXPORT_LIMIT_PRICE)
+        ),
+        fixed_w=float(options.get(CONF_EXPORT_LIMIT_MAX_W, DEFAULT_EXPORT_LIMIT_MAX_W)),
+        connection=connection_w(measurements.phases, measurements.max_current),
+        inverters=[
+            (
+                sub.data[CONF_NAME],
+                get_inverter_driver(sub.data.get(CONF_INVERTER_DRIVER)),
+                sub.data.get(CONF_INVERTER_ADDRESS, ""),
+            )
+            for sub in entry.subentries.values()
+            if sub.subentry_type == SUBENTRY_PV_SOURCE
+        ],
+        decimal_comma=comma,
+    )
+
+    @callback
+    def _check_export(when: datetime, _power: float | None) -> None:
+        export_limiter.update(
+            when, batteries.grid_planned_w(), batteries.export_price_now()
+        )
+
+    entry.async_on_unload(measurements.async_add_listener(_check_export))
+
     entry.runtime_data = HomeBatteryAssistData(
         decisions=decisions,
         measurements=measurements,
@@ -463,6 +505,7 @@ async def async_setup_entry(
         simulator=simulator,
         commands=commands,
         control_test=control_test,
+        export_limit=export_limiter,
     )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # Options and subentry changes (PV sources, excluded loads) require a reload.

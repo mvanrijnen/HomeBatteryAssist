@@ -28,6 +28,7 @@ class HomeBatteryAssistData:
     simulator: Any = None  # VirtualBatterySimulator (live protections)
     commands: Any = None  # CommandMonitor (does each battery follow its command)
     control_test: Any = None  # ControlTest (switched off in this phase)
+    export_limit: Any = None  # ExportLimiter (shown and explained only)
 
 
 type HomeBatteryAssistConfigEntry = ConfigEntry[HomeBatteryAssistData]

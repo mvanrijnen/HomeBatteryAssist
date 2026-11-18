@@ -60,6 +60,13 @@ Eén bestand per merk, die samen `direct_reading.py` gebruiken (ongeveer één k
 
 Naast het vermogen per fase leest elke meterdriver ook de **stroom, spanning en arbeidsfactor per fase** als de meter die geeft (SMA Home Manager: stroom, spanning en arbeidsfactor, geverifieerd; HomeWizard P1: stroom en spanning; Shelly 3EM: stroom, spanning en arbeidsfactor; IAMMETER: stroom en spanning), voor de fasebeveiliging: de hoofdzekering ziet stroom, geen vermogen. `discovery.py` vindt deze meters in Home Assistant en maakt de juiste lezer aan; `__init__.py` somt ze op (`DRIVERS`). Meters kunnen ook worden uitgelezen via de sensoren van hun eigen integratie (`via_ha_integration.py`, HomeWizard P1 wordt herkend). `template.py` is een voorbeeld van een nieuwe meter. Dezelfde drivers dienen elke rol: de netaansluiting, een PV-bron (een kWh-meter op de lijn van de omvormer) en een batterij (een kWh-meter op de lijn van de batterij, zie hierboven). De rol is een instelling; de map volgt merk en type.
 
+## PV-omvormers — `engine/devices/inverters/` {#pv-inverters--enginedevicesinverters}
+
+Hoe het vermogen van een omvormer begrensd zou kunnen worden voor de [begrenzing van de teruglevering](planning.md#export-limit-pv-inverters). **Voorbereid, niet gebruikt**: elke driver heeft `enabled = False`, `async_set_limit` wordt nooit aangeroepen, en HomeBatteryAssist maakt in deze fase geen verbinding met een omvormer; de sensor *Max. teruglevering* toont alleen wat een driver zou sturen. `base.py` = `InverterDriver` (`points`: de instellingen die hij zou schrijven, `{limit_w}` = de grens in W; `limits`: het eigen vermogen van de omvormer of de teruglevering), `template.py` = een voorbeeld.
+
+- `sma_modbus.py` — SMA Sunny Boy / Sunny Tripower via Modbus TCP (poort 502, unit 3): werkvermogen via communicatie (40151 = 802) met het setpoint in W (40149). Uit de Modbus-documentatie van SMA, *niet geverifieerd op een apparaat*.
+- De **Sunny Home Manager 2.0** kan de teruglevering van alle SMA-omvormers ook begrenzen, maar die grens wordt ingesteld in Sunny Portal / ennexOS; er is geen lokale interface bekend om hem te wijzigen, dus daar is geen driver voor (hij wordt wel uitgelezen als [meter](#meters-enginedevicesmeters)).
+
 ## Nu ondersteund {#supported-now}
 
 - **Batterijen**: Marstek Venus E v3 (model); uitgelezen via Omnibattery of Marstek Modbus (geverifieerd). Elke andere batterij kun je handmatig koppelen via de entiteiten ervan.

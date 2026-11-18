@@ -61,6 +61,18 @@ In deze ontwikkelfase doen de [virtuele batterijen](measuring.md#virtual-batteri
 - **Fasebeveiliging** (virtuele batterijen): als een fase overbelast is, halen batterijen op die fase binnen enkele seconden belasting eraf. De belasting per fase is de **stroom** (wat de hoofdzekering ziet): gemeten als de meter die doorgeeft (een SMA Home Manager doet dat, met spanning en arbeidsfactor), anders vermogen / (gemeten spanning × arbeidsfactor), anders vermogen / 230 V. Fasebeveiliging en piekafvlakking kunnen niet door een [onderschepper](#interceptor-your-last-say) ongedaan worden gemaakt. Zonder netmeting (meter 10 s weg) doen de batterijen niets tot die terug is; *Waarom* meldt dat.
 - **Verdeling over meerdere batterijen**: zo weinig mogelijk batterijen op een zinnig minimumvermogen, in balans gehouden.
 
+## Begrenzing teruglevering (PV-omvormers) {#export-limit-pv-inverters}
+
+Als het zonne-overschot niet meer in de batterijen kan, gaat het naar het net. Bij een negatieve terugleverprijs kost dat geld; en een netbeheerder kan de teruglevering begrenzen. De sensor **Max. teruglevering** op het apparaat *Netaansluiting* zegt hoeveel er nu teruggeleverd mag worden:
+
+- **0 W** — niet terugleveren: de terugleverprijs ligt onder de *terugleverprijs waaronder niets wordt teruggeleverd* (standaard 0, dus bij een negatieve terugleverprijs). De batterijen slaan nog op wat ze kunnen; de omvormers zouden niet meer leveren dan huis en batterijen gebruiken.
+- **een vaste maximum** (instelling *Vaste maximale teruglevering*, bijv. de grens van de netbeheerder; 0 = geen);
+- anders het **maximum van de netaansluiting** (fasen × zekering × 230 V): niet begrensd.
+
+Attributen: *begrensd*, de reden, de grens als stroom per fase, de terugleverprijs, de teruglevering nu, wat nu en vandaag begrensd zou worden, en per PV-bron wat de omvormer-driver zou sturen. Met een [tweeling](measuring.md#twin-of-a-real-battery) wordt de teruglevering geteld zoals met de tweeling in plaats van de echte batterij.
+
+**In deze fase wordt niets naar een omvormer gestuurd.** *Waarom* meldt wanneer de teruglevering begrensd zou worden (tot hoeveel, waarom, hoeveel minder de omvormers zouden leveren) en wanneer dat voorbij is (minuten, kWh niet teruggeleverd, wat dat waard was tegen de terugleverprijs). Instellingen, sectie *Begrenzing teruglevering (PV-omvormers)*. Welke omvormer begrensd zou kunnen worden kies je per PV-bron (*Omvormer-driver*, *Adres omvormer*) — zie [Drivers](drivers.md#pv-inverters--enginedevicesinverters).
+
 ## Periodiek volladen {#periodic-full-charge}
 
 Per batterij (voor de kalibratie van het batterijbeheer), om de zoveel dagen, op het goedkoopste moment, eventueel op een voorkeursdag van de week en bij voorkeur met zonnestroom; batterijen laden tegelijk vol als de netaansluiting dat toelaat. Het volladen wordt altijd **na** de planner ingevoegd, welke planner ook gekozen is.

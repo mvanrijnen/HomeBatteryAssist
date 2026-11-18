@@ -53,6 +53,7 @@ async def async_setup_entry(
         HouseConsumptionSensor(entry),
         *(FlowSensor(entry, description) for description in FLOW_SENSORS),
         *(FlowSensor(entry, phase_load_description(i)) for i in range(phases)),
+        ExportLimitSensor(entry),
         PlanningHorizonSensor(entry),
         ConsumptionForecastSensor(entry),
         *(
@@ -221,6 +222,54 @@ def phase_load_description(index: int) -> FlowSensorDescription:
             "max_current": m.max_current,
         },
     )
+
+
+class ExportLimitSensor(HomeBatteryAssistEntity, SensorEntity):
+    """The most that may be exported now (W): 0 = no export, else the limit;
+    the grid connection's maximum when not limited. Shown and explained in
+    this phase; nothing is sent to an inverter."""
+
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = UnitOfPower.WATT
+    _attr_should_poll = False
+
+    def __init__(self, entry: HomeBatteryAssistConfigEntry) -> None:
+        """Initialize, on the grid connection device."""
+        super().__init__(entry, "export_limit")
+        self._limiter = entry.runtime_data.export_limit
+        self._phases = entry.runtime_data.measurements.phases
+        self._attr_device_info = grid_device_info(entry)
+
+    async def async_added_to_hass(self) -> None:
+        """Follow the limiter."""
+        self.async_on_remove(
+            self._limiter.async_add_listener(self.async_write_ha_state)
+        )
+
+    @property
+    def native_value(self) -> float:
+        """The limit in W."""
+        return round(self._limiter.limit.limit_w)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Why, per phase, the export now and what would be curtailed."""
+        limiter = self._limiter
+        limit = limiter.limit
+        return {
+            "limited": limit.limited,
+            "reason": limit.reason,
+            "max_current_per_phase": round(limit.amps_per_phase(self._phases), 1),
+            "export_price": limiter.price,
+            "export_limit_price": limiter.threshold if limiter.enabled else None,
+            "fixed_limit_w": limiter.fixed_w or None,
+            "export_w": None if limiter.export_w is None else round(limiter.export_w),
+            "curtailed_w": round(limiter.curtailed_w),
+            "curtailed_today_kwh": round(limiter.today_kwh, 3),
+            "would_send": limiter.would_send() if limit.limited else [],
+            "controlled": False,
+        }
 
 
 class FlowSensor(HomeBatteryAssistEntity, SensorEntity):

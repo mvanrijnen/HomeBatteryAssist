@@ -272,6 +272,20 @@
               "command_check_w": "A command to charge or discharge at least this power is checked: the battery should move at least half of it (or of its maximum power) in that direction. Default 100 W.",
               "command_check_minutes": "Why tells it (and notifies, with 'A battery does not follow its command') once it lasts this long, so starting up and ramping are no message. Full, empty, charging/discharging switched off and the battery's hysteresis are explained, not reported as a problem. Default 2 min."
             }
+          },
+          "export_limit": {
+            "name": "Export limit (PV inverters)",
+            "description": "The most that may be exported now, as the sensor Max export on the grid connection (0 W = no export). In this phase only shown and explained in Why (what the inverters would produce less, and what that is worth); nothing is sent to an inverter.",
+            "data": {
+              "export_limit_on": "No export at a low export price",
+              "export_limit_price": "Export price below which nothing is exported",
+              "export_limit_max_w": "Fixed maximum export"
+            },
+            "data_description": {
+              "export_limit_on": "Below the export price below, the limit is 0 W: the batteries still store what they can, the inverters would produce no more than the house and batteries use.",
+              "export_limit_price": "Per kWh, in the price unit of the price source (after the tariff). Default 0: only at a negative export price.",
+              "export_limit_max_w": "E.g. a limit of the grid operator. 0 = none."
+            }
           }
         }
       }
@@ -499,6 +513,12 @@
     "spike_filter": {
       "options": {
         "short_peaks": "Short peaks above a threshold"
+      }
+    },
+    "inverter_driver": {
+      "options": {
+        "none": "None",
+        "sma_modbus": "SMA via Modbus (not verified)"
       }
     }
   },
@@ -733,6 +753,20 @@
               "command_check_w": "A command to charge or discharge at least this power is checked: the battery should move at least half of it (or of its maximum power) in that direction. Default 100 W.",
               "command_check_minutes": "Why tells it (and notifies, with 'A battery does not follow its command') once it lasts this long, so starting up and ramping are no message. Full, empty, charging/discharging switched off and the battery's hysteresis are explained, not reported as a problem. Default 2 min."
             }
+          },
+          "export_limit": {
+            "name": "Export limit (PV inverters)",
+            "description": "The most that may be exported now, as the sensor Max export on the grid connection (0 W = no export). In this phase only shown and explained in Why (what the inverters would produce less, and what that is worth); nothing is sent to an inverter.",
+            "data": {
+              "export_limit_on": "No export at a low export price",
+              "export_limit_price": "Export price below which nothing is exported",
+              "export_limit_max_w": "Fixed maximum export"
+            },
+            "data_description": {
+              "export_limit_on": "Below the export price below, the limit is 0 W: the batteries still store what they can, the inverters would produce no more than the house and batteries use.",
+              "export_limit_price": "Per kWh, in the price unit of the price source (after the tariff). Default 0: only at a negative export price.",
+              "export_limit_max_w": "E.g. a limit of the grid operator. 0 = none."
+            }
           }
         }
       },
@@ -813,14 +847,18 @@
             "phase_sensor_l2": "Power L2 (optional, 3-phase)",
             "phase_sensor_l3": "Power L3 (optional, 3-phase)",
             "pv_driver": "Measured by",
-            "pv_address": "Meter IP address"
+            "pv_address": "Meter IP address",
+            "inverter_driver": "Inverter driver (export limit)",
+            "inverter_address": "Inverter address"
           },
           "data_description": {
             "sensor": "Sensor measuring the power (W) or current (A) of this device.",
             "phase": "The phase this device is connected to, if it uses a single phase.",
             "phase_sensor_l1": "For a 3-phase device: a sensor per phase gives the exact split over the phases. Leave empty to spread the total evenly (phase 'all phases') or to use the phase chosen above.",
             "pv_driver": "A sensor of another integration, or a meter read directly (about every second, read-only), e.g. a HomeWizard kWh meter on the inverter's line.",
-            "pv_address": "Only for a meter read directly."
+            "pv_address": "Only for a meter read directly.",
+            "inverter_driver": "How this inverter could be limited for the export limit. In this phase nothing is sent: only shown what it would send.",
+            "inverter_address": "IP address of the inverter, for the driver."
           }
         },
         "reconfigure": {
@@ -834,14 +872,18 @@
             "phase_sensor_l2": "Power L2 (optional, 3-phase)",
             "phase_sensor_l3": "Power L3 (optional, 3-phase)",
             "pv_driver": "Measured by",
-            "pv_address": "Meter IP address"
+            "pv_address": "Meter IP address",
+            "inverter_driver": "Inverter driver (export limit)",
+            "inverter_address": "Inverter address"
           },
           "data_description": {
             "sensor": "Sensor measuring the power (W) or current (A) of this device.",
             "phase": "The phase this device is connected to, if it uses a single phase.",
             "phase_sensor_l1": "For a 3-phase device: a sensor per phase gives the exact split over the phases. Leave empty to spread the total evenly (phase 'all phases') or to use the phase chosen above.",
             "pv_driver": "A sensor of another integration, or a meter read directly (about every second, read-only), e.g. a HomeWizard kWh meter on the inverter's line.",
-            "pv_address": "Only for a meter read directly."
+            "pv_address": "Only for a meter read directly.",
+            "inverter_driver": "How this inverter could be limited for the export limit. In this phase nothing is sent: only shown what it would send.",
+            "inverter_address": "IP address of the inverter, for the driver."
           }
         }
       },
@@ -1521,6 +1563,49 @@
           },
           "stored_difference_kwh": {
             "name": "Stored more than the real battery since midnight"
+          }
+        }
+      },
+      "export_limit": {
+        "name": "Max export",
+        "state_attributes": {
+          "limited": {
+            "name": "Limited"
+          },
+          "reason": {
+            "name": "Reason",
+            "state": {
+              "none": "Not limited",
+              "price": "Low export price",
+              "fixed": "Fixed maximum"
+            }
+          },
+          "max_current_per_phase": {
+            "name": "Max current per phase"
+          },
+          "export_price": {
+            "name": "Export price"
+          },
+          "export_limit_price": {
+            "name": "Export limit price"
+          },
+          "fixed_limit_w": {
+            "name": "Fixed maximum"
+          },
+          "export_w": {
+            "name": "Export now"
+          },
+          "curtailed_w": {
+            "name": "Would be curtailed now"
+          },
+          "curtailed_today_kwh": {
+            "name": "Would be curtailed today"
+          },
+          "would_send": {
+            "name": "Would send"
+          },
+          "controlled": {
+            "name": "Controlled"
           }
         }
       }

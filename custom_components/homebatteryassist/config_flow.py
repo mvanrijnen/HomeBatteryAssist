@@ -82,6 +82,9 @@ from .const import (
     CONF_EFFICIENCY,
     CONF_EXPORT_ENTITIES,
     CONF_EXPORT_FACTOR,
+    CONF_EXPORT_LIMIT,
+    CONF_EXPORT_LIMIT_MAX_W,
+    CONF_EXPORT_LIMIT_PRICE,
     CONF_EXPORT_MODE,
     CONF_FORECAST_INTERVAL,
     CONF_FULL_CHARGE_DAY,
@@ -92,6 +95,8 @@ from .const import (
     CONF_INDOOR_TEMPERATURE,
     CONF_INITIAL_SOC,
     CONF_INTERCEPTOR,
+    CONF_INVERTER_ADDRESS,
+    CONF_INVERTER_DRIVER,
     CONF_LOSS_MAX,
     CONF_LOSS_MIN,
     CONF_MANUAL_POWER,
@@ -170,6 +175,9 @@ from .const import (
     DEFAULT_CYCLE_COST,
     DEFAULT_EFFICIENCY,
     DEFAULT_EXPORT_FACTOR,
+    DEFAULT_EXPORT_LIMIT,
+    DEFAULT_EXPORT_LIMIT_MAX_W,
+    DEFAULT_EXPORT_LIMIT_PRICE,
     DEFAULT_EXPORT_MODE,
     DEFAULT_FORECAST_INTERVAL,
     DEFAULT_FULL_CHARGE_INTERVAL,
@@ -198,6 +206,7 @@ from .const import (
     EXPORT_MODES,
     FORECAST_INTERVAL_OPTIONS,
     HISTORY_INTERVAL_OPTIONS,
+    INVERTER_NONE,
     MAX_CURRENT_OPTIONS,
     MAX_PLANNING_HORIZON,
     MIN_PLANNING_HORIZON,
@@ -232,6 +241,7 @@ from .engine.devices.batteries.recognition import (
     BatteryCandidate,
     find_battery_candidates,
 )
+from .engine.devices.inverters import DRIVERS as INVERTER_DRIVERS
 from .engine.devices.meters import DRIVERS as METER_DRIVERS
 from .engine.devices.meters.discovery import (
     DIRECT_SOURCES,
@@ -457,6 +467,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
     ),
     "reaction": ("react_interval_s", "react_average", "react_jump", "react_jump_w"),
     "command_check": ("command_check_w", "command_check_minutes"),
+    "export_limit": ("export_limit_on", "export_limit_price", "export_limit_max_w"),
     "full_charge": ("full_charge_window_days", "full_charge_day", "full_charge_solar"),
     "notifications": ("notify_targets", "notify_kinds"),
     "weather": (
@@ -918,6 +929,18 @@ async def _flat_settings_schema(
             ),
         ): _number(1, 30, 1, "min"),
         vol.Required(
+            CONF_EXPORT_LIMIT,
+            default=current.get(CONF_EXPORT_LIMIT, DEFAULT_EXPORT_LIMIT),
+        ): BooleanSelector(),
+        vol.Required(
+            CONF_EXPORT_LIMIT_PRICE,
+            default=current.get(CONF_EXPORT_LIMIT_PRICE, DEFAULT_EXPORT_LIMIT_PRICE),
+        ): _number(-1, 1, 0.001, "/kWh"),
+        vol.Required(
+            CONF_EXPORT_LIMIT_MAX_W,
+            default=current.get(CONF_EXPORT_LIMIT_MAX_W, DEFAULT_EXPORT_LIMIT_MAX_W),
+        ): _number(0, 100000, 50, "W"),
+        vol.Required(
             CONF_MAX_CYCLES,
             default=current.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES),
         ): NumberSelector(
@@ -1129,6 +1152,15 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     )
     options[CONF_COMMAND_CHECK_MINUTES] = int(
         user_input.get(CONF_COMMAND_CHECK_MINUTES, DEFAULT_COMMAND_CHECK_MINUTES)
+    )
+    options[CONF_EXPORT_LIMIT] = bool(
+        user_input.get(CONF_EXPORT_LIMIT, DEFAULT_EXPORT_LIMIT)
+    )
+    options[CONF_EXPORT_LIMIT_PRICE] = float(
+        user_input.get(CONF_EXPORT_LIMIT_PRICE, DEFAULT_EXPORT_LIMIT_PRICE)
+    )
+    options[CONF_EXPORT_LIMIT_MAX_W] = int(
+        user_input.get(CONF_EXPORT_LIMIT_MAX_W, DEFAULT_EXPORT_LIMIT_MAX_W)
     )
     options[CONF_MAX_CYCLES] = float(
         user_input.get(CONF_MAX_CYCLES, DEFAULT_MAX_CYCLES)
@@ -1663,9 +1695,20 @@ class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):
 
 
 class PvSourceSubentryFlow(_MeasuredDeviceSubentryFlow):
-    allow_direct = True  # a PV meter may also be read directly
+    """Add or change a PV production measurement; optionally the inverter
+    driver that could limit it (export limit; nothing is sent in this phase)."""
 
-    """Add or change a PV production measurement."""
+    allow_direct = True  # a PV meter may also be read directly
+    extra_fields: ClassVar[dict[str, Any]] = {
+        CONF_INVERTER_DRIVER: SelectSelector(
+            SelectSelectorConfig(
+                options=[INVERTER_NONE, *(d.key for d in INVERTER_DRIVERS)],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_INVERTER_DRIVER,
+            )
+        ),
+        CONF_INVERTER_ADDRESS: TextSelector(),
+    }
 
 
 class ExcludedLoadSubentryFlow(_MeasuredDeviceSubentryFlow):

@@ -272,6 +272,20 @@
               "command_check_w": "Een opdracht om met minstens dit vermogen te laden of ontladen wordt gecontroleerd: de batterij moet minstens de helft ervan (of van haar maximale vermogen) in die richting doen. Standaard 100 W.",
               "command_check_minutes": "Waarom meldt het (en stuurt een melding, met 'Een batterij volgt haar opdracht niet') zodra het zo lang duurt, zodat opstarten en oplopen geen bericht geven. Vol, leeg, laden/ontladen uitgeschakeld en de hysterese van de batterij worden uitgelegd, niet als probleem gemeld. Standaard 2 min."
             }
+          },
+          "export_limit": {
+            "name": "Begrenzing teruglevering (PV-omvormers)",
+            "description": "Hoeveel er nu maximaal teruggeleverd mag worden, als de sensor Max. teruglevering op de netaansluiting (0 W = niet terugleveren). In deze fase alleen getoond en uitgelegd in Waarom (hoeveel de omvormers minder zouden leveren, en wat dat waard is); er wordt niets naar een omvormer gestuurd.",
+            "data": {
+              "export_limit_on": "Niet terugleveren bij een lage terugleverprijs",
+              "export_limit_price": "Terugleverprijs waaronder niets wordt teruggeleverd",
+              "export_limit_max_w": "Vaste maximale teruglevering"
+            },
+            "data_description": {
+              "export_limit_on": "Onder de terugleverprijs hieronder is de grens 0 W: de batterijen slaan nog op wat ze kunnen, de omvormers zouden niet meer leveren dan huis en batterijen gebruiken.",
+              "export_limit_price": "Per kWh, in de prijseenheid van de prijsbron (na het tarief). Standaard 0: alleen bij een negatieve terugleverprijs.",
+              "export_limit_max_w": "Bijv. een grens van de netbeheerder. 0 = geen."
+            }
           }
         }
       }
@@ -499,6 +513,12 @@
     "spike_filter": {
       "options": {
         "short_peaks": "Korte pieken boven een drempel"
+      }
+    },
+    "inverter_driver": {
+      "options": {
+        "none": "Geen",
+        "sma_modbus": "SMA via Modbus (niet geverifieerd)"
       }
     }
   },
@@ -733,6 +753,20 @@
               "command_check_w": "Een opdracht om met minstens dit vermogen te laden of ontladen wordt gecontroleerd: de batterij moet minstens de helft ervan (of van haar maximale vermogen) in die richting doen. Standaard 100 W.",
               "command_check_minutes": "Waarom meldt het (en stuurt een melding, met 'Een batterij volgt haar opdracht niet') zodra het zo lang duurt, zodat opstarten en oplopen geen bericht geven. Vol, leeg, laden/ontladen uitgeschakeld en de hysterese van de batterij worden uitgelegd, niet als probleem gemeld. Standaard 2 min."
             }
+          },
+          "export_limit": {
+            "name": "Begrenzing teruglevering (PV-omvormers)",
+            "description": "Hoeveel er nu maximaal teruggeleverd mag worden, als de sensor Max. teruglevering op de netaansluiting (0 W = niet terugleveren). In deze fase alleen getoond en uitgelegd in Waarom (hoeveel de omvormers minder zouden leveren, en wat dat waard is); er wordt niets naar een omvormer gestuurd.",
+            "data": {
+              "export_limit_on": "Niet terugleveren bij een lage terugleverprijs",
+              "export_limit_price": "Terugleverprijs waaronder niets wordt teruggeleverd",
+              "export_limit_max_w": "Vaste maximale teruglevering"
+            },
+            "data_description": {
+              "export_limit_on": "Onder de terugleverprijs hieronder is de grens 0 W: de batterijen slaan nog op wat ze kunnen, de omvormers zouden niet meer leveren dan huis en batterijen gebruiken.",
+              "export_limit_price": "Per kWh, in de prijseenheid van de prijsbron (na het tarief). Standaard 0: alleen bij een negatieve terugleverprijs.",
+              "export_limit_max_w": "Bijv. een grens van de netbeheerder. 0 = geen."
+            }
           }
         }
       },
@@ -813,14 +847,18 @@
             "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
             "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)",
             "pv_driver": "Gemeten door",
-            "pv_address": "IP-adres meter"
+            "pv_address": "IP-adres meter",
+            "inverter_driver": "Omvormer-driver (begrenzing teruglevering)",
+            "inverter_address": "Adres omvormer"
           },
           "data_description": {
             "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
             "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt.",
             "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken.",
             "pv_driver": "Een sensor van een andere integratie, of een meter die rechtstreeks wordt uitgelezen (ongeveer elke seconde, alleen lezen), bijv. een HomeWizard kWh-meter op de groep van de omvormer.",
-            "pv_address": "Alleen bij een rechtstreeks uitgelezen meter."
+            "pv_address": "Alleen bij een rechtstreeks uitgelezen meter.",
+            "inverter_driver": "Hoe deze omvormer begrensd zou kunnen worden voor de begrenzing van de teruglevering. In deze fase wordt niets verstuurd: alleen getoond wat hij zou sturen.",
+            "inverter_address": "IP-adres van de omvormer, voor de driver."
           }
         },
         "reconfigure": {
@@ -834,14 +872,18 @@
             "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
             "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)",
             "pv_driver": "Gemeten door",
-            "pv_address": "IP-adres meter"
+            "pv_address": "IP-adres meter",
+            "inverter_driver": "Omvormer-driver (begrenzing teruglevering)",
+            "inverter_address": "Adres omvormer"
           },
           "data_description": {
             "sensor": "Sensor die het vermogen (W) of de stroom (A) van dit apparaat meet.",
             "phase": "De fase waarop dit apparaat is aangesloten, als het één fase gebruikt.",
             "phase_sensor_l1": "Voor een 3-fase apparaat: een sensor per fase geeft de precieze verdeling over de fasen. Leeg laten om het totaal gelijk te verdelen (fase 'alle fasen') of de fase hierboven te gebruiken.",
             "pv_driver": "Een sensor van een andere integratie, of een meter die rechtstreeks wordt uitgelezen (ongeveer elke seconde, alleen lezen), bijv. een HomeWizard kWh-meter op de groep van de omvormer.",
-            "pv_address": "Alleen bij een rechtstreeks uitgelezen meter."
+            "pv_address": "Alleen bij een rechtstreeks uitgelezen meter.",
+            "inverter_driver": "Hoe deze omvormer begrensd zou kunnen worden voor de begrenzing van de teruglevering. In deze fase wordt niets verstuurd: alleen getoond wat hij zou sturen.",
+            "inverter_address": "IP-adres van de omvormer, voor de driver."
           }
         }
       },
@@ -1521,6 +1563,49 @@
           },
           "stored_difference_kwh": {
             "name": "Meer opgeslagen dan de echte batterij sinds middernacht"
+          }
+        }
+      },
+      "export_limit": {
+        "name": "Max. teruglevering",
+        "state_attributes": {
+          "limited": {
+            "name": "Begrensd"
+          },
+          "reason": {
+            "name": "Reden",
+            "state": {
+              "none": "Niet begrensd",
+              "price": "Lage terugleverprijs",
+              "fixed": "Vaste maximum"
+            }
+          },
+          "max_current_per_phase": {
+            "name": "Max. stroom per fase"
+          },
+          "export_price": {
+            "name": "Terugleverprijs"
+          },
+          "export_limit_price": {
+            "name": "Grensprijs teruglevering"
+          },
+          "fixed_limit_w": {
+            "name": "Vaste maximum"
+          },
+          "export_w": {
+            "name": "Teruglevering nu"
+          },
+          "curtailed_w": {
+            "name": "Zou nu begrensd worden"
+          },
+          "curtailed_today_kwh": {
+            "name": "Zou vandaag begrensd zijn"
+          },
+          "would_send": {
+            "name": "Zou sturen"
+          },
+          "controlled": {
+            "name": "Aangestuurd"
           }
         }
       }

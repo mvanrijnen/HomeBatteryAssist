@@ -60,6 +60,13 @@ One file per brand, sharing `direct_reading.py` (reading about once a second; a 
 
 Besides the power per phase every meter driver also reads the **current, voltage and power factor per phase** when the meter gives them (SMA Home Manager: current, voltage and power factor, verified; HomeWizard P1: current and voltage; Shelly 3EM: current, voltage and power factor; IAMMETER: current and voltage), for the phase protection: the main fuse sees current, not power. `discovery.py` finds these meters in Home Assistant and creates the right reader; `__init__.py` lists them (`DRIVERS`). Meters can also be read through the sensors of their own integration (`via_ha_integration.py`, HomeWizard P1 recognised). `template.py` is an example of a new meter. The same drivers serve every role: the grid connection, a PV source (a kWh meter on the inverter's line) and a battery (a kWh meter on the battery's line, see below). The role is a setting; the folder follows brand and type.
 
+## PV inverters — `engine/devices/inverters/`
+
+How an inverter's power could be limited for the [export limit](planning.md#export-limit-pv-inverters). **Prepared, not used**: every driver has `enabled = False`, `async_set_limit` is never called, and HomeBatteryAssist opens no connection to an inverter in this phase; the sensor *Max export* only shows what a driver would send. `base.py` = `InverterDriver` (`points`: the settings it would write, `{limit_w}` = the limit in W; `limits`: the inverter's own output or the export), `template.py` = an example.
+
+- `sma_modbus.py` — SMA Sunny Boy / Sunny Tripower via Modbus TCP (port 502, unit 3): active power through communication (40151 = 802) with the setpoint in W (40149). From SMA's Modbus documentation, *not verified on a device*.
+- The **Sunny Home Manager 2.0** can limit the export of all SMA inverters as well, but that limit is set in Sunny Portal / ennexOS; no local interface to change it is known, so there is no driver for it (it is still read as a [meter](#meters--enginedevicesmeters)).
+
 ## Supported now
 
 - **Batteries**: Marstek Venus E v3 (model); read through Omnibattery or Marstek Modbus (verified). Any other battery can be linked manually through its entities.

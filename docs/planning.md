@@ -61,6 +61,18 @@ In this phase of development the [virtual batteries](measuring.md#virtual-batter
 - **Phase protection** (virtual batteries): when a phase is overloaded, batteries on that phase take load off it within seconds. The load per phase is the **current** (what the main fuse sees): measured when the meter sends it (an SMA Home Manager does, with voltage and power factor), else power / (measured voltage × power factor), else power / 230 V. Phase protection and peak shaving cannot be undone by an [interceptor](#interceptor-your-last-say). Without a grid measurement (meter gone for 10 s) the batteries do nothing until it is back; *Why* says so.
 - **Distribution over several batteries**: as few batteries as possible at a sensible minimum power, kept in balance.
 
+## Export limit (PV inverters)
+
+When the solar surplus can no longer go into the batteries, it goes to the grid. At a negative export price that costs money; and a grid operator may cap the export. The sensor **Max export** on the *Grid connection* device says how much may be exported now:
+
+- **0 W** — do not export: the export price is below the *export price below which nothing is exported* (default 0, so at a negative export price). The batteries still store what they can; the inverters would produce no more than the house and batteries use.
+- **a fixed maximum** (setting *Fixed maximum export*, e.g. the grid operator's limit; 0 = none);
+- else the **grid connection's maximum** (phases × fuse × 230 V): not limited.
+
+Attributes: *limited*, the reason, the limit as current per phase, the export price, the export now, what would be curtailed now and today, and per PV source what its inverter driver would send. With a [twin](measuring.md#twin-of-a-real-battery) the export is counted as with the twin instead of the real battery.
+
+**In this phase nothing is sent to an inverter.** *Why* tells when the export would be limited (to what, why, how much less the inverters would produce) and when it ends (minutes, kWh not exported, what that was worth at the export price). Settings section *Export limit (PV inverters)*. Which inverter could be limited is chosen per PV source (*Inverter driver*, *Inverter address*) — see [Drivers](drivers.md#pv-inverters--enginedevicesinverters).
+
 ## Periodic full charge
 
 Per battery (for the battery management's calibration), every so many days, at the cheapest moment, optionally on a preferred weekday and preferably with solar power; batteries charge fully at the same time when the grid connection allows it. The full charge is always inserted **after** the planner, whatever planner is chosen.

@@ -72,6 +72,21 @@ CONF_PV_CORRECTOR: Final = "pv_corrector"  # PV correction module (learned)
 CONF_PV_DEVIATION_W: Final = "pv_deviation_w"
 CONF_PV_DEVIATION_MINUTES: Final = "pv_deviation_minutes"
 # A battery that does not follow its command (from this power, after so long).
+# Export limit (PV inverters): the most that may be exported now. Below
+# this export price (per kWh) nothing is exported (the inverters would be
+# limited to what the house and batteries take); a fixed maximum (W, 0 = none)
+# e.g. for a grid operator's limit. In this phase only shown and explained:
+# nothing is sent to an inverter.
+CONF_EXPORT_LIMIT: Final = "export_limit_on"
+CONF_EXPORT_LIMIT_PRICE: Final = "export_limit_price"
+CONF_EXPORT_LIMIT_MAX_W: Final = "export_limit_max_w"
+DEFAULT_EXPORT_LIMIT: Final = True
+DEFAULT_EXPORT_LIMIT_PRICE: Final = 0.0
+DEFAULT_EXPORT_LIMIT_MAX_W: Final = 0
+# PV source: the inverter driver that could limit it, and its address.
+CONF_INVERTER_DRIVER: Final = "inverter_driver"
+CONF_INVERTER_ADDRESS: Final = "inverter_address"
+INVERTER_NONE: Final = "none"
 CONF_COMMAND_CHECK_W: Final = "command_check_w"
 CONF_COMMAND_CHECK_MINUTES: Final = "command_check_minutes"
 DEFAULT_COMMAND_CHECK_W: Final = 100

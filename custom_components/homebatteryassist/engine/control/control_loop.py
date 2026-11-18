@@ -104,6 +104,8 @@ Activating (later, deliberately, with the project owner)
    ``enabled``; add the decision log messages (``control_started``,
    ``control_stopped``, ``control_failed``, ``control_released``) in all
    languages.
+   The export limit (``export_limiter.py``, ``CONTROL``) would then send
+   its limit through the PV inverter drivers (``devices/inverters``).
    A real battery with a twin (a virtual battery ``twin_of`` it) is not
    planned and never controlled (it keeps its own control, to compare);
    ``_flow`` of the virtual batteries takes it off the grid, so the twin

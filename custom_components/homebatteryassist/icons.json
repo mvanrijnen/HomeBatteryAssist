@@ -131,6 +131,9 @@
       },
       "twin_difference_today": {
         "default": "mdi:scale-balance"
+      },
+      "export_limit": {
+        "default": "mdi:transmission-tower-export"
       }
     },
     "button": {

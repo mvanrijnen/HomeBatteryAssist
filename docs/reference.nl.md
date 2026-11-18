@@ -198,6 +198,16 @@ Of elke batterij doet wat haar opgedragen wordt (in deze fase door haar eigen in
 | **Opdrachten controleren vanaf** | Een opdracht om met minstens dit vermogen te laden of ontladen wordt gecontroleerd: de batterij moet minstens de helft ervan (of van haar maximale vermogen) in die richting doen. Standaard 100 W. |
 | **Melden na** | Waarom meldt het (en stuurt een melding, met 'Een batterij volgt haar opdracht niet') zodra het zo lang duurt, zodat opstarten en oplopen geen bericht geven. Vol, leeg, laden/ontladen uitgeschakeld en de hysterese van de batterij worden uitgelegd, niet als probleem gemeld. Standaard 2 min. |
 
+### Begrenzing teruglevering (PV-omvormers) {#settings-export-limit}
+
+Hoeveel er nu maximaal teruggeleverd mag worden, als de sensor Max. teruglevering op de netaansluiting (0 W = niet terugleveren). In deze fase alleen getoond en uitgelegd in Waarom (hoeveel de omvormers minder zouden leveren, en wat dat waard is); er wordt niets naar een omvormer gestuurd.
+
+| Veld | Uitleg |
+|---|---|
+| **Niet terugleveren bij een lage terugleverprijs** | Onder de terugleverprijs hieronder is de grens 0 W: de batterijen slaan nog op wat ze kunnen, de omvormers zouden niet meer leveren dan huis en batterijen gebruiken. |
+| **Terugleverprijs waaronder niets wordt teruggeleverd** | Per kWh, in de prijseenheid van de prijsbron (na het tarief). Standaard 0: alleen bij een negatieve terugleverprijs. |
+| **Vaste maximale teruglevering** | Bijv. een grens van de netbeheerder. 0 = geen. |
+
 ## Apparaten en tijdvakken {#devices}
 
 Toe te voegen onder de integratie (**+ … toevoegen**) en te wijzigen met het tandwiel ernaast.
@@ -216,6 +226,8 @@ Een meting van zonne-opwek (PV), bijvoorbeeld een omvormer. De opwek wordt bij d
 | **Vermogen L3 (optioneel, 3-fase)** |  |
 | **Gemeten door** | Een sensor van een andere integratie, of een meter die rechtstreeks wordt uitgelezen (ongeveer elke seconde, alleen lezen), bijv. een HomeWizard kWh-meter op de groep van de omvormer. |
 | **IP-adres meter** | Alleen bij een rechtstreeks uitgelezen meter. |
+| **Omvormer-driver (begrenzing teruglevering)** | Hoe deze omvormer begrensd zou kunnen worden voor de begrenzing van de teruglevering. In deze fase wordt niets verstuurd: alleen getoond wat hij zou sturen. |
+| **Adres omvormer** | IP-adres van de omvormer, voor de driver. |
 
 ### Uitgesloten apparaat {#device-excluded-load}
 
@@ -347,6 +359,7 @@ Wat HomeBatteryAssist aanmaakt (namen zoals in Home Assistant).
 | Testbesturing | Sensor |
 | Opbrengst vandaag | Sensor |
 | Verschil met echte batterij vandaag | Sensor |
+| Max. teruglevering | Sensor |
 | Herbereken | Knop |
 | Test: laden | Knop |
 | Test: ontladen | Knop |
