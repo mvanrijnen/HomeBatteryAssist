@@ -5,9 +5,9 @@
 A Home Assistant custom integration that gives insight into your home batteries and energy flows, forecasts what is coming, and plans what your batteries could best do — explained in plain language.
 
 > [!WARNING]
-> **Alpha — under active development, not even beta.** Settings, entities and behaviour can still change at any moment, and there are no releases yet. Use it to explore and give feedback, not to rely on.
+> **Alpha — under active development, not even beta.** Settings, entities and behaviour can still change at any moment; releases are alpha releases. Use it to explore and give feedback, not to rely on.
 >
-> **In this phase of development** HomeBatteryAssist does not control any physical battery (or any other device): it reads, forecasts and advises. Only *virtual* batteries follow its plans, as a simulation. Controlling batteries itself is the goal; the control layer is already built, but not active.
+> **In this phase of development** HomeBatteryAssist does not control any physical battery (or any other device): it reads, forecasts and advises. Only *virtual* batteries follow its plans, as a simulation. Controlling batteries itself is the goal; the control layer and a [test control](docs/measuring.md#test-control-switched-off-for-now) per battery are already built, but not active.
 
 📖 **Documentation (English / Nederlands): https://mvanrijnen.github.io/HomeBatteryAssist/** — with a [step-by-step guide](https://mvanrijnen.github.io/HomeBatteryAssist/getting-started.html).
 
@@ -19,7 +19,7 @@ HomeBatteryAssist measures, forecasts and plans your home batteries, and is buil
 
 ## What it does
 
-- **Measures** the grid connection per phase (meters read directly, e.g. HomeWizard P1 or SMA Home Manager, or your own sensors), your batteries (through their own integration; for now read-only), PV, excluded devices such as an EV charger and (optionally) heating/cooling, and from that the house consumption. *Virtual batteries* show what a (bigger) battery would bring. → [Measuring](docs/measuring.md)
+- **Measures** the grid connection per phase (meters read directly, e.g. HomeWizard P1 or SMA Home Manager, or your own sensors), your batteries (through their own integration; for now read-only), PV, excluded devices such as an EV charger and (optionally) heating/cooling, and from that the house consumption. It checks whether each battery [follows its command](docs/measuring.md#does-the-battery-follow-its-command). *Virtual batteries* show what a (bigger) battery would bring. → [Measuring](docs/measuring.md)
 - **Forecasts** the house consumption from your own history, optionally following the weather forecast (a weather entity, KNMI, Weerlive or Open-Meteo) for electric heating or cooling (per room, learning the desired room temperature per day of the week), and takes prices and the PV forecast from your integrations — assuming **no net metering** (as in the Netherlands from 2027). Every forecast is checked afterwards and corrected where it is consistently off. → [Forecasting](docs/forecasting.md)
 - **Plans** what the batteries could best do — zero on the meter, arbitrage, time slots, manual or your own planner — within the batteries' and the grid connection's limits, with a periodic full charge, follows the real sun when it differs from the forecast, and compares every plan with no battery. For now as advice (virtual batteries follow it). → [Planning](docs/planning.md)
 - **Explains** every plan and every change in plain language, as periods: what happens until when, and why — also what your real battery does by its own control. → [Planning: explanation](docs/planning.md#explanation)

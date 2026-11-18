@@ -45,6 +45,27 @@ De batterijkaart toont de opdracht die ze nu heeft (*Opdracht*: laden / ontladen
 
 Wat een batterij door zijn eigen aansturing doet (laden, leveren, stoppen) wordt als periodes uitgelegd in *Waarom*, vergeleken met het plan — zie [Planning](planning.md#explanation).
 
+### Testbesturing (staat voorlopig uit) {#test-control-switched-off-for-now}
+
+Om het aansturen van een batterij met de hand te testen — voordat HomeBatteryAssist haar ooit automatisch aanstuurt — heeft het apparaat van elke echte batterij een **testbesturing**. **In deze fase staat die uit**: de knoppen versturen niets; *Waarom* meldt alleen dat de testbesturing uit staat.
+
+| Entiteit | Wat het is |
+|---|---|
+| *Test: laden* / *Test: ontladen* (knoppen) | Een test starten: laden of ontladen met het testvermogen gedurende de testduur. |
+| *Test: stoppen* (knop) | De test meteen stoppen; de batterij gaat terug naar haar eigen sturing. |
+| *Testvermogen* (getal) | Het vermogen van een test, 50 W tot het maximale vermogen van de batterij. Standaard 300 W. |
+| *Testduur* (getal) | Hoe lang een test duurt, 1–30 minuten. Standaard 5 min. |
+| *Testbesturing* (sensor) | *Uitgeschakeld (alleen lezen)*, *Niet mogelijk* (haar integratie kan niet worden aangestuurd), *Gereed*, *Laden (test)* of *Ontladen (test)*; attributen: de testinstellingen, en de lopende test (vermogen, sinds, tot). |
+
+Staat hij eenmaal aan, dan doet een test het volgende:
+
+1. **eerst controleren**: het laadniveau moet bekend zijn, een laadtest start niet als de batterij vol is, een ontlaadtest niet op of onder haar laagst toegestane laadniveau (max(min. laadniveau, reserve));
+2. **de opdracht via de eigen integratie van de batterij sturen** — bij Omnibattery: de handmatige modus van de batterij met het laad- of ontlaadvermogen — via de beveiligingslaag die elke toekomstige besturing gebruikt (een watchdog, altijd teruggeven, hoogstens één nieuwe opdracht per 5 s, vermogensgrenzen);
+3. **vanzelf stoppen** als de tijd om is, als de batterij vol raakt of haar laagst toegestane laadniveau bereikt, als ze [de opdracht niet volgt](#does-the-battery-follow-its-command), als een opdracht mislukt, met *Test: stoppen* en als HomeBatteryAssist stopt of herlaadt;
+4. **de batterij altijd teruggeven** aan haar eigen sturing (Omnibattery neemt het weer over), en in *Waarom* vertellen waarom hij stopte en hoeveel er geladen en ontladen is.
+
+Aanzetten is een besluit van de projecteigenaar, samen met de eerste test op een echte installatie terwijl er iemand bij is.
+
 ## Virtuele batterijen {#virtual-batteries}
 
 Gesimuleerde wat-als-batterijen (capaciteit, vermogen, grenzen voor het laadniveau, verliezen, fase) die het plan live volgen, zodat je ziet wat een (grotere) batterij zou opleveren voordat je er een koopt. Ze laten ook fasebeveiliging en piekafvlakking aan het werk zien.

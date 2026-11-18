@@ -45,6 +45,27 @@ The battery card shows the command it has now (*Command*: charge / discharge at 
 
 What a battery does by its own control (charging, supplying, stopping) is explained as periods in *Why*, compared with the plan — see [Planning](planning.md#explanation).
 
+### Test control (switched off for now)
+
+To test controlling a battery by hand — before HomeBatteryAssist ever controls it automatically — each real battery's device has a **test control**. **In this phase it is switched off**: the buttons send nothing; *Why* only says that the test control is switched off.
+
+| Entity | What it is |
+|---|---|
+| *Test: charge* / *Test: discharge* (buttons) | Start a test: charge or discharge at the test power for the test duration. |
+| *Test: stop* (button) | Stop the test at once; the battery goes back to its own control. |
+| *Test power* (number) | The power of a test, 50 W up to the battery's max power. Default 300 W. |
+| *Test duration* (number) | How long a test lasts, 1–30 minutes. Default 5 min. |
+| *Test control* (sensor) | *Switched off (read-only)*, *Not possible* (its integration cannot be controlled), *Ready*, *Charging (test)* or *Discharging (test)*; attributes: the test settings, and the running test (power, since, until). |
+
+Once switched on, a test:
+
+1. **checks first**: the state of charge must be known, a charge test does not start when the battery is full, a discharge test not at or below its lowest allowed state of charge (max(min SoC, reserve SoC));
+2. **sends the command through the battery's own integration** — for Omnibattery: the battery's manual mode with the charge or discharge power — through the safety layer that every future control uses (a watchdog, always handing back, at most one new command every 5 s, power limits);
+3. **stops by itself** when the time is up, when the battery becomes full or reaches its lowest allowed state of charge, when it [does not follow the command](#does-the-battery-follow-its-command), when a command fails, by *Test: stop* and when HomeBatteryAssist stops or reloads;
+4. **always hands the battery back** to its own control (Omnibattery takes over again), and tells in *Why* why it stopped and how much was charged and discharged.
+
+Switching it on is a decision of the project owner, together with the first test on a real installation with someone present.
+
 ## Virtual batteries
 
 Simulated what-if batteries (capacity, power, state-of-charge limits, losses, phase) that follow the plan live, so you can see what a (bigger) battery would bring before buying one. They also show phase protection and peak shaving at work.

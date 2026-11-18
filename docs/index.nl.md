@@ -5,7 +5,7 @@
 HomeBatteryAssist meet de energiestromen in je huis, voorspelt verbruik, prijzen en zonnestroom, en rekent uit wat je batterijen het beste kunnen doen: wanneer laden, met zon of uit het net, en wanneer het huis van stroom voorzien. Elke voorspelling wordt achteraf vergeleken met wat er echt gebeurde, en elk plan wordt in gewone woorden uitgelegd.
 
 !!! warning "Alfa — volop in ontwikkeling"
-    Instellingen, entiteiten en gedrag kunnen nog veranderen, en er zijn nog geen releases. **In deze fase stuurt HomeBatteryAssist geen echte batterij aan**: het leest, voorspelt en adviseert. *Virtuele batterijen* volgen de plannen als simulatie. Zelf batterijen aansturen is het doel; de regellaag is al gebouwd, maar staat nog niet aan.
+    Instellingen, entiteiten en gedrag kunnen nog veranderen, en releases zijn alpha-releases. **In deze fase stuurt HomeBatteryAssist geen echte batterij aan**: het leest, voorspelt en adviseert. *Virtuele batterijen* volgen de plannen als simulatie. Zelf batterijen aansturen is het doel; de regellaag en een [testbesturing](measuring.md#test-control-switched-off-for-now) per batterij zijn al gebouwd, maar staan nog niet aan.
 
 [Aan de slag :material-arrow-right:](getting-started.md){ .md-button .md-button--primary } [Screenshots](screenshots.md){ .md-button } [GitHub](https://github.com/mvanrijnen/HomeBatteryAssist){ .md-button }
 

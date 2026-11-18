@@ -3,7 +3,7 @@
 ## Over HomeBatteryAssist {#about}
 
 ??? question "Stuurt HomeBatteryAssist mijn batterij aan?"
-    **Nog niet.** In deze ontwikkelfase leest het alleen, voorspelt het en adviseert het; de integratie die je batterij aanstuurt (bijv. Omnibattery) blijft dat ongestoord doen. Zelf batterijen aansturen is het doel: de regellaag en de beveiliging daarvan (vrijgeven bij elke fout, een watchdog, grenzen) zijn gebouwd, maar staan niet aan. Tot die tijd volgen *virtuele batterijen* het plan als simulatie, zodat je ziet wat het zou doen.
+    **Nog niet.** In deze ontwikkelfase leest het alleen, voorspelt het en adviseert het; de integratie die je batterij aanstuurt (bijv. Omnibattery) blijft dat ongestoord doen. Zelf batterijen aansturen is het doel: de regellaag en de beveiliging daarvan (vrijgeven bij elke fout, een watchdog, grenzen) zijn gebouwd, maar staan niet aan. Tot die tijd volgen *virtuele batterijen* het plan als simulatie, zodat je ziet wat het zou doen. Elke batterij heeft ook een [testbesturing](measuring.md#test-control-switched-off-for-now) (*Test: laden / ontladen / stoppen*) om aansturen later met de hand te testen; die staat ook uit.
 
 ??? question "Kan het naast Omnibattery of de app van mijn batterij draaien?"
     Ja. HomeBatteryAssist leest de batterij via de entiteiten van zijn integratie en maakt nooit een eigen verbinding met de batterij, dus er wordt niets verstoord. Netmeters worden alleen rechtstreeks uitgelezen als dat passief kan of via een alleen-lezen-interface waar meerdere programma's tegelijk bij mogen (HomeWizard P1 API, SMA Speedwire multicast).

@@ -3,7 +3,7 @@
 ## About HomeBatteryAssist {#about}
 
 ??? question "Does HomeBatteryAssist control my battery?"
-    **Not yet.** In this phase of development it only reads, forecasts and advises; the integration that controls your battery (e.g. Omnibattery) keeps doing so undisturbed. Controlling batteries itself is the goal: the control layer and its safety (release on every error, a watchdog, limits) are built, but not active. Until then *virtual batteries* follow the plan as a simulation, so you can see what it would do.
+    **Not yet.** In this phase of development it only reads, forecasts and advises; the integration that controls your battery (e.g. Omnibattery) keeps doing so undisturbed. Controlling batteries itself is the goal: the control layer and its safety (release on every error, a watchdog, limits) are built, but not active. Until then *virtual batteries* follow the plan as a simulation, so you can see what it would do. Each battery also has a [test control](measuring.md#test-control-switched-off-for-now) (*Test: charge / discharge / stop*) for testing control by hand later; it is switched off as well.
 
 ??? question "Can it run next to Omnibattery or my battery's own app?"
     Yes. HomeBatteryAssist reads the battery through the entities of its integration and never opens its own connection to it, so nothing competes. Grid meters are only read directly when that is passive or through a read-only interface that allows any number of clients (HomeWizard P1 API, SMA Speedwire multicast).
