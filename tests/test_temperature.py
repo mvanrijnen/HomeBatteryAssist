@@ -368,19 +368,36 @@ def test_heating_zone_reads_its_sensors(hass: HomeAssistant) -> None:
     assert power == 750.0 and abs(indoor - 21.1) < 0.1 and outdoor is None
 
 
-def test_room_temperature_per_day_of_the_week(hass: HomeAssistant) -> None:
-    """Working from home on Wednesday: that day is learned on its own."""
+def test_room_temperature_working_days_and_weekend(hass: HomeAssistant) -> None:
+    """The room temperature is a setting: working days are learned together
+    (more measurements, backtested better than per weekday), the weekend apart."""
     records = _zone_records(24, 3.0, 60.0)
     for record in records:
         local = dt_util.as_local(dt_util.parse_datetime(record["start"]))
         zone = record["zones"]["a"]
-        if local.weekday() == 2 and zone["in"] == 21.0:
+        if local.weekday() >= 5 and zone["in"] == 21.0:
             zone["in"] = 22.0
     model = fit_temperature(records, NOW, "a", "Woonkamer")
     assert model is not None
-    assert model.room_temperature(day=True, weekday=2) == 22.0
+    assert model.room_temperature(day=True, weekday=6) == 22.0
     assert model.room_temperature(day=True, weekday=1) == 21.0
-    assert model.room(2, 12) == 22.0 and model.room(1, 12) == 21.0
+    assert model.room(2, 12) == model.room(1, 12) == 21.0
+    assert model.room(5, 12) == 22.0
+
+
+def test_room_temperature_per_weekday_when_that_fits(hass: HomeAssistant) -> None:
+    """Working from home every Thursday and Friday: per day of the week
+    predicts the last week better, so that is used."""
+    records = _zone_records(24, 3.0, 60.0)
+    for record in records:
+        local = dt_util.as_local(dt_util.parse_datetime(record["start"]))
+        zone = record["zones"]["a"]
+        if local.weekday() in (3, 4) and zone["in"] == 21.0:
+            zone["in"] = 22.0
+    model = fit_temperature(records, NOW, "a", "Woonkamer")
+    assert model is not None
+    assert model.room(3, 12) == model.room(4, 12) == 22.0
+    assert model.room(1, 12) == 21.0
 
 
 def test_profile_has_no_weekend_split(hass: HomeAssistant) -> None:

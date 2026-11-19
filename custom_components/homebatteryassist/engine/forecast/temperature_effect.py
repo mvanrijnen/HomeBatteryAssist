@@ -33,9 +33,12 @@ degrees at that day of the week and hour)`` (the same for cooling). The
 the week (Monday .. Sunday, no working days / weekend split) and hour, recent
 days counting more (``HALF_LIFE``, as the weekday/hour profile), from the same
 outdoor temperature the forecast is compared with (``temp_c``). So only the
-*difference* with recent weather is added. The room temperature is learned
-the same way: per day of the week and hour (working from home on Wednesday
-shows), falling back to the hour of all days. Without a temperature forecast for
+*difference* with recent weather is added. The room temperature is a
+setting, not a pattern: recent days count more (``ROOM_HALF_LIFE``: a lower
+thermostat shows within days). It is learned per hour either for working days
+together and the weekend (five times the measurements of one weekday) or per
+day of the week (working from home on Thursday and Friday shows): whichever
+predicted the last week better from the days before (``_room_means``). Without a temperature forecast for
 a slot, or without enough history, nothing changes.
 """
 
@@ -62,6 +65,10 @@ MIN_DAYS = 7  # days with temperature and consumption needed to learn
 MIN_SPREAD = 1.0  # degrees: the days must differ this much to learn a slope
 MIN_COVERAGE = 0.8  # a day must be measured (and have a temperature) this much
 HALF_LIFE = timedelta(days=14)  # as the weekday/hour profile
+ROOM_HALF_LIFE = timedelta(days=7)  # room temperature: a setting, follow it soon
+WORKDAYS = range(5)  # Monday .. Friday
+ROOM_CHECK = timedelta(days=7)  # last week: which room table predicts best
+MIN_ROOM_CHECK = 48  # hours with a room temperature needed for that check
 MAX_SLOPE_W = 2000.0  # W per degree: anything more is not believed
 DAY_HOURS = range(7, 23)  # "during the day" for the room temperature
 
@@ -187,6 +194,58 @@ class ZoneModels:
 TemperatureEffect = TemperatureModel | ZoneModels
 
 
+def _room_table(
+    rows: Sequence[_Row], now: datetime, per_weekday: bool
+) -> dict[Any, float]:
+    """Usual room temperature per (weekday, hour) and per hour, recent days
+    counting more; per day of the week, or working days together and the
+    weekend."""
+    half_life = ROOM_HALF_LIFE.total_seconds()
+    means = _Means()
+    for row in rows:
+        if row.indoor is None:
+            continue
+        age = max((now - row.start).total_seconds(), 0.0)
+        group = row.weekday if per_weekday else (0 if row.weekday in WORKDAYS else 5)
+        means.add(
+            group, row.hour, row.indoor, row.weight * math.pow(0.5, age / half_life)
+        )
+    grouped = means.result(1)
+    table: dict[Any, float] = {
+        k: v for k, v in grouped.items() if not isinstance(k, tuple)
+    }
+    for key, value in grouped.items():
+        if not isinstance(key, tuple):
+            continue
+        group, hour = key
+        days = (group,) if per_weekday else (WORKDAYS if group == 0 else (5, 6))
+        for weekday in days:
+            table[(weekday, hour)] = value
+    return table
+
+
+def _room_means(rows: Sequence[_Row], now: datetime) -> dict[Any, float]:
+    """The room temperature table that fits this house: per day of the week
+    only when that predicted the last week clearly better (from the days
+    before it) than working days together; else working days together."""
+    split = now - ROOM_CHECK
+    before = [r for r in rows if r.start < split]
+    after = [r for r in rows if r.start >= split and r.indoor is not None]
+    if len(after) >= MIN_ROOM_CHECK and before:
+
+        def error(per_weekday: bool) -> float:
+            table = _room_table(before, split, per_weekday)
+            total = 0.0
+            for row in after:
+                guess = _usual(table, row.weekday, row.hour, NOMINAL_INDOOR_C)
+                total += abs(guess - (row.indoor or 0.0))
+            return total / len(after)
+
+        if error(True) < BETTER_FIT * error(False):
+            return _room_table(rows, now, True)
+    return _room_table(rows, now, False)
+
+
 def _usual(values: Mapping[Any, float], weekday: int, hour: int, default: float):
     """The value of that day of the week and hour, else of the hour."""
     value = values.get((weekday, hour))
@@ -293,11 +352,7 @@ def fit_temperature(
         age = max((now - row.start).total_seconds(), 0.0)
         return row.weight * math.pow(0.5, age / half_life)
 
-    indoor = _Means()
-    for row in rows:
-        if row.indoor is not None:
-            indoor.add(row.weekday, row.hour, row.indoor, recency(row))
-    usual_indoor = indoor.result(1)
+    usual_indoor = _room_means(rows, now)
 
     def room(row: _Row) -> float:
         if row.indoor is not None:
