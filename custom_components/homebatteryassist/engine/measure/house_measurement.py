@@ -82,6 +82,10 @@ from .spike_filters import SpikeFilter, SpikeState, checked
 _LOGGER = logging.getLogger(__name__)
 # No message about missing measurements this long after a (re)start.
 STARTUP_QUIET = timedelta(minutes=2)
+# PV without a value counts as unknown (not 0 W) only when it gave at least
+# PV_SEEN_W within PV_GONE before (it dropped out while producing).
+PV_SEEN_W = 20.0
+PV_GONE = timedelta(minutes=30)
 
 type MeasurementListener = Callable[[datetime, float | None], None]
 
@@ -253,6 +257,8 @@ class MeasurementInput:
         # Sensors of other integrations are often still starting in the first
         # minutes after a (re)start: a gap then is no message.
         self._quiet_until = dt_util.utcnow() + STARTUP_QUIET
+        # When each PV source last gave power (for a PV value that drops out).
+        self._pv_seen: dict[str, datetime] = {}
         self._listeners: list[MeasurementListener] = []
         self._pending: dict[int, CALLBACK_TYPE] = {}
         self._unsub: CALLBACK_TYPE | None = None
@@ -425,18 +431,35 @@ class MeasurementInput:
             for b, power in zip(self.batteries, powers, strict=True)
             if power is None and self.hass.states.get(b.power_sensor) is not None
         ]
-        # PV without a value while the sun is up is not 0 W either (an
-        # inverter's wifi dropping would record its PV as no house use). At
-        # night many inverters go unavailable: 0 W then.
-        if is_up(self.hass):
-            unknown += [
-                e
-                for e in self.pv_sensors
-                if self.hass.states.get(e) is not None and self._watts(e) is None
-            ]
-            unknown += [
-                f"{m.label} {m.address}" for m, _ in self.pv_meters if not m.available
-            ]
+        # PV that drops out while it was producing is not 0 W (an inverter's
+        # wifi dropping would record its PV as no house use). An inverter
+        # that is unavailable at night, or still asleep after sunrise, is
+        # 0 W: only one that gave power in the last PV_GONE counts as unknown.
+        now = dt_util.utcnow()
+        for e in self.pv_sensors:
+            value = self._watts(e)
+            if value is not None and abs(value) >= PV_SEEN_W:
+                self._pv_seen[e] = now
+        for m, _ in self.pv_meters:
+            if m.available and m.phase_w and abs(sum(m.phase_w)) >= PV_SEEN_W:
+                self._pv_seen[f"{m.label} {m.address}"] = now
+
+        def producing(key: str) -> bool:
+            seen = self._pv_seen.get(key)
+            return seen is not None and now - seen <= PV_GONE and is_up(self.hass)
+
+        unknown += [
+            e
+            for e in self.pv_sensors
+            if self.hass.states.get(e) is not None
+            and self._watts(e) is None
+            and producing(e)
+        ]
+        unknown += [
+            f"{m.label} {m.address}"
+            for m, _ in self.pv_meters
+            if not m.available and producing(f"{m.label} {m.address}")
+        ]
         if unknown:
             return None, unknown
         excluded = round(self._sum_abs(self.excluded_sensors), 1)

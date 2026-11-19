@@ -740,7 +740,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 else None
             ),
         )
-        forced = _forced_power(consumption, full_charges)
+        forced = _forced_power(consumption, full_charges, now)
         plans: dict[str, BatteryPlan] = {}
         derated = [self._derated(s) for s in states]
         for mode in (*PLAN_MODES, *self.planners):
@@ -1030,9 +1030,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         factor = self.export_factor
 
         starts = sorted(surplus)
+        last_end = consumption[-1].end if consumption else None
 
         def surplus_at(start: datetime) -> float:
-            # The consumption slot holding ``start`` (slots may be an hour).
+            # The consumption slot holding ``start`` (slots may be an hour);
+            # nothing known after the consumption forecast.
+            if last_end is None or start >= last_end:
+                return 0.0
             k = bisect_right(starts, start) - 1
             return surplus[starts[k]] if k >= 0 else 0.0
 
@@ -1356,8 +1360,18 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             if current and current.power_w < -100
             else "idle"
         )
-        first_charge = next((s.start for s in plan.slots if s.power_w > 100), None)
-        key = f"{plan.mode}|{action}|{first_charge}|{_money(plan.saving)}"
+        # The next charge that has not started yet (a running charge moves
+        # its first slot every slot boundary; that is no new story).
+        next_charge = next(
+            (
+                s.start
+                for prev, s in zip(plan.slots, plan.slots[1:], strict=False)
+                if s.start > now and s.power_w > 100 and prev.power_w <= 100
+            ),
+            None,
+        )
+        band = round((plan.saving or 0.0) / 0.25)  # saving in steps of 0.25
+        key = f"{plan.mode}|{action}|{next_charge}|{band}"
         if key == self._last_plan and not forced:
             return
         self._last_plan = key
@@ -1596,21 +1610,25 @@ def _periods(
 
 
 def _forced_power(
-    consumption: list[ForecastSlot], full_charges: list[FullCharge]
+    consumption: list[ForecastSlot],
+    full_charges: list[FullCharge],
+    now: datetime | None = None,
 ) -> dict[datetime, float]:
     """The full charges as extra charge power per consumption slot start (W,
-    averaged over the part of the slot they cover)."""
+    averaged over the part of the slot they cover; the slot now only from
+    now, as the plan counts it)."""
     forced: dict[datetime, float] = {}
     for slot in consumption:
-        seconds = (slot.end - slot.start).total_seconds()
+        begin = max(slot.start, now) if now is not None else slot.start
+        seconds = (slot.end - begin).total_seconds()
         if seconds <= 0:
             continue
         extra = sum(
             f.power_w
-            * (min(slot.end, f.end) - max(slot.start, f.start)).total_seconds()
+            * max((min(slot.end, f.end) - max(begin, f.start)).total_seconds(), 0.0)
             / seconds
             for f in full_charges
-            if slot.start < f.end and slot.end > f.start
+            if begin < f.end and slot.end > f.start
         )
         if extra > 0:
             forced[slot.start] = round(extra, 1)
@@ -1639,7 +1657,7 @@ def _price(value: float | None, unit: str | None, language: str | None = None) -
         return f"€ {value:.2f}".replace(".", ",")
     return (
         f"€ {value:.2f}"
-        if (unit or "").startswith("€")
+        if (unit or "").startswith(("€", "EUR"))
         else f"{value:.3f} {unit or ''}".strip()
     )
 

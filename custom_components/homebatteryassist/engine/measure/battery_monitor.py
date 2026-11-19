@@ -800,7 +800,10 @@ class BatteryInput:
             # The prices of the stretch itself (its middle): a stretch that
             # ends on a quarter boundary is not valued at the next quarter.
             middle = since + (when - since) / 2
-            if kwh and (price := self.price_now(middle)) is not None:
+            price = self.price_now(middle) if kwh else None
+            if kwh and price is None:
+                price = self.price_now(when)  # the middle's period already gone
+            if kwh and price is not None:
                 hours = max((when - since).total_seconds(), 0.0) / 3600
                 grid_kwh = self._grid_with_batteries(battery_id, last_power)
                 stats.setdefault("value_since", when.isoformat())
@@ -812,7 +815,9 @@ class BatteryInput:
                         kwh,
                         None if grid_kwh is None else grid_kwh * hours / 1000,
                         price,
-                        self.export_price_now(middle),
+                        self.export_price_now(middle)
+                        if self.export_price_now(middle) is not None
+                        else self.export_price_now(when),
                     ),
                     5,
                 )

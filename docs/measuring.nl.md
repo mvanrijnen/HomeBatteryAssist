@@ -108,7 +108,7 @@ Een piek die **regelmatig terugkomt** — op minstens de helft van de dagen van 
 
 **Huisverbruik** = net + PV − uitgesloten apparaten − laden van de batterij, plus afname/teruglevering van het net, PV-vermogen en de belasting per fase als % van de hoofdzekering.
 
-Heeft het net, een batterij, een uitgesloten apparaat of — terwijl de zon op is — een PV-bron geen waarde, dan is het huisverbruik op dat moment onbekend (niet met 0 W geteld, dat zou verkeerd verbruik vastleggen). 's Nachts telt een onbereikbare omvormer als 0 W. Een verwarmings-/koelsensor zonder waarde maakt alleen de verwarming onbekend.
+Heeft het net, een batterij, een uitgesloten apparaat of een PV-bron die de laatste 30 minuten (terwijl de zon op is) stroom gaf geen waarde, dan is het huisverbruik op dat moment onbekend (niet met 0 W geteld, dat zou verkeerd verbruik vastleggen). Een omvormer die 's nachts onbereikbaar is, of na zonsopkomst nog slaapt, telt als 0 W. Een verwarmings-/koelsensor zonder waarde maakt alleen de verwarming onbekend.
 
 Het verbruik wordt als historie bewaard (28 dagen) voor de [verbruiksvoorspelling](forecasting.md#consumption); eerder verbruik kun je eenmalig importeren uit de statistieken van Home Assistant.
 

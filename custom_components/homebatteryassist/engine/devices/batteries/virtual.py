@@ -121,8 +121,8 @@ def limit_power(
 def without_batteries(flow: Any, batteries: list[tuple[int | None, float]]) -> Any:
     """The power flow as it would be without these batteries ((phase index
     or None = spread, power W + charging)): grid and phases less their power.
-    The measured current of a changed phase no longer holds; it is then
-    derived from the power (``PowerFlow.phase_amps``)."""
+    The current of a changed phase is recomputed with its measured reactive
+    part."""
     batteries = [(i, w) for i, w in batteries if w]
     if not batteries:
         return flow
@@ -133,12 +133,28 @@ def without_batteries(flow: Any, batteries: list[tuple[int | None, float]]) -> A
             if i < phases:
                 phase_w[i] -= power / (phases if index is None else 1)
     total = sum(w for _i, w in batteries)
+    # The measured current of a changed phase: its reactive part stays (the
+    # battery only changes the active power), so I = hypot(P, Q) / V; an
+    # untouched phase keeps its measured current.
+    phase_a: tuple[float, ...] = ()
+    measured = tuple(flow.phase_a or ())
+    if len(measured) == phases:
+        volts = tuple(getattr(flow, "phase_v", ()) or ())
+        amps = []
+        for i in range(phases):
+            if phase_w[i] == flow.phase_w[i]:
+                amps.append(measured[i])
+                continue
+            v = volts[i] if len(volts) == phases and volts[i] else NOMINAL_VOLTAGE
+            q = math.sqrt(max((measured[i] * v) ** 2 - flow.phase_w[i] ** 2, 0.0))
+            amps.append(round(math.hypot(phase_w[i], q) / v, 2))
+        phase_a = tuple(amps)
     return replace(
         flow,
         grid_w=flow.grid_w - total,
         battery_w=flow.battery_w - total,
         phase_w=tuple(phase_w),
-        phase_a=(),
+        phase_a=phase_a,
     )
 
 
@@ -331,7 +347,13 @@ class VirtualBatterySimulator:
         (when switched on, time-weighted), else the last value."""
         flow = self._flow()
         interval = getattr(self._forecast, "react_interval", None) or STEP
-        samples = [s for s in self._samples if now - s[0] <= interval]
+        start = now - interval
+        # The sample that was in force at the start of the round counts from
+        # that start (else the beginning of the round is missing).
+        older = [s for s in self._samples if s[0] < start]
+        samples = [s for s in self._samples if s[0] >= start]
+        if older:
+            samples.insert(0, (start, older[-1][1], older[-1][2]))
         if flow is None or not getattr(self._forecast, "react_average", True):
             return flow
         if len(samples) < 2:

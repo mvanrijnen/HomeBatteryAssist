@@ -45,6 +45,7 @@ TEXT = {
         "hold": "Tot {first} blijft die energie in de batterij en komt de stroom van het net: stroom kost tussendoor hooguit {gap_price}, en is later duurder (tot {max_price}).",
         "full_charge": "Daarmee wordt {names} ook helemaal vol geladen, zoals gepland.",
         "next_grid_small": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use}, als stroom gemiddeld {use_price} kost. Na verlies en slijtage levert dat vrijwel niets op (ongeveer {gain}).",
+        "next_grid_costs": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use}, als stroom gemiddeld {use_price} kost. Na verlies en slijtage kost dat in dit plan ongeveer {gain}.",
         "next_pv": "{when} laden we {energy} met zonnestroom, om die te gebruiken {use}.",
         "no_charge": "In de komende {hours} uur is laden niet nodig of levert het niets op.",
         "later": "Daarna nog {parts} tot {end}{main}.",
@@ -94,6 +95,7 @@ TEXT = {
         "hold": "Until {first} that energy stays in the battery and the house runs on the grid: power costs at most {gap_price} in between, and is more expensive later (up to {max_price}).",
         "full_charge": "This also charges {names} completely, as planned.",
         "next_grid_small": "{when} we charge {energy} from the grid at {price}, to use it {use}, when power costs {use_price} on average. After losses and wear that brings next to nothing (about {gain}).",
+        "next_grid_costs": "{when} we charge {energy} from the grid at {price}, to use it {use}, when power costs {use_price} on average. After losses and wear that costs about {gain} in this plan.",
         "next_pv": "{when} we charge {energy} with solar power, to use it {use}.",
         "no_charge": "In the next {hours} hours charging is not needed or brings nothing.",
         "later": "After that {parts} until {end}{main}.",
@@ -322,7 +324,10 @@ def plan_story(
         if plan.strategy == "time_slots":
             sentences.append(t["fixed_outside"])
     elif current.power_w > ACTIVE_W:
-        key = "now_charge_grid" if current.grid_w > ACTIVE_W else "now_charge_pv"
+        # From the grid when at least half of the charge comes from it (the
+        # rule of the charge blocks below, so both sentences agree).
+        from_grid = min(current.power_w, max(current.grid_w, 0.0))
+        key = "now_charge_grid" if from_grid >= current.power_w / 2 else "now_charge_pv"
         sentences.append(t[key].format(until=until, price=per_kwh(price_now or 0)))
     elif current.power_w < -ACTIVE_W:
         if plan.strategy == "nom" or price_now is None:
@@ -486,7 +491,13 @@ def plan_story(
                     and plan.strategy != "nom"
                 ):
                     gain = plan.saving - nom.saving
-                key = "next_grid" if gain >= SMALL_GAIN else "next_grid_small"
+                key = (
+                    "next_grid"
+                    if gain >= SMALL_GAIN
+                    else "next_grid_costs"
+                    if gain <= -SMALL_GAIN
+                    else "next_grid_small"
+                )
                 sentences.append(
                     t[key].format(
                         when=_when(block, now, lang),
@@ -494,7 +505,9 @@ def plan_story(
                         price=per_kwh(block.price),
                         use=use_text,
                         use_price=per_kwh(use_price),
-                        gain=_money(max(gain, 0.0), lang),
+                        gain=_money(
+                            abs(gain) if gain <= -SMALL_GAIN else max(gain, 0.0), lang
+                        ),
                     )
                 )
         elif uses or not block.from_grid:

@@ -89,7 +89,7 @@ Per battery (for the battery management's calibration), every so many days, at t
 
 ## Reaction on the meter
 
-Settings section *Reaction on the meter*: the batteries are adjusted to the grid meter **every 5 seconds** (adjustable, 1–60 s), by default on the **average over that round**, so a single outlier steers nothing. With **react at once on a large jump** (on by default, 1000 W) an oven or EV charger switching on gets an extra round right away. Phase overload and the peak limit are always acted on at once. Every second would hardly bring anything: the batteries take 1–2 seconds themselves, and a few seconds of delay on a 2 kW jump is about 2 Wh. When control is switched on later, a new power goes to a battery at most every 5 seconds; a change between charging, discharging and idle is never held back. For now this drives the virtual batteries.
+Settings section *Reaction on the meter*: the batteries are adjusted to the grid meter **every 5 seconds** (adjustable, 1–60 s), by default on the **average over that round**, so a single outlier steers nothing. With **react at once on a large jump** (on by default, 1000 W) an oven or EV charger switching on gets an extra round right away. Phase overload and the peak limit are always acted on at once. Every second would hardly bring anything: the batteries take 1–2 seconds themselves, and a few seconds of delay on a 2 kW jump is about 2 Wh. When control is switched on later, a new power goes to a battery at most every 5 seconds; going idle is never held back; a change between charging and discharging is held to the same 5 seconds and deadband (no flapping around 0 W). For now this drives the virtual batteries.
 
 ## Interceptor (your last say)
 

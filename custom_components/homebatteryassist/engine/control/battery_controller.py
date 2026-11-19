@@ -29,6 +29,7 @@ the safety is there before anything is ever controlled:
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal
@@ -59,6 +60,9 @@ class ControlState:
     sent_w: float | None = None  # last power sent; None = released
     sent_at: datetime | None = None
     active: bool = False  # the battery is under external control
+    # A release failed: tried again every tick until it succeeds (a battery
+    # must never stay forced while HomeBatteryAssist thinks it is free).
+    release_pending: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,8 +105,12 @@ def decide(
     change = abs(target - state.sent_w)
     direction = (target > IDLE_W) - (target < -IDLE_W)
     sent_direction = (state.sent_w > IDLE_W) - (state.sent_w < -IDLE_W)
+    # Going idle is never held back; a reversal (charge <-> discharge) is a
+    # change like any other: throttled and with the deadband, else NOM
+    # hovering around 0 W would write and flip every second.
+    going_idle = direction == 0 and sent_direction != 0
     if change >= 0.5 and (
-        direction != sent_direction  # idle / direction change: never held back
+        going_idle
         or (
             since >= max(driver.min_interval_s, MIN_INTERVAL_S)
             and change >= max(driver.deadband_w, 0.5)
@@ -141,6 +149,12 @@ class BatteryController:
         if not self.enabled:
             raise ControlDisabled("battery control is switched off (read-only)")
         now = now or dt_util.utcnow()
+        if power_w is not None and not math.isfinite(power_w):
+            # NaN would clamp to full discharge: release instead.
+            _LOGGER.warning(
+                "%s: invalid power %s; releasing", self.driver.name, power_w
+            )
+            power_w = None
         self.state.target_w = (
             None if power_w is None else clamp(power_w, self.driver, self.limits)
         )
@@ -149,6 +163,9 @@ class BatteryController:
 
     async def async_tick(self, now: datetime | None = None) -> None:
         """Apply the rules now (called every second while running)."""
+        if self.state.release_pending:
+            await self.async_release("retry")
+            return
         if not self.enabled and not self.state.active:
             return
         now = now or dt_util.utcnow()
@@ -173,18 +190,22 @@ class BatteryController:
 
     async def async_release(self, reason: str = "") -> None:
         """Hand control back to the battery (always tried; errors logged)."""
+        self.state.sent_w = self.state.sent_at = None
+        if reason in ("watchdog", "error", "disabled", "stop", "retry"):
+            self.state.target_w = None
         try:
             await self.driver.async_release()
         except Exception:
             self.errors += 1
             _LOGGER.exception("%s: release failed (%s)", self.driver.name, reason)
-        finally:
-            self.state.active = False
-            self.state.sent_w = self.state.sent_at = None
-            if reason in ("watchdog", "error", "disabled", "stop"):
-                self.state.target_w = None
+            # Still under control as far as we know: try again next tick.
+            self.state.release_pending = True
+            self.state.active = True
+            return
+        self.state.release_pending = False
+        self.state.active = False
 
     async def async_stop(self) -> None:
         """Stop controlling: release if active."""
-        if self.state.active:
+        if self.state.active or self.state.release_pending:
             await self.async_release("stop")

@@ -46,6 +46,8 @@ from ..history.consumption_history import ConsumptionRecord
 from .pv_corrections.base import PvResult
 
 _LOGGER = logging.getLogger(__name__)
+# A typical price above this per kWh was stored in ct or per MWh.
+MAX_PRICE_PER_KWH = 3.0
 
 STORAGE_VERSION = 1
 SAVE_DELAY = 60
@@ -184,6 +186,13 @@ class ForecastAccuracy:
                 self.settings[kind] = (
                     data.get("settings", {}).get(kind) or _default_setting()
                 )
+            if not data.get("price_per_kwh"):
+                # Stored before prices were converted to per kWh in the main
+                # currency: comparisons in ct or per MWh no longer fit.
+                actual = sorted(abs(r["actual"]) for r in self.results.get("price", []))
+                if actual and actual[len(actual) // 2] > MAX_PRICE_PER_KWH:
+                    self.results["price"] = []
+                    self.predictions["price"] = {}
         self.refresh_stats(dt_util.utcnow())
 
     async def async_save(self) -> None:
@@ -507,6 +516,7 @@ class ForecastAccuracy:
             "predictions": self.predictions,
             "results": self.results,
             "settings": self.settings,
+            "price_per_kwh": True,
         }
 
 

@@ -231,7 +231,8 @@ def _room_means(rows: Sequence[_Row], now: datetime) -> dict[Any, float]:
     split = now - ROOM_CHECK
     before = [r for r in rows if r.start < split]
     after = [r for r in rows if r.start >= split and r.indoor is not None]
-    if len(after) >= MIN_ROOM_CHECK and before:
+    hours = {(r.day, r.hour) for r in after}
+    if len(hours) >= MIN_ROOM_CHECK and before:
 
         def error(per_weekday: bool) -> float:
             table = _room_table(before, split, per_weekday)

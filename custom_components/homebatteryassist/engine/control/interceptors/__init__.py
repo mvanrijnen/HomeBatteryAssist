@@ -100,6 +100,11 @@ class Outcome:
     failed: bool = False
 
 
+# Powers set by HomeBatteryAssist's protection: they stand, whatever the
+# interceptor decides (and are never counted as missing power to give others).
+PROTECTION = frozenset({"phase_relief", "peak_shaving"})
+
+
 def _limited(proposed: float, value: object) -> float:
     """At most ``proposed``, in the same direction (0 for nonsense)."""
     try:
@@ -134,6 +139,8 @@ def run_interceptor(interceptor: Interceptor, data: InterceptInput) -> Outcome:
             continue
         if decision.battery_id in decided:
             continue  # the first decision per battery counts
+        if proposals[decision.battery_id].reason in PROTECTION:
+            continue  # phase relief / peak shaving: not the interceptor's to undo
         decided.add(decision.battery_id)
         proposed = powers[decision.battery_id]
         if decision.action == REJECT:
@@ -161,6 +168,17 @@ def run_interceptor(interceptor: Interceptor, data: InterceptInput) -> Outcome:
     return outcome
 
 
+def _at_limit(proposal: BatteryProposal, sign: float) -> bool:
+    """Full (for charging) or at its minimum (for discharging): it cannot
+    take over power in that direction."""
+    soc = proposal.soc
+    if soc is None:
+        return True
+    if sign > 0:
+        return soc >= proposal.max_soc - 1
+    return soc <= proposal.min_soc + 1
+
+
 def _redistribute(
     outcome: Outcome, proposals: dict[str, BatteryProposal], proposed: dict[str, float]
 ) -> None:
@@ -179,7 +197,10 @@ def _redistribute(
             i: (p.max_charge_w if sign > 0 else p.max_discharge_w)
             - sign * outcome.powers[i]
             for i, p in proposals.items()
-            if i not in changed and not p.full_charge and sign * proposed[i] >= 0
+            if i not in changed
+            and not p.full_charge
+            and sign * proposed[i] >= 0
+            and not _at_limit(p, sign)
         }
         room = {i: r for i, r in room.items() if r > 1}
         total = sum(room.values())

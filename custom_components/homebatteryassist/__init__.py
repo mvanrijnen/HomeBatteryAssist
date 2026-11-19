@@ -433,7 +433,13 @@ async def async_setup_entry(
                 # "less sun than expected".
                 flow.pv_w - flow.house_w if known else None,
                 data.pv_now_w - slot.power_w if known else None,
-                nom=data is None or data.plan_mode == MODE_NOM,
+                nom=data is None
+                or (
+                    data.selected_plan.strategy
+                    if data.selected_plan
+                    else data.plan_mode
+                )
+                == MODE_NOM,
             )
             if result is not None:
                 key, params = result

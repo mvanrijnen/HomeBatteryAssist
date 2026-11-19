@@ -457,7 +457,7 @@ def finalise(
             # A periodic full charge must happen: when the plan charges
             # anyway, the battery that charges fully is part of that power
             # (the larger of the two, not both). Price rules do not stop it.
-            requested = max(requested, extra) if requested > 0 else requested + extra
+            requested = max(requested, extra)
             fixed = True
         hours = slot.hours
         power = 0.0

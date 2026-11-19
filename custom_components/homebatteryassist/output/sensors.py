@@ -550,7 +550,7 @@ class PlanPhaseSensor(
             data.battery,
             self._kind,
             dt_util.utcnow(),
-            data.plan_mode,
+            data.selected_plan.strategy if data.selected_plan else data.plan_mode,
             floor,
             self.hass.config.language if self.hass else None,
         )

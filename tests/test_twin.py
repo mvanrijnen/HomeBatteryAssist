@@ -191,7 +191,9 @@ def test_without_batteries() -> None:
     assert out.grid_w == -900.0
     assert out.battery_w == 0.0
     assert out.phase_w == (300.0, -1200.0, 0.0)
-    assert out.phase_a == ()
+    # Untouched phases keep their measured current; the changed one is
+    # recomputed (no reactive part here: 1200 W / 230 V).
+    assert out.phase_a == (1.3, 5.22, 0.0)
     spread = without_batteries(flow, [(None, 900.0)])
     assert spread.phase_w == (0.0, -600.0, -300.0)
     assert without_batteries(flow, [(1, 0.0)]) is flow

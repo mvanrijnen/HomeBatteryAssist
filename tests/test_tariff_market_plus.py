@@ -24,5 +24,6 @@ def test_market_plus_costs() -> None:
     settings = {"tariff_surcharge": 0.02, "tariff_energy_tax": 0.09, "tariff_vat": 21}
     result = tariff.prices(TariffInput(T0, slots, "EUR/kWh", settings))
     assert result.import_prices[0] == pytest.approx((0.10 + 0.02 + 0.09) * 1.21)
-    assert result.import_prices[1] is None  # no market price: the source's
+    # No market price (e.g. an estimated extension): the source's bare price.
+    assert result.import_prices[1] == pytest.approx((0.12 + 0.02 + 0.09) * 1.21)
     assert result.export_prices == [0.10, 0.08]  # as given (no net metering)

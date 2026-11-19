@@ -3,7 +3,9 @@
 For a price source that gives only the market (EPEX / Nord Pool) price, e.g.
 Nord Pool, EnergyZero or easyEnergy: import = (market + supplier surcharge +
 energy tax) x (1 + VAT), with the amounts from the settings (per kWh excl.
-VAT). Without a market price for a period the source's price is kept. Export:
+VAT). Without a market price for a period (e.g. a longer, estimated
+forecast after the source's own prices) the source's price is taken as the
+market price: these sources give bare prices. Export:
 as the export settings give it (no net metering is assumed).
 """
 
@@ -25,8 +27,6 @@ class MarketPlusCostsTariff(Tariff):
         vat = float(data.settings.get("tariff_vat", 21.0)) / 100
         imports: list[float | None] = []
         for slot in data.slots:
-            if slot.market is None:
-                imports.append(None)  # keep the source's price
-            else:
-                imports.append(round((slot.market + surcharge + tax) * (1 + vat), 6))
+            market = slot.market if slot.market is not None else slot.price
+            imports.append(round((market + surcharge + tax) * (1 + vat), 6))
         return TariffResult(imports, [s.export for s in data.slots])

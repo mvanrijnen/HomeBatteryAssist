@@ -166,7 +166,7 @@ In this phase of development HomeBatteryAssist does not control batteries yet. T
 - **always release** control to the battery's own logic on stop, reload, restart and every error;
 - a **watchdog**: without a new command for 2 minutes, control is released;
 - **refresh** the last command for batteries that drop out of external control otherwise;
-- **throttle**: at least 5 s between commands for every battery (a driver may ask for longer) and a deadband (idle and direction changes are never held back);
+- **throttle**: at least 5 s between commands for every battery (a driver may ask for longer) and a deadband (going idle is never held back; direction changes are throttled too); a NaN power releases; a failed release is retried every tick until it succeeds;
 - **idle = release** for batteries where 0 W is not idle (e.g. a Huawei inverter keeps limiting PV);
 - the **limits** of the device and of the caller are always enforced.
 

@@ -42,6 +42,7 @@ TEXT = {
         "discharge_export": "teruglevering levert dan veel op ({price} per kWh)",
         "charge_grid": "stroom is dan goedkoop ({price} per kWh), later duurder (tot {later} per kWh)",
         "charge_grid_plain": "stroom is dan goedkoop ({price} per kWh)",
+        "charge_grid_needed": "laden uit het net ({price} per kWh) voor volladen of de reserve",
         "charge_pv": "zonnestroom die anders naar het net gaat (levert {price} per kWh op)",
         "grid_only_save": "de batterijen bewaren hun energie voor {when} (stroom dan {price} per kWh)",
         "grid_only_wait": "de batterijen wachten op goedkopere stroom om te laden ({when})",
@@ -56,6 +57,7 @@ TEXT = {
         "discharge_export": "exporting earns a lot then ({price} per kWh)",
         "charge_grid": "power is cheap then ({price} per kWh), more expensive later (up to {later} per kWh)",
         "charge_grid_plain": "power is cheap then ({price} per kWh)",
+        "charge_grid_needed": "charging from the grid ({price} per kWh) for a full charge or the reserve",
         "charge_pv": "solar power that would otherwise go to the grid (earns {price} per kWh)",
         "grid_only_save": "the batteries keep their energy for {when} (power then {price} per kWh)",
         "grid_only_wait": "the batteries wait for cheaper power to charge ({when})",
@@ -162,10 +164,13 @@ def _reason(
             for s in slots
             if s.start >= end and s.price is not None and s.power_w < -ACTIVE_W
         ]
-        if later:
+        if later and price is not None and max(later) > price:
             return text["charge_grid"].format(
                 price=_money(price, lang), later=_money(max(later), lang)
             )
+        if later:
+            # Used later at no higher price: not for the price difference.
+            return text["charge_grid_needed"].format(price=_money(price, lang))
         return text["charge_grid_plain"].format(price=_money(price, lang))
     if kind == "charge_pv":
         exports = [s.export_price for s, _ in run if s.export_price is not None]

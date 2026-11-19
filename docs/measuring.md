@@ -108,7 +108,7 @@ A peak that **comes back regularly** — on at least half of the days of that da
 
 **House consumption** = grid + PV − excluded devices − battery charging, plus grid import/export, PV power and the load per phase as % of the main fuse.
 
-When the grid, a battery, an excluded device or — while the sun is up — a PV source has no value, the house consumption is unknown for that moment (not counted with 0 W, which would record wrong consumption). At night an unavailable inverter counts as 0 W. A heating/cooling sensor without a value makes only the heating unknown.
+When the grid, a battery, an excluded device or a PV source that gave power in the last 30 minutes (while the sun is up) has no value, the house consumption is unknown for that moment (not counted with 0 W, which would record wrong consumption). An inverter that is unavailable at night, or still asleep after sunrise, counts as 0 W. A heating/cooling sensor without a value makes only the heating unknown.
 
 Consumption is kept as history (28 days) for the [consumption forecast](forecasting.md#consumption); past consumption can be imported once from Home Assistant's statistics.
 

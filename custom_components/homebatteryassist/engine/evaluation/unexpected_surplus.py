@@ -109,7 +109,8 @@ class UnexpectedSurplus:
             self._since = None
             if self.event is None:
                 return None
-            self._add(surplus_w, expected_w, hours)
+            # Not unexpected any more: nothing is added (the total covers the
+            # event up to the end the message names).
             return self._maybe_end(when)
         if self.event is not None:
             self._quiet = None

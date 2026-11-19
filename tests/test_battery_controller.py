@@ -39,6 +39,8 @@ class FakeDriver(DirectBatteryDriver):
         self.calls.append(("set", power_w))
 
     async def async_release(self) -> None:
+        if getattr(self, "fail_release", False):
+            raise OSError("release broken")
         self.calls.append(("release", None))
 
 
@@ -76,8 +78,29 @@ async def test_throttle_and_direction() -> None:
     await controller.async_command(1500, T0 + 10 * S)  # too soon
     assert driver.calls == [("set", 1000)]
     await controller.async_command(1500, T0 + 21 * S)  # allowed now
-    await controller.async_command(-800, T0 + 22 * S)  # direction change: at once
+    # A reversal is throttled like any change (no flapping around 0 W) ...
+    await controller.async_command(-800, T0 + 22 * S)
+    assert driver.calls == [("set", 1000), ("set", 1500)]
+    await controller.async_command(-800, T0 + 42 * S)
     assert driver.calls == [("set", 1000), ("set", 1500), ("set", -800)]
+
+
+async def test_nan_releases_and_failed_release_is_retried() -> None:
+    driver = FakeDriver()
+    controller = BatteryController(driver, enabled=True)
+    await controller.async_command(-600, T0)
+    await controller.async_command(float("nan"), T0 + S)  # never full discharge
+    assert driver.calls[-1] == ("release", None)
+    assert not controller.state.active
+    # A release that fails is tried again every tick until it works.
+    await controller.async_command(-600, T0 + 2 * S)
+    driver.fail_release = True
+    await controller.async_command(None, T0 + 3 * S)
+    assert controller.state.active and controller.state.release_pending
+    driver.fail_release = False
+    await controller.async_tick(T0 + 4 * S)
+    assert driver.calls[-1] == ("release", None)
+    assert not controller.state.active and not controller.state.release_pending
 
 
 async def test_idle_is_release_and_errors() -> None:

@@ -166,7 +166,7 @@ In deze fase van de ontwikkeling stuurt HomeBatteryAssist nog geen batterijen aa
 - **altijd vrijgeven**: de regie gaat terug naar de eigen logica van de batterij bij stoppen, herladen, herstarten en elke fout;
 - een **watchdog**: komt er 2 minuten geen nieuw commando, dan wordt de regie vrijgegeven;
 - **verversen** van het laatste commando voor batterijen die anders uit externe aansturing vallen;
-- **afremmen**: minstens 5 s tussen commando's voor elke batterij (een driver kan om langer vragen) en een dode band (rust en richtingwisselingen worden nooit tegengehouden);
+- **afremmen**: minstens 5 s tussen commando's voor elke batterij (een driver kan om langer vragen) en een dode band (naar rust gaan wordt nooit tegengehouden; richtingwisselingen worden ook afgeremd); een ongeldig vermogen (NaN) geeft vrij; een mislukte vrijgave wordt elke tik opnieuw geprobeerd tot die lukt;
 - **rust = vrijgeven** voor batterijen waarbij 0 W geen rust is (bijv. een Huawei-omvormer blijft dan PV begrenzen);
 - de **grenzen** van het apparaat en van de aanroeper worden altijd afgedwongen.
 
