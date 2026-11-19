@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Literal, NotRequired, TypedDict
 
 from homeassistant.core import HomeAssistant
@@ -102,29 +102,62 @@ type Row = tuple[datetime, datetime, float, tuple[str, ...]]
 def rebalance_parts(rows: list[Row], adjustments: Iterable[Adjustment]) -> list[Row]:
     """For energy that is *part* of the learned consumption: take the energy
     added in its period from the rest of the local day it starts on (the
-    rows given, outside the period), in proportion to their power, never
-    below 0 W.
+    rows given, outside the period of every part adjustment, so several on
+    one day do not shrink each other), in proportion to their power, never
+    below 0 W. A negative energy (less in the period) gives it back to the
+    rest of the day.
 
     ``rows``: (start, end, power W, applied names) after ``apply_adjustments``.
     """
     result = list(rows)
-    for adjustment in adjustments:
-        if adjustment["kind"] != "energy_kwh" or not adjustment.get("part"):
-            continue
-        a_start, a_end = _span(adjustment)
-        day = dt_util.as_local(a_start).date()
+    adjustments = list(adjustments)
+    parts = [a for a in adjustments if a["kind"] == "energy_kwh" and a.get("part")]
+    spans = [_span(a) for a in parts]
+    # Slots with another adjustment (a fixed power, extra energy, a factor)
+    # keep what the user set: they are not scaled.
+    fixed = [_span(a) for a in adjustments if a not in parts]
+
+    def in_a_part(start: datetime, end: datetime) -> bool:
+        return any(
+            start < a_end and end > a_start for a_start, a_end in (*spans, *fixed)
+        )
+
+    for adjustment, (a_start, a_end) in zip(parts, spans, strict=True):
+        local = dt_util.as_local(a_start)
+        day = local.date()
+        day_start = dt_util.as_utc(
+            local.replace(hour=0, minute=0, second=0, microsecond=0)
+        )
+        day_end = dt_util.as_utc(
+            (local + timedelta(days=1)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+        )
+        # The hours of that day outside the adjusted periods: the learned
+        # energy is spread over them.
+        day_hours = (day_end - day_start).total_seconds() / 3600 - sum(
+            max((min(e, day_end) - max(s, day_start)).total_seconds(), 0.0) / 3600
+            for s, e in (*spans, *fixed)
+        )
         power_w = energy_w(adjustment)
-        added = rest = 0.0
+        added = rest = hours = 0.0
         others: list[int] = []
         for i, (start, end, power, _names) in enumerate(result):
             overlap = (min(end, a_end) - max(start, a_start)).total_seconds() / 3600
             if overlap > 0:
                 added += power_w * overlap
-            elif dt_util.as_local(start).date() == day:
+            elif dt_util.as_local(start).date() == day and not in_a_part(start, end):
                 others.append(i)
-                rest += power * (end - start).total_seconds() / 3600
-        take = min(added, rest)  # Wh
-        if take <= 0 or rest <= 0:
+                length = (end - start).total_seconds() / 3600
+                rest += power * length
+                hours += length
+        # Only the share of the day still in the forecast gives (e.g. now is
+        # 19:00, or the window ends at noon): the rest was or will be used
+        # outside it.
+        if day_hours > 0:
+            added *= min(hours / day_hours, 1.0)
+        take = min(added, rest)  # Wh; negative: given back
+        if not take or rest <= 0:
             continue
         factor = 1 - take / rest
         for i in others:

@@ -279,6 +279,13 @@ class ForecastData:
         slot = self.consumption_at(when)
         return slot is not None and slot.start in self.night
 
+    def pv_at(self, when: datetime) -> float | None:
+        """The PV forecast (average W) of the hour holding ``when``."""
+        for start, wh in self.pv_wh.items():
+            if start <= when < start + timedelta(hours=1):
+                return wh
+        return None
+
     def consumption_at(self, when: datetime) -> ForecastSlot | None:
         """The forecast slot containing ``when``."""
         return next((s for s in self.consumption if s.start <= when < s.end), None)
@@ -1280,13 +1287,19 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         """Explain when the correction of a forecast changes noticeably."""
         for kind in KINDS:
             mode = self.accuracy.mode(kind, now)
-            stats = self.accuracy.headline(kind)
+            stats = self.accuracy.stats(kind).get("6-24h")
+            if stats is not None and not stats.samples:
+                stats = None
             correction = self.accuracy.correction_for(kind, "6-24h", now)
             if (
                 mode == "off"
+                or (
+                    kind == "pv"
+                    and self.pv_correction
+                    not in (PV_CORRECTION_AUTO, PV_CORRECTION_BOTH)
+                )
                 or correction is None
-                or stats is None
-                or (mode == "learned" and stats.strength < 1)
+                or (mode == "learned" and (stats is None or stats.strength < 1))
             ):
                 text = "none"
             elif kind == "pv":

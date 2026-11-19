@@ -451,12 +451,15 @@ async def async_setup_entry(
         flow = measurements.flow
         data = forecast.data
         slot = data.consumption_at(when) if data is not None else None
+        # The forecast of the hour of this moment (not of the hour in which
+        # the last cycle ran).
+        pv_expected = data.pv_at(when) if data is not None else None
         known = (
             flow is not None
             and measurements.has_pv
             and measurements.pv_known
             and data is not None
-            and data.pv_now_w is not None
+            and pv_expected is not None
             and slot is not None
         )
         for check in solar_checks:
@@ -466,7 +469,7 @@ async def async_setup_entry(
                 # excluded devices, so an EV charging on the sun is no
                 # "less sun than expected".
                 flow.pv_w - flow.house_w if known else None,
-                data.pv_now_w - slot.power_w if known else None,
+                pv_expected - slot.power_w if known else None,
                 nom=data is None
                 or (
                     data.selected_plan.strategy

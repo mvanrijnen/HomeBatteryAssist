@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import logging
 import math
+from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -92,6 +93,7 @@ PV_MIN_WH = 20.0  # night hours (both ~0) say nothing about PV accuracy
 MAPE_MIN = 50.0  # W / Wh: below this, relative errors are meaningless
 PRICE_CLIP = 3.0  # price bias: errors capped at 3 x the median error
 PRICE_CLIP_MIN = 0.02  # per kWh: the cap is never smaller than this
+PRICE_LIMIT_MIN = 0.10  # per kWh: a price correction may always be this large
 
 
 def bucket_for(lead: timedelta) -> str | None:
@@ -191,6 +193,26 @@ class ForecastAccuracy:
                 self.settings[kind] = (
                     data.get("settings", {}).get(kind) or _default_setting()
                 )
+            for kind in self.kinds:
+                if kind == "pv" or kind.startswith(PV_CORRECTOR_KIND):
+                    # PV periods are whole hours, all on the same minute
+                    # (UTC :00, or :30 in a time zone with a half-hour
+                    # offset). Keys on another minute are from an older
+                    # version (shifted periods) and would be settled against
+                    # the wrong hour.
+                    minutes = Counter(
+                        start[14:16] for start in self.predictions[kind]
+                    ) or Counter(r["start"][14:16] for r in self.results[kind])
+                    if minutes:
+                        keep = minutes.most_common(1)[0][0]
+                        self.predictions[kind] = {
+                            start: entry
+                            for start, entry in self.predictions[kind].items()
+                            if start[14:16] == keep
+                        }
+                        self.results[kind] = [
+                            r for r in self.results[kind] if r["start"][14:16] == keep
+                        ]
             if not data.get("price_per_kwh"):
                 # Stored before prices were converted to per kWh in the main
                 # currency: comparisons in ct or per MWh no longer fit.
@@ -492,8 +514,12 @@ class ForecastAccuracy:
             return value
         if kind == "pv":
             return max(value * correction, 0.0)
-        # Never change a value by more than half of its size.
+        # Never change a value by more than half of its size; a price at
+        # least by PRICE_LIMIT_MIN (estimates near 0 or negative must still
+        # get their correction).
         limit = abs(value) * 0.5
+        if kind == "price":
+            limit = max(limit, PRICE_LIMIT_MIN)
         corrected = value + max(-limit, min(limit, correction))
         return max(corrected, 0.0) if kind == "consumption" else corrected
 

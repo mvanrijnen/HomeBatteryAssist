@@ -170,9 +170,16 @@ def test_full_arbitrage_exports_when_it_pays() -> None:
 
     slots = _slots([200.0] * 4)
     prices = _prices([0.10, 0.10, 0.60, 0.60])
-    own = plan_batteries([_battery(soc=10.0)], slots, {}, prices, mode=MODE_ARBITRAGE)
+    own = plan_batteries(
+        [_battery(soc=10.0)], slots, {}, prices, mode=MODE_ARBITRAGE, export_factor=1.0
+    )
     full = plan_batteries(
-        [_battery(soc=10.0)], slots, {}, prices, mode=MODE_ARBITRAGE_FULL
+        [_battery(soc=10.0)],
+        slots,
+        {},
+        prices,
+        mode=MODE_ARBITRAGE_FULL,
+        export_factor=1.0,
     )
     assert full.strategy == MODE_ARBITRAGE_FULL
     assert min(s.grid_w for s in own.slots) >= -1  # no export
@@ -191,7 +198,12 @@ def test_cycle_limit_per_day() -> None:
     slots = _slots([0.0] * 8)
     prices = _prices([0.05, 0.05, 0.60, 0.60, 0.05, 0.05, 0.60, 0.60])
     free = plan_batteries(
-        [_battery(soc=10.0)], slots, {}, prices, mode=MODE_ARBITRAGE_FULL
+        [_battery(soc=10.0)],
+        slots,
+        {},
+        prices,
+        mode=MODE_ARBITRAGE_FULL,
+        export_factor=1.0,
     )
     limited = plan_batteries(
         [_battery(soc=10.0)],
@@ -199,6 +211,7 @@ def test_cycle_limit_per_day() -> None:
         {},
         prices,
         mode=MODE_ARBITRAGE_FULL,
+        export_factor=1.0,
         max_cycles_per_day=1.0,
     )
     assert max(cycles_per_day(free).values()) > 1.2

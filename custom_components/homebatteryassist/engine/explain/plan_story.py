@@ -303,6 +303,10 @@ def plan_story(
     price_now = current.price
 
     until = _run_end(slots, current, lang, now)
+    # "the house runs on the grid" and the price reasons only when it really
+    # draws from the grid, and not in zero on the meter (no price decisions).
+    importing = current.grid_w > ACTIVE_W
+    priced_idle = importing and plan.strategy != "nom"
 
     def per_kwh(value: float) -> str:
         return t["per_kwh"].format(amount=_money(value, lang))
@@ -345,7 +349,8 @@ def plan_story(
                 t["now_discharge"].format(until=until, price=per_kwh(price_now))
             )
     elif (
-        not min_soc_reached
+        priced_idle
+        and not min_soc_reached
         and price_now is not None
         and (saving := next((d for d in discharges if d.start > now), None))
         and saving.price is not None
@@ -385,7 +390,8 @@ def plan_story(
                 )
             )
     elif (
-        price_now is not None
+        priced_idle
+        and price_now is not None
         and charges
         and charges[0].price is not None
         and charges[0].from_grid
@@ -398,9 +404,9 @@ def plan_story(
                 when=_when(charges[0], now, lang).split(" (")[0].lower(),
             )
         )
-    elif min_soc_reached:
+    elif min_soc_reached and importing:
         sentences.append(t["now_idle_empty"].format(until=until))
-    elif price_now is not None:
+    elif priced_idle and price_now is not None:
         later = max(
             (s.price for s in slots if s.start > now and s.price is not None),
             default=None,
@@ -511,7 +517,7 @@ def plan_story(
                         ),
                     )
                 )
-        elif uses or not block.from_grid:
+        elif not block.from_grid:
             sentences.append(
                 t["next_pv"]
                 .format(

@@ -40,6 +40,8 @@ def state_to_watts(state: State | None) -> float | None:
         return None
 
     unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
+    if not unit:
+        return value  # a power sensor without a unit: taken as W
     if unit in _CURRENT_TO_AMPERE:
         return value * _CURRENT_TO_AMPERE[unit] * NOMINAL_VOLTAGE
     if unit not in PowerConverter.VALID_UNITS:

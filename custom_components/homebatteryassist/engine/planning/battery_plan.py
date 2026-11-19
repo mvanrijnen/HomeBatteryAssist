@@ -41,7 +41,9 @@ from .planners import PlannerSlot as _InSlot
 from .planners.base import PackMember, discharge_room, grid_cost, may_discharge
 from .time_slots import Target
 
-DEFAULT_EXPORT_FACTOR = 1.0  # export earns the import price (net metering)
+# Without an export price: the import price x this (no net metering; the
+# coordinator always passes the setting).
+DEFAULT_EXPORT_FACTOR = 0.25
 DEFAULT_CYCLE_COST = 0.02  # per kWh through the battery (wear)
 MODE_NOM = "nom"
 MODE_ARBITRAGE = "arbitrage"

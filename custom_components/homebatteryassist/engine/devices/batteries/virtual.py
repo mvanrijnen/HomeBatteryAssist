@@ -686,7 +686,9 @@ class VirtualBatterySimulator:
             [
                 c.id
                 for c in self.virtual
-                if socs[c.id] > c.min_soc + 0.01 and not full[c.id]
+                if socs[c.id]
+                > max(c.min_soc, self._reserve_floor(now, peak=False)) + 0.01
+                and not full[c.id]
             ],
         )
         dutch = (self.hass.config.language or "").startswith("nl")

@@ -119,6 +119,10 @@ def overloaded(load_w: Sequence[float], limit_w: float) -> list[int]:
     return [i for i, load in enumerate(load_w) if abs(load) > limit_w]
 
 
+# Meters that round the current to whole amps are up to half an amp off.
+ROUNDING_W = 0.5 * NOMINAL_VOLTAGE
+
+
 def active_relief_loads(
     load_w: Sequence[float], active_w: Sequence[float], limit_w: float
 ) -> list[float]:
@@ -135,6 +139,8 @@ def active_relief_loads(
         if abs(load) <= limit_w or i >= len(active_w):
             continue
         p = abs(active_w[i])
+        if abs(load) - p < ROUNDING_W:
+            continue  # within the rounding of a meter's current: no reactive part
         q2 = max(load * load - p * p, 0.0)
         target = math.sqrt(max(limit_w * limit_w - q2, 0.0))
         need = max(p - target, abs(load) - limit_w)

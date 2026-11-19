@@ -182,15 +182,21 @@ class PlanVerification:
         if hours <= 0:
             return
         # The plan slot(s) that ended between the two snapshots.
+        ended = []
         for key in sorted(self.planned):
+            slot_end = dt_util.parse_datetime(self.planned[key]["end"])
+            if slot_end is not None and slot_end <= now:
+                ended.append(key)
+        for key in ended:
             entry = self.planned[key]
-            slot_end = dt_util.parse_datetime(entry["end"])
             slot_start = dt_util.parse_datetime(key)
-            if slot_end is None or slot_start is None or slot_end > now:
-                continue
             del self.planned[key]
-            if slot_start < start - timedelta(minutes=1):
+            if slot_start is None or slot_start < start - timedelta(minutes=1):
                 continue  # not measured from its start (e.g. after a restart)
+            if len(ended) > 1:
+                # Several slots between two snapshots (a missed tick): the
+                # counters cannot be split over them; none is counted.
+                continue
             charged = snapshot[1] - previous[1]
             discharged = snapshot[2] - previous[2]
             energy = charged - discharged

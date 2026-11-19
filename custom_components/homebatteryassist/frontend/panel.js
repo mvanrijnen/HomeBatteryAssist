@@ -802,7 +802,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
   }
 
   async _recalculate() {
-    if (this._busy || !this._hass) return;
+    if (!this._hass) return;
+    if (this._busy) {
+      // Running: once more when it is done (a change came in meanwhile).
+      this._recalcAgain = true;
+      return;
+    }
     this._busy = true;
     this._scheduleRender();
     try {
@@ -813,6 +818,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this._busy = false;
     this._historyAt = 0;
     await this._load();
+    if (this._recalcAgain) {
+      this._recalcAgain = false;
+      await this._recalculate();
+    }
   }
 
   set hass(hass) {
@@ -2414,6 +2423,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const after = (result) => {
       changed = true;
       if (this._status) this._status.adjustments = result.adjustments;
+      // Saved after the dialog was closed (Escape while saving).
+      if (!overlay.isConnected) this._recalculate();
     };
     const list = () => this._adjustmentList(overlay, close, form, after);
     const form = (row) => this._adjustmentForm(overlay, row, list, after);

@@ -99,6 +99,9 @@ class TemperatureModel:
     gain_c: float = DEFAULT_GAIN_C
     usual_indoor: Mapping[Any, float] = field(default_factory=dict)  # °C
     name: str = ""  # the zone ("" = the house)
+    # Heating devices measured apart: what they use regardless of the
+    # weather (standby, hot water), W; part of ``demand``.
+    base_w: float = 0.0
 
     @property
     def active(self) -> bool:
@@ -151,9 +154,11 @@ class TemperatureModel:
             return None
         local = dt_util.as_local(start)
         base = self.room(local.weekday(), local.hour) - self.gain_c
-        return self.heat_w_per_deg * heating_degrees(
-            temp_c, base
-        ) + self.cool_w_per_deg * cooling_degrees(temp_c)
+        return (
+            self.base_w
+            + self.heat_w_per_deg * heating_degrees(temp_c, base)
+            + self.cool_w_per_deg * cooling_degrees(temp_c)
+        )
 
     def room_at(self, start: datetime) -> float | None:
         """The learned room temperature in that slot (None without a room
@@ -341,7 +346,12 @@ def fit_temperature(
     """Learn the temperature effect of the house (``zone`` None) or of one
     zone from ``records`` (None: not enough)."""
     if zone is None:
-        target = "heating_w" if any("heating_w" in r for r in records) else "avg_w"
+        # The heating devices once they have enough days of their own; until
+        # then the whole house (a new device must not switch the step off).
+        heating_days = {
+            str(r.get("start", ""))[:10] for r in records if "heating_w" in r
+        }
+        target = "heating_w" if len(heating_days) >= MIN_DAYS else "avg_w"
     else:
         target = "zone"
     rows = _rows(records, zone, target)
@@ -384,6 +394,14 @@ def fit_temperature(
             h, c, e = _slopes(days_for(candidate))
             if h > 0 and e < BETTER_FIT * error:
                 gain, heat, cool, error = candidate, h, c, e
+    base_w = 0.0
+    if target == "heating_w":
+        chosen = days_for(gain)
+        n = len(chosen)
+        base_w = max(
+            sum(d[0] - heat * d[1] - cool * d[2] for d in chosen) / n if n else 0.0,
+            0.0,
+        )
     usual_heat, usual_cool = _Means(), _Means()
     for row in rows:
         weight = recency(row)
@@ -400,6 +418,7 @@ def fit_temperature(
         gain,
         usual_indoor,
         name,
+        round(base_w, 1),
     )
 
 

@@ -289,3 +289,36 @@ def test_energy_extra_and_part_of_the_day() -> None:
     assert abs(total - 24 * 400.0) < 1  # the day's energy stays the same
     assert balanced[13][2] == 1150.0
     assert abs(balanced[0][2] - 400.0 * (1 - 1500 / (22 * 400))) < 0.1
+
+
+def test_part_energy_negative_and_two_on_one_day() -> None:
+    from custom_components.homebatteryassist.engine.forecast.user_adjustments import (
+        rebalance_parts,
+    )
+
+    day = dt_util.as_utc(
+        datetime.combine(
+            (dt_util.now() + timedelta(days=1)).date(),
+            datetime.min.time(),
+            dt_util.get_default_time_zone(),
+        )
+    )
+    hour = timedelta(hours=1)
+    less = {
+        **_adjustment("energy_kwh", -0.4, day + 10 * hour, day + 12 * hour, "a"),
+        "part": True,
+    }
+    more = {
+        **_adjustment("energy_kwh", 1.0, day + 18 * hour, day + 20 * hour, "b"),
+        "part": True,
+    }
+    rows = []
+    for h in range(24):
+        start = day + h * hour
+        power, names = apply_adjustments(400.0, start, start + hour, [less, more])
+        rows.append((start, start + hour, power, names))
+    balanced = rebalance_parts(rows, [less, more])
+    total = sum(p for _s, _e, p, _n in balanced)
+    assert abs(total - 24 * 400.0) < 1  # the day's energy stays the same
+    # The windows keep exactly their change.
+    assert balanced[10][2] == 200.0 and balanced[18][2] == 900.0

@@ -34,7 +34,7 @@ SENSOR = "sensor.homebatteryassist_house_consumption"
         ("unavailable", "W", None),
         ("abc", "W", None),
         ("5", "kWh", None),
-        ("5", None, None),
+        ("5", None, 5.0),  # no unit: taken as W
     ],
 )
 def test_state_to_watts(value: str, unit: str | None, expected: float | None) -> None:

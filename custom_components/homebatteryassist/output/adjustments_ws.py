@@ -121,7 +121,9 @@ async def websocket_adjustment_save(
         connection.send_error(msg["id"], "invalid", "the period is over")
         return
     data = entry.runtime_data
-    known = {a["id"] for a in data.forecast.adjustments.items}
+    known = {
+        a["id"] for a in data.forecast.adjustments.items if a["kind"] == "energy_kwh"
+    }
     if (
         adjustment_id := msg.get("adjustment_id")
     ) is not None and adjustment_id not in known:

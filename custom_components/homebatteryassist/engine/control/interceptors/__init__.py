@@ -201,6 +201,7 @@ def _redistribute(
             for i, p in proposals.items()
             if i not in changed
             and not p.full_charge
+            and p.reason not in PROTECTION
             and sign * proposed[i] >= 0
             and not _at_limit(p, sign)
         }
