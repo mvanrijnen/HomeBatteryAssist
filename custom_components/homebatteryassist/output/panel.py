@@ -270,6 +270,12 @@ def _prices_now(hass: HomeAssistant, data: Any) -> dict[str, Any] | None:
     slots = plan.slots if plan else []
 
     def export_at(when: datetime) -> float | None:
+        # The export price period holding ``when`` (a quarter stays a
+        # quarter), else the plan slot.
+        data = getattr(forecast, "data", None)
+        for p in getattr(data, "export_prices", None) or ():
+            if p.start <= when < p.end:
+                return p.price
         slot = next((s for s in slots if s.start <= when < s.end), None)
         return slot.export_price if slot else None
 
@@ -420,7 +426,11 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
         "phase_margin": data.forecast.phase_margin,
         "has_pv": bool(data.measurements.pv_sensors),
         "has_pv_forecast": bool(data.forecast.pv_entries),
-        "pv_forecast_now_w": data.forecast.data.pv_now_w,
+        "pv_forecast_now_w": (
+            data.forecast.data.pv_at(dt_util.utcnow())
+            if data.forecast.pv_entries
+            else None
+        ),
         "has_excluded": bool(data.measurements.excluded_sensors),
         # For the energy flow diagram: excluded devices and heating/cooling
         # zones by name (their power sensors are read live by the panel).

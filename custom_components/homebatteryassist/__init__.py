@@ -384,6 +384,9 @@ async def async_setup_entry(
                 (flow.phase_w, flow.phase_a, flow.phase_v)
                 if flow and flow.phase_a
                 else None,
+                flow.pv_w
+                if flow and measurements.has_pv and measurements.pv_known
+                else None,
             )
 
         measurements.async_add_listener(_record)

@@ -92,6 +92,10 @@ type MeasurementListener = Callable[[datetime, float | None], None]
 ENTITY_INTERVAL = timedelta(seconds=10)  # entities with a direct meter
 
 
+# Current and voltage sensors in another unit than A / V.
+_UNIT_FACTORS = {"mA": 0.001, "kA": 1000.0, "mV": 0.001, "kV": 1000.0, "µV": 1e-6}
+
+
 @dataclass(frozen=True, slots=True)
 class PowerFlow:
     """All power flows at one moment, in W.
@@ -554,6 +558,8 @@ class MeasurementInput:
                 value = float(state.state) if state else math.nan
             except ValueError:
                 return None
+            unit = state.attributes.get("unit_of_measurement") if state else None
+            value *= _UNIT_FACTORS.get(str(unit).strip() if unit else "", 1.0)
             if not math.isfinite(value) or value < 0:
                 return None
             values.append(value)

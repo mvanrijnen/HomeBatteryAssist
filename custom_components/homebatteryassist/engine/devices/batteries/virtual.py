@@ -807,17 +807,20 @@ class VirtualBatterySimulator:
             # stored on top of the plan, less is not taken from the grid.
             flow = self._flow()
             forecast_slot = data.consumption_at(now)
+            # The PV forecast of the hour now (not of the hour in which the
+            # last cycle ran).
+            pv_now = data.pv_at(now) if self._forecast.pv_entries else None
             if (
                 flow is not None
                 and self._measurements.has_pv
                 and self._measurements.pv_known
-                and data.pv_now_w is not None
+                and pv_now is not None
                 and forecast_slot is not None
             ):
                 total = plan_balance(
                     total,
                     solar_surplus_w(flow),
-                    data.pv_now_w - forecast_slot.power_w,
+                    pv_now - forecast_slot.power_w,
                     self._forecast.pv_deviation_w,
                 )
             # A planned discharge only as far as it is needed now: never

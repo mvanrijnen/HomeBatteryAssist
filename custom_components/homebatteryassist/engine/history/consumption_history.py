@@ -79,6 +79,7 @@ RUNNING_SUMS = (
     "_zone_sums",
     "_spike_wh",
     "_pv_ws",
+    "_pvm_ws",
     "_pv_s",
     "_battery_ws",
     "_battery_s",
@@ -131,6 +132,7 @@ class ConsumptionHistory:
         self._last_power: float | None = None
         self._last_excluded: float | None = None
         self._last_pv: float | None = None
+        self._last_pv_measured: float | None = None
         self._last_battery: float | None = None
         self._energy_ws = 0.0
         self._excluded_ws = 0.0
@@ -145,6 +147,7 @@ class ConsumptionHistory:
         self._last_zones: Mapping[str, tuple[float | None, ...]] | None = None
         self._spike_wh = 0.0
         self._pv_ws = 0.0
+        self._pvm_ws = 0.0  # measured PV (W x s)
         self._pv_s = 0.0
         self._battery_ws = 0.0
         self._battery_s = 0.0
@@ -210,6 +213,8 @@ class ConsumptionHistory:
                 for name in RUNNING_SUMS:
                     if name in running:
                         setattr(self, name, running[name])
+                if "_pvm_ws" not in running:  # saved by an older version
+                    self._pvm_ws = self._pv_ws
             if len(self.records) != len(records):
                 _LOGGER.warning(
                     "Skipped %d invalid consumption history records",
@@ -240,6 +245,7 @@ class ConsumptionHistory:
         zones: Mapping[str, tuple[float | None, ...]] | None = None,
         spike_wh: float = 0.0,
         grid_phases: tuple[tuple[float, ...], ...] | None = None,
+        pv_measured: float | None = None,
     ) -> None:
         """Register new values (W): house consumption and excluded devices.
 
@@ -256,6 +262,9 @@ class ConsumptionHistory:
         self._last_power = power
         self._last_excluded = excluded
         self._last_pv = pv
+        # What the inverters gave (``pv`` may be the potential when an
+        # inverter held PV back): for the energy per day.
+        self._last_pv_measured = pv_measured if pv_measured is not None else pv
         self._last_battery = battery
         self._last_phases = phases if phases and phases[0] else None
         self._last_heating = heating
@@ -314,6 +323,9 @@ class ConsumptionHistory:
                 record["excluded_w"] = round(self._excluded_ws / self._measured_s, 1)
             if self._pv_s > 0:
                 record["pv_w"] = round(self._pv_ws / self._pv_s, 1)
+                measured = round(self._pvm_ws / self._pv_s, 1)
+                if abs(measured - record["pv_w"]) >= 1:  # PV held back
+                    record["pv_measured_w"] = measured
             if self._battery_s > 0:
                 record["battery_w"] = round(self._battery_ws / self._battery_s, 1)
             if self.vacation:
@@ -355,6 +367,7 @@ class ConsumptionHistory:
         self._zone_sums = {}
         self._spike_wh = 0.0
         self._pv_ws = 0.0
+        self._pvm_ws = 0.0  # measured PV (W x s)
         self._pv_s = 0.0
         self._battery_ws = 0.0
         self._battery_s = 0.0
@@ -376,6 +389,11 @@ class ConsumptionHistory:
             self._measured_s += seconds
             if self._last_pv is not None:
                 self._pv_ws += self._last_pv * seconds
+                self._pvm_ws += (
+                    self._last_pv_measured
+                    if self._last_pv_measured is not None
+                    else self._last_pv
+                ) * seconds
                 self._pv_s += seconds
             if self._last_heating is not None:
                 self._heating_ws += self._last_heating * seconds
@@ -473,7 +491,8 @@ class ConsumptionHistory:
                 record["minutes"] * 60 * record.get("coverage", 1.0),
                 {
                     "house": record["avg_w"],
-                    "pv": record.get("pv_w", 0.0),
+                    # What was produced (the potential stays for learning).
+                    "pv": record.get("pv_measured_w", record.get("pv_w", 0.0)),
                     "excluded": record.get("excluded_w", 0.0),
                     "battery": record.get("battery_w", 0.0),
                 },
@@ -489,7 +508,7 @@ class ConsumptionHistory:
                 self._measured_s,
                 {
                     "house": self._energy_ws / self._measured_s,
-                    "pv": self._pv_ws / self._pv_s if self._pv_s else 0.0,
+                    "pv": self._pvm_ws / self._pv_s if self._pv_s else 0.0,
                     "excluded": self._excluded_ws / self._measured_s,
                     "battery": self._battery_ws / self._battery_s
                     if self._battery_s
@@ -536,7 +555,11 @@ class ConsumptionHistory:
         flows: dict[str, float] = {}
         averages = self._hour_averages(start, end, running=start <= now < end)
         for hour, (avg, zone_avg) in averages.items():
-            span = min((now - hour).total_seconds(), 3600.0) / 3600  # h
+            # The part of the clock hour inside the day and before now (a
+            # day may start on a half hour: UTC+5:30).
+            span = (
+                min(hour + timedelta(hours=1), end, now) - max(hour, start)
+            ).total_seconds() / 3600  # h
             if span <= 0:
                 continue
             grid = avg["house"] - avg["pv"] + avg["excluded"] + avg["battery"]

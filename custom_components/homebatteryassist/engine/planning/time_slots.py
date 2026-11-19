@@ -67,7 +67,9 @@ class TimeSlot:
         """True if the slot runs at ``when``."""
         local = dt_util.as_local(when)
         now = local.time()
-        if self.start <= self.end:
+        if self.start == self.end:  # e.g. 00:00-00:00: the whole day
+            return local.weekday() in self.days
+        if self.start < self.end:
             return local.weekday() in self.days and self.start <= now < self.end
         # Past midnight: the part after midnight belongs to the previous day.
         if now >= self.start:

@@ -315,7 +315,14 @@ async def async_import_history(
     entity_ids = {t.entity_id for t in [*terms, *excluded_terms, *pv_terms]}
     now = dt_util.utcnow()
     start = history.interval_start(now - timedelta(days=days))
-    short_start = max(start, history.interval_start(now - SHORT_TERM_KEPT))
+    # On a whole hour: the hourly rows before it must not overlap the
+    # 5-minute ones (an hourly row covers its whole hour).
+    short_start = max(
+        start,
+        history.interval_start(now - SHORT_TERM_KEPT).replace(
+            minute=0, second=0, microsecond=0
+        ),
+    )
     # Only completed periods.
     end_short = history.interval_start(now)
 

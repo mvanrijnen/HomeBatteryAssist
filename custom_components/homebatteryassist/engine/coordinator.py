@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 from bisect import bisect_right
 from collections import Counter
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from types import SimpleNamespace
@@ -549,14 +549,18 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             }
 
     def _log_prices(
-        self, published: list[PricePoint], slots: list[Any], now: datetime
+        self,
+        published: list[PricePoint],
+        slots: list[Any],
+        now: datetime,
+        export_prices: Sequence[PricePoint] = (),
     ) -> None:
         """Remember published prices (and what export earned) for the chart."""
-        export = {s.start: s.export_price for s in slots}
+        export = _export_at(export_prices, slots)
         for point in published:
             key = point.start.isoformat()
             old = self.price_log.get(key)
-            value = export.get(point.start)
+            value = export(point.start)
             if value is None and old is not None:
                 value = old[2]
             self.price_log[key] = [point.end.isoformat(), point.price, value]
@@ -585,9 +589,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             if start is not None and end_at is not None and end_at <= window_start:
                 rows.append([start, end_at, price, export, False])
         if data:
-            export = {s.start: s.export_price for s in data.battery}
+            export = _export_at(data.export_prices, data.battery)
             rows.extend(
-                [p.start, p.end, p.price, export.get(p.start), p.estimated]
+                [p.start, p.end, p.price, export(p.start), p.estimated]
                 for p in data.prices
             )
         return rows
@@ -840,7 +844,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             export_prices,
         )
         self._explain_method(data)
-        self._log_prices([p for p in prices if not p.estimated], battery, now)
+        self._log_prices(
+            [p for p in prices if not p.estimated], battery, now, export_prices
+        )
         # The plan last: it is what *Last decision* should show after a cycle.
         self._explain_plan(data)
 
@@ -1663,6 +1669,24 @@ def _periods(
 
     text = ", ".join(fmt(a, b) for a, b in periods[:3])
     return text + (" ..." if len(periods) > 3 else "") if text else "-"
+
+
+def _export_at(
+    export_prices: Sequence[PricePoint], slots: Sequence[Any]
+) -> Callable[[datetime], float | None]:
+    """What export earns at a moment: the export price period holding it
+    (quarter prices stay quarters), else the plan slot holding it."""
+
+    def at(when: datetime) -> float | None:
+        for p in export_prices:
+            if p.start <= when < p.end:
+                return p.price
+        for s in slots:
+            if s.start <= when < s.end:
+                return s.export_price
+        return None
+
+    return at
 
 
 def _surplus_fn(

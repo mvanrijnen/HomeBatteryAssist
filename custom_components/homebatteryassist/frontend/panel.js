@@ -2513,10 +2513,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
 
   _adjustmentForm(overlay, row, back, after) {
     const t = this._t;
-    const pad = (n) => String(n).padStart(2, "0");
-    const local = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    // Dates in Home Assistant's time zone: the backend reads the day and
+    // times there (the browser may be elsewhere).
+    const zone = this._hass.config?.time_zone;
+    const local = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
     const today = new Date();
-    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const tomorrow = new Date(today.getTime() + 864e5);
     const r = row || { name: "", date: local(tomorrow), from: null, until: null, value: "", part: false };
     overlay.innerHTML = `<div class="adj-dialog" role="dialog" aria-modal="true">
         <h2>${esc(row ? t.adjEdit : t.adjAdd)} · ${esc(t.adjTitle.toLowerCase())}</h2>
