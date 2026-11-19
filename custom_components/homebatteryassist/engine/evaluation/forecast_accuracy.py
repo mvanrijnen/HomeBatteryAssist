@@ -55,6 +55,7 @@ MAX_PRICE_PER_KWH = 3.0
 
 STORAGE_VERSION = 1
 SAVE_DELAY = 60
+SAVE_EVERY = timedelta(hours=1)  # predictions/results written at most this often
 RETENTION = timedelta(days=28)
 HALF_LIFE = timedelta(days=7)
 MIN_COVERAGE = 0.8
@@ -135,6 +136,7 @@ class ForecastAccuracy:
 
     def __init__(self, hass: HomeAssistant, entry_id: str) -> None:
         """Initialize."""
+        self._saved_at: datetime | None = None  # last hourly save
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.accuracy"
         )
@@ -242,6 +244,14 @@ class ForecastAccuracy:
         """Write to disk now."""
         await self._store.async_save(self._data())
 
+    def _save_hourly(self) -> None:
+        """Predictions and results change every cycle; written at most once an
+        hour (and on stop / unload): the file is large and written whole."""
+        now = dt_util.utcnow()
+        if self._saved_at is None or now - self._saved_at >= SAVE_EVERY:
+            self._saved_at = now
+            self._store.async_delay_save(self._data, SAVE_DELAY)
+
     # -- recording ---------------------------------------------------------------
 
     def forget(self, kind: Kind, starts: Iterable[datetime]) -> None:
@@ -269,7 +279,7 @@ class ForecastAccuracy:
             # A slot cut at the end of an earlier window is whole now.
             entry["end"] = max(entry["end"], end.isoformat())
             entry[bucket] = round(value, 4)
-        self._store.async_delay_save(self._data, SAVE_DELAY)
+        self._save_hourly()
 
     def _settle(self, kind: Kind, actuals: Mapping[str, float]) -> int:
         """Move predictions with a known actual value to the results."""
@@ -407,7 +417,7 @@ class ForecastAccuracy:
                 for start, entry in self.predictions[kind].items()
                 if entry["end"] >= stale
             }
-        self._store.async_delay_save(self._data, SAVE_DELAY)
+        self._save_hourly()
 
     # -- statistics and corrections --------------------------------------------
 

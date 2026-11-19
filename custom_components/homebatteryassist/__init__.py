@@ -335,6 +335,7 @@ async def async_setup_entry(
             # keep the running history interval and the battery counters.
             await history.async_save_running()
             await batteries.async_save_now()
+            await forecast.accuracy.async_save()  # written hourly otherwise
 
         entry.async_on_unload(
             hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_save_on_stop)
