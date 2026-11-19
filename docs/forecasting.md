@@ -11,7 +11,7 @@ Every forecast first determines how far ahead it can calculate: limited by your 
 The house consumption per slot is predicted by a **consumption forecaster** [module](modules.md):
 
 - **Weekday and hour profile** (default): the average per weekday and hour from your own history, recent days counting more; every day of the week (Monday … Sunday) has its own profile — no working days / weekend split, since with working from home a Wednesday can differ from a Tuesday; with little history it falls back to the hour of all days, or the overall average.
-- **Same time in the last weeks**: the same weekday and time in the last two weeks.
+- **Same time in the last weeks**: the same weekday and time in the last two weeks (every record in the slot counts). The temperature step compares the forecast with the weather of those very weeks.
 - **Your own forecaster**, see [Modules](modules.md).
 
 All forecasters run every cycle; the *Accuracy* tab compares them, so you can choose the one that fits your house. Consumption during a **vacation** (setting) is not learned from. You can **adjust** the forecast for a period (e.g. a party) with the action `adjust_forecast`.

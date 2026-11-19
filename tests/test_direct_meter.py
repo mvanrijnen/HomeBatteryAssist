@@ -391,3 +391,39 @@ async def test_homewizard_v2_token_and_candidate(hass) -> None:
     meter.handle({"power_l1_w": 100, "power_l2_w": 200, "power_l3_w": -50})
     assert meter.available and meter.phase_w == (100.0, 200.0, -50.0)
     meter.cancel_stale()
+
+
+def test_pv_share_per_hour() -> None:
+    """East roof on L1 in the morning, west roof on L2 in the afternoon."""
+    from datetime import datetime, timedelta
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.homebatteryassist.engine.forecast.phase_shares import (
+        PhaseProfile,
+    )
+
+    day = dt_util.as_local(datetime(2026, 6, 20, tzinfo=dt_util.UTC)).replace(
+        hour=0, minute=0
+    )
+    morning, afternoon = day + timedelta(hours=9), day + timedelta(hours=16)
+    records = [
+        {
+            "start": dt_util.as_utc(morning).isoformat(),
+            "minutes": 60,
+            "avg_w": 0.0,
+            "coverage": 1.0,
+            "phase_pv_w": [1000.0, 0.0],
+        },
+        {
+            "start": dt_util.as_utc(afternoon).isoformat(),
+            "minutes": 60,
+            "avg_w": 0.0,
+            "coverage": 1.0,
+            "phase_pv_w": [0.0, 1000.0],
+        },
+    ]
+    profile = PhaseProfile(records, 2)
+    assert profile.pv_share(morning) == [1.0, 0.0]
+    assert profile.pv_share(afternoon) == [0.0, 1.0]
+    assert profile.pv_share(day + timedelta(hours=12)) == [0.5, 0.5]

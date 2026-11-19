@@ -11,7 +11,7 @@ Elke voorspelling bepaalt eerst hoe ver vooruit hij kan rekenen: begrensd door j
 Het huisverbruik per tijdvak wordt voorspeld door een **verbruiksvoorspeller**-[module](modules.md):
 
 - **Profiel per weekdag en uur** (standaard): het gemiddelde per weekdag en uur uit je eigen geschiedenis, waarbij recente dagen zwaarder tellen; elke dag van de week (maandag … zondag) heeft een eigen profiel — geen splitsing in werkdagen en weekend, want als je thuiswerkt kan een woensdag anders zijn dan een dinsdag; met weinig geschiedenis valt hij terug op het uur van alle dagen, of op het totale gemiddelde.
-- **Zelfde tijd in de afgelopen weken**: dezelfde weekdag en tijd in de afgelopen twee weken.
+- **Zelfde tijd in de afgelopen weken**: dezelfde weekdag en tijd in de afgelopen twee weken (elke meting in het tijdvak telt mee). De temperatuurstap vergelijkt de verwachting met het weer van juist die weken.
 - **Je eigen voorspeller**, zie [Modules](modules.md).
 
 Alle voorspellers draaien elke ronde; het tabblad *Nauwkeurigheid* vergelijkt ze, zodat je de voorspeller kunt kiezen die bij je huis past. Van verbruik tijdens een **vakantie** (instelling) wordt niet geleerd. Je kunt de voorspelling voor een periode **aanpassen** (bijv. een feestje) met de actie `adjust_forecast`.

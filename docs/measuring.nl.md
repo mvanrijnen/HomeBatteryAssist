@@ -100,7 +100,7 @@ Korte, hoge pieken op willekeurige momenten (een waterkoker, een magnetron, een 
 - **Niet ontladen voor willekeurige pieken** — nul op de meter ontlaadt niet (extra) voor een herkende piek; het net levert die.
 - **Willekeurige pieken niet meetellen in het gemiddelde verbruik** — hun energie wordt apart vastgelegd (`spike_w` in de historie) en buiten de verbruiksvoorspelling en de controle van de nauwkeurigheid gehouden, zodat het batterijplan er niet op rekent.
 
-Het ingebouwde filter (*Korte pieken boven een drempel*): een stijging van minstens **2000 W** boven het gebruikelijke verbruik die binnen **5 minuten** weer voorbij is, is een piek (beide instelbaar). Zolang die duurt wordt er niet voor ontladen; duurt het langer, dan is het gewoon verbruik (bijv. een oven) en wordt het vanaf dan gevolgd — een waterkoker bovenop de oven is dan weer een piek.
+Het ingebouwde filter (*Korte pieken boven een drempel*): een stijging van minstens **2000 W** boven het gebruikelijke verbruik die binnen **5 minuten** weer voorbij is, is een piek (beide instelbaar). Zolang die duurt wordt er niet voor ontladen; duurt het langer, dan is het gewoon verbruik (bijv. een oven) en wordt het vanaf dan gevolgd — een waterkoker bovenop de oven is dan weer een piek. Een sprong korter dan 15 seconden is geen piek maar sensortiming (net-, PV- en batterijsensoren werken niet op hetzelfde moment bij) en telt niet mee.
 
 Een piek die **regelmatig terugkomt** — op minstens de helft van de dagen van die dag van de week op hetzelfde uur, minstens twee keer in de afgelopen 4 weken (bijv. de koffie elke doordeweekse ochtend) — is niet willekeurig: die blijft in het gemiddelde en de batterij dekt hem.
 

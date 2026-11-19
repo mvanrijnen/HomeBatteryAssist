@@ -7,7 +7,11 @@ per phase (``phase_house_w``) and the PV production per phase
 (the house often uses other phases in the evening than at night), falling back
 to the share over all hours, and to an even split without history.
 
-    load_p = consumption x house share_p(hour) - PV x PV share_p
+    load_p = consumption x house share_p(hour) - PV x PV share_p(hour)
+
+The PV share is per local hour too: roofs facing east and west, or an
+inverter per roof on another phase, give the morning to other phases than
+the afternoon.
 
 The fuse sees current, not power. With a meter that measures current the
 history also has the net power and current per phase; from those the
@@ -50,6 +54,7 @@ class PhaseProfile:
         """Learn the shares from the history records."""
         self.phases = phases
         house_hour: dict[int, list[float]] = {}
+        pv_hour: dict[int, list[float]] = {}
         house_all = [0.0] * phases
         pv_all = [0.0] * phases
         reactive: list[list[float]] = [[] for _ in range(phases)]
@@ -61,21 +66,24 @@ class PhaseProfile:
                     seen = current * NOMINAL_VOLTAGE
                     reactive[i].append(math.sqrt(max(seen * seen - watts * watts, 0.0)))
             weight = record["minutes"] * record["coverage"]
+            start = dt_util.parse_datetime(record["start"])
+            hour = dt_util.as_local(start).hour if start else 0
             if (house := record.get("phase_house_w")) and len(house) == phases:
-                start = dt_util.parse_datetime(record["start"])
-                hour = dt_util.as_local(start).hour if start else 0
                 acc = house_hour.setdefault(hour, [0.0] * phases)
                 for i, value in enumerate(house):
                     acc[i] += max(value, 0.0) * weight
                     house_all[i] += max(value, 0.0) * weight
                 self.samples += 1
             if (pv := record.get("phase_pv_w")) and len(pv) == phases:
+                acc = pv_hour.setdefault(hour, [0.0] * phases)
                 for i, value in enumerate(pv):
+                    acc[i] += max(value, 0.0) * weight
                     pv_all[i] += max(value, 0.0) * weight
         even = [1 / phases] * phases
         self.house = _shares(house_all) or even
         self.house_hour = {h: _shares(v) or self.house for h, v in house_hour.items()}
         self.pv = _shares(pv_all) or even
+        self.pv_hour = {h: _shares(v) or self.pv for h, v in pv_hour.items()}
         # Current besides the power per phase (W at 230 V); 0 until an hour
         # of measured current is known.
         self.reactive = [
@@ -86,6 +94,10 @@ class PhaseProfile:
     def house_share(self, when: datetime) -> list[float]:
         """Share of the house consumption per phase at ``when``."""
         return self.house_hour.get(dt_util.as_local(when).hour, self.house)
+
+    def pv_share(self, when: datetime) -> list[float]:
+        """Share of the PV production per phase at ``when``."""
+        return self.pv_hour.get(dt_util.as_local(when).hour, self.pv)
 
     def loads(
         self, consumption: Sequence[ForecastSlot], pv_wh: Mapping[datetime, float]
@@ -98,7 +110,10 @@ class PhaseProfile:
             result[slot.start] = [
                 round(self._with_reactive(slot.power_w * h - pv * p, q), 1)
                 for h, p, q in zip(
-                    self.house_share(slot.start), self.pv, self.reactive, strict=True
+                    self.house_share(slot.start),
+                    self.pv_share(slot.start),
+                    self.reactive,
+                    strict=True,
                 )
             ]
         return result

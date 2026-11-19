@@ -100,7 +100,7 @@ Short, high peaks at random moments (a kettle, a microwave, an induction hob) ne
 - **Do not discharge for random peaks** — zero on the meter does not discharge (extra) for a recognised peak; the grid supplies it.
 - **Leave random peaks out of the average consumption** — their energy is recorded apart (`spike_w` in the history) and left out of the consumption forecast and its accuracy check, so the battery plan does not count on them.
 
-The built-in filter (*Short peaks above a threshold*): a rise of at least **2000 W** above the usual consumption that is over within **5 minutes** is a peak (both adjustable). While it lasts it is not discharged for; when it lasts longer it is normal consumption (e.g. an oven) and is followed from then on — a kettle on top of the oven is again a peak.
+The built-in filter (*Short peaks above a threshold*): a rise of at least **2000 W** above the usual consumption that is over within **5 minutes** is a peak (both adjustable). While it lasts it is not discharged for; when it lasts longer it is normal consumption (e.g. an oven) and is followed from then on — a kettle on top of the oven is again a peak. A jump shorter than 15 seconds is no peak but sensor timing (grid, PV and battery sensors do not update at the same moment) and is not counted.
 
 A peak that **comes back regularly** — on at least half of the days of that day of the week at the same hour, at least twice in the last 4 weeks (e.g. the coffee every weekday morning) — is not random: it stays in the average and the battery covers it.
 

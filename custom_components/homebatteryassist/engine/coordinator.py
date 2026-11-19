@@ -850,7 +850,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             "consumption", [(s.start, s.end, s.raw) for s in consumption], now
         )
         self._record_forecasters(window, step, now)
-        self._record_heating(step, now)
+        self._record_heating(window, step, now)
         self.hass.bus.async_fire(EVENT_FORECAST_UPDATED, summarise(data))
         return data
 
@@ -878,10 +878,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             self.accuracy.track(kind)
             self.accuracy.record(kind, [(a, b, v) for a, b, v, _m in slots], now)
 
-    def _record_heating(self, step: timedelta, now: datetime) -> None:
+    def _record_heating(
+        self, window: PlanningWindow, step: timedelta, now: datetime
+    ) -> None:
         """The heating/cooling power the temperature step expects per slot,
         to check it afterwards against the measured heating/cooling devices
-        (only when they are measured apart, not for the whole house)."""
+        (only when they are measured apart, not for the whole house). The
+        last slot ends with the window (it may be shorter than a step)."""
         model = self.temperature_model
         if (
             model is None
@@ -891,7 +894,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         ):
             return
         slots = [
-            (start, start + step, demand)
+            (start, min(start + step, window.end), demand)
             for start, temp in self.temperature_slots
             if (demand := model.demand(start, temp)) is not None
         ]

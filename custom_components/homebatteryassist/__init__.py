@@ -414,6 +414,7 @@ async def async_setup_entry(
             # A new slot: entities showing "the slot now" move on with it.
             if forecast.data is not None:
                 forecast.async_update_listeners()
+            batteries.count_up_to(now)  # counters up to the slot boundary
             plan_check.settle(now, _battery_totals, forecast.cycle_cost)
             if forecast.data is not None:
                 plan_check.record_plan(

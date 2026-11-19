@@ -131,3 +131,12 @@ def test_own_module_from_template(tmp_path: Path) -> None:
     own = create_spike_filter("custom_cap_during_the_day", found, 1500, 120)
     assert own.threshold_w == 1500.0
     assert DEFAULT_SPIKE_FILTER in BUILTIN
+
+
+def test_sensor_timing_is_no_peak() -> None:
+    """A jump for one reading (grid, PV and battery sensors not updated at
+    the same moment) is no peak: no energy reported, not counted."""
+    f = create_spike_filter(DEFAULT_SPIKE_FILTER, {}, 2000, 300)
+    states = _run(f, [300.0] * 12 + [2700.0] + [300.0] * 3)
+    assert not any(s.ended_wh for s in states)
+    assert f.peaks == 0 and f.glitches == 1

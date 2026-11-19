@@ -1088,15 +1088,33 @@ class BatteryInput:
         if available or was is not None:
             self._was_available[config.id] = available
 
+    def count_up_to(self, now: datetime) -> None:
+        """Count the real batteries' energy up to ``now`` at their last power
+        (their sensors may not have changed since): the plan check reads
+        counters that are up to date, not one update behind. Virtual
+        batteries are counted every round by their simulator."""
+        for config in self.configs:
+            if not config.virtual and config.id in self._last_power:
+                self._count_energy(config.id, now, self._last_power[config.id][1])
+
     @callback
     def _async_log_soc(self, now: datetime) -> None:
         """Remember every battery's state of charge (for the dashboard), and
         count the real batteries' energy up to now: a battery whose sensors
         do not change (idle overnight, or a constant power) still starts the
         new day at midnight and has every quarter valued at its own price."""
+        new_day = False
+        self.count_up_to(now)
         for config in self.configs:
-            if not config.virtual and config.id in self._last_power:
-                self._count_energy(config.id, now, self._last_power[config.id][1])
+            # Also a battery without a power reading (or a virtual one that
+            # did not move) starts the new day: *today* back to 0.
+            days = self.stats[config.id].get("days") or [{}]
+            before = days[-1].get("date")
+            self._roll_day(config.id, now)
+            new_day |= self.stats[config.id]["days"][-1]["date"] != before
+        if new_day:
+            for listener in list(self._listeners):
+                listener()
         cutoff = (now - SOC_LOG_RETENTION).isoformat()
         for battery_id, state in self.states.items():
             log = self.soc_log.setdefault(battery_id, [])
