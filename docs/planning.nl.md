@@ -85,7 +85,7 @@ Attributen: *begrensd*, de reden, de grens als stroom per fase, de terugleverpri
 
 ## Periodiek volladen {#periodic-full-charge}
 
-Per batterij (voor de kalibratie van het batterijbeheer), om de zoveel dagen, op het goedkoopste moment, eventueel op een voorkeursdag van de week en bij voorkeur met zonnestroom; batterijen laden tegelijk vol als de netaansluiting dat toelaat. Het volladen wordt altijd **na** de planner ingevoegd, welke planner ook gekozen is.
+Per batterij (voor de kalibratie van het batterijbeheer), om de zoveel dagen, op het goedkoopste moment, eventueel op een voorkeursdag van de week en bij voorkeur met zonnestroom; batterijen laden tegelijk vol als de netaansluiting dat toelaat. Het volladen wordt vóór het plannen ingepland en altijd door de eindcontrole van HomeBatteryAssist aan het plan toegevoegd, welke planner ook gekozen is (geen prijsregel houdt het tegen): laadniveau, net en kosten van het plan rekenen ermee, en wat daarna niet meer past wordt niet geladen.
 
 ## Reactie op de meter {#reaction-on-the-meter}
 

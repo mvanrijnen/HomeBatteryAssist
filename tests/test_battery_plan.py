@@ -428,3 +428,28 @@ def test_first_slot_only_counts_the_time_left() -> None:
     assert plan.slots[0].power_w == -2000.0
     # 0.5 kWh / 0.9 from the cells = 0.556 kWh = 11.1 % of 5 kWh.
     assert plan.slots[0].soc == pytest.approx(50.0 - 11.1, abs=0.2)
+
+
+def test_full_charge_is_in_the_state_of_charge() -> None:
+    """A forced full charge raises the plan's state of charge (and is not
+    stopped by the maximum charge price); afterwards it is full."""
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        PlanRules,
+    )
+
+    slots = _slots([0.0, 0.0, 0.0])
+    plan = plan_batteries(
+        [_battery(soc=50.0)],
+        slots,
+        {},
+        _prices([0.3, 0.3, 0.3]),
+        mode=MODE_NOM,
+        rules=PlanRules(max_charge_price=0.05),
+        forced={T0: 2500.0, T0 + H: 2500.0},
+    )
+    assert plan.slots[0].power_w == 2500.0
+    assert plan.slots[0].soc > 90.0
+    # Only what still fits: full after the second slot.
+    assert plan.slots[1].soc == 100.0
+    assert plan.slots[1].power_w < 2500.0
+    assert plan.slots[2].power_w == 0.0

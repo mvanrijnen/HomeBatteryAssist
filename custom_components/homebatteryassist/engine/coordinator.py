@@ -713,6 +713,29 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             start: wh * (1 - self.pv_margin / 100) for start, wh in pv_wh.items()
         }
         limits = self._phase_limits(states, consumption, pv_plan)
+        # Periodic full charges at the cheapest moment: part of every plan
+        # (its final check adds them, so state of charge, grid and costs
+        # count with them).
+        full_charges = schedule_full_charges(
+            states,
+            {
+                c.id: dt_util.parse_datetime(last)
+                if (last := self.last_full(c.id))
+                else None
+                for c in (s.config for s in states)
+            },
+            prices,
+            self.full_charge_window,
+            now,
+            fits=self._fits_connection(states, consumption, pv_plan),
+            preferred_day=self.full_charge_day,
+            slot_price=(
+                self._solar_price(consumption, pv_plan, export_prices)
+                if self.full_charge_solar
+                else None
+            ),
+        )
+        forced = _forced_power(consumption, full_charges)
         plans: dict[str, BatteryPlan] = {}
         derated = [self._derated(s) for s in states]
         for mode in (*PLAN_MODES, *self.planners):
@@ -735,6 +758,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                         rules=self.rules,
                         planner=p,
                         now=now,
+                        forced=forced,
                     )
                 )
             except Exception:  # an own planner module may fail in any way
@@ -755,27 +779,6 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             selected = plans.get(MODE_NOM)
         battery = selected.slots if selected else []
 
-        # 7. Periodic full charges at the cheapest moment, added to the plan.
-        full_charges = schedule_full_charges(
-            states,
-            {
-                c.id: dt_util.parse_datetime(last)
-                if (last := self.last_full(c.id))
-                else None
-                for c in (s.config for s in states)
-            },
-            prices,
-            self.full_charge_window,
-            now,
-            fits=self._fits_connection(states, consumption, pv_plan),
-            preferred_day=self.full_charge_day,
-            slot_price=(
-                self._solar_price(consumption, pv_plan, export_prices)
-                if self.full_charge_solar
-                else None
-            ),
-        )
-        battery = _with_full_charges(battery, full_charges)
         self._explain_full_charges(full_charges)
         data = ForecastData(
             window,
@@ -1557,34 +1560,26 @@ def _periods(
     return text + (" ..." if len(periods) > 3 else "") if text else "-"
 
 
-def _with_full_charges(
-    slots: list[PlanSlot], full_charges: list[FullCharge]
-) -> list[PlanSlot]:
-    """Add the forced full charges to the plan (extra charge power and grid)."""
-    if not full_charges:
-        return slots
-    result = []
-    for slot in slots:
+def _forced_power(
+    consumption: list[ForecastSlot], full_charges: list[FullCharge]
+) -> dict[datetime, float]:
+    """The full charges as extra charge power per consumption slot start (W,
+    averaged over the part of the slot they cover)."""
+    forced: dict[datetime, float] = {}
+    for slot in consumption:
+        seconds = (slot.end - slot.start).total_seconds()
+        if seconds <= 0:
+            continue
         extra = sum(
             f.power_w
             * (min(slot.end, f.end) - max(slot.start, f.start)).total_seconds()
-            / (slot.end - slot.start).total_seconds()
+            / seconds
             for f in full_charges
             if slot.start < f.end and slot.end > f.start
         )
-        if extra:
-            # When the plan charges anyway, the batteries that charge fully are
-            # part of that power: count the larger of the two, not both.
-            power = (
-                max(slot.power_w, extra) if slot.power_w > 0 else slot.power_w + extra
-            )
-            slot = replace(
-                slot,
-                power_w=round(power, 1),
-                grid_w=round(slot.grid_w + power - slot.power_w, 1),
-            )
-        result.append(slot)
-    return result
+        if extra > 0:
+            forced[slot.start] = round(extra, 1)
+    return forced
 
 
 def _avg_price(

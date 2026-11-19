@@ -13,7 +13,7 @@ A planner only *advises*: HomeBatteryAssist never controls a battery.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -69,6 +69,8 @@ class PlannerInput:
     minimum discharge price, maximum charge price, ...); HomeBatteryAssist
     enforces the price rules afterwards anyway. ``target(start)`` gives the
     fixed action of manual / time slot settings for a slot, if any.
+    ``forced`` = extra charge power (W) per slot start that must happen (the
+    periodic full charges); ``finalise`` adds it to what the planner asks.
     """
 
     now: datetime
@@ -79,6 +81,7 @@ class PlannerInput:
     max_cycles_per_day: float = 0.0  # 0 = no limit
     peak_w: float = 0.0  # grid import to stay below (all phases), 0 = off
     target: Callable[[datetime], Any] | None = None
+    forced: Mapping[datetime, float] = field(default_factory=dict)
     priced: bool = field(init=False)
 
     def __post_init__(self) -> None:

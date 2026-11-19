@@ -279,6 +279,7 @@ def plan_batteries(
     rules: PlanRules = PlanRules(),
     planner: Planner | None = None,
     now: datetime | None = None,
+    forced: Mapping[datetime, float] | None = None,
 ) -> BatteryPlan | None:
     """Plan the batteries with ``planner`` (default: the built-in planner of
     ``mode``) over the consumption slots, checked by ``finalise``; None
@@ -303,6 +304,7 @@ def plan_batteries(
         target=target,
         rules=rules,
         now=now,
+        forced=forced,
     )
     if data is None:
         return None
@@ -325,6 +327,7 @@ def planner_input(
     target: Callable[[datetime], Target | None] | None = None,
     rules: PlanRules = PlanRules(),
     now: datetime | None = None,
+    forced: Mapping[datetime, float] | None = None,
 ) -> PlannerInput | None:
     """What a planner gets; None without batteries or slots."""
     pack = _pack(states, rules)
@@ -391,6 +394,7 @@ def planner_input(
         max_cycles_per_day,
         peak_w,
         target,
+        dict(forced or {}),
     )
 
 
@@ -427,6 +431,13 @@ def finalise(
         # Only a fixed action the user set (manual / time slot) may break the
         # price rules; a planner's own reason never does.
         fixed = data.target is not None and data.target(slot.start) is not None
+        extra = data.forced.get(slot.start, 0.0)
+        if extra > 0:
+            # A periodic full charge must happen: when the plan charges
+            # anyway, the battery that charges fully is part of that power
+            # (the larger of the two, not both). Price rules do not stop it.
+            requested = max(requested, extra) if requested > 0 else requested + extra
+            fixed = True
         hours = slot.hours
         power = 0.0
         if requested > 0:

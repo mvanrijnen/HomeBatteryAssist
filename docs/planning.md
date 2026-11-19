@@ -85,7 +85,7 @@ Attributes: *limited*, the reason, the limit as current per phase, the export pr
 
 ## Periodic full charge
 
-Per battery (for the battery management's calibration), every so many days, at the cheapest moment, optionally on a preferred weekday and preferably with solar power; batteries charge fully at the same time when the grid connection allows it. The full charge is always inserted **after** the planner, whatever planner is chosen.
+Per battery (for the battery management's calibration), every so many days, at the cheapest moment, optionally on a preferred weekday and preferably with solar power; batteries charge fully at the same time when the grid connection allows it. The full charge is scheduled before planning and always added by HomeBatteryAssist's final check of the plan, whatever planner is chosen (no price rule stops it): the state of charge, grid and costs of the plan count with it, and what no longer fits after it is not charged.
 
 ## Reaction on the meter
 
