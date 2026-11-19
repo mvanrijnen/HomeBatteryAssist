@@ -131,6 +131,16 @@ async def test_consumption_availability_is_explained(
     await hass.async_block_till_done()
     assert [d["key"] for d in decisions.entries] == start_keys
 
+    # A gap in the first minutes after a start is no message (sensors of
+    # other integrations are often still starting).
+    hass.states.async_set("sensor.l1", "unavailable")
+    await hass.async_block_till_done()
+    assert [d["key"] for d in decisions.entries] == start_keys
+    hass.states.async_set("sensor.l1", "500", {"unit_of_measurement": "W"})
+    await hass.async_block_till_done()
+    assert [d["key"] for d in decisions.entries] == start_keys
+
+    entry.runtime_data.measurements._quiet_until = dt_util.utcnow()
     hass.states.async_set("sensor.l1", "unavailable")
     await hass.async_block_till_done()
     assert decisions.latest["key"] == "consumption_unavailable"

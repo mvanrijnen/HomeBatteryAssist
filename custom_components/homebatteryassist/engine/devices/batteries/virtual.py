@@ -183,6 +183,8 @@ class VirtualBatterySimulator:
         self._samples: list[tuple[datetime, float, float]] = []
         self._step_grid: float | None = None
         self._meter_lost = False  # grid unknown: batteries held
+        # No message while the meter starts up after a (re)start.
+        self._quiet_until = dt_util.utcnow() + timedelta(minutes=2)
         # The interceptor (the user's last say) and what it did lately.
         self.intercepted: list[tuple[str, str, float, str]] = []
         self._intercept_gist = ""
@@ -319,7 +321,7 @@ class VirtualBatterySimulator:
                 self._meter_lost = False
                 self._decisions.async_log("battery", "meter_back_resume")
             return wanted
-        if not self._meter_lost:
+        if not self._meter_lost and dt_util.utcnow() >= self._quiet_until:
             self._meter_lost = True
             self._decisions.async_log("battery", "meter_lost_hold")
         return dict.fromkeys(wanted, 0.0)

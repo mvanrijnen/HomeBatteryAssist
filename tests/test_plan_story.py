@@ -154,3 +154,29 @@ async def test_story_keeps_grid_and_solar_charges_apart(hass: HomeAssistant) -> 
     text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
     assert "laden we 2,0 kWh uit het net" in text
     assert "2,8 kWh uit het net" not in text
+
+
+async def test_story_solar_charge_is_used_as_far_as_it_goes(
+    hass: HomeAssistant,
+) -> None:
+    """A solar charge is told with the discharges its energy covers before
+    the next charge, not every discharge until the end of the plan."""
+    await hass.config.async_set_time_zone("Europe/Amsterdam")
+    powers = [1000.0, 0.0, -500.0, 0.0, -500.0, 0.0, -500.0, 0.0, 1000.0, 0.0, -500.0]
+    slots = [
+        PlanSlot(
+            T0 + i * H,
+            T0 + (i + 1) * H,
+            p,
+            50.0,
+            0.0 if p > 0 else 500.0 + p,  # charging with solar: no grid
+            0.30,
+        )
+        for i, p in enumerate(powers)
+    ]
+    plan = BatteryPlan("arbitrage", "arbitrage", slots, 1.0, 1.5)
+    text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
+    # 1 kWh x 0.85 covers the discharges at 04:00 and 06:00 (local), not 08:00
+    # and not the one after the next solar charge (12:00).
+    assert "04:00-05:00" in text and "06:00-07:00" in text
+    assert "08:00-09:00" not in text and "12:00-13:00" not in text

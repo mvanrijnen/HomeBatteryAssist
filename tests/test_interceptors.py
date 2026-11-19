@@ -1,6 +1,6 @@
 """Tests for the interceptor modules (the user's last say per battery)."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from homeassistant.util import dt as dt_util
@@ -189,6 +189,7 @@ def test_without_meter_nothing_is_done() -> None:
     sim = SimpleNamespace(
         _measurements=SimpleNamespace(flow=None),
         _meter_lost=False,
+        _quiet_until=datetime(2000, 1, 1, tzinfo=UTC),
         _decisions=SimpleNamespace(async_log=lambda _c, key, **_kw: logged.append(key)),
     )
     hold = VirtualBatterySimulator._hold_without_meter

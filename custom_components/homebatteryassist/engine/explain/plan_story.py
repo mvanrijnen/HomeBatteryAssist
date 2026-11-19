@@ -407,13 +407,27 @@ def plan_story(
         # Tell the next charge from the grid if there is one (the decision
         # worth explaining), else the next charge with solar power.
         block = next((c for c in charges if c.from_grid), charges[0])
-        # The energy is used until the next charge from the grid (charging
-        # with solar power in between does not replace it).
+        # The energy is used until the next charge: for a charge from the grid
+        # the next one from the grid (charging with solar power in between
+        # does not replace it), for solar power the next charge of any kind
+        # (the next sunny day refills the battery). And only as far as the
+        # energy goes: a 1.8 kWh charge is not used up over five days.
         until = next(
-            (c.start for c in charges if c.from_grid and c.start > block.start),
+            (
+                c.start
+                for c in charges
+                if c.start > block.start and (c.from_grid or not block.from_grid)
+            ),
             slots[-1].end,
         )
-        uses = [d for d in discharges if block.end <= d.start < until]
+        uses = []
+        left = block.energy_wh * efficiency
+        for d in discharges:
+            if left <= 0:
+                break
+            if block.end <= d.start < until:
+                uses.append(d)
+                left -= d.energy_wh
 
         def span(d: _Block) -> str:
             return f"{_time(d.start, lang)}-{dt_util.as_local(d.end):%H:%M}"

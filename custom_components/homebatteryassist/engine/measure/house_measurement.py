@@ -80,6 +80,8 @@ from .battery_monitor import battery_configs, battery_meter, battery_power
 from .spike_filters import SpikeFilter, SpikeState, checked
 
 _LOGGER = logging.getLogger(__name__)
+# No message about missing measurements this long after a (re)start.
+STARTUP_QUIET = timedelta(minutes=2)
 
 type MeasurementListener = Callable[[datetime, float | None], None]
 
@@ -248,6 +250,9 @@ class MeasurementInput:
         self.flow: PowerFlow | None = None
         self.missing: list[str] = []  # grid sensors without a valid value
         self._was_available: bool | None = None
+        # Sensors of other integrations are often still starting in the first
+        # minutes after a (re)start: a gap then is no message.
+        self._quiet_until = dt_util.utcnow() + STARTUP_QUIET
         self._listeners: list[MeasurementListener] = []
         self._pending: dict[int, CALLBACK_TYPE] = {}
         self._unsub: CALLBACK_TYPE | None = None
@@ -617,6 +622,10 @@ class MeasurementInput:
         still starting then.
         """
         available = self.power is not None
+        if not available and dt_util.utcnow() < self._quiet_until:
+            # Starting up: as if it was never known.
+            self._was_available = None
+            return
         if self._was_available is not None and available != self._was_available:
             if available:
                 self._decisions.async_log("measurement", "consumption_restored")
