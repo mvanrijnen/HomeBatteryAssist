@@ -105,6 +105,8 @@ async def async_get_config_entry_diagnostics(
         "modules": {
             "planner": data.forecast.plan_mode,
             "planner_fallback": data.forecast.plan_fallback,
+            # How long the last forecast cycle took per step (ms).
+            "cycle_timings_ms": data.forecast.timings,
             "consumption_forecaster": data.forecast.forecaster_key,
             "forecaster_fallback": data.forecast.forecaster_fallback,
             "weather_source": data.forecast.weather_key,

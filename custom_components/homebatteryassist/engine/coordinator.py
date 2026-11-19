@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from bisect import bisect_right
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -421,6 +422,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.pv_partial = False  # a chosen PV source gave no data
         self._member_limits: dict = {}
+        self.timings: dict[str, float] = {}  # ms per step, last cycle
         # When the full charge interval counts from (set by __init__).
         self.full_charge_since: Callable[[str], str | None] = lambda _id: None
         self._phase_rooms: dict = {}
@@ -611,6 +613,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
 
     async def _async_update_data(self) -> ForecastData:
         now = dt_util.utcnow()
+        lap = _Laps()  # how long each step takes (diagnostics, debug log)
         await self._async_load_price_log()
         if self.spike_history or self.spike_battery:
             self.regular_peaks = regular_peak_hours(self.history.records, now)
@@ -629,6 +632,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         hour = now.replace(minute=0, second=0, microsecond=0)
         pv_now_w = pv_wh.get(hour) if self.pv_entries else None
 
+        lap("inputs")
         # 2. How far ahead can we calculate?
         window = planning_horizon(
             now,
@@ -670,6 +674,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 now,
             )
 
+        lap("accuracy")
         # 4. Everything else only within the window, corrected.
         prices = [
             PricePoint(
@@ -723,7 +728,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.adjustments.prune(now)
         step = timedelta(minutes=self.history.minutes)
+        lap("window_prices")
         await self._async_read_temperature(window, step, now)
+        lap("temperature")
         chosen = self.forecasters.get(self.forecaster_key) or FORECASTERS.get(
             self.forecaster_key
         )
@@ -754,6 +761,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 temperatures=self.temperatures,
                 temperature=self.temperature_model,
             )
+        lap("consumption")
         # 6. Battery plans (advice) for every mode, off the event loop, within
         # the phase limits of the grid connection.
         states = list(self.battery_states())
@@ -806,8 +814,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         }
         plans: dict[str, BatteryPlan] = {}
         derated = [self._derated(s) for s in states]
+        lap("phases_full_charge")
         for mode in (*PLAN_MODES, *self.planners):
             planner = self.planners.get(mode) or BUILTIN.get(mode)
+            lap(None)
             try:
                 plan = await self.hass.async_add_executor_job(
                     lambda m=mode, p=planner: plan_batteries(
@@ -833,6 +843,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                     )
                 )
             except Exception:  # an own planner module may fail in any way
+                lap(f"plan:{mode}")
                 _LOGGER.exception("Planner %s failed", mode)
                 if mode not in self._failed_planners:
                     self._failed_planners.add(mode)
@@ -840,6 +851,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                         "planning", "planner_failed", name=self.planner_name(mode)
                     )
                 continue
+            lap(f"plan:{mode}")
             self._failed_planners.discard(mode)
             if plan is not None:
                 plans[mode] = plan
@@ -882,6 +894,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self._log_prices(
             [p for p in prices if not p.estimated], battery, now, export_prices
         )
+        lap("explain")
         # The plan last: it is what *Last decision* should show after a cycle.
         self._explain_plan(data)
 
@@ -897,8 +910,12 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             now,
         )
         self._adjusted_starts = adjusted
+        lap("record")
         self._record_forecasters(window, step, now)
         self._record_heating(window, step, now)
+        lap("forecasters_compared")
+        self.timings = lap.result()
+        _LOGGER.debug("Cycle took %s ms", self.timings)
         self.hass.bus.async_fire(EVENT_FORECAST_UPDATED, summarise(data))
         return data
 
@@ -1765,6 +1782,27 @@ def _periods(
 
     text = ", ".join(fmt(a, b) for a, b in periods[:3])
     return text + (" ..." if len(periods) > 3 else "") if text else "-"
+
+
+class _Laps:
+    """Time per step of a cycle (ms): ``lap(name)`` books the time since the
+    previous call under ``name`` (None: not booked)."""
+
+    def __init__(self) -> None:
+        self._last = time.perf_counter()
+        self._start = self._last
+        self._times: dict[str, float] = {}
+
+    def __call__(self, name: str | None) -> None:
+        now = time.perf_counter()
+        if name is not None:
+            self._times[name] = self._times.get(name, 0.0) + (now - self._last) * 1000
+        self._last = now
+
+    def result(self) -> dict[str, float]:
+        out = {k: round(v, 1) for k, v in self._times.items()}
+        out["total"] = round((time.perf_counter() - self._start) * 1000, 1)
+        return out
 
 
 def _export_at(
