@@ -205,6 +205,8 @@ const TEXT = {
     adjTitle: "Expected extra consumption",
     adjNote: "Tell the forecast about consumption it cannot know from the history, e.g. 1.5 kWh for the washing machine tomorrow 13:00–15:00. Extra comes on top of the learned consumption; part of the expected consumption moves that much of the day's expected consumption into the time window.",
     adjNone: "Nothing set.",
+    adjButton: "Expected consumption",
+    adjClose: "Close",
     adjAdd: "Add",
     adjEdit: "Change",
     adjDelete: "Remove",
@@ -488,6 +490,8 @@ const TEXT = {
     adjTitle: "Verwacht extra verbruik",
     adjNote: "Vertel de voorspelling over verbruik dat hij niet uit de geschiedenis kan weten, bijv. 1,5 kWh voor de wasmachine morgen 13:00–15:00. Extra komt bovenop het geleerde verbruik; deel van het verwachte verbruik verschuift zoveel van het verwachte verbruik van die dag naar het tijdvenster.",
     adjNone: "Niets ingesteld.",
+    adjButton: "Verwacht verbruik",
+    adjClose: "Sluiten",
     adjAdd: "Toevoegen",
     adjEdit: "Wijzigen",
     adjDelete: "Verwijderen",
@@ -613,6 +617,7 @@ const STYLE = `
     border-radius: 18px; padding: 6px 14px; }
   .toolbar button:disabled { opacity: .6; cursor: default; }
   .toolbar button ha-icon { --mdc-icon-size: 18px; }
+  @media (max-width: 600px) { .toolbar .adj-open .label { display: none; } }
   .content { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
   .tabs { display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; border-bottom: 1px solid var(--divider-color); }
   .tabs button { font: inherit; font-size: 14px; cursor: pointer; background: none; border: none; white-space: nowrap;
@@ -696,6 +701,7 @@ const STYLE = `
     background: var(--primary-background-color); color: var(--primary-text-color); }
   .adj-dialog .times { display: flex; gap: 12px; }
   .adj-dialog .times label { flex: 1; }
+  .adj-list { max-height: 50vh; overflow-y: auto; }
   .adj-dialog .error { color: var(--error-color, #db4437); font-size: 14px; }
   .adj-actions { display: flex; justify-content: flex-end; gap: 8px; }
   .adj-actions button.primary { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: var(--primary-color); }
@@ -2383,14 +2389,43 @@ class HomeBatteryAssistPanel extends HTMLElement {
   }
 
   // Expected extra consumption: energy per day, extra or part of the
-  // expected consumption, optionally in a time window (dialog below).
-  _adjustments(s, t) {
+  // expected consumption, optionally in a time window. One dialog from the
+  // toolbar: the list, and a form to add or change.
+  _openAdjustments() {
+    if (this._dialogOpen) return;
+    this._dialogOpen = true;
+    const overlay = document.createElement("div");
+    overlay.className = "adj-overlay";
+    this.shadowRoot.appendChild(overlay);
+    const close = () => {
+      overlay.remove();
+      this._dialogOpen = false;
+      this._render();
+    };
+    overlay.addEventListener("click", (ev) => {
+      if (ev.target === overlay) close();
+    });
+    overlay.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") close();
+    });
+    const after = (result) => {
+      if (this._status) this._status.adjustments = result.adjustments;
+      this._historyAt = 0;
+      this._load(); // renders when the dialog closes
+    };
+    const list = () => this._adjustmentList(overlay, close, form, after);
+    const form = (row) => this._adjustmentForm(overlay, row, list, after);
+    list();
+  }
+
+  _adjustmentList(overlay, close, form, after) {
+    const t = this._t;
     const lang = this._hass.locale?.language || this._hass.language;
-    const rows = s.adjustments || [];
+    const rows = this._status?.adjustments || [];
     const dayText = (iso) =>
       new Date(`${iso}T12:00:00`).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" });
     const num = (v) => Number(v).toLocaleString(lang, { maximumFractionDigits: 2 });
-    const list = rows.length
+    const items = rows.length
       ? rows
           .map((r) => {
             const when = r.from ? `${r.from}–${r.until}` : t.adjWholeDay;
@@ -2399,28 +2434,47 @@ class HomeBatteryAssistPanel extends HTMLElement {
             else if (r.kind === "factor") what = `× ${num(r.value)} · ${t.adjByAction}`;
             else if (r.kind === "offset_w") what = `${r.value >= 0 ? "+" : ""}${num(r.value)} W · ${t.adjByAction}`;
             else what = `= ${num(r.value)} W · ${t.adjByAction}`;
-            const edit = r.kind === "energy_kwh" ? `<button data-adj-edit="${esc(r.id)}">${esc(t.adjEdit)}</button>` : "";
+            const edit = r.kind === "energy_kwh" ? `<button data-edit="${esc(r.id)}">${esc(t.adjEdit)}</button>` : "";
             return `<div class="adj-row"><span class="what"><b>${esc(dayText(r.date))} ${esc(when)}</b> · ${esc(r.name)}<br><span class="muted">${esc(what)}</span></span>
-              ${edit}<button data-adj-del="${esc(r.id)}">${esc(t.adjDelete)}</button></div>`;
+              ${edit}<button data-del="${esc(r.id)}">${esc(t.adjDelete)}</button></div>`;
           })
           .join("")
       : `<div class="muted">${esc(t.adjNone)}</div>`;
-    return `<div class="card"><div class="head"><h2>${esc(t.adjTitle)}</h2><button class="adj-add" data-adj-add>${esc(t.adjAdd)}</button></div>
-      <div class="muted" style="margin-bottom:8px">${esc(t.adjNote)}</div>${list}</div>`;
+    overlay.innerHTML = `<div class="adj-dialog" role="dialog" aria-modal="true">
+        <h2>${esc(t.adjTitle)}</h2>
+        <div class="muted">${esc(t.adjNote)}</div>
+        <div class="adj-list">${items}</div>
+        <div class="error"></div>
+        <div class="adj-actions"><button data-act="close">${esc(t.adjClose)}</button><button class="primary" data-act="add">${esc(t.adjAdd)}</button></div>
+      </div>`;
+    const error = overlay.querySelector(".error");
+    overlay.querySelector('[data-act="close"]').addEventListener("click", close);
+    overlay.querySelector('[data-act="add"]').addEventListener("click", () => form(null));
+    overlay.querySelectorAll("button[data-edit]").forEach((button) =>
+      button.addEventListener("click", () => form(rows.find((r) => r.id === button.dataset.edit))),
+    );
+    overlay.querySelectorAll("button[data-del]").forEach((button) =>
+      button.addEventListener("click", async () => {
+        try {
+          after(await this._hass.callWS({ type: "homebatteryassist/adjustment_delete", adjustment_id: button.dataset.del }));
+          this._adjustmentList(overlay, close, form, after);
+        } catch (err) {
+          error.textContent = `${t.adjFailed}: ${err?.message || err}`;
+        }
+      }),
+    );
+    overlay.querySelector('[data-act="add"]').focus();
   }
 
-  _openAdjustment(row) {
+  _adjustmentForm(overlay, row, back, after) {
     const t = this._t;
     const pad = (n) => String(n).padStart(2, "0");
     const local = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     const today = new Date();
     const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
     const r = row || { name: "", date: local(tomorrow), from: null, until: null, value: "", part: false };
-    this._dialogOpen = true;
-    const overlay = document.createElement("div");
-    overlay.className = "adj-overlay";
     overlay.innerHTML = `<div class="adj-dialog" role="dialog" aria-modal="true">
-        <h2>${esc(t.adjTitle)}</h2>
+        <h2>${esc(row ? t.adjEdit : t.adjAdd)} · ${esc(t.adjTitle.toLowerCase())}</h2>
         <label>${esc(t.adjName)}<input type="text" name="name" maxlength="40" placeholder="${esc(t.adjNamePlaceholder)}" value="${esc(r.name || "")}"></label>
         <label>${esc(t.adjDay)}<input type="date" name="date" min="${local(today)}" value="${esc(r.date)}"></label>
         <div class="times">
@@ -2433,21 +2487,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
         <div class="error"></div>
         <div class="adj-actions"><button data-act="cancel">${esc(t.adjCancel)}</button><button class="primary" data-act="save">${esc(t.adjSave)}</button></div>
       </div>`;
-    this.shadowRoot.appendChild(overlay);
     const field = (name) => overlay.querySelector(`[name="${name}"]`);
     const error = overlay.querySelector(".error");
-    const close = () => {
-      overlay.remove();
-      this._dialogOpen = false;
-      this._render();
-    };
-    overlay.addEventListener("click", (ev) => {
-      if (ev.target === overlay) close();
-    });
-    overlay.addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape") close();
-    });
-    overlay.querySelector('[data-act="cancel"]').addEventListener("click", close);
+    overlay.querySelector('[data-act="cancel"]').addEventListener("click", back);
     overlay.querySelector('[data-act="save"]').addEventListener("click", async () => {
       const from = field("from").value || null;
       const until = field("until").value || null;
@@ -2472,28 +2514,13 @@ class HomeBatteryAssistPanel extends HTMLElement {
       };
       if (row?.id) msg.adjustment_id = row.id;
       try {
-        const result = await this._hass.callWS(msg);
-        if (this._status) this._status.adjustments = result.adjustments;
-        close();
-        this._historyAt = 0;
-        this._load();
+        after(await this._hass.callWS(msg));
+        back();
       } catch (err) {
         error.textContent = `${t.adjFailed}: ${err?.message || err}`;
       }
     });
     field("energy").focus();
-  }
-
-  async _deleteAdjustment(id) {
-    try {
-      const result = await this._hass.callWS({ type: "homebatteryassist/adjustment_delete", adjustment_id: id });
-      if (this._status) this._status.adjustments = result.adjustments;
-      this._historyAt = 0;
-      this._load();
-    } catch (err) {
-      this._error = err?.message || String(err);
-    }
-    this._render();
   }
 
   _render() {
@@ -2509,7 +2536,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const s = this._status;
       const tabs = {
         overview: () => [this._planner(s, t), this._flows(s, t), this._flowDiagram(s, t), this._phases(s, t), this._decisions(s, t)],
-        forecast: () => [this._consumption(t), this._adjustments(s, t), this._planning(s, t), this._decisions(s, t)],
+        forecast: () => [this._consumption(t), this._planning(s, t), this._decisions(s, t)],
         value: () => [this._compare(s, t), this._planCheck(s, t)],
         batteries: () => [this._batteries(s, t)],
         check: () => [this._accuracy(t)],
@@ -2522,6 +2549,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     }
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar"><span class="menu"></span><span class="title">${esc(t.title)}${VERSION ? `<span class="version">v${esc(VERSION)}</span>` : ""}</span>
+        ${this._status ? `<button class="adj-open" title="${esc(t.adjTitle)}"><ha-icon icon="mdi:calendar-plus"></ha-icon><span class="label">${esc(t.adjButton)}${(this._status.adjustments || []).length ? ` (${this._status.adjustments.length})` : ""}</span></button>` : ""}
         ${this._status ? `<button class="recalc" ${this._busy ? "disabled" : ""}>
           <ha-icon icon="mdi:refresh"></ha-icon>${esc(this._busy ? t.recalculating : t.recalculate)}</button>` : ""}</div>
       <div class="content">${body}</div>`;
@@ -2545,15 +2573,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         this._render();
       }),
     );
-    this.shadowRoot.querySelector("button[data-adj-add]")?.addEventListener("click", () => this._openAdjustment(null));
-    this.shadowRoot.querySelectorAll("button[data-adj-edit]").forEach((button) =>
-      button.addEventListener("click", () =>
-        this._openAdjustment((this._status?.adjustments || []).find((r) => r.id === button.dataset.adjEdit)),
-      ),
-    );
-    this.shadowRoot
-      .querySelectorAll("button[data-adj-del]")
-      .forEach((button) => button.addEventListener("click", () => this._deleteAdjustment(button.dataset.adjDel)));
+    this.shadowRoot.querySelector("button.adj-open")?.addEventListener("click", () => this._openAdjustments());
     this.shadowRoot.querySelector('button[data-toggle="compare"]')?.addEventListener("click", () => {
       this._showCompare = !this._showCompare;
       this._render();

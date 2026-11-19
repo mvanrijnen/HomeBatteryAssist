@@ -16,12 +16,12 @@ Het huisverbruik per tijdvak wordt voorspeld door een **verbruiksvoorspeller**-[
 
 Alle voorspellers draaien elke ronde; het tabblad *Nauwkeurigheid* vergelijkt ze, zodat je de voorspeller kunt kiezen die bij je huis past. Van verbruik tijdens een **vakantie** (instelling) wordt niet geleerd. Je kunt de voorspelling voor een periode **aanpassen** (bijv. een feestje) met de actie `adjust_forecast`.
 
-**Verwacht extra verbruik** (dashboard, tabblad *Voorspelling*; ook de actie `adjust_forecast` met `energy_kwh`): vertel de voorspelling per dag over verbruik dat hij niet uit de geschiedenis kan weten: een hoeveelheid energie (kWh), optioneel binnen een tijdvenster (zonder venster: verdeeld over de hele dag; een venster dat eindigt vóór het begint loopt over middernacht). Kies:
+**Verwacht extra verbruik** (dashboard: knop *Verwacht verbruik* in de bovenbalk; ook de actie `adjust_forecast` met `energy_kwh`): vertel de voorspelling per dag over verbruik dat hij niet uit de geschiedenis kan weten: een hoeveelheid energie (kWh), optioneel binnen een tijdvenster (zonder venster: verdeeld over de hele dag; een venster dat eindigt vóór het begint loopt over middernacht). Kies:
 
 - **Extra**: bovenop het geleerde verbruik (bijv. gasten, een eenmalige klus, iets groots opladen).
 - **Deel van het verwachte verbruik**: het geleerde verbruik van die dag bevat het al, het valt alleen op dat moment (bijv. de wasmachine die elke dag wel eens draait, morgen om 13:00–15:00). Dezelfde energie gaat af van de rest van die dag, naar verhouding van het verwachte verbruik, zodat het dagtotaal gelijk blijft. Dit vraagt een tijdvenster.
 
-Het venster voegt ze toe, wijzigt en verwijdert ze; aanpassingen via de actie staan er ook in en kunnen er worden verwijderd. *Waarom* meldt elke wijziging.
+Het venster toont ze en voegt ze toe, wijzigt en verwijdert ze; aanpassingen via de actie staan er ook in en kunnen er worden verwijderd. *Waarom* meldt elke wijziging.
 
 ### Buitentemperatuur (optioneel) {#outdoor-temperature-optional}
 
