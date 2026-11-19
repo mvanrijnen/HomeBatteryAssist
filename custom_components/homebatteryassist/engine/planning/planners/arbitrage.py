@@ -121,6 +121,12 @@ def _optimise(
     best_next: list[list[list[float]]] = [
         [[0] * levels for _ in flags] for _ in range(count)
     ]
+    # What a fractional next level means: "surplus" (store the solar
+    # surplus), "cover" (cover the house load), "max" (charge at the slot's
+    # full power, also from the grid).
+    kinds: list[list[list[str]]] = [
+        [[""] * levels for _ in flags] for _ in range(count)
+    ]
     future = [terminal for _ in flags]
     for t in range(count - 1, -1, -1):
         slot = slots[t]
@@ -132,16 +138,27 @@ def _optimise(
         reserve = night[t]
         normal = max(reserve, peak_level)  # discharging below: restricted
         above_peak = max(net - data.peak_w, 0.0) if data.peak_w > 0 else 0.0
+        # A periodic full charge in this slot (finalise adds it anyway): no
+        # choice charges less than that.
+        forced_w = data.forced.get(slot.start, 0.0)
         for flag in flags:
             choice = best_next[t][flag]
+            kind = kinds[t][flag]
             for i in range(levels):
                 best = math.inf
-                best_j = i
+                best_j: float = i
+                best_kind = ""
                 for j in range(max(0, i - down), min(levels - 1, i + up) + 1):
                     if j > i and i > top and not flag:
                         continue  # no top-up charge inside the hysteresis band
                     delta = (j - i) * step  # Wh stored
                     power = delta / (hours * eff) if delta >= 0 else delta * eff / hours
+                    if (
+                        forced_w > 0
+                        and power < forced_w - 1e-6
+                        and j < min(levels - 1, i + up)
+                    ):
+                        continue  # less than the full charge
                     # Own use: never discharge more than the house needs (no export).
                     if not allow_export and power < 0 and power < -max(net, 0.0) - 1e-6:
                         continue
@@ -177,13 +194,15 @@ def _optimise(
                     if slot.reserve_due and j < reserve:
                         cost += (reserve - j) * step / 1000 * RESERVE_PENALTY
                     if cost < best:
-                        best, best_j = cost, j
+                        best, best_j, best_kind = cost, j, ""
                 # Covering the house load exactly: discharge just that, also
                 # when it is not a whole number of levels (valued as a mix of
                 # the two levels around it). Without this the plan could only
                 # discharge whole levels (e.g. 331 or 663 W for a 640 W load)
                 # and would leave energy unused.
-                need = max(net, 0.0)
+                # (At most the slot's discharge power: a larger load is
+                # covered as far as it goes, not in whole levels only.)
+                need = min(max(net, 0.0), slot.max_discharge_w)
                 part = need * hours / eff / step if need > 0 else 0.0
                 target = i - part
                 if (
@@ -191,7 +210,7 @@ def _optimise(
                     and part != int(part)
                     and target >= normal
                     and may_discharge(rules, price)
-                    and need <= slot.max_discharge_w
+                    and forced_w <= 0
                 ):
                     low = int(target)
                     frac = target - low
@@ -203,11 +222,11 @@ def _optimise(
                         + frac * future[0][min(low + 1, levels - 1)]
                     )
                     if cost < best:
-                        best, best_j = cost, target
+                        best, best_j, best_kind = cost, target, "cover"
                 # Storing the solar surplus exactly: charge just that, also
                 # when it is not a whole number of levels (else a small surplus
                 # could only be exported, or rounded up with grid power).
-                surplus = max(-net, 0.0)
+                surplus = min(max(-net, 0.0), slot.max_charge_w)
                 part = surplus * hours * eff / step if surplus > 0 else 0.0
                 target = i + part
                 charged_flag = 1 if band > 0 else 0
@@ -215,7 +234,7 @@ def _optimise(
                     part > 0
                     and part != int(part)
                     and target <= levels - 1
-                    and surplus <= slot.max_charge_w
+                    and surplus >= forced_w - 1e-6
                     and not (i > top and not flag)
                 ):
                     low = int(target)
@@ -227,9 +246,49 @@ def _optimise(
                         + frac * future[charged_flag][min(low + 1, levels - 1)]
                     )
                     if cost < best:
-                        best, best_j = cost, target
+                        best, best_j, best_kind = cost, target, "surplus"
+                # Charging at the slot's full power (also from the grid),
+                # when that is not a whole number of levels (a short slot or
+                # a low power would else charge less or not at all).
+                full_w = slot.max_charge_w
+                part = full_w * hours * eff / step if full_w > 0 else 0.0
+                target = i + part
+                grid_part = full_w > max(-net, 0.0) + 1e-6
+                if (
+                    part > 0
+                    and part != int(part)
+                    and target <= levels - 1
+                    and not (i > top and not flag)
+                    and not (
+                        grid_part
+                        and rules.max_charge_price is not None
+                        and price > rules.max_charge_price
+                        and forced_w <= 0
+                    )
+                ):
+                    low = int(target)
+                    frac = target - low
+                    cost = (
+                        grid_cost(net + full_w, hours, price, export)
+                        + full_w * hours / 1000 * data.cycle_cost
+                        + (
+                            max(net + full_w - data.peak_w, 0.0)
+                            * hours
+                            / 1000
+                            * PEAK_PENALTY
+                            if data.peak_w > 0
+                            else 0.0
+                        )
+                        + (1 - frac) * future[charged_flag][low]
+                        + frac * future[charged_flag][min(low + 1, levels - 1)]
+                    )
+                    if slot.reserve_due and target < reserve:
+                        cost += (reserve - target) * step / 1000 * RESERVE_PENALTY
+                    if cost < best:
+                        best, best_j, best_kind = cost, target, "max"
                 current[flag][i] = best
                 choice[i] = best_j
+                kind[i] = best_kind
         future = current
 
     # Forward pass, following the real stored energy (the nearest level picks
@@ -240,12 +299,18 @@ def _optimise(
     for t, slot in enumerate(slots):
         i = min(max(round((stored - battery.floor_wh) / step), 0), levels - 1)
         j = best_next[t][flag][i]
-        if j != int(j) and j > i:
+        kind = kinds[t][flag][i]
+        if kind == "max":
+            # Charge at the slot's full power.
+            room = max(battery.ceiling_wh - stored, 0.0) / (slot.hours * eff)
+            power = min(slot.max_charge_w, room)
+            flag = 1 if band > 0 else 0
+        elif kind == "surplus" or (j != int(j) and j > i):
             # Store the solar surplus with part of a level.
             room = max(battery.ceiling_wh - stored, 0.0) / (slot.hours * eff)
             power = min(max(-slot.net_w, 0.0), room)
             flag = 1 if band > 0 else 0
-        elif j != int(j):
+        elif kind == "cover" or j != int(j):
             # Cover the house load with part of a level.
             power = -min(max(slot.net_w, 0.0), discharge_room(data, slot, stored))
             flag = 0

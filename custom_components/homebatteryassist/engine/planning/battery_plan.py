@@ -394,8 +394,14 @@ def planner_input(
         max_c, max_d = (limits or {}).get(
             slot.start, (pack.max_charge, pack.max_discharge)
         )
-        price = _price_over(prices, slot.start, slot.end)
-        export = _price_over(export_prices, slot.start, slot.end)
+        # The slot now: the prices of the time left (quarter prices in an
+        # hour slot), not of the whole slot.
+        price = _price_over(prices, begin, slot.end)
+        if price is None:
+            price = _price_over(prices, slot.start, slot.end)
+        export = _price_over(export_prices, begin, slot.end)
+        if export is None:
+            export = _price_over(export_prices, slot.start, slot.end)
         if export is None and price is not None:
             export = price * export_factor
         slots.append(

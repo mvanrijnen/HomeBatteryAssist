@@ -65,6 +65,18 @@ def follow(data: PlannerInput, fixed_actions: bool) -> PlannerResult:
             power = min(-net, slot.max_charge_w, room / (hours * eff))
         elif net > 0 and may_discharge(rules, slot.price):
             power = -min(net, slot.max_discharge_w, discharge_room(data, slot, stored))
+        extra = data.forced.get(slot.start, 0.0)
+        if extra > 0:
+            # A periodic full charge happens anyway (finalise adds it): the
+            # energy after it counts with it.
+            power = max(
+                power,
+                min(
+                    extra,
+                    slot.max_charge_w,
+                    max(battery.capacity_wh - stored, 0.0) / (hours * eff),
+                ),
+            )
         stored += power * hours * eff if power >= 0 else power * hours / eff
         if hysteresis > 0 and stored >= battery.ceiling_wh - 1:
             full = True

@@ -572,7 +572,11 @@ def _keep_stored_choices(
         missing = [v for v in values if isinstance(v, str) and v and v not in offered]
         if not missing:
             continue
-        options += [SelectOptionDict(value=v, label=v) for v in missing]
+        # Plain strings stay plain strings (a list may not mix both).
+        if options and all(isinstance(o, str) for o in options):
+            options += missing
+        else:
+            options += [SelectOptionDict(value=v, label=v) for v in missing]
         schema.schema[marker] = SelectSelector(
             SelectSelectorConfig(**{**config, "options": options})
         )

@@ -146,6 +146,7 @@ Activating (later, deliberately, with the project owner)
 # from ..measure.house_measurement import MeasurementInput
 # from .battery_controller import BatteryController
 # from .interceptors import run_interceptor
+# from ..planning.battery_distribution import one_direction
 # from .reader_driver import ReaderDriver  # active code, shared with control_test
 # from .targets import (  # step 1 of "Activating"
 #     battery_targets,
@@ -276,11 +277,20 @@ Activating (later, deliberately, with the project owner)
 #             intercept_input(configs, socs, full, wanted, reasons, now, ...),
 #         )
 #         wanted, released = outcome.powers, outcome.released
-#         # Never one battery charging while another discharges.
+#         # A full charge at the battery's full power (up to 100 %), in
+#         # ``wanted`` so it counts in the next check.
+#         for config in configs:
+#             if full[config.id]:
+#                 soc = socs[config.id]
+#                 wanted[config.id] = (
+#                     config.max_charge_w if soc is not None and soc < 100.0 else 0.0
+#                 )
+#         # Never one battery charging while another discharges: protection,
+#         # then a full charge sets the direction; else the net stands.
 #         wanted = one_direction(
 #             wanted,
 #             [i for i, r in reasons.items() if r in ("phase_relief", "peak_shaving")],
-#             [i for i in configs_ids if full[i]],
+#             [c.id for c in configs if full[c.id]],
 #         )
 #         for config in configs:
 #             soc = socs[config.id]
@@ -290,7 +300,7 @@ Activating (later, deliberately, with the project owner)
 #                 await controller.async_command(None, now)
 #                 continue
 #             if full[config.id]:
-#                 power = config.max_charge_w if soc < 100.0 else 0.0
+#                 power = wanted.get(config.id, 0.0)  # set above, after one_direction
 #             else:
 #                 power = _within_soc(
 #                     config, soc, wanted.get(config.id, 0.0), self._forecast

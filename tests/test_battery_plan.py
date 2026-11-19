@@ -558,3 +558,35 @@ def test_share_reserves_per_battery() -> None:
     )
     assert power == -2000.0
     assert min(new) < 3000.0
+
+
+def test_arbitrage_short_slots_use_full_power() -> None:
+    """5-minute slots with a low power (less than one level per slot):
+    arbitrage still charges when cheap and covers a load above its power."""
+    from datetime import timedelta as td
+
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        MODE_ARBITRAGE_FULL,
+    )
+
+    m5 = td(minutes=5)
+    slots = [
+        ForecastSlot(T0 + i * m5, T0 + (i + 1) * m5, w, w, "5min")
+        for i, w in enumerate([0.0] * 6 + [3000.0] * 6)
+    ]
+    prices = [
+        PricePoint(T0 + i * m5, T0 + (i + 1) * m5, p)
+        for i, p in enumerate([0.05] * 6 + [0.60] * 6)
+    ]
+    plan = plan_batteries(
+        [_battery(soc=50.0, capacity=10.0, power=1000.0)],
+        slots,
+        {},
+        prices,
+        mode=MODE_ARBITRAGE_FULL,
+        export_factor=1.0,
+    )
+    assert all(s.power_w > 900 for s in plan.slots[:6]), [s.power_w for s in plan.slots]
+    assert all(s.power_w < -900 for s in plan.slots[6:]), [
+        s.power_w for s in plan.slots
+    ]

@@ -116,7 +116,9 @@ def limit_power(
         soc += power * hours / eff / wh_per_pct
     else:
         power = 0.0
-    return round(power, 1) + 0.0, round(min(max(soc, 0.0), 100.0), 3)
+    # The state of charge unrounded: rounded every 5 s round it would drift
+    # (or never move at a low power).
+    return round(power, 1) + 0.0, min(max(soc, 0.0), 100.0)
 
 
 def without_batteries(flow: Any, batteries: list[tuple[int | None, float]]) -> Any:
@@ -548,6 +550,12 @@ class VirtualBatterySimulator:
             c.id: data.full_charge_now(c.id, now) if data else None
             for c in self.virtual
         }
+        for config in self.virtual:
+            # A full charge that reached 100 % is done: the battery follows
+            # the others again (and no longer sets their direction).
+            soc = self._batteries.states[config.id].soc
+            if full[config.id] and (soc if soc is not None else 0.0) >= 100.0 - 0.01:
+                full[config.id] = None
         targets = self._targets(now, hours, [c for c in self.virtual if not full[c.id]])
         socs: dict[str, float] = {}
         wanted: dict[str, float] = {}
@@ -567,10 +575,14 @@ class VirtualBatterySimulator:
         }
         before = dict(wanted)
         wanted = self._phase_relief(wanted, socs, full, now, hours)
-        reasons.update({i: "phase_relief" for i in wanted if wanted[i] != before[i]})
+        reasons.update(
+            {i: "phase_relief" for i in wanted if abs(wanted[i] - before[i]) > 1.0}
+        )
         before = dict(wanted)
         wanted = self._peak_shaving(wanted, socs, full, now, hours)
-        reasons.update({i: "peak_shaving" for i in wanted if wanted[i] != before[i]})
+        reasons.update(
+            {i: "peak_shaving" for i in wanted if abs(wanted[i] - before[i]) > 1.0}
+        )
         # The user's last say (interceptor module), then HomeBatteryAssist's
         # own final check (phase limits here, power and state of charge in
         # limit_power), which always wins.
@@ -635,7 +647,13 @@ class VirtualBatterySimulator:
             ],
             can_charge=[c.id for c in self.virtual if socs[c.id] < c.max_soc - 0.01],
         )
-        result = {i: w / factor[i] for i, w in result.items()}
+        if not relieved:
+            # Nothing overloaded: the powers as they were (no rounding
+            # through the voltage factor, which would mark them as relief).
+            self.relief_now = {}
+            result = dict(wanted)
+        else:
+            result = {i: w / factor[i] for i, w in result.items()}
         names = {c.id: c.name for c in self.virtual}
         dutch = (self.hass.config.language or "").startswith("nl")
         self.relief_now = dict(relieved)
@@ -835,7 +853,9 @@ class VirtualBatterySimulator:
             ):
                 total = plan_balance(
                     total,
-                    solar_surplus_w(flow),
+                    # The surplus that is really left: what real batteries
+                    # (by their own control) store is not there twice.
+                    min(solar_surplus_w(flow), max(-flow.grid_w, 0.0)),
                     pv_now - forecast_slot.power_w,
                     self._forecast.pv_deviation_w,
                 )
