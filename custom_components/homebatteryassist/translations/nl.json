@@ -88,8 +88,8 @@
               "tariff_vat": "Btw"
             },
             "data_description": {
-              "tariff_surcharge": "Wat de leverancier per kWh bovenop de marktprijs rekent, excl. btw, in euro (bijv. 0,02 voor 2 ct).",
-              "tariff_energy_tax": "Energiebelasting per kWh excl. btw, in euro (bijv. 0,0916; zie je contract of de Belastingdienst).",
+              "tariff_surcharge": "Wat de leverancier per kWh bovenop de marktprijs rekent, excl. btw, in de valuta van Home Assistant (bijv. in euro: 0,02 voor 2 ct).",
+              "tariff_energy_tax": "Energiebelasting per kWh excl. btw, in de valuta van Home Assistant (bijv. in euro: 0,0916; zie je contract of de Belastingdienst).",
               "tariff_vat": "Btw over marktprijs, opslag en energiebelasting."
             }
           },
@@ -592,8 +592,8 @@
               "tariff_vat": "Btw"
             },
             "data_description": {
-              "tariff_surcharge": "Wat de leverancier per kWh bovenop de marktprijs rekent, excl. btw, in euro (bijv. 0,02 voor 2 ct).",
-              "tariff_energy_tax": "Energiebelasting per kWh excl. btw, in euro (bijv. 0,0916; zie je contract of de Belastingdienst).",
+              "tariff_surcharge": "Wat de leverancier per kWh bovenop de marktprijs rekent, excl. btw, in de valuta van Home Assistant (bijv. in euro: 0,02 voor 2 ct).",
+              "tariff_energy_tax": "Energiebelasting per kWh excl. btw, in de valuta van Home Assistant (bijv. in euro: 0,0916; zie je contract of de Belastingdienst).",
               "tariff_vat": "Btw over marktprijs, opslag en energiebelasting."
             }
           },

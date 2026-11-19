@@ -24,7 +24,7 @@ Batterijen worden **alleen-lezen** gekoppeld via de entiteiten van hun eigen int
 
 Een batterij kan optioneel een **externe meter** op zijn groep krijgen (bijv. een HomeWizard kWh-meter, rechtstreeks uitgelezen): het vermogen daarvan wordt dan gebruikt in plaats van de vermogenssensor — zie [Drivers](drivers.md).
 
-Per batterij: laadniveau, vermogen, status, opgeslagen/bruikbare energie, tijd tot vol/leeg, geladen/ontladen energie, laatste keer volladen en gerealiseerd rendement, plus totalen over alle batterijen.
+Per batterij: laadniveau, vermogen, status, opgeslagen/bruikbare energie, tijd tot vol/leeg, geladen/ontladen energie, laatste keer volladen en gerealiseerd rendement (na slijtage: de cycluskosten per kWh door de batterij, zoals het plan rekent; attributen `before_wear` en `wear`), plus totalen over alle batterijen.
 
 ### Vandaag en gemeten rendement {#today-and-measured-efficiency}
 
@@ -72,7 +72,7 @@ Aanzetten is een besluit van de projecteigenaar, samen met de eerste test op een
 
 Gesimuleerde wat-als-batterijen (capaciteit, vermogen, grenzen voor het laadniveau, verliezen, fase) die het plan live volgen, zodat je ziet wat een (grotere) batterij zou opleveren voordat je er een koopt. Ze laten ook fasebeveiliging en piekafvlakking aan het werk zien.
 
-Elke batterij heeft **Opbrengst vandaag** (gerealiseerde opbrengst sinds middernacht), ook de virtuele.
+Elke batterij heeft **Opbrengst vandaag** (gerealiseerde opbrengst sinds middernacht, na slijtage), ook de virtuele.
 
 ### Tweeling van een echte batterij {#twin-of-a-real-battery}
 

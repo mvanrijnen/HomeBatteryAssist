@@ -49,6 +49,10 @@ class BatteryProposal:
     reason: (
         str  # "plan", "zero_on_meter", "full_charge", "phase_relief", "peak_shaving"
     )
+    # Lowest state of charge for discharging now: ``min_soc`` raised by the
+    # reserves in force (reserve, night reserve; the peak reserve except for
+    # peak shaving). None = ``min_soc``.
+    floor_soc: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -88,8 +88,8 @@
               "tariff_vat": "VAT"
             },
             "data_description": {
-              "tariff_surcharge": "What the supplier adds per kWh on top of the market price, excl. VAT, in the main currency (e.g. 0.02 for 2 ct).",
-              "tariff_energy_tax": "Energy tax per kWh excl. VAT, in the main currency (e.g. 0.0916; see your contract or the tax authority).",
+              "tariff_surcharge": "What the supplier adds per kWh on top of the market price, excl. VAT, in Home Assistant's currency (e.g. 0.02 for 2 ct).",
+              "tariff_energy_tax": "Energy tax per kWh excl. VAT, in Home Assistant's currency (e.g. 0.0916; see your contract or the tax authority).",
               "tariff_vat": "VAT over market price, surcharge and energy tax."
             }
           },
@@ -592,8 +592,8 @@
               "tariff_vat": "VAT"
             },
             "data_description": {
-              "tariff_surcharge": "What the supplier adds per kWh on top of the market price, excl. VAT, in the main currency (e.g. 0.02 for 2 ct).",
-              "tariff_energy_tax": "Energy tax per kWh excl. VAT, in the main currency (e.g. 0.0916; see your contract or the tax authority).",
+              "tariff_surcharge": "What the supplier adds per kWh on top of the market price, excl. VAT, in Home Assistant's currency (e.g. 0.02 for 2 ct).",
+              "tariff_energy_tax": "Energy tax per kWh excl. VAT, in Home Assistant's currency (e.g. 0.0916; see your contract or the tax authority).",
               "tariff_vat": "VAT over market price, surcharge and energy tax."
             }
           },

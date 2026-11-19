@@ -365,6 +365,15 @@ def test_reach_times() -> None:
     assert empty == T0 + 4 * H
     # Already empty: no moment.
     assert reach_times([slot(0, 10.0)], 10.0, 10.0, 100.0) == (None, None)
+    # Halfway the first hour at 30%, 20% at its end: the floor (10%) is
+    # reached halfway the second hour (from now, not from the slot start).
+    empty, _ = reach_times(
+        [slot(0, 20.0), slot(1, 0.0)], 30.0, 10.0, 100.0, now=T0 + H / 2
+    )
+    assert empty == T0 + H + H / 2
+    # From now 30% -> 25% at the end of the first hour (half an hour later).
+    empty, _ = reach_times([slot(0, 25.0)], 30.0, 27.5, 100.0, now=T0 + H / 2)
+    assert empty == T0 + H / 2 + H / 4
 
 
 def test_arbitrage_covers_the_house_load_exactly() -> None:

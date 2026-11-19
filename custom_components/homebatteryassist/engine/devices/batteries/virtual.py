@@ -71,6 +71,7 @@ from ...planning.battery_distribution import Candidate, Distributor
 from ...planning.battery_plan import MODE_NOM
 from ...planning.phase_limit import (
     PhaseDevice,
+    active_relief_loads,
     cap_powers,
     overloaded,
     phase_limit_w,
@@ -370,6 +371,18 @@ class VirtualBatterySimulator:
             return flow
         return replace(flow, grid_w=grid / seconds, excluded_w=excluded / seconds)
 
+    def _reserve_floor(self, now: datetime, *, peak: bool = True) -> float:
+        """Lowest state of charge for the normal targets: the reserve, the
+        night reserve at night, the peak reserve (below it only peak shaving
+        discharges, in its own step; ``peak=False`` leaves it out)."""
+        rules = self._forecast.rules
+        data = self._forecast.data
+        return max(
+            rules.reserve_soc,
+            rules.night_reserve_soc if data is not None and data.night_at(now) else 0.0,
+            rules.peak_reserve_soc if peak and self._forecast.peak_w > 0 else 0.0,
+        )
+
     def _intercept(
         self,
         wanted: dict[str, float],
@@ -411,6 +424,15 @@ class VirtualBatterySimulator:
                     full_charge=bool(full[config.id]),
                     proposed_w=wanted[config.id],
                     reason=reasons[config.id],
+                    floor_soc=min(
+                        max(
+                            config.min_soc,
+                            self._reserve_floor(
+                                now, peak=reasons[config.id] != "peak_shaving"
+                            ),
+                        ),
+                        config.max_soc,
+                    ),
                 )
             )
         outcome = run_interceptor(
@@ -558,10 +580,17 @@ class VirtualBatterySimulator:
             return wanted
         phases = len(flow.phase_w)
         devices, factor = self._nominal_devices(flow, phases)
+        # Active power per phase in the same (nominal current) terms as the
+        # load, so the relief takes the reactive part into account.
+        volts = tuple(getattr(flow, "phase_v", ()) or ())
+        active = [
+            p * NOMINAL_VOLTAGE / volts[i] if i < len(volts) and volts[i] > 100 else p
+            for i, p in enumerate(flow.phase_w)
+        ]
         result, relieved = relieve(
             {i: w * factor[i] for i, w in wanted.items()},
             devices,
-            flow.phase_load_w,
+            active_relief_loads(flow.phase_load_w, active, self._limit_w()),
             self._limit_w(),
             can_discharge=[
                 c.id
@@ -796,11 +825,7 @@ class VirtualBatterySimulator:
         # Lowest state of charge for the normal targets: the reserve, the
         # night reserve at night, the peak reserve (below it only peak
         # shaving discharges, in its own step).
-        floor = max(
-            rules.reserve_soc,
-            rules.night_reserve_soc if data is not None and data.night_at(now) else 0.0,
-            rules.peak_reserve_soc if self._forecast.peak_w > 0 else 0.0,
-        )
+        floor = self._reserve_floor(now)
         for config in virtual:
             state = self._batteries.states[config.id]
             soc_now = state.soc if state.soc is not None else config.initial_soc

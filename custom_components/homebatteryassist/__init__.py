@@ -36,6 +36,8 @@ from .const import (
     CONF_INVERTER_ADDRESS,
     CONF_INVERTER_DRIVER,
     CONF_INVERTER_MAX_CURRENT,
+    CONF_MAX_CHARGE_PRICE,
+    CONF_MIN_DISCHARGE_PRICE,
     CONF_NOTIFY_KINDS,
     CONF_NOTIFY_TARGETS,
     CONF_PHASE,
@@ -129,12 +131,39 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
+# A price threshold above this per kWh was entered in ct (prices are per kWh
+# in the main currency since 0.92).
+CENT_THRESHOLD = 3.0
+
+
+def _convert_cent_thresholds(
+    hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry, decisions: DecisionLog
+) -> None:
+    """Price thresholds that were clearly entered in ct (above
+    ``CENT_THRESHOLD`` per kWh) are converted once to the main currency."""
+    options = dict(entry.options)
+    changed = []
+    for key in (CONF_MIN_DISCHARGE_PRICE, CONF_MAX_CHARGE_PRICE):
+        value = options.get(key)
+        if isinstance(value, (int, float)) and abs(value) > CENT_THRESHOLD:
+            options[key] = round(value / 100, 5)
+            changed.append((key, value, options[key]))
+    if not changed:
+        return
+    hass.config_entries.async_update_entry(entry, options=options)
+    for key, old, new in changed:
+        decisions.async_log(
+            "planning", "price_setting_converted", setting=key, old=old, new=new
+        )
+
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry
 ) -> bool:
     """Set up HomeBatteryAssist from a config entry."""
     decisions = DecisionLog(hass, entry.entry_id)
     await decisions.async_load()
+    _convert_cent_thresholds(hass, entry, decisions)
     decisions.notifier = Notifier(
         hass,
         list(entry.options.get(CONF_NOTIFY_TARGETS) or []),

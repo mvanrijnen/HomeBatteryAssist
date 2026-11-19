@@ -16,7 +16,10 @@ MAPE. From those, a correction per bucket is derived:
 
 - consumption: additive (minus the bias, W);
 - pv: a factor (measured / predicted energy), clamped to ``PV_FACTOR_RANGE``;
-- price: additive (minus the bias), only for estimated prices.
+- price: additive (minus the bias), only for estimated prices. One wild
+  day (a price spike nobody foresaw) must not shift every later estimate:
+  for the bias, errors are capped at ``PRICE_CLIP`` x the median error of
+  the bucket (at least ``PRICE_CLIP_MIN``); the shown error stays the real one.
 
 Corrections grow with the number of samples (``MIN_SAMPLES`` for full
 strength). Learning always uses the *raw* predictions, so a correction never
@@ -87,6 +90,8 @@ MIN_SAMPLES: dict[Kind, int] = {"consumption": 96, "pv": 24, "price": 48}
 PV_FACTOR_RANGE = (0.5, 1.5)
 PV_MIN_WH = 20.0  # night hours (both ~0) say nothing about PV accuracy
 MAPE_MIN = 50.0  # W / Wh: below this, relative errors are meaningless
+PRICE_CLIP = 3.0  # price bias: errors capped at 3 x the median error
+PRICE_CLIP_MIN = 0.02  # per kWh: the cap is never smaller than this
 
 
 def bucket_for(lead: timedelta) -> str | None:
@@ -363,6 +368,7 @@ class ForecastAccuracy:
 
     def _kind_stats(self, kind: Kind, now: datetime) -> dict[str, BucketStats]:
         sums: dict[str, list[float]] = {}
+        caps = _price_caps(self.results[kind]) if kind == "price" else {}
         for result in self.results[kind]:
             start = dt_util.parse_datetime(result["start"])
             if start is None:
@@ -377,7 +383,10 @@ class ForecastAccuracy:
                 error = pred - actual
                 acc[0] += 1
                 acc[1] += weight
-                acc[2] += weight * error
+                cap = caps.get(bucket)
+                acc[2] += weight * (
+                    error if cap is None else min(max(error, -cap), cap)
+                )
                 acc[3] += weight * abs(error)
                 if actual and (abs(actual) >= MAPE_MIN or kind == "price"):
                     acc[4] += weight * abs(error) / abs(actual)
@@ -518,6 +527,19 @@ class ForecastAccuracy:
             "settings": self.settings,
             "price_per_kwh": True,
         }
+
+
+def _price_caps(results: list[dict[str, Any]]) -> dict[str, float]:
+    """Per bucket: the largest price error that counts fully for the bias."""
+    errors: dict[str, list[float]] = {}
+    for result in results:
+        for bucket, pred in result["pred"].items():
+            errors.setdefault(bucket, []).append(abs(pred - result["actual"]))
+    caps: dict[str, float] = {}
+    for bucket, values in errors.items():
+        values.sort()
+        caps[bucket] = max(PRICE_CLIP * values[len(values) // 2], PRICE_CLIP_MIN)
+    return caps
 
 
 def _default_setting() -> dict[str, Any]:

@@ -46,7 +46,9 @@ Everything is optional: without a weather source nothing changes.
 
 ## Prices
 
-From a price source of your choice (*price [drivers](drivers.md)*): [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (tested; Dutch dynamic tariffs with a price forecast for the coming days), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, or any sensor with prices in its attributes; optionally an extra, longer forecast after it. Estimated (forecast) prices are marked as such. Prices are converted to a price per kWh in the main currency from the source's unit (ct/kWh, EUR/MWh, öre/kWh, ...); a source without a known unit is taken as per kWh.
+From a price source of your choice (*price [drivers](drivers.md)*): [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (tested; Dutch dynamic tariffs with a price forecast for the coming days), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, or any sensor with prices in its attributes; optionally an extra, longer forecast after it. Estimated (forecast) prices are marked as such. Prices are converted to a price per kWh in the main currency from the source's unit (ct/kWh, EUR/MWh, öre/kWh, ...); a source without a known unit is taken as per kWh. Cents without a currency of their own (c, ct, cent) are hundredths of Home Assistant's currency, and amounts in messages and the panel use that currency.
+
+When a source publishes prices that the plan only had as estimates, and a published price differs at least 0.08 per kWh from the estimate the plan used, *Why* says so once: how many periods, the largest difference (estimated and published) and that the plan now uses the published prices. Such a moment explains a sudden change of the plan (e.g. around 13:00 for the next day in the Netherlands).
 
 ### Export price and no net metering
 
@@ -82,6 +84,6 @@ The correction works afterwards; *Why* also says it while it happens. When clear
 
 ## Accuracy
 
-Every forecast is verified afterwards per lead time (0–1 h … 5 days+): consumption against the measured consumption, PV against the measured PV, estimated prices against the prices published later. Learned corrections are applied automatically, or set by hand (action `set_forecast_correction`).
+Every forecast is verified afterwards per lead time (0–1 h … 5 days+): consumption against the measured consumption, PV against the measured PV, estimated prices against the prices published later. Learned corrections are applied automatically, or set by hand (action `set_forecast_correction`). For prices, one wild period (a spike nobody foresaw) does not shift every later estimate: for the learned correction an error counts at most 3x the usual (median) error of its lead time (at least 0.02 per kWh); the error shown in the accuracy table stays the real one.
 
 With heating/cooling devices measured apart and the temperature effect learned, the **heating/cooling part** is also checked on its own: the power the [temperature step](#outdoor-temperature-optional) expected per slot against what the devices really used (row *of which heating/cooling* on the *Accuracy* tab). It is only measured, not used to correct anything.

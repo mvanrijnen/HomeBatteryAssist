@@ -146,7 +146,9 @@ def _expected_reach(data: Any, battery_id: str) -> dict[str, str | None]:
         plan = forecast.plans.get(mode)
         if plan is None:
             continue
-        empty, full = reach_times(plan.slots, state.soc, floor, config.max_soc)
+        empty, full = reach_times(
+            plan.slots, state.soc, floor, config.max_soc, dt_util.utcnow()
+        )
         result[f"{prefix}_empty"] = empty.isoformat() if empty else None
         result[f"{prefix}_full"] = full.isoformat() if full else None
     return result

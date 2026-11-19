@@ -74,8 +74,8 @@ Only for the tariff 'Market price + surcharge + energy tax, plus VAT' (for a pri
 
 | Field | Explanation |
 |---|---|
-| **Supplier surcharge** | What the supplier adds per kWh on top of the market price, excl. VAT, in the main currency (e.g. 0.02 for 2 ct). |
-| **Energy tax** | Energy tax per kWh excl. VAT, in the main currency (e.g. 0.0916; see your contract or the tax authority). |
+| **Supplier surcharge** | What the supplier adds per kWh on top of the market price, excl. VAT, in Home Assistant's currency (e.g. 0.02 for 2 ct). |
+| **Energy tax** | Energy tax per kWh excl. VAT, in Home Assistant's currency (e.g. 0.0916; see your contract or the tax authority). |
 | **VAT** | VAT over market price, surcharge and energy tax. |
 
 ### Export price {#settings-export}

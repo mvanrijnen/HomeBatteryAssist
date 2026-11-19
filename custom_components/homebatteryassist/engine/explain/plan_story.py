@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from homeassistant.util import dt as dt_util
 
 from ..planning.battery_plan import BatteryPlan, PlanSlot
+from .money import format_money
 
 ACTIVE_W = 100.0  # below this a battery counts as idle
 SMALL_GAIN = 0.05  # below this a charge "brings next to nothing"
@@ -143,11 +144,6 @@ class _Block:
 
 def _lang(language: str | None) -> str:
     return "nl" if (language or "").startswith("nl") else "en"
-
-
-def _money(value: float, lang: str) -> str:
-    text = f"€ {value:.2f}"
-    return text.replace(".", ",") if lang == "nl" else text
 
 
 def _kwh(wh: float, lang: str) -> str:
@@ -285,9 +281,14 @@ def plan_story(
     min_soc_reached: bool,
     max_current: int | None = None,
     full_charges: Sequence[tuple[datetime, datetime, str]] = (),
+    currency: str | None = None,
 ) -> str:
     """A few plain sentences about what the plan does and why."""
     lang = _lang(language)
+
+    def _money(value: float, _lang: str) -> str:
+        return format_money(value, currency, lang)
+
     t = TEXT[lang]
     slots = plan.slots
     if not slots:

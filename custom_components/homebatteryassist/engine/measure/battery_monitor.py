@@ -38,6 +38,7 @@ from ...const import (
     CONF_BATTERY_METER,
     CONF_BATTERY_METER_ADDRESS,
     CONF_CAPACITY,
+    CONF_CYCLE_COST,
     CONF_EFFICIENCY,
     CONF_FULL_CHARGE_INTERVAL,
     CONF_INITIAL_SOC,
@@ -53,6 +54,7 @@ from ...const import (
     CONF_SOC_SENSOR,
     CONF_TEMPERATURE_SENSOR,
     CONF_TWIN_OF,
+    DEFAULT_CYCLE_COST,
     DEFAULT_EFFICIENCY,
     DEFAULT_FULL_CHARGE_INTERVAL,
     DEFAULT_INITIAL_SOC,
@@ -399,13 +401,26 @@ def today_energy(stats: Mapping[str, Any]) -> tuple[float, float] | None:
     )
 
 
-def today_value(stats: Mapping[str, Any]) -> float | None:
-    """Realised value since the start of the local day (None before the
-    first day start that knew it)."""
+def value_after_wear(stats: Mapping[str, Any], cycle_cost: float) -> float:
+    """Realised value so far after wear (``cycle_cost`` per kWh through the
+    battery), as the plan and the plan check count it."""
+    return stats.get("value", 0.0) - stats.get("value_kwh", 0.0) * cycle_cost
+
+
+def today_value(stats: Mapping[str, Any], cycle_cost: float = 0.0) -> float | None:
+    """Realised value since the start of the local day, after wear (None
+    before the first day start that knew it)."""
     days = stats.get("days") or []
     if not days or "value" not in days[-1]:
         return None
-    return round(stats.get("value", 0.0) - days[-1]["value"], 4)
+    start = days[-1]
+    if "value_kwh" in start:
+        kwh = stats.get("value_kwh", 0.0) - start["value_kwh"]
+    else:  # a day start from before the energy per day: today's counters
+        kwh = (stats["charged_kwh"] - start["charged"]) + (
+            stats["discharged_kwh"] - start["discharged"]
+        )
+    return round(stats.get("value", 0.0) - start["value"] - kwh * cycle_cost, 4)
 
 
 def measured_efficiency(
@@ -476,6 +491,8 @@ class BatteryInput:
         self.hass = hass
         self._decisions = decisions
         self.configs = battery_configs(entry, include_virtual=True)
+        # Wear per kWh through a battery: the realised value counts after it.
+        self.cycle_cost: float = entry.options.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
         self.states: dict[str, BatteryState] = {
             c.id: BatteryState(c, None, None) for c in self.configs
         }
@@ -630,9 +647,13 @@ class BatteryInput:
         return grid
 
     def value_today(self, battery_id: str) -> float | None:
-        """Realised value (currency) today, by HomeBatteryAssist's own
-        counters."""
-        return today_value(self.stats[battery_id])
+        """Realised value (currency) today after wear, by HomeBatteryAssist's
+        own counters."""
+        return today_value(self.stats[battery_id], self.cycle_cost)
+
+    def value(self, battery_id: str) -> float:
+        """Realised value (currency) since ``value_since``, after wear."""
+        return value_after_wear(self.stats[battery_id], self.cycle_cost)
 
     async def async_stop(self) -> None:
         """Stop following and persist the counters."""
@@ -765,6 +786,7 @@ class BatteryInput:
                 "discharged": stats["discharged_kwh"],
                 "stored": None if stored is None else round(stored, 3),
                 "value": round(stats.get("value", 0.0), 5),
+                "value_kwh": round(stats.get("value_kwh", 0.0), 4),
             }
         )
         del days[:-EFFICIENCY_DAYS]

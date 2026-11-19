@@ -46,7 +46,9 @@ Alles is optioneel: zonder weerbron verandert er niets.
 
 ## Prijzen {#prices}
 
-Uit een prijsbron naar keuze (*prijs-[drivers](drivers.md)*): [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (getest; Nederlandse dynamische tarieven met een prijsvoorspelling voor de komende dagen), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, of elke sensor met prijzen in zijn attributen; optioneel daarna een extra, langere voorspelling. Geschatte (voorspelde) prijzen zijn als zodanig gemarkeerd. Prijzen worden vanuit de eenheid van de bron omgerekend naar een prijs per kWh in de hoofdmunt (ct/kWh, EUR/MWh, öre/kWh, ...); een bron zonder bekende eenheid geldt als per kWh.
+Uit een prijsbron naar keuze (*prijs-[drivers](drivers.md)*): [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (getest; Nederlandse dynamische tarieven met een prijsvoorspelling voor de komende dagen), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, of elke sensor met prijzen in zijn attributen; optioneel daarna een extra, langere voorspelling. Geschatte (voorspelde) prijzen zijn als zodanig gemarkeerd. Prijzen worden vanuit de eenheid van de bron omgerekend naar een prijs per kWh in de hoofdmunt (ct/kWh, EUR/MWh, öre/kWh, ...); een bron zonder bekende eenheid geldt als per kWh. Centen zonder eigen munt (c, ct, cent) zijn honderdsten van de valuta van Home Assistant, en bedragen in meldingen en het paneel gebruiken die valuta.
+
+Publiceert een bron prijzen die het plan alleen als schatting had, en wijkt een gepubliceerde prijs minstens 0,08 per kWh af van de schatting waar het plan mee rekende, dan meldt *Waarom* dat één keer: hoeveel tijdvakken, het grootste verschil (geschat en gepubliceerd) en dat het plan nu met de gepubliceerde prijzen rekent. Zo'n moment verklaart een plotselinge wijziging van het plan (in Nederland bijvoorbeeld rond 13:00 voor de volgende dag).
 
 ### Terugleverprijs en geen salderen {#export-price-and-no-net-metering}
 
@@ -82,6 +84,6 @@ De correctie werkt achteraf; *Waarom* meldt het ook terwijl het gebeurt. Als er 
 
 ## Nauwkeurigheid {#accuracy}
 
-Elke voorspelling wordt achteraf gecontroleerd per vooruitzicht (0–1 u … 5 dagen+): verbruik tegen het gemeten verbruik, PV tegen de gemeten PV, geschatte prijzen tegen de prijzen die later zijn gepubliceerd. Geleerde correcties worden automatisch toegepast, of met de hand ingesteld (actie `set_forecast_correction`).
+Elke voorspelling wordt achteraf gecontroleerd per vooruitzicht (0–1 u … 5 dagen+): verbruik tegen het gemeten verbruik, PV tegen de gemeten PV, geschatte prijzen tegen de prijzen die later zijn gepubliceerd. Geleerde correcties worden automatisch toegepast, of met de hand ingesteld (actie `set_forecast_correction`). Bij prijzen verschuift één wilde periode (een piek die niemand zag aankomen) niet alle latere schattingen: voor de geleerde correctie telt een fout hoogstens 3x de gebruikelijke (mediaan) fout van zijn vooruitzicht (minstens 0,02 per kWh); de fout in de nauwkeurigheidstabel blijft de echte.
 
 Worden verwarmings-/koelapparaten apart gemeten en is het temperatuureffect geleerd, dan wordt ook het **verwarmings-/koeldeel** apart gecontroleerd: het vermogen dat de [temperatuurstap](#outdoor-temperature-optional) per tijdvak verwachtte tegen wat de apparaten echt gebruikten (rij *waarvan verwarming/koeling* op het tabblad *Nauwkeurigheid*). Dat wordt alleen gemeten, niet gebruikt om iets te corrigeren.

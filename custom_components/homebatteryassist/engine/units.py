@@ -101,11 +101,18 @@ _SUB_UNITS = {
 _ENERGY = {"wh": 1000.0, "kwh": 1.0, "mwh": 0.001}
 
 
-def price_unit_factor(unit: str | None) -> tuple[float, str | None]:
+# Hundredths that name no currency of their own: Home Assistant's currency.
+_GENERIC_SUB_UNITS = {"c", "ct", "cent", "cents"}
+
+
+def price_unit_factor(
+    unit: str | None, currency: str | None = None
+) -> tuple[float, str | None]:
     """The factor that turns a price in ``unit`` into a price per kWh in the
     main currency, and that unit: ``ct/kWh`` -> (0.01, "EUR/kWh"),
-    ``EUR/MWh`` -> (0.001, "EUR/kWh"). Unknown or missing units: (1, unit)
-    (taken as they are)."""
+    ``EUR/MWh`` -> (0.001, "EUR/kWh"). Cents without a currency of their own
+    ("c", "ct", "cent") are hundredths of ``currency`` (Home Assistant's; EUR
+    without one). Unknown or missing units: (1, unit) (taken as they are)."""
     if not unit or "/" not in unit:
         return 1.0, unit
     money, _, energy = unit.replace(" ", "").rpartition("/")
@@ -113,6 +120,8 @@ def price_unit_factor(unit: str | None) -> tuple[float, str | None]:
     if per is None or not money:
         return 1.0, unit
     sub = _SUB_UNITS.get(money.lower())
+    if currency and money.lower() in _GENERIC_SUB_UNITS:
+        sub = currency.upper()
     if sub is not None:
         return per / 100, f"{sub}/kWh"
     return per, f"{money}/kWh"

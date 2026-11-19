@@ -128,6 +128,7 @@ from .evaluation.forecast_accuracy import (
     PV_CORRECTOR_KIND,
     ForecastAccuracy,
 )
+from .evaluation.price_surprise import PriceSurprise, PriceSurprises
 from .evaluation.pv_corrections import BUILTIN as PV_CORRECTORS
 from .evaluation.pv_corrections import (
     DEFAULT_PV_CORRECTOR,
@@ -137,6 +138,7 @@ from .evaluation.pv_corrections import (
 )
 from .evaluation.pv_corrections.lead_time import LeadTimeCorrector
 from .explain import DecisionLog
+from .explain.money import format_money
 from .explain.plan_story import DAYS as STORY_DAYS
 from .explain.plan_story import plan_story
 from .forecast.consumption_forecast import (
@@ -449,6 +451,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         # Recalculated by hand: tell the plan in *Why* even when unchanged.
         self.explain_next = False
         self._last_corrections: dict[str, str] = {}
+        self.price_surprises = PriceSurprises()
         options = entry.options
         self.max_days: int = options.get(
             CONF_PLANNING_HORIZON, DEFAULT_PLANNING_HORIZON
@@ -648,6 +651,16 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             for p in prices
             if window.overlaps(p.start, p.end)
         ]
+        # Published prices that differ strongly from the estimate the plan
+        # used until now: say so (the plan changes noticeably).
+        self._explain_price_surprises(
+            self.price_surprises.check(
+                [(p.start, p.end, p.price) for p in prices if not p.estimated], now
+            )
+        )
+        self.price_surprises.remember(
+            (p.start, p.end, p.price) for p in prices if p.estimated
+        )
         pv_wh = self._correct_pv(
             {
                 start: wh
@@ -1174,7 +1187,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         except Exception:  # an unverified source must not stop the whole cycle
             _LOGGER.exception("Price source %s (%s) failed", key, role)
             return PriceData([])
-        return PriceData(*per_kwh(data.points, data.unit))
+        return PriceData(*per_kwh(data.points, data.unit, self.hass.config.currency))
 
     async def _async_read_prices(
         self, now: datetime
@@ -1188,6 +1201,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             prices, unit = per_kwh(
                 parse_price_forecast(state),
                 state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None,
+                self.hass.config.currency,
             )
         else:
             return [], None
@@ -1246,6 +1260,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                         state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
                         if state
                         else None,
+                        self.hass.config.currency,
                     )[0]
                     for state in (self.hass.states.get(e) for e in self.export_entities)
                 ]
@@ -1295,6 +1310,23 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 samples=stats.samples if stats else 0,
             )
 
+    def _explain_price_surprises(self, surprises: list[PriceSurprise]) -> None:
+        """One message when published prices differ strongly from the
+        estimates the plan used."""
+        if not surprises:
+            return
+        biggest = surprises[0]
+        currency, language = self.hass.config.currency, self.hass.config.language
+        self._decisions.async_log(
+            "forecast",
+            "price_published_differs",
+            count=len(surprises),
+            start=biggest.start,
+            end=biggest.end,
+            estimate=_price(biggest.estimate, currency, language),
+            published=_price(biggest.published, currency, language),
+        )
+
     def _explain_full_charges(self, full_charges: list[FullCharge]) -> None:
         """Explain newly planned or moved full charges."""
         key = "|".join(f"{f.battery_id}@{f.start.isoformat()}" for f in full_charges)
@@ -1302,7 +1334,6 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             return
         self._last_full_charges = key
         now = dt_util.utcnow()
-        unit = self.data.price_unit if self.data else ""
         for charge in full_charges:
             overdue = charge.deadline <= now
             self._decisions.async_log(
@@ -1319,8 +1350,14 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                     if (self.hass.config.language or "").startswith("nl")
                     else "never"
                 ),
-                price=_price(charge.price, unit, self.hass.config.language),
-                avg_price=_price(charge.avg_price, unit, self.hass.config.language),
+                price=_price(
+                    charge.price, self.hass.config.currency, self.hass.config.language
+                ),
+                avg_price=_price(
+                    charge.avg_price,
+                    self.hass.config.currency,
+                    self.hass.config.language,
+                ),
             )
 
     def _explain_plan(self, data: ForecastData) -> None:
@@ -1350,6 +1387,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             min_soc_reached,
             self.config_entry.data[CONF_MAX_CURRENT],
             [(f.start, f.end, f.name) for f in data.full_charges],
+            self.hass.config.currency,
         )
         # Log when the gist changes (not for every small change in numbers).
         current = next((s for s in plan.slots if s.start <= now < s.end), None)
@@ -1650,16 +1688,11 @@ def _avg_price(
     return total / weight if weight else None
 
 
-def _price(value: float | None, unit: str | None, language: str | None = None) -> str:
-    if value is None:
-        return "-"
-    if (language or "").startswith("nl"):
-        return f"€ {value:.2f}".replace(".", ",")
-    return (
-        f"€ {value:.2f}"
-        if (unit or "").startswith(("€", "EUR"))
-        else f"{value:.3f} {unit or ''}".strip()
-    )
+def _price(
+    value: float | None, currency: str | None, language: str | None = None
+) -> str:
+    """A price per kWh (in the main currency) for a message."""
+    return format_money(value, currency, language)
 
 
 def _plan_efficiency(states: Iterable[BatteryState]) -> float:

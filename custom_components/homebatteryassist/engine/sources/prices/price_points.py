@@ -212,11 +212,12 @@ def calibrate(
 
 
 def per_kwh(
-    points: list[PricePoint], unit: str | None
+    points: list[PricePoint], unit: str | None, currency: str | None = None
 ) -> tuple[list[PricePoint], str | None]:
     """Prices per kWh in the main currency (ct/kWh and EUR/MWh converted, so
-    the planning's fixed amounts such as the wear per kWh fit)."""
-    factor, normal = price_unit_factor(unit)
+    the planning's fixed amounts such as the wear per kWh fit); ``currency``
+    is Home Assistant's, for cents without a currency of their own."""
+    factor, normal = price_unit_factor(unit, currency)
     if factor == 1.0:
         return points, normal
     return [replace(p, price=p.price * factor) for p in points], normal

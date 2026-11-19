@@ -51,7 +51,8 @@ def test_current_and_next_with_reasons(hass: HomeAssistant) -> None:
         plan, "charge_grid", now, "arbitrage", language="nl"
     )
     assert following is None
-    assert current.start == T0 and current.minutes == 120 and round(current.wh) == 4000
+    # A running phase: what is left from now (90 of 120 minutes).
+    assert current.start == T0 and current.minutes == 90 and round(current.wh) == 3000
     assert "goedkoop" in current.reason and "0,45" in current.reason  # later up to
     current, following = current_and_next(
         plan, "discharge", now, "arbitrage", language="en"

@@ -24,7 +24,7 @@ Batteries are linked **read-only** through the entities of their own integration
 
 Optionally a battery gets an **external meter** on its line (e.g. a HomeWizard kWh meter, read directly): its power is then used instead of the power sensor — see [Drivers](drivers.md).
 
-Per battery: state of charge, power, status, stored/usable energy, time to full/empty, charged/discharged energy, last full charge and realised return, plus totals over all batteries.
+Per battery: state of charge, power, status, stored/usable energy, time to full/empty, charged/discharged energy, last full charge and realised return (after wear: the cycle cost per kWh through the battery, as the plan counts it; attributes `before_wear` and `wear`), plus totals over all batteries.
 
 ### Today and measured efficiency
 
@@ -72,7 +72,7 @@ Switching it on is a decision of the project owner, together with the first test
 
 Simulated what-if batteries (capacity, power, state-of-charge limits, losses, phase) that follow the plan live, so you can see what a (bigger) battery would bring before buying one. They also show phase protection and peak shaving at work.
 
-Each battery has **Value today** (realised value since midnight), the virtual ones included.
+Each battery has **Value today** (realised value since midnight, after wear), the virtual ones included.
 
 ### Twin of a real battery
 

@@ -26,6 +26,7 @@ from typing import Any
 from homeassistant.util import dt as dt_util
 
 from ..planning.battery_plan import MODE_NOM, PlanSlot
+from .money import format_money
 
 ACTIVE_W = 100.0  # below this a battery counts as idle
 KINDS = ("discharge", "charge_grid", "charge_pv", "grid_only")
@@ -79,10 +80,13 @@ class Phase:
     wh: float  # energy of this kind in the phase (all batteries)
     price: float | None  # average price (import; export for charge_pv)
     reason: str
+    begin: datetime | None = None  # counted from here (now, for a running phase)
 
     @property
     def minutes(self) -> int:
-        return round((self.end - self.start).total_seconds() / 60)
+        """Minutes from ``begin`` (the start) to the end."""
+        begin = self.begin or self.start
+        return round((self.end - begin).total_seconds() / 60)
 
 
 def slot_parts(slot: PlanSlot) -> dict[str, float]:
@@ -108,11 +112,8 @@ def _lang(language: str | None) -> str:
     return "nl" if (language or "").lower().startswith("nl") else "en"
 
 
-def _money(value: float | None, lang: str) -> str:
-    if value is None:
-        return "-"
-    text = f"€ {value:.2f}"
-    return text.replace(".", ",") if lang == "nl" else text
+def _money(value: float | None, lang: str, currency: str | None = None) -> str:
+    return format_money(value, currency, lang)
 
 
 def _when(when: datetime, lang: str) -> str:
@@ -140,6 +141,7 @@ def _reason(
     mode: str,
     floor_soc: float,
     lang: str,
+    currency: str | None = None,
 ) -> str:
     text = TEXT[lang]
     first = run[0][0]
@@ -156,8 +158,8 @@ def _reason(
         if any(s.grid_w < -ACTIVE_W for s, _ in run):
             exports = [s.export_price for s, _ in run if s.export_price is not None]
             value = sum(exports) / len(exports) if exports else price
-            return text["discharge_export"].format(price=_money(value, lang))
-        return text["discharge_price"].format(price=_money(price, lang))
+            return text["discharge_export"].format(price=_money(value, lang, currency))
+        return text["discharge_price"].format(price=_money(price, lang, currency))
     if kind == "charge_grid":
         later = [
             s.price
@@ -166,16 +168,19 @@ def _reason(
         ]
         if later and price is not None and max(later) > price:
             return text["charge_grid"].format(
-                price=_money(price, lang), later=_money(max(later), lang)
+                price=_money(price, lang, currency),
+                later=_money(max(later), lang, currency),
             )
         if later:
             # Used later at no higher price: not for the price difference.
-            return text["charge_grid_needed"].format(price=_money(price, lang))
-        return text["charge_grid_plain"].format(price=_money(price, lang))
+            return text["charge_grid_needed"].format(
+                price=_money(price, lang, currency)
+            )
+        return text["charge_grid_plain"].format(price=_money(price, lang, currency))
     if kind == "charge_pv":
         exports = [s.export_price for s, _ in run if s.export_price is not None]
         value = sum(exports) / len(exports) if exports else None
-        return text["charge_pv"].format(price=_money(value, lang))
+        return text["charge_pv"].format(price=_money(value, lang, currency))
     # grid_only: why the batteries do nothing
     if first.soc <= floor_soc + 1:
         following = next(
@@ -187,7 +192,7 @@ def _reason(
     use = next((s for s in slots if s.start >= end and s.power_w < -ACTIVE_W), None)
     if use is not None and mode != MODE_NOM:
         return text["grid_only_save"].format(
-            when=_when(use.start, lang), price=_money(use.price, lang)
+            when=_when(use.start, lang), price=_money(use.price, lang, currency)
         )
     return text["grid_only_none"]
 
@@ -199,8 +204,15 @@ def _phase(
     mode: str,
     floor_soc: float,
     lang: str,
+    currency: str | None = None,
+    now: datetime | None = None,
 ) -> Phase:
-    wh = sum(w * (s.end - s.start).total_seconds() / 3600 for s, w in run)
+    # A running phase counts from now: the energy and minutes still to come.
+    begin = run[0][0].start if now is None else max(run[0][0].start, now)
+    wh = sum(
+        w * max((s.end - max(s.start, begin)).total_seconds(), 0.0) / 3600
+        for s, w in run
+    )
     if kind == "charge_pv":
         values = [s.export_price for s, _ in run if s.export_price is not None]
     else:
@@ -211,7 +223,8 @@ def _phase(
         run[-1][0].end,
         wh,
         sum(values) / len(values) if values else None,
-        _reason(kind, run, slots, mode, floor_soc, lang),
+        _reason(kind, run, slots, mode, floor_soc, lang, currency),
+        begin,
     )
 
 
@@ -222,16 +235,18 @@ def current_and_next(
     mode: str,
     floor_soc: float = 0.0,
     language: str | None = None,
+    currency: str | None = None,
 ) -> tuple[Phase | None, Phase | None]:
-    """The phase of ``kind`` running now (None) and the next one (None)."""
+    """The phase of ``kind`` running now (None) and the next one (None). The
+    running phase's kWh and minutes are what is left from ``now``."""
     lang = _lang(language)
     current = following = None
     for run in _runs(slots, kind):
         start, end = run[0][0].start, run[-1][0].end
         if start <= now < end:
-            current = _phase(kind, run, slots, mode, floor_soc, lang)
+            current = _phase(kind, run, slots, mode, floor_soc, lang, currency, now)
         elif start > now and following is None:
-            following = _phase(kind, run, slots, mode, floor_soc, lang)
+            following = _phase(kind, run, slots, mode, floor_soc, lang, currency)
             break
     return current, following
 

@@ -19,6 +19,7 @@ Used by the battery plan (per slot) and by the simulation of virtual batteries
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
@@ -116,6 +117,29 @@ def cap_powers(
 def overloaded(load_w: Sequence[float], limit_w: float) -> list[int]:
     """Indexes of the phases whose (import or export) power exceeds the limit."""
     return [i for i, load in enumerate(load_w) if abs(load) > limit_w]
+
+
+def active_relief_loads(
+    load_w: Sequence[float], active_w: Sequence[float], limit_w: float
+) -> list[float]:
+    """The phase loads for ``relieve`` so that it takes off enough *active*
+    power. ``load_w`` is the current as power (current x 230 V, signed),
+    ``active_w`` the active power in the same terms. A battery only changes
+    the active power; with a reactive part Q the current falls less than the
+    power: to bring hypot(P, Q) down to the limit, P must go to
+    sqrt(limit^2 - Q^2). An overloaded phase gets the load for which
+    ``load - limit`` is that active power (all of it when Q alone exceeds the
+    limit); other phases are unchanged."""
+    result = list(load_w)
+    for i, load in enumerate(load_w):
+        if abs(load) <= limit_w or i >= len(active_w):
+            continue
+        p = abs(active_w[i])
+        q2 = max(load * load - p * p, 0.0)
+        target = math.sqrt(max(limit_w * limit_w - q2, 0.0))
+        need = max(p - target, abs(load) - limit_w)
+        result[i] = math.copysign(limit_w + need, load)
+    return result
 
 
 def relieve(

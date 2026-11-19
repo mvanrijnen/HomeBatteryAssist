@@ -211,20 +211,28 @@ def _pack(
 
 
 def reach_times(
-    slots: Sequence[PlanSlot], soc: float, floor_soc: float, ceiling_soc: float
+    slots: Sequence[PlanSlot],
+    soc: float,
+    floor_soc: float,
+    ceiling_soc: float,
+    now: datetime | None = None,
 ) -> tuple[datetime | None, datetime | None]:
-    """When the plan's state of charge, starting at ``soc`` (%), first reaches
-    ``floor_soc`` (empty) and ``ceiling_soc`` (full), interpolated within the
-    slot; ``None`` if not within the plan or already there."""
+    """When the plan's state of charge, starting at ``soc`` (%) now, first
+    reaches ``floor_soc`` (empty) and ``ceiling_soc`` (full), interpolated
+    within the slot (the slot now from ``now`` to its end); ``None`` if not
+    within the plan or already there."""
     empty = full = None
     margin = 0.5  # %
     for slot in slots:
+        if now is not None and slot.end <= now:
+            continue  # already over
+        begin = slot.start if now is None else max(slot.start, now)
         if empty is None and soc > floor_soc + margin >= slot.soc:
             part = (soc - floor_soc) / (soc - slot.soc)
-            empty = slot.start + (slot.end - slot.start) * min(part, 1.0)
+            empty = begin + (slot.end - begin) * min(part, 1.0)
         if full is None and soc < ceiling_soc - margin <= slot.soc:
             part = (ceiling_soc - soc) / (slot.soc - soc)
-            full = slot.start + (slot.end - slot.start) * min(part, 1.0)
+            full = begin + (slot.end - begin) * min(part, 1.0)
         if empty is not None and full is not None:
             break
         soc = slot.soc

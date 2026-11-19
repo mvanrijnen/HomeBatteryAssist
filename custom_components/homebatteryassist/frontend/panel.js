@@ -1115,7 +1115,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       if (p.next != null) rows.push(row(t.priceFromAt.replace("{time}", hhmm(p.next_start)), p.market_next, p.next, p.next_estimated, p.export_next));
       const table = `<table class="prices"><tr><th></th>${t.priceCols.map((c) => `<th>${esc(c)}</th>`).join("")}</tr>${rows.join("")}</table>`;
       const cls = p.next == null ? "price" : p.next > p.now ? "price up" : "price down";
-      parts.push(this._flow(cls, "mdi:currency-eur", t.priceNow, table));
+      parts.push(this._flow(cls, (this._hass?.config?.currency || "EUR") === "EUR" ? "mdi:currency-eur" : "mdi:cash", t.priceNow, table));
     }
     if (s.has_pv || s.has_pv_forecast) {
       const expected = s.pv_forecast_now_w == null ? "" : `${t.expected} ${this._power(s.pv_forecast_now_w)}`;
@@ -1807,7 +1807,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const exportColor = "#ff9100";
     const priceUnit = h.price_unit || "";
     const priceFmt = (v) => `${Number(v).toFixed(2)}${priceUnit ? ` ${priceUnit}` : ""}`;
-    const axisFmt = (v) => `€ ${Number(v).toFixed(2)}`;
+    const axisMoney = new Intl.NumberFormat(this._hass?.language || "en", { style: "currency", currency: this._hass?.config?.currency || "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const axisFmt = (v) => axisMoney.format(Number(v));
     const priceSteps = (rows, value) => {
       const pts = [];
       for (const row of rows) {

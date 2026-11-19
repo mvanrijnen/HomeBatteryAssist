@@ -74,8 +74,8 @@ Alleen voor het tarief 'Marktprijs + opslag + energiebelasting, plus btw' (voor 
 
 | Veld | Uitleg |
 |---|---|
-| **Opslag leverancier** | Wat de leverancier per kWh bovenop de marktprijs rekent, excl. btw, in euro (bijv. 0,02 voor 2 ct). |
-| **Energiebelasting** | Energiebelasting per kWh excl. btw, in euro (bijv. 0,0916; zie je contract of de Belastingdienst). |
+| **Opslag leverancier** | Wat de leverancier per kWh bovenop de marktprijs rekent, excl. btw, in de valuta van Home Assistant (bijv. in euro: 0,02 voor 2 ct). |
+| **Energiebelasting** | Energiebelasting per kWh excl. btw, in de valuta van Home Assistant (bijv. in euro: 0,0916; zie je contract of de Belastingdienst). |
 | **Btw** | Btw over marktprijs, opslag en energiebelasting. |
 
 ### Terugleverprijs {#settings-export}

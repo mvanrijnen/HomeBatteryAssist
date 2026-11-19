@@ -147,8 +147,13 @@ BATTERY_SENSORS: tuple[BatterySensorDescription, ...] = (
         device_class=SensorDeviceClass.MONETARY,
         state_class=SensorStateClass.TOTAL,
         suggested_display_precision=2,
-        value_fn=lambda b, s: round(b.stats[s.config.id].get("value", 0.0), 2),
-        attrs_fn=lambda b, s: {"since": b.stats[s.config.id].get("value_since")},
+        # After wear, as the plan and the plan check count it.
+        value_fn=lambda b, s: round(b.value(s.config.id), 2),
+        attrs_fn=lambda b, s: {
+            "since": b.stats[s.config.id].get("value_since"),
+            "before_wear": round(b.stats[s.config.id].get("value", 0.0), 2),
+            "wear": round(b.stats[s.config.id].get("value_kwh", 0.0) * b.cycle_cost, 2),
+        },
     ),
     BatterySensorDescription(
         key="battery_value_today",

@@ -169,14 +169,16 @@ def run_interceptor(interceptor: Interceptor, data: InterceptInput) -> Outcome:
 
 
 def _at_limit(proposal: BatteryProposal, sign: float) -> bool:
-    """Full (for charging) or at its minimum (for discharging): it cannot
-    take over power in that direction."""
+    """Full (for charging) or at its floor (for discharging: the minimum
+    raised by the reserves in force): it cannot take over power in that
+    direction."""
     soc = proposal.soc
     if soc is None:
         return True
     if sign > 0:
         return soc >= proposal.max_soc - 1
-    return soc <= proposal.min_soc + 1
+    floor = max(proposal.min_soc, proposal.floor_soc or 0.0)
+    return soc <= floor + 1
 
 
 def _redistribute(

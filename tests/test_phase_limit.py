@@ -324,3 +324,18 @@ def test_simulator_uses_the_current_not_the_power(hass: HomeAssistant) -> None:
     )
     # limit 25 A x 230 V x 0.9 = 5175 W; load 22 A x 230 V = 5060 W: 115 W room
     assert sim._phase_limited({"v1": 2500.0}, T0) == {"v1": 115.0}
+
+
+def test_relief_takes_the_reactive_part_into_account() -> None:
+    from custom_components.homebatteryassist.engine.planning.phase_limit import (
+        active_relief_loads,
+    )
+
+    # Current as power 5000 (P 4000, Q 3000), limit 4500: P must go to
+    # sqrt(4500^2 - 3000^2) = 3354, so 646 W off instead of 500.
+    loads = active_relief_loads(
+        [5000.0, 1000.0, -6000.0], [4000.0, 1000.0, -6000.0], 4500.0
+    )
+    assert round(loads[0] - 4500) == 646
+    assert loads[1] == 1000.0  # not overloaded: unchanged
+    assert loads[2] == -6000.0  # no reactive part: linear

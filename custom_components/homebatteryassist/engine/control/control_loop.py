@@ -308,7 +308,10 @@ Activating (later, deliberately, with the project owner)
 # def _within_soc(
 #     config: BatteryConfig, soc: float, power_w: float, forecast: Any
 # ) -> float:
-#     """No discharging at or below the floor, no charging at or above max."""
+#     """No discharging at or below the floor, no charging at or above max.
+#     A last safety check: the night and peak reserves are already in the
+#     virtual batteries' targets (``_reserve_floor``) and the interceptor's
+#     redistribution respects them (``BatteryProposal.floor_soc``)."""
 #     floor = max(config.min_soc, forecast.rules.reserve_soc)
 #     if power_w < 0 and soc <= floor:
 #         return 0.0
