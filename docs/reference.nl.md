@@ -196,7 +196,7 @@ Of elke batterij doet wat haar opgedragen wordt (in deze fase door haar eigen in
 | Veld | Uitleg |
 |---|---|
 | **Opdrachten controleren vanaf** | Een opdracht om met minstens dit vermogen te laden of ontladen wordt gecontroleerd: de batterij moet minstens de helft ervan (of van haar maximale vermogen) in die richting doen. Standaard 100 W. |
-| **Melden na** | Waarom meldt het (en stuurt een melding, met 'Een batterij volgt haar opdracht niet') zodra het zo lang duurt, zodat opstarten en oplopen geen bericht geven. Vol, leeg, laden/ontladen uitgeschakeld en de hysterese van de batterij worden uitgelegd, niet als probleem gemeld. Standaard 2 min. |
+| **Melden na** | Waarom meldt het (en stuurt een melding, met 'Een batterij volgt haar opdracht niet') zodra het zo lang duurt, zodat opstarten en oplopen geen bericht geven. Vol, bijna vol (vanaf 5 % onder het maximum), koud (onder 5 °C, met een temperatuursensor), leeg, laden/ontladen uitgeschakeld en de hysterese van de batterij worden uitgelegd, niet als probleem gemeld. Standaard 2 min. |
 
 ### Begrenzing teruglevering (PV-omvormers) {#settings-export-limit}
 

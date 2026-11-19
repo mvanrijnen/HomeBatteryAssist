@@ -19,6 +19,7 @@ decision log.
 from __future__ import annotations
 
 import logging
+from bisect import bisect_right
 from collections import Counter
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
@@ -1020,8 +1021,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             surplus[slot.start] = max(pv.get(hour, 0.0) - slot.power_w, 0.0)
         factor = self.export_factor
 
+        starts = sorted(surplus)
+
+        def surplus_at(start: datetime) -> float:
+            # The consumption slot holding ``start`` (slots may be an hour).
+            k = bisect_right(starts, start) - 1
+            return surplus[starts[k]] if k >= 0 else 0.0
+
         def price(start: datetime, import_price: float, power: float) -> float:
-            share = min(surplus.get(start, 0.0) / power, 1.0) if power > 0 else 0.0
+            share = min(surplus_at(start) / power, 1.0) if power > 0 else 0.0
             export = next(
                 (p.price for p in export_prices if p.start <= start < p.end),
                 import_price * factor,

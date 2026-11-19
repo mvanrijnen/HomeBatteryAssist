@@ -76,6 +76,11 @@ def test_reasons() -> None:
     assert reason_for(BatteryCommand(-800), 12.5, CONFIG) == "empty"
     no_discharge = BatteryCommand(-800, discharge_allowed=False)
     assert reason_for(no_discharge, 50, CONFIG) == "discharge_off"
+    # Near full the BMS lowers the charge power; in the cold it limits it.
+    assert reason_for(charge, 96, CONFIG) == "tapering"
+    assert reason_for(charge, 50, CONFIG, 2.0) == "cold"
+    assert reason_for(charge, 50, CONFIG, 15.0) is None
+    assert reason_for(BatteryCommand(-800), 50, CONFIG, 2.0) is None
 
 
 def test_not_following_told_after_a_while_and_ended() -> None:
@@ -129,7 +134,7 @@ def test_explained_then_a_problem() -> None:
     check = CommandCheck(100, timedelta(minutes=2))
     _run(check, T0, 3, BatteryCommand(1000, hysteresis=True), 98, 0.0)
     later = T0 + timedelta(minutes=3, seconds=15)
-    told = _run(check, later, 1, BatteryCommand(1000), 98, 0.0)
+    told = _run(check, later, 1, BatteryCommand(1000), 90, 0.0)
     assert [key for key, _ in told] == ["battery_not_following"]
     assert check.problem
 

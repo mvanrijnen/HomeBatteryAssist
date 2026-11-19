@@ -270,7 +270,7 @@
             },
             "data_description": {
               "command_check_w": "A command to charge or discharge at least this power is checked: the battery should move at least half of it (or of its maximum power) in that direction. Default 100 W.",
-              "command_check_minutes": "Why tells it (and notifies, with 'A battery does not follow its command') once it lasts this long, so starting up and ramping are no message. Full, empty, charging/discharging switched off and the battery's hysteresis are explained, not reported as a problem. Default 2 min."
+              "command_check_minutes": "Why tells it (and notifies, with 'A battery does not follow its command') once it lasts this long, so starting up and ramping are no message. Full, almost full (from 5 % below the maximum), cold (below 5 °C, with a temperature sensor), empty, charging/discharging switched off and the battery's hysteresis are explained, not reported as a problem. Default 2 min."
             }
           },
           "export_limit": {
@@ -759,7 +759,7 @@
             },
             "data_description": {
               "command_check_w": "A command to charge or discharge at least this power is checked: the battery should move at least half of it (or of its maximum power) in that direction. Default 100 W.",
-              "command_check_minutes": "Why tells it (and notifies, with 'A battery does not follow its command') once it lasts this long, so starting up and ramping are no message. Full, empty, charging/discharging switched off and the battery's hysteresis are explained, not reported as a problem. Default 2 min."
+              "command_check_minutes": "Why tells it (and notifies, with 'A battery does not follow its command') once it lasts this long, so starting up and ramping are no message. Full, almost full (from 5 % below the maximum), cold (below 5 °C, with a temperature sensor), empty, charging/discharging switched off and the battery's hysteresis are explained, not reported as a problem. Default 2 min."
             }
           },
           "export_limit": {
@@ -1827,6 +1827,9 @@
     },
     "import_direct_meter": {
       "message": "The grid meter is read directly, so Home Assistant has no history of it. Choose a sensor with the house consumption to take over (source_entity)."
+    },
+    "import_direct_pv": {
+      "message": "A solar source is read directly by a meter, so Home Assistant has no history of it. Choose a sensor with the house consumption to take over (source_entity)."
     },
     "manual_one_kind": {
       "message": "A manual correction is set per kind (consumption, pv or price): one value cannot fit their different units."

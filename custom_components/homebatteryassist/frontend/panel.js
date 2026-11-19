@@ -62,6 +62,8 @@ const TEXT = {
     cmdExplained: "Does not follow its command since {t}: {r}",
     cmdReasons: {
       full: "full",
+      tapering: "almost full",
+      cold: "cold",
       empty: "at its minimum",
       charge_off: "charging switched off",
       discharge_off: "discharging switched off",
@@ -320,6 +322,8 @@ const TEXT = {
     cmdExplained: "Volgt opdracht niet sinds {t}: {r}",
     cmdReasons: {
       full: "vol",
+      tapering: "bijna vol",
+      cold: "koud",
       empty: "op minimum",
       charge_off: "laden uitgeschakeld",
       discharge_off: "ontladen uitgeschakeld",
@@ -743,7 +747,13 @@ class HomeBatteryAssistPanel extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
-    if (!this._status && !this._loading) this._load();
+    // First data on the first hass only: HA sets hass on every state change,
+    // and while the entry is not loaded the status stays empty (else a request
+    // per state change). After that the 60 s timer reloads.
+    if (!this._loadStarted) {
+      this._loadStarted = true;
+      this._load();
+    }
     this._scheduleRender();
   }
 

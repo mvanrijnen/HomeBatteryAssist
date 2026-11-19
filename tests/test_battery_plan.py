@@ -411,3 +411,20 @@ def test_slot_price_is_the_average_of_its_quarters() -> None:
         _price_over(quarters, start + timedelta(hours=2), start + timedelta(hours=3))
         is None
     )
+
+
+def test_first_slot_only_counts_the_time_left() -> None:
+    """At 00:45 the 00:00 slot has 15 minutes left: a 2 kW discharge takes
+    0.5 kWh (10 % of 5 kWh), not 2 kWh."""
+    slots = _slots([2000.0, 0.0])
+    plan = plan_batteries(
+        [_battery(soc=50.0)],
+        slots,
+        {},
+        _prices([0.3, 0.3]),
+        mode=MODE_NOM,
+        now=T0 + timedelta(minutes=45),
+    )
+    assert plan.slots[0].power_w == -2000.0
+    # 0.5 kWh / 0.9 from the cells = 0.556 kWh = 11.1 % of 5 kWh.
+    assert plan.slots[0].soc == pytest.approx(50.0 - 11.1, abs=0.2)

@@ -2042,8 +2042,14 @@ class BatterySubentryFlow(ConfigSubentryFlow):
 
     @staticmethod
     def _battery_data(user_input: dict[str, Any]) -> dict[str, Any]:
+        data = {**user_input}
+        address = (user_input.get(CONF_BATTERY_METER_ADDRESS) or "").strip()
+        if address:
+            data[CONF_BATTERY_METER_ADDRESS] = address
+        else:
+            data.pop(CONF_BATTERY_METER_ADDRESS, None)
         return {
-            **user_input,
+            **data,
             CONF_PHASE: user_input.get(CONF_PHASE, PHASE_NONE),
             CONF_CAPACITY: float(user_input[CONF_CAPACITY]),
             **{

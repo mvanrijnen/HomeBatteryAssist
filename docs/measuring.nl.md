@@ -40,7 +40,7 @@ De batterijkaart toont ook het **celverschil** nu (hoogste − laagste celspanni
 Wie een batterij aanstuurt, draagt haar op om met een vermogen te laden of ontladen — in deze fase haar eigen integratie (bijv. Omnibattery), later HomeBatteryAssist. De batterijdriver leest die **opdracht** uit (bij Omnibattery en Marstek Modbus: RS485-besturing, force mode en het laad-/ontlaadvermogen) en HomeBatteryAssist controleert elke 15 seconden of de batterij die volgt: minstens de helft van het opgedragen vermogen (of van haar maximale vermogen, als dat lager is), in die richting.
 
 - Volgt ze de opdracht **2 minuten** niet (instelling *Melden na*, sectie *Batterij volgt opdracht*; opdrachten vanaf **100 W**, instelling *Opdrachten controleren vanaf*), dan meldt *Waarom* dat; opstarten en oplopen geven dus geen bericht.
-- **Verklaarbaar** — de batterij is vol (bij laden), zit op haar minimum (bij ontladen), laden/ontladen staat uit op de batterij, of haar hysterese houdt laden tegen na volladen — dan zegt *Waarom* dat met de reden. Dat is geen probleem: geen alarm, geen melding.
+- **Verklaarbaar** — de batterij is vol of bijna vol (bij laden: vanaf 5 % onder haar maximum verlaagt haar BMS zelf het laadvermogen), koud (bij laden onder 5 °C, met een temperatuursensor), zit op haar minimum (bij ontladen), laden/ontladen staat uit op de batterij, of haar hysterese houdt laden tegen na volladen — dan zegt *Waarom* dat met de reden. Dat is geen probleem: geen alarm, geen melding.
 - **Niet verklaarbaar** — een **probleem**: *Waarom* meldt het, de probleem-sensor *Volgt opdracht niet* van de batterij gaat aan (attributen: de opdracht, het vermogen van de batterij, sinds wanneer), de batterijkaart toont het in rood, en er gaat een melding uit als je *Een batterij volgt haar opdracht niet* hebt gekozen. Volgt ze een minuut lang weer, dan zegt *Waarom* dat ook.
 
 De batterijkaart toont de opdracht die ze nu heeft (*Opdracht*: laden / ontladen met een vermogen, of stoppen). Een batterij die zichzelf aanstuurt (geen externe besturing) heeft geen opdracht en wordt niet gecontroleerd.
@@ -107,6 +107,8 @@ Een piek die **regelmatig terugkomt** — op minstens de helft van de dagen van 
 ## Huisverbruik {#house-consumption}
 
 **Huisverbruik** = net + PV − uitgesloten apparaten − laden van de batterij, plus afname/teruglevering van het net, PV-vermogen en de belasting per fase als % van de hoofdzekering.
+
+Heeft het net, een batterij, een uitgesloten apparaat of — terwijl de zon op is — een PV-bron geen waarde, dan is het huisverbruik op dat moment onbekend (niet met 0 W geteld, dat zou verkeerd verbruik vastleggen). 's Nachts telt een onbereikbare omvormer als 0 W. Een verwarmings-/koelsensor zonder waarde maakt alleen de verwarming onbekend.
 
 Het verbruik wordt als historie bewaard (28 dagen) voor de [verbruiksvoorspelling](forecasting.md#consumption); eerder verbruik kun je eenmalig importeren uit de statistieken van Home Assistant.
 

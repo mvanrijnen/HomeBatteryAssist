@@ -56,6 +56,12 @@ def formula_terms(
         raise ServiceValidationError(
             translation_domain=DOMAIN, translation_key="import_direct_meter"
         )
+    if data.measurements.pv_meters:
+        # PV read directly has no history either: without it every sunny
+        # period would be imported as (almost) no house consumption.
+        raise ServiceValidationError(
+            translation_domain=DOMAIN, translation_key="import_direct_pv"
+        )
     terms: list[Term] = []
     for main, ret in data.measurements.grid_phases:
         terms.append(Term(main, 1.0, required=True))

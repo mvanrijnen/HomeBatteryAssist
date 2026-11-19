@@ -40,7 +40,7 @@ The battery card also shows the **cell difference** now (highest − lowest cell
 Whoever controls a battery tells it to charge or discharge at a power — in this phase its own integration (e.g. Omnibattery), later HomeBatteryAssist. The battery driver reads that **command** (for Omnibattery and Marstek Modbus: RS485 control mode, force mode and the charge/discharge power) and HomeBatteryAssist checks every 15 seconds whether the battery follows it: at least half of the commanded power (or of its maximum power, when lower), in that direction.
 
 - Not following for **2 minutes** (setting *Tell after*, section *Battery follows its command*; commands from **100 W**, setting *Check commands from*) is told in *Why*, so starting up and ramping are no message.
-- **Explained** — the battery is full (charging), at its minimum (discharging), charging/discharging is switched off on the battery, or its hysteresis holds charging back after a full charge — *Why* says so with the reason. That is no problem: no alarm, no notification.
+- **Explained** — the battery is full or almost full (charging: from 5 % below its maximum its BMS lowers the charge power itself), cold (charging below 5 °C, with a temperature sensor), at its minimum (discharging), charging/discharging is switched off on the battery, or its hysteresis holds charging back after a full charge — *Why* says so with the reason. That is no problem: no alarm, no notification.
 - **Not explained** — a **problem**: *Why* says so, the battery's problem sensor *Does not follow its command* turns on (attributes: the command, the battery's power, since when), the battery card shows it in red, and a notification goes out when you chose *A battery does not follow its command*. Once it follows again for a minute, *Why* says that too.
 
 The battery card shows the command it has now (*Command*: charge / discharge at a power, or stop). A battery that controls itself (no external control) has no command and is not checked.
@@ -107,6 +107,8 @@ A peak that **comes back regularly** — on at least half of the days of that da
 ## House consumption
 
 **House consumption** = grid + PV − excluded devices − battery charging, plus grid import/export, PV power and the load per phase as % of the main fuse.
+
+When the grid, a battery, an excluded device or — while the sun is up — a PV source has no value, the house consumption is unknown for that moment (not counted with 0 W, which would record wrong consumption). At night an unavailable inverter counts as 0 W. A heating/cooling sensor without a value makes only the heating unknown.
 
 Consumption is kept as history (28 days) for the [consumption forecast](forecasting.md#consumption); past consumption can be imported once from Home Assistant's statistics.
 

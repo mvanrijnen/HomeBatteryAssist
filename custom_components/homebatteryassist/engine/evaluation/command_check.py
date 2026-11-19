@@ -35,12 +35,17 @@ from ..devices.batteries import BatteryCommand
 from ..devices.batteries import command as read_command
 from ..explain import DecisionLog
 from ..measure.battery_monitor import BatteryConfig, BatteryInput
+from ..units import state_to_celsius
 
 FOLLOW_SHARE = 0.5
 START_AFTER = timedelta(minutes=2)
 END_AFTER = timedelta(minutes=1)
 INTERVAL = timedelta(seconds=15)
 SOC_MARGIN = 1.0  # % from the limit that counts as full / empty
+# Near full a battery's BMS lowers the charge power itself (CV phase, LFP from
+# about 95 %), and below about 5 °C it limits the charge current: no problem.
+TAPER_MARGIN = 5.0
+COLD_C = 5.0
 
 
 def follows(command_w: float, actual_w: float, max_w: float = 0.0) -> bool:
@@ -54,7 +59,10 @@ def follows(command_w: float, actual_w: float, max_w: float = 0.0) -> bool:
 
 
 def reason_for(
-    command: BatteryCommand, soc: float | None, config: BatteryConfig
+    command: BatteryCommand,
+    soc: float | None,
+    config: BatteryConfig,
+    temperature_c: float | None = None,
 ) -> str | None:
     """Why a battery cannot follow its command, if that is explainable."""
     if command.power_w > 0:
@@ -64,6 +72,10 @@ def reason_for(
             return "hysteresis"
         if soc is not None and soc >= min(config.max_soc, 100.0) - SOC_MARGIN:
             return "full"
+        if soc is not None and soc >= min(config.max_soc, 100.0) - TAPER_MARGIN:
+            return "tapering"
+        if temperature_c is not None and temperature_c < COLD_C:
+            return "cold"
     elif command.power_w < 0:
         if not command.discharge_allowed:
             return "discharge_off"
@@ -121,6 +133,7 @@ class CommandCheck:
         soc: float | None,
         actual_w: float | None,
         config: BatteryConfig,
+        temperature_c: float | None = None,
     ) -> tuple[str, dict[str, Any]] | None:
         """One look; returns a message to log, if any."""
         self.command, self.actual_w = command, actual_w
@@ -139,7 +152,7 @@ class CommandCheck:
             self._since = None
             return self._maybe_end(when)
         assert command is not None and actual_w is not None
-        reason = reason_for(command, soc, config)
+        reason = reason_for(command, soc, config, temperature_c)
         self._quiet = None
         if self.event is not None:
             self.event.seen = when
@@ -267,6 +280,9 @@ class CommandMonitor:
                 state.soc,
                 state.power_w,
                 config,
+                state_to_celsius(self.hass.states.get(config.temperature_sensor))
+                if config.temperature_sensor
+                else None,
             )
             if result is not None:
                 key, params = result

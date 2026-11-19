@@ -41,17 +41,19 @@ class ShellyMeter(PollingMeter):
     async def _async_read(self) -> PhaseReading | None:
         session = async_get_clientsession(self.hass)
         if self._gen1 is not True:
-            async with asyncio.timeout(3):
-                response = await session.get(
-                    f"http://{self.address}/rpc/EM.GetStatus?id=0"
-                )
-            if response.status != 404:
-                response.raise_for_status()
-                self._gen1 = False
-                return shelly_gen2_reading(await response.json(content_type=None))
+            async with (
+                asyncio.timeout(3),
+                session.get(f"http://{self.address}/rpc/EM.GetStatus?id=0") as response,
+            ):
+                if response.status != 404:
+                    response.raise_for_status()
+                    self._gen1 = False
+                    return shelly_gen2_reading(await response.json(content_type=None))
             self._gen1 = True
-        async with asyncio.timeout(3):
-            response = await session.get(f"http://{self.address}/status")
+        async with (
+            asyncio.timeout(3),
+            session.get(f"http://{self.address}/status") as response,
+        ):
             response.raise_for_status()
             return shelly_gen1_reading(await response.json(content_type=None))
 
@@ -69,19 +71,23 @@ class ShellyEmMeter(PollingMeter):
     async def _async_read(self) -> tuple[float, ...] | None:
         session = async_get_clientsession(self.hass)
         if self._gen1 is not True:
-            async with asyncio.timeout(3):
-                response = await session.get(
+            async with (
+                asyncio.timeout(3),
+                session.get(
                     f"http://{self.address}/rpc/EM1.GetStatus?id=0"
-                )
-            if response.status != 404:
-                response.raise_for_status()
-                self._gen1 = False
-                data = await response.json(content_type=None)
-                power = data.get("act_power")
-                return None if power is None else (float(power),)
+                ) as response,
+            ):
+                if response.status != 404:
+                    response.raise_for_status()
+                    self._gen1 = False
+                    data = await response.json(content_type=None)
+                    power = data.get("act_power")
+                    return None if power is None else (float(power),)
             self._gen1 = True
-        async with asyncio.timeout(3):
-            response = await session.get(f"http://{self.address}/status")
+        async with (
+            asyncio.timeout(3),
+            session.get(f"http://{self.address}/status") as response,
+        ):
             response.raise_for_status()
             phases = shelly_gen1_phases(await response.json(content_type=None), count=1)
         return phases

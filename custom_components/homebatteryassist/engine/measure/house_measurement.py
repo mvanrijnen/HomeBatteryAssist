@@ -41,6 +41,7 @@ from homeassistant.helpers.event import (
     async_call_later,
     async_track_state_change_event,
 )
+from homeassistant.helpers.sun import is_up
 from homeassistant.util import dt as dt_util
 
 from ...const import (
@@ -103,7 +104,7 @@ class PowerFlow:
     # spread evenly), to learn how the consumption is spread over the phases.
     phase_house_w: tuple[float, ...] = ()
     phase_pv_w: tuple[float, ...] = ()
-    heating_w: float = 0.0  # heating/cooling devices (part of house_w)
+    heating_w: float | None = 0.0  # heating/cooling (part of house_w); None unknown
     # Per phase, when the meter sends them (else ()): measured current (A),
     # voltage (V) and power factor.
     phase_a: tuple[float, ...] = ()
@@ -419,6 +420,18 @@ class MeasurementInput:
             for b, power in zip(self.batteries, powers, strict=True)
             if power is None and self.hass.states.get(b.power_sensor) is not None
         ]
+        # PV without a value while the sun is up is not 0 W either (an
+        # inverter's wifi dropping would record its PV as no house use). At
+        # night many inverters go unavailable: 0 W then.
+        if is_up(self.hass):
+            unknown += [
+                e
+                for e in self.pv_sensors
+                if self.hass.states.get(e) is not None and self._watts(e) is None
+            ]
+            unknown += [
+                f"{m.label} {m.address}" for m, _ in self.pv_meters if not m.available
+            ]
         if unknown:
             return None, unknown
         excluded = round(self._sum_abs(self.excluded_sensors), 1)
@@ -474,7 +487,14 @@ class MeasurementInput:
             tuple(phase_w),
             tuple(round(v, 1) for v in phase_house),
             tuple(round(v, 1) for v in phase_pv),
-            round(self._sum_abs(self.heating_sensors), 1),
+            # Unknown when one of them has no value (not 0 W heating: the
+            # temperature step learns from it).
+            None
+            if any(
+                self.hass.states.get(e) is not None and self._watts(e) is None
+                for e in self.heating_sensors
+            )
+            else round(self._sum_abs(self.heating_sensors), 1),
             phase_a,
             phase_v,
             phase_pf,

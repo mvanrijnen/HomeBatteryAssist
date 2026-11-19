@@ -333,7 +333,10 @@ def planner_input(
     night = night_starts(consumption, pv_wh) if pack.night_floor > 0 else set()
     slots: list[_InSlot] = []
     for slot in consumption:
-        hours = (slot.end - slot.start).total_seconds() / 3600
+        # The slot now has only the time left (it starts at the boundary
+        # before now): a full slot of energy would not fit in it.
+        begin = max(slot.start, now) if now is not None else slot.start
+        hours = (slot.end - begin).total_seconds() / 3600
         if hours <= 0:
             continue
         hour = slot.start.replace(minute=0, second=0, microsecond=0)
