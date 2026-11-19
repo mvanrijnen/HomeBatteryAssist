@@ -35,6 +35,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_call_later
 
 from .direct_reading import SOURCE_SPEEDWIRE, DirectMeter
 
@@ -117,6 +118,9 @@ def decode(data: bytes) -> MeterTelegram | None:
     )
 
 
+RETRY_S = 60  # seconds between attempts to join the multicast group
+
+
 class _SpeedwireProtocol(asyncio.DatagramProtocol):
     def __init__(self, handler: Callable[[bytes, str], None]) -> None:
         self._handler = handler
@@ -148,27 +152,54 @@ class SpeedwireMeter(DirectMeter):
         """Initialize; ``address`` is the meter's IP address."""
         super().__init__(hass, address)
         self._transport: asyncio.DatagramTransport | None = None
+        self._retry: Callable[[], None] | None = None
+        self._stopped = False
+        self._serial: int | None = None  # learned from its first telegram
 
     async def async_start(self) -> None:
-        """Join the multicast group (receive only)."""
+        """Join the multicast group (receive only); retried every minute when
+        the network is not ready yet (e.g. at boot)."""
+        self._stopped = False
         try:
             self._transport, _ = await self.hass.loop.create_datagram_endpoint(
                 lambda: _SpeedwireProtocol(self._received), sock=_multicast_socket()
             )
         except OSError as err:
-            _LOGGER.warning("Cannot receive SMA Speedwire telegrams: %s", err)
+            _LOGGER.warning(
+                "Cannot receive SMA Speedwire telegrams yet (retry in %s s): %s",
+                RETRY_S,
+                err,
+            )
+            self._retry = async_call_later(self.hass, RETRY_S, self._async_retry)
+
+    async def _async_retry(self, _now: Any) -> None:
+        self._retry = None
+        if not self._stopped and self._transport is None:
+            await self.async_start()
 
     async def async_stop(self) -> None:
         """Leave the multicast group."""
+        self._stopped = True
+        if self._retry is not None:
+            self._retry()
+            self._retry = None
         if self._transport is not None:
             self._transport.close()
             self._transport = None
 
     @callback
     def _received(self, data: bytes, host: str) -> None:
-        if host != self.address:
+        telegram = decode(data) if host == self.address or self._serial else None
+        if telegram is None:
             return
-        if (telegram := decode(data)) is not None:
+        if host != self.address:
+            # The meter got another address (DHCP): known by its serial.
+            if telegram.serial != self._serial:
+                return
+            _LOGGER.info("SMA meter %s now at %s", self._serial, host)
+            self.address = host
+        self._serial = telegram.serial
+        if telegram is not None:
             self.phase_v = telegram.phase_v
             self.phase_pf = telegram.phase_pf
             self._set(telegram.phase_w, telegram.phase_a)

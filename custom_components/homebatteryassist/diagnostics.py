@@ -19,6 +19,7 @@ TO_REDACT = {
     "pv_address",
     "inverter_address",
     "battery_meter_address",
+    "notify_targets",
 }
 RECENT_DECISIONS = 25
 

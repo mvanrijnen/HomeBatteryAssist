@@ -52,8 +52,31 @@ class PhaseDevice:
         )
 
 
-def _room(load_w: Sequence[float], limit_w: float, charging: bool) -> list[float]:
-    return [max(limit_w - load if charging else limit_w + load, 0.0) for load in load_w]
+# Meters that round the current to whole amps are up to half an amp off.
+ROUNDING_W = 0.5 * NOMINAL_VOLTAGE
+
+
+def _room(
+    load_w: Sequence[float],
+    limit_w: float,
+    charging: bool,
+    active_w: Sequence[float] | None = None,
+) -> list[float]:
+    """Room per phase for charging (more import) or discharging. With
+    ``active_w`` (the active power in the same terms as ``load_w``, the
+    current as power) the reactive part counts: the current stays below the
+    limit while the active power stays within sqrt(limit^2 - Q^2)."""
+    rooms = []
+    for i, load in enumerate(load_w):
+        limit, base = limit_w, load
+        if active_w is not None and i < len(active_w):
+            p = active_w[i]
+            if abs(load) - abs(p) >= ROUNDING_W:
+                q2 = max(load * load - p * p, 0.0)
+                limit = math.sqrt(max(limit_w * limit_w - q2, 0.0))
+            base = p
+        rooms.append(max(limit - base if charging else limit + base, 0.0))
+    return rooms
 
 
 def max_power(
@@ -84,8 +107,10 @@ def cap_powers(
     devices: Iterable[PhaseDevice],
     load_w: Sequence[float],
     limit_w: float,
+    active_w: Sequence[float] | None = None,
 ) -> tuple[dict[str, float], list[int]]:
-    """Scale battery powers (+ charging) down where a phase would be overloaded.
+    """Scale battery powers (+ charging) down where a phase would be overloaded
+    (``active_w``: see ``_room``).
 
     Returns the new powers and the indexes of the phases that limited them.
     """
@@ -93,7 +118,7 @@ def cap_powers(
     limited: set[int] = set()
     devices = [d for d in devices if d.id in result]
     for charging in (True, False):
-        room = _room(load_w, limit_w, charging)
+        room = _room(load_w, limit_w, charging, active_w)
         active = [d for d in devices if (result[d.id] > 0) == charging and result[d.id]]
         for index in range(len(room)):
             on_phase = [d for d in active if d.phase == index]
@@ -117,10 +142,6 @@ def cap_powers(
 def overloaded(load_w: Sequence[float], limit_w: float) -> list[int]:
     """Indexes of the phases whose (import or export) power exceeds the limit."""
     return [i for i, load in enumerate(load_w) if abs(load) > limit_w]
-
-
-# Meters that round the current to whole amps are up to half an amp off.
-ROUNDING_W = 0.5 * NOMINAL_VOLTAGE
 
 
 def active_relief_loads(

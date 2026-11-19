@@ -159,6 +159,26 @@ def without_batteries(flow: Any, batteries: list[tuple[int | None, float]]) -> A
     )
 
 
+def _active_loads(flow: Any) -> list[float]:
+    """The active power per phase in the terms of ``phase_load_w`` (nominal
+    current as power), signed. Only where the reactive part is really known:
+    a measured voltage, or a power factor without a measured current; else
+    the load itself (a voltage below 230 V must not look like reactive
+    power)."""
+    volts = tuple(getattr(flow, "phase_v", ()) or ())
+    amps = tuple(getattr(flow, "phase_a", ()) or ())
+    pfs = tuple(getattr(flow, "phase_pf", ()) or ())
+    loads = flow.phase_load_w
+    return [
+        p * NOMINAL_VOLTAGE / volts[i]
+        if i < len(volts) and volts[i] > 100
+        else p
+        if i >= len(amps) and i < len(pfs) and pfs[i]
+        else loads[i]
+        for i, p in enumerate(flow.phase_w)
+    ]
+
+
 def random_efficiency(config: BatteryConfig) -> float:
     """Round-trip efficiency for one step: a random loss within the range."""
     return 1 - random.uniform(config.loss_min, config.loss_max)
@@ -176,6 +196,8 @@ class VirtualBatterySimulator:
         decisions: DecisionLog,
     ) -> None:
         """Initialize."""
+        self._over_seen: set[int] = set()  # phases overloaded at the last check
+        self._peak_seen = False
         self.hass = hass
         self._decisions = decisions
         self._distributor = Distributor(forecast.balance_interval)
@@ -293,12 +315,22 @@ class VirtualBatterySimulator:
             for i in range(phases) if index is None else (index,):
                 with_virtual[i] += power / (phases if index is None else 1)
         peak = self._forecast.peak_w
-        if (
-            overloaded(with_virtual, self._limit_w())
-            or overloaded(flow.phase_load_w, self._limit_w())
-            or (peak > 0 and sum(with_virtual) > peak)
-        ):
+        grid = (
+            flow.grid_w
+            + sum(self._batteries.states[c.id].power_w or 0.0 for c in self.virtual)
+            - (0.0 if self._forecast.peak_include_excluded else flow.excluded_w)
+        )
+        over = set(overloaded(with_virtual, self._limit_w())) | set(
+            overloaded(flow.phase_load_w, self._limit_w())
+        )
+        # A new overload (or a peak) at once; one that lasts is handled by
+        # the normal rounds (else every measurement starts a round and the
+        # averaging of zero on the meter is lost).
+        new = bool(over - self._over_seen)
+        self._over_seen = over
+        if new or (peak > 0 and grid > peak and not self._peak_seen):
             self.step(when)
+        self._peak_seen = peak > 0 and grid > peak
 
     def _nominal_devices(
         self, flow: Any, phases: int
@@ -582,21 +614,8 @@ class VirtualBatterySimulator:
         devices, factor = self._nominal_devices(flow, phases)
         # Active power per phase in the same (nominal current) terms as the
         # load, so the relief takes the reactive part into account.
-        # Only where the reactive part is really known: a measured voltage,
-        # or a power factor without a measured current; else the load as it
-        # is (a voltage below 230 V must not look like reactive power).
-        volts = tuple(getattr(flow, "phase_v", ()) or ())
-        amps = tuple(getattr(flow, "phase_a", ()) or ())
-        pfs = tuple(getattr(flow, "phase_pf", ()) or ())
         loads = flow.phase_load_w
-        active = [
-            p * NOMINAL_VOLTAGE / volts[i]
-            if i < len(volts) and volts[i] > 100
-            else p
-            if i >= len(amps) and i < len(pfs) and pfs[i]
-            else abs(loads[i])
-            for i, p in enumerate(flow.phase_w)
-        ]
+        active = _active_loads(flow)
         result, relieved = relieve(
             {i: w * factor[i] for i, w in wanted.items()},
             devices,
@@ -735,6 +754,7 @@ class VirtualBatterySimulator:
             devices,
             flow.phase_load_w,
             self._limit_w(),
+            _active_loads(flow),
         )
         capped = {i: w / factor[i] for i, w in capped.items()}
         self.limited_phases = limited

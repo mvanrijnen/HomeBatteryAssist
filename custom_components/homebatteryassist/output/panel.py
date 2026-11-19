@@ -429,16 +429,11 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             for sub in entry.subentries.values()
             if sub.subentry_type == SUBENTRY_EXCLUDED_LOAD
         ],
-        # Per excluded device its power sensor(s) (one, or one per phase).
+        # Per excluded device its power sensor(s) as the measurement uses
+        # them: per phase when there are phase sensors (3 phases), else the
+        # total.
         "excluded": [
-            {
-                "name": sub.title,
-                "sensors": [
-                    v
-                    for k, v in sub.data.items()
-                    if v and (k == "sensor" or k.startswith("phase_sensor_"))
-                ],
-            }
+            {"name": sub.title, "sensors": _device_sensors(sub.data, data)}
             for sub in entry.subentries.values()
             if sub.subentry_type == SUBENTRY_EXCLUDED_LOAD
         ],
@@ -515,6 +510,13 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             for d in reversed(data.decisions.entries[-RECENT_DECISIONS:])
         ],
     }
+
+
+def _device_sensors(sub: Any, data: Any) -> list[str]:
+    phases = [v for k, v in sorted(sub.items()) if v and k.startswith("phase_sensor_")]
+    if data.measurements.phases > 1 and phases:
+        return phases[: data.measurements.phases]
+    return [sub["sensor"]] if sub.get("sensor") else []
 
 
 def _loaded_entry(hass: HomeAssistant) -> HomeBatteryAssistConfigEntry | None:

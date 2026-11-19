@@ -787,6 +787,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
 
   async _setMode(mode) {
     if (this._modeBusy || !this._hass || mode === this._history?.value?.mode) return;
+    this._actionError = null;
     this._modeBusy = true;
     this._scheduleRender();
     try {
@@ -794,7 +795,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       // The integration reloads and plans again with the new mode.
       await new Promise((resolve) => setTimeout(resolve, 8000));
     } catch (err) {
-      this._error = err?.message || String(err);
+      this._actionError = err?.message || String(err);
     }
     this._modeBusy = false;
     this._historyAt = 0;
@@ -803,6 +804,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
 
   async _recalculate() {
     if (!this._hass) return;
+    this._actionError = null;
     if (this._busy) {
       // Running: once more when it is done (a change came in meanwhile).
       this._recalcAgain = true;
@@ -813,7 +815,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     try {
       await this._hass.callService("homebatteryassist", "recalculate", {});
     } catch (err) {
-      this._error = err?.message || String(err);
+      this._actionError = err?.message || String(err);
     }
     this._busy = false;
     this._historyAt = 0;
@@ -825,7 +827,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
   }
 
   set hass(hass) {
+    const old = this._hass;
     this._hass = hass;
+    if (old && this._status && !this._shownChanged(old, hass)) return;
     // First data on the first hass only: HA sets hass on every state change,
     // and while the entry is not loaded the status stays empty (else a request
     // per state change). After that the 60 s timer reloads.
@@ -834,6 +838,23 @@ class HomeBatteryAssistPanel extends HTMLElement {
       this._load();
     }
     this._scheduleRender();
+  }
+
+  // Whether a state the panel shows changed (HA sets hass on every state
+  // change in the house; re-rendering for each restarts the animations).
+  _shownChanged(old, hass) {
+    if (!this._shown) {
+      const ids = new Set();
+      const walk = (v) => {
+        if (typeof v === "string") {
+          if (/^[a-z_]+\.[a-z0-9_]+$/.test(v)) ids.add(v);
+        } else if (Array.isArray(v)) v.forEach(walk);
+        else if (v && typeof v === "object") Object.values(v).forEach(walk);
+      };
+      walk(this._status);
+      this._shown = [...ids];
+    }
+    return this._shown.some((id) => old.states[id] !== hass.states[id]);
   }
 
   set narrow(narrow) {
@@ -859,6 +880,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this._loading = true;
     try {
       this._status = await this._hass.callWS({ type: "homebatteryassist/status" });
+      this._shown = null;
       this._error = null;
       // A new forecast cycle (its window starts anew): fetch the charts at
       // once, e.g. the first full cycle after a restart.
@@ -895,6 +917,16 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const state = entityId && this._hass.states[entityId];
     const value = state ? parseFloat(state.state) : NaN;
     return Number.isNaN(value) ? null : value;
+  }
+
+  // A power or current sensor in W (as the integration reads it: kW, MW,
+  // mA/A at 230 V; without a unit W).
+  _watts(entityId) {
+    const state = entityId && this._hass.states[entityId];
+    const value = state ? parseFloat(state.state) : NaN;
+    if (Number.isNaN(value)) return null;
+    const factor = { W: 1, kW: 1000, MW: 1e6, mW: 0.001, A: 230, mA: 0.23 }[state.attributes?.unit_of_measurement || "W"];
+    return factor === undefined ? null : value * factor;
   }
 
   _str(entityId) {
@@ -948,11 +980,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
     // Each excluded device on its own (sum of its sensors, e.g. per phase).
     const devices = (s.excluded || []).map((d) => ({
       name: d.name,
-      w: d.sensors.reduce((a, id) => a + Math.max(this._num(id) || 0, 0), 0),
+      w: d.sensors.reduce((a, id) => a + Math.abs(this._watts(id) || 0), 0),
     }));
     const battery = s.batteries.length ? num(e.batteries_power) : null;  // + charging
     const soc = s.batteries.length ? num(e.batteries_soc) : null;
-    const zones = (s.zones || []).map((z) => ({ name: z.name, w: Math.max(this._num(z.sensor) || 0, 0), wh: s.today?.zones?.[z.id] }));
+    const zones = (s.zones || []).map((z) => ({ name: z.name, w: Math.abs(this._watts(z.sensor) || 0), wh: s.today?.zones?.[z.id] }));
     // Who supplies whom: solar first to the house, then the excluded devices,
     // the battery and the grid; then the battery; the grid the rest.
     const supply = { pv: pv || 0, battery: Math.max(-(battery || 0), 0), grid: Math.max(grid || 0, 0) };
@@ -2544,6 +2576,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
     let body;
     if (this._error === "not_loaded") body = `<div class="card">${esc(t.notLoaded)}</div>`;
     else if (this._error) body = `<div class="card">${esc(t.error)}: ${esc(this._error)}</div>`;
+    if (this._actionError && this._status) {
+      // An action (plan mode, recalculate) failed: shown until the next one.
+      body = `<div class="card">${esc(t.error)}: ${esc(this._actionError)}</div>${body}`;
+    }
     else if (!this._status) body = "";
     else {
       const s = this._status;
