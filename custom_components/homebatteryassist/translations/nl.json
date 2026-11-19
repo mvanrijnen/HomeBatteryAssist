@@ -312,7 +312,8 @@
     },
     "error": {
       "duplicate_sensor": "Elke fase heeft een eigen sensor nodig.",
-      "sensor_in_use": "Deze sensor wordt al gebruikt door een PV-bron, uitgesloten apparaat, verwarming of batterij."
+      "sensor_in_use": "Deze sensor wordt al gebruikt door een PV-bron, uitgesloten apparaat, verwarming of batterij.",
+      "address_required": "Vul het IP-adres van de meter in."
     },
     "abort": {
       "single_instance_allowed": "HomeBatteryAssist is al geconfigureerd. Er is maar één instantie toegestaan.",
@@ -880,7 +881,8 @@
     },
     "error": {
       "duplicate_sensor": "Elke fase heeft een eigen sensor nodig.",
-      "sensor_in_use": "Deze sensor wordt al gebruikt door een PV-bron, uitgesloten apparaat, verwarming of batterij."
+      "sensor_in_use": "Deze sensor wordt al gebruikt door een PV-bron, uitgesloten apparaat, verwarming of batterij.",
+      "address_required": "Vul het IP-adres van de meter in."
     }
   },
   "config_subentries": {

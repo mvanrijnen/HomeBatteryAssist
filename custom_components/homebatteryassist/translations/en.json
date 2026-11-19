@@ -312,7 +312,8 @@
     },
     "error": {
       "duplicate_sensor": "Each phase needs its own sensor.",
-      "sensor_in_use": "This sensor is already used by a PV source, excluded device, heating or battery."
+      "sensor_in_use": "This sensor is already used by a PV source, excluded device, heating or battery.",
+      "address_required": "Enter the meter's IP address."
     },
     "abort": {
       "single_instance_allowed": "HomeBatteryAssist is already configured. Only one instance is allowed.",
@@ -880,7 +881,8 @@
     },
     "error": {
       "duplicate_sensor": "Each phase needs its own sensor.",
-      "sensor_in_use": "This sensor is already used by a PV source, excluded device, heating or battery."
+      "sensor_in_use": "This sensor is already used by a PV source, excluded device, heating or battery.",
+      "address_required": "Enter the meter's IP address."
     }
   },
   "config_subentries": {

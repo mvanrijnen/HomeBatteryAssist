@@ -12,7 +12,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
-import aiohttp
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
 from homeassistant.util import dt as dt_util
@@ -198,14 +197,9 @@ class PollingMeter(DirectMeter):
         self._busy = True
         try:
             phases = await self._async_read()
-        except (
-            TimeoutError,
-            OSError,
-            ValueError,
-            KeyError,
-            TypeError,
-            aiohttp.ClientError,
-        ) as err:
+        except Exception as err:
+            # (TimeoutError, OSError, ClientError, or a reply in another
+            # shape: AttributeError / IndexError in a parser.) Logged once.
             if not self._failed:
                 _LOGGER.warning("Cannot read %s: %s", self.address, err)
             self._failed = True

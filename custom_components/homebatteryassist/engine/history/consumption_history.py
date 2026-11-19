@@ -540,7 +540,11 @@ class ConsumptionHistory:
         }
 
     def day_energy(
-        self, start: datetime, end: datetime, now: datetime
+        self,
+        start: datetime,
+        end: datetime,
+        now: datetime,
+        averages: dict | None = None,
     ) -> dict[str, Any]:
         """Energy (Wh) from ``start`` to ``end`` (a local day), per clock hour:
         the average of what was measured in that hour over the whole hour (the
@@ -564,7 +568,14 @@ class ConsumptionHistory:
         )
         zones: dict[str, float] = {}
         flows: dict[str, float] = {}
-        averages = self._hour_averages(start, end, running=start <= now < end)
+        if averages is None:
+            averages = self._hour_averages(start, end, running=start <= now < end)
+        else:  # computed once for several days: this day's hours
+            averages = {
+                h: v
+                for h, v in averages.items()
+                if h + timedelta(hours=1) > start and h < end
+            }
         for hour, (avg, zone_avg) in averages.items():
             # The part of the clock hour inside the day and before now (a
             # day may start on a half hour: UTC+5:30).
@@ -627,11 +638,15 @@ class ConsumptionHistory:
             return []
         day = dt_util.start_of_local_day(dt_util.as_local(first))
         today = dt_util.start_of_local_day(dt_util.as_local(now))
+        # One pass over the records for all days (not one per day).
+        averages = self._hour_averages(
+            dt_util.as_utc(day), dt_util.as_utc(today), running=False
+        )
         out: list[dict[str, Any]] = []
         while day < today:
             following = dt_util.start_of_local_day(day + timedelta(hours=26))
             energy = self.day_energy(
-                dt_util.as_utc(day), dt_util.as_utc(following), now
+                dt_util.as_utc(day), dt_util.as_utc(following), now, averages
             )
             if energy["house"]:
                 out.append({"date": day.date().isoformat(), **energy})

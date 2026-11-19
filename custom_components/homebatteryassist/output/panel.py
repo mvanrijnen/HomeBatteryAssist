@@ -572,6 +572,7 @@ def websocket_history(
     planned_ids = {st.config.id for st in batteries.plan_states()}
     now = dt_util.utcnow()
     since = now - timedelta(days=msg["days"])
+    series = list(hourly_series(records, since))  # once, used twice
     connection.send_result(
         msg["id"],
         {
@@ -583,13 +584,13 @@ def websocket_history(
             # [time ms, house consumption W, excluded devices W]
             "hourly": [
                 [int(t.timestamp() * 1000), house, excluded]
-                for t, house, excluded, _, _ in hourly_series(records, since)
+                for t, house, excluded, _, _ in series
             ],
             # Measured per hour over the requested days:
             # [time ms, house, excluded, PV, battery] (W)
             "past": [
                 [int(t.timestamp() * 1000), house, excluded, pv, battery]
-                for t, house, excluded, pv, battery in hourly_series(records, since)
+                for t, house, excluded, pv, battery in series
             ],
             # PV forecast (corrected) within the planning window, average W per hour
             "pv_forecast": [
@@ -700,6 +701,8 @@ def websocket_history(
                         "name": c.name,
                         "virtual": c.virtual,
                         "capacity_kwh": c.capacity_kwh,
+                        # In the plan (a real battery with a twin is not).
+                        "planned": c.id in planned_ids,
                         "points": [
                             [
                                 int(dt_util.parse_datetime(t).timestamp() * 1000),

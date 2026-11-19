@@ -830,10 +830,14 @@ async def _flat_settings_schema(
         vol.Required(CONF_NOM_TARGET, default=current.get(CONF_NOM_TARGET, 0)): _number(
             -2000, 2000, 10, "W"
         ),
-        vol.Optional(CONF_MIN_DISCHARGE_PRICE): _number(-1, 5, 0.001, ""),
-        vol.Optional(CONF_MAX_CHARGE_PRICE): _number(-1, 5, 0.001, ""),
+        # Prices per kWh in Home Assistant's currency: wide bounds (CZK, SEK,
+        # JPY amounts are much larger than euros).
+        vol.Optional(CONF_MIN_DISCHARGE_PRICE): _number(
+            -PRICE_MAX, PRICE_MAX, 0.001, ""
+        ),
+        vol.Optional(CONF_MAX_CHARGE_PRICE): _number(-PRICE_MAX, PRICE_MAX, 0.001, ""),
         vol.Required(CONF_MIN_MARGIN, default=current.get(CONF_MIN_MARGIN, 0)): _number(
-            0, 1, 0.005, ""
+            0, PRICE_MAX, 0.005, ""
         ),
         vol.Required(
             CONF_CHARGE_HYSTERESIS, default=current.get(CONF_CHARGE_HYSTERESIS, 0)
@@ -1019,11 +1023,11 @@ async def _flat_settings_schema(
         vol.Required(
             CONF_EXPORT_LIMIT_PRICE,
             default=current.get(CONF_EXPORT_LIMIT_PRICE, DEFAULT_EXPORT_LIMIT_PRICE),
-        ): _number(-1, 1, 0.001, "/kWh"),
+        ): _number(-PRICE_MAX, PRICE_MAX, 0.001, "/kWh"),
         vol.Required(
             CONF_EXPORT_LIMIT_COST,
             default=current.get(CONF_EXPORT_LIMIT_COST, DEFAULT_EXPORT_LIMIT_COST),
-        ): _number(0, 1, 0.001, "/kWh"),
+        ): _number(0, PRICE_MAX, 0.001, "/kWh"),
         vol.Required(
             CONF_EXPORT_LIMIT_MAX_W,
             default=current.get(CONF_EXPORT_LIMIT_MAX_W, DEFAULT_EXPORT_LIMIT_MAX_W),
@@ -1107,7 +1111,7 @@ async def _flat_settings_schema(
             CONF_CYCLE_COST, default=current.get(CONF_CYCLE_COST, DEFAULT_CYCLE_COST)
         ): NumberSelector(
             NumberSelectorConfig(
-                min=0, max=0.5, step=0.001, mode=NumberSelectorMode.BOX
+                min=0, max=PRICE_MAX, step=0.001, mode=NumberSelectorMode.BOX
             )
         ),
     }
@@ -1409,6 +1413,9 @@ class _GridSteps:
             default = (
                 current
                 if current in self._direct
+                # A meter entered by address (not found again now): keep it.
+                else DIRECT_MANUAL
+                if self._data.get(CONF_METER_SOURCE)
                 else next(
                     (
                         c.device_id
@@ -1461,10 +1468,14 @@ class _GridSteps:
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """A meter read directly at an address you enter (e.g. not in Home Assistant)."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return await self.async_step_meter_choice(
-                user_input[CONF_METER_SOURCE], user_input[CONF_METER_ADDRESS].strip()
-            )
+            address = str(user_input.get(CONF_METER_ADDRESS) or "").strip()
+            if address:
+                return await self.async_step_meter_choice(
+                    user_input[CONF_METER_SOURCE], address
+                )
+            errors[CONF_METER_ADDRESS] = "address_required"
         suggested = {
             CONF_METER_SOURCE: self._data.get(CONF_METER_SOURCE, SOURCE_HOMEWIZARD),
             CONF_METER_ADDRESS: self._data.get(CONF_METER_ADDRESS, ""),
@@ -1483,7 +1494,10 @@ class _GridSteps:
         )
         return self.async_show_form(
             step_id="direct",
-            data_schema=self.add_suggested_values_to_schema(schema, suggested),
+            data_schema=self.add_suggested_values_to_schema(
+                schema, user_input or suggested
+            ),
+            errors=errors,
         )
 
     async def async_step_meter_choice(
@@ -1884,12 +1898,15 @@ class HeatingCoolingSubentryFlow(_MeasuredDeviceSubentryFlow):
     }
 
 
+PRICE_MAX = 1000.0  # per kWh in any currency (JPY, CZK, SEK, EUR, ...)
+
+
 def _price_number() -> NumberSelector:
     """An amount per kWh (price unit of the source), e.g. 0.0916."""
     return NumberSelector(
         NumberSelectorConfig(
-            min=-1,
-            max=1,
+            min=-PRICE_MAX,
+            max=PRICE_MAX,
             step="any",
             mode=NumberSelectorMode.BOX,
             unit_of_measurement="/kWh",

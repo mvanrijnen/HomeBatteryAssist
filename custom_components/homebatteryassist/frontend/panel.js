@@ -112,7 +112,6 @@ const TEXT = {
     limitedNow: "batteries held back by the limit",
     peakNow: "peak shaving: {w} taken off (limit {l})",
     peakSet: "peak limit {l}",
-    idle: "idle",
     planning: "Planning",
     planningUntil: "Can plan {hours} h ahead, until {end}",
     noPlanning: "No planning possible",
@@ -397,7 +396,6 @@ const TEXT = {
     limitedNow: "batterijen teruggeschroefd door de grens",
     peakNow: "piekafvlakking: {w} opgevangen (grens {l})",
     peakSet: "piekgrens {l}",
-    idle: "rust",
     planning: "Planning",
     planningUntil: "Kan {hours} uur vooruit plannen, tot {end}",
     noPlanning: "Geen planning mogelijk",
@@ -839,6 +837,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const old = this._hass;
     this._hass = hass;
     if (old && this._status && !this._shownChanged(old, hass)) return;
+    // Live values are only on the overview and the batteries tab: the other
+    // tabs are not rebuilt on every state change (charts stay as they are).
+    if (old && this._status && !["overview", "batteries"].includes(this._tab)) return;
     // First data on the first hass only: HA sets hass on every state change,
     // and while the entry is not loaded the status stays empty (else a request
     // per state change). After that the 60 s timer reloads.
@@ -1839,7 +1840,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
   _consumption(t) {
     const h = this._history;
     if (!h) return "";
-    if (!h.hourly.length && !h.profile.weekday.some((v) => v != null)) {
+    if (!h.hourly.length && !(h.profile?.all || []).some((v) => v != null)) {
       return `<div class="card"><h2>${esc(t.consumption)}</h2><div class="muted">${esc(t.noHistory)}</div></div>`;
     }
     const lang = this._hass.locale?.language || this._hass.language;
@@ -2078,9 +2079,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
       this._charts.forecast.gapLimit = slot;
 
       // State of charge (kWh): measured total + per battery, plan ahead.
-      const socBatteries = h.soc?.batteries || [];
+      // Only the planned batteries (a real battery with a twin is not:
+      // its twin is planned in its place).
+      const socBatteries = (h.soc?.batteries || []).filter((b) => b.planned !== false);
       if (socBatteries.length) {
-        const capacity = socBatteries.reduce((sum, b) => sum + b.capacity_kwh, 0);
+        const capacity =
+          h.battery_capacity_kwh || socBatteries.reduce((sum, b) => sum + b.capacity_kwh, 0);
         const totals = new Map();
         for (const b of socBatteries) {
           for (const [ts, kwh] of b.points) totals.set(ts, (totals.get(ts) || 0) + kwh);
