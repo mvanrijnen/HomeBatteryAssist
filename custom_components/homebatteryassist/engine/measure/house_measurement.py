@@ -347,8 +347,31 @@ class MeasurementInput:
         """
         if entity and self.direct is not None:
             listener = self._throttled(listener)
+        elif entity:
+            listener = self._coalesced(listener)
         self._listeners.append(listener)
         return lambda: self._listeners.remove(listener)
+
+    def _coalesced(self, listener: MeasurementListener) -> MeasurementListener:
+        """Grid sensors per phase change one by one in the same round of the
+        event loop (one update of their integration): the entities get one
+        call with the result, not one per sensor (in-between states, each
+        written and recorded)."""
+        pending = [False]
+
+        @callback
+        def run() -> None:
+            pending[0] = False
+            listener(dt_util.utcnow(), self.power)
+
+        @callback
+        def call(when: datetime, power: float | None) -> None:
+            if pending[0]:
+                return
+            pending[0] = True
+            self.hass.loop.call_soon(run)
+
+        return call
 
     def _throttled(self, listener: MeasurementListener) -> MeasurementListener:
         key = id(listener)
