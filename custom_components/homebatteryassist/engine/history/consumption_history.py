@@ -13,7 +13,7 @@ from homeassistant.helpers.event import async_track_utc_time_change
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from ...const import DOMAIN, HISTORY_RETENTION
+from ...const import DOMAIN, HISTORY_RETENTION, NOMINAL_VOLTAGE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,6 +38,10 @@ class ConsumptionRecord(TypedDict):
     # per phase, to learn the current that flows besides the power.
     phase_grid_w: NotRequired[list[float]]
     phase_a: NotRequired[list[float]]
+    # Current besides the power per phase (as W at 230 V), worked out per
+    # reading and averaged (not from the averages: a load switching within
+    # the interval is no reactive power)
+    phase_q: NotRequired[list[float]]
     vacation: NotRequired[bool]  # measured in vacation mode: not learned from
     heating_w: NotRequired[float]  # average power of heating/cooling (part of house)
     temp_c: NotRequired[float]  # average outdoor temperature (°C)
@@ -83,9 +87,24 @@ RUNNING_SUMS = (
     "_phase_pv_ws",
     "_grid_ws",
     "_amp_s",
+    "_q_s",
     "_grid_s",
     "_phase_s",
 )
+
+
+def reactive_w(power: float, current: float, voltage: float | None = None) -> float:
+    """The current besides the power on a phase, as W at 230 V (one
+    reading). With the measured voltage where known; a current in whole amps
+    (a smart meter rounds it) counts half an amp less, so the rounding is not
+    taken for reactive power."""
+    volt = voltage if voltage is not None and voltage > 100 else NOMINAL_VOLTAGE
+    amps = abs(current)
+    if amps and abs(amps - round(amps)) < 1e-6:
+        amps = max(amps - 0.5, 0.0)
+    seen = amps * volt
+    reactive = math.sqrt(max(seen * seen - power * power, 0.0))
+    return reactive * NOMINAL_VOLTAGE / volt
 
 
 class ConsumptionHistory:
@@ -138,6 +157,7 @@ class ConsumptionHistory:
         )
         self._grid_ws: list[float] = []  # net grid W x s per phase
         self._amp_s: list[float] = []  # A x s per phase
+        self._q_s: list[float] = []  # reactive W (at 230 V) x s per phase
         self._grid_s = 0.0
         self._phase_s = 0.0
         self._unsub_timer: CALLBACK_TYPE | None = None
@@ -212,7 +232,7 @@ class ConsumptionHistory:
         temperature: float | None = None,
         zones: Mapping[str, tuple[float | None, ...]] | None = None,
         spike_wh: float = 0.0,
-        grid_phases: tuple[tuple[float, ...], tuple[float, ...]] | None = None,
+        grid_phases: tuple[tuple[float, ...], ...] | None = None,
     ) -> None:
         """Register new values (W): house consumption and excluded devices.
 
@@ -313,6 +333,7 @@ class ConsumptionHistory:
                     round(v / self._grid_s, 1) for v in self._grid_ws
                 ]
                 record["phase_a"] = [round(v / self._grid_s, 2) for v in self._amp_s]
+                record["phase_q"] = [round(v / self._grid_s, 1) for v in self._q_s]
             self.records.append(record)
             self.prune(self._interval_start)
             self._store.async_delay_save(self._data, SAVE_DELAY)
@@ -335,6 +356,7 @@ class ConsumptionHistory:
         self._phase_pv_ws = []
         self._grid_ws = []
         self._amp_s = []
+        self._q_s = []
         self._grid_s = 0.0
         self._phase_s = 0.0
         return record
@@ -375,14 +397,20 @@ class ConsumptionHistory:
                     self._phase_pv_ws[i] += value * seconds
                 self._phase_s += seconds
             if self._last_grid_phases is not None:
-                grid, amps = self._last_grid_phases
+                grid, amps = self._last_grid_phases[:2]
+                volts = (
+                    self._last_grid_phases[2] if len(self._last_grid_phases) > 2 else ()
+                )
                 if len(self._grid_ws) != len(grid):
                     self._grid_ws = [0.0] * len(grid)
                     self._amp_s = [0.0] * len(grid)
+                    self._q_s = [0.0] * len(grid)
                     self._grid_s = 0.0
                 for i, (watts, current) in enumerate(zip(grid, amps, strict=True)):
                     self._grid_ws[i] += watts * seconds
                     self._amp_s[i] += current * seconds
+                    volt = volts[i] if i < len(volts) else None
+                    self._q_s[i] += reactive_w(watts, current, volt) * seconds
                 self._grid_s += seconds
         self._last_time = when
 

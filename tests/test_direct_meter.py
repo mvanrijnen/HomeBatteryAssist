@@ -330,13 +330,14 @@ def test_reactive_current_learned_per_phase(hass: HomeAssistant) -> None:
             "avg_w": 300.0,
             "coverage": 1.0,
             "phase_grid_w": [300.0, 30.0],
-            # L1 power factor 1; L2: 30 W but 1 A (230 VA)
-            "phase_a": [300.0 / 230, 1.0],
+            "phase_a": [300.0 / 230, 1.3],
+            # Worked out per reading: L1 none, L2 228 W at 230 V
+            "phase_q": [0.0, 228.0],
         }
     ] * 4
     profile = PhaseProfile(records, 2)
     assert profile.reactive[0] == 0.0
-    assert abs(profile.reactive[1] - (230.0**2 - 30.0**2) ** 0.5) < 0.2
+    assert profile.reactive[1] == 228.0
     assert profile._with_reactive(0.0, 228.0) == 228.0  # nothing on, still current
     assert profile._with_reactive(-500.0, 0.0) == -500.0
     assert PhaseProfile(records[:3], 2).reactive == [0.0, 0.0]  # too little yet
@@ -427,3 +428,43 @@ def test_pv_share_per_hour() -> None:
     assert profile.pv_share(morning) == [1.0, 0.0]
     assert profile.pv_share(afternoon) == [0.0, 1.0]
     assert profile.pv_share(day + timedelta(hours=12)) == [0.5, 0.5]
+
+
+def test_reactive_per_reading() -> None:
+    """Reactive power per reading: measured voltage, whole-amp rounding of a
+    smart meter is not reactive power, a pure load has none."""
+    from custom_components.homebatteryassist.engine.history.consumption_history import (
+        reactive_w,
+    )
+
+    assert reactive_w(2300.0, 10.0, 230.0) == 0.0  # 10 A rounded: 9.5 A
+    assert reactive_w(138.0, 1.0) == 0.0  # 0.6 A shown as 1 A: no reactive
+    assert abs(reactive_w(30.0, 1.3) - (299.0**2 - 30.0**2) ** 0.5) < 0.1
+    # 240 V measured: 2 A x 240 = 480 VA, 0 W -> 2 A, as 460 W at 230 V
+    assert abs(reactive_w(0.0, 2.05, 240.0) - 2.05 * 230) < 0.1
+
+
+async def test_history_reactive_not_from_averages(hass) -> None:
+    """A load switching on and off within an interval (import half the time,
+    export the other half) has no reactive power."""
+    from datetime import datetime, timedelta
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.homebatteryassist.engine.history.consumption_history import (
+        ConsumptionHistory,
+    )
+
+    history = ConsumptionHistory(hass, "test", 15)
+    t0 = datetime(2026, 11, 20, 12, 0, tzinfo=dt_util.UTC)
+    for k in range(15):
+        watts = 2300.0 if k % 2 == 0 else -2300.0
+        history.add_sample(
+            t0 + timedelta(minutes=k),
+            500.0,
+            grid_phases=((watts,), (10.0,), (230.0,)),
+        )
+    history.add_sample(t0 + timedelta(minutes=15), 500.0)
+    record = history.records[-1]
+    assert abs(record["phase_grid_w"][0]) < 200  # the averages differ a lot
+    assert record["phase_q"] == [0.0]  # but per reading there is none

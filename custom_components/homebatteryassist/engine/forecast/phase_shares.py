@@ -16,8 +16,11 @@ the afternoon.
 The fuse sees current, not power. With a meter that measures current the
 history also has the net power and current per phase; from those the
 current that flows besides the power (reactive and distortion: standby
-devices, chargers, motors) is learned per phase as a power ``Q_p`` (current
-x 230 V, the median of sqrt((230 x I)^2 - P^2)). The expected load then
+devices, chargers, motors) is learned per phase as a power ``Q_p``: the
+median over the records of ``phase_q``, worked out per reading as
+sqrt((V x I)^2 - P^2) at 230 V (``history.consumption_history.reactive_w``;
+not from the averages of an interval, where a load switching on and off would
+look like reactive power). The expected load then
 counts as sqrt(load_p^2 + Q_p^2) (with the sign of load_p): what the current
 will be, at nominal voltage, as the phase limit is expressed.
 
@@ -34,7 +37,6 @@ from datetime import datetime
 
 from homeassistant.util import dt as dt_util
 
-from ...const import NOMINAL_VOLTAGE
 from ..history.consumption_history import ConsumptionRecord
 from .consumption_forecast import ForecastSlot
 
@@ -60,11 +62,9 @@ class PhaseProfile:
         reactive: list[list[float]] = [[] for _ in range(phases)]
         self.samples = 0
         for record in records:
-            grid, amps = record.get("phase_grid_w"), record.get("phase_a")
-            if grid and amps and len(grid) == len(amps) == phases:
-                for i, (watts, current) in enumerate(zip(grid, amps, strict=True)):
-                    seen = current * NOMINAL_VOLTAGE
-                    reactive[i].append(math.sqrt(max(seen * seen - watts * watts, 0.0)))
+            if (q := record.get("phase_q")) and len(q) == phases:
+                for i, value in enumerate(q):
+                    reactive[i].append(max(float(value), 0.0))
             weight = record["minutes"] * record["coverage"]
             start = dt_util.parse_datetime(record["start"])
             hour = dt_util.as_local(start).hour if start else 0
