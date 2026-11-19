@@ -202,19 +202,29 @@ class ConsumptionHistory:
             self.records = [r for r in records if _valid(r)]
             running = data.get("running") or {}
             start = dt_util.parse_datetime(running.get("start") or "")
+            current = self.interval_start(dt_util.utcnow())
             if (
                 start is not None
                 and running.get("minutes") == self.minutes
-                and start == self.interval_start(dt_util.utcnow())
+                and current - HISTORY_RETENTION < start <= current
             ):
                 # The same interval still runs: go on with its sums (the
-                # time in between counts as not measured).
+                # time in between counts as not measured). An interval that
+                # ended while Home Assistant was down is finished with what
+                # was measured of it.
                 self._interval_start = start
                 for name in RUNNING_SUMS:
                     if name in running:
                         setattr(self, name, running[name])
                 if "_pvm_ws" not in running:  # saved by an older version
                     self._pvm_ws = self._pv_ws
+                if start < current and not any(
+                    r["start"] == start.isoformat() for r in self.records[-5:]
+                ):
+                    self._finish()
+                    self._interval_start = None
+                elif start < current:
+                    self._interval_start = None
             if len(self.records) != len(records):
                 _LOGGER.warning(
                     "Skipped %d invalid consumption history records",

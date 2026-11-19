@@ -503,7 +503,7 @@ async def test_activity_explained(
     await later(6)
     assert decisions.latest["key"] == "battery_stopped_discharging"
     assert decisions.latest["message"] == (
-        "Venus supplied power from 13:09 to 14:09: 0.5 kWh — it is empty "
+        "Venus supplied power from 13:09 to 14:09: 0.6 kWh — it is empty "
         "(set lower limit). Now it is idle and the house runs on the grid, "
         "expected until about 17-11 09:00, when it charges again. That matches "
         "the plan."

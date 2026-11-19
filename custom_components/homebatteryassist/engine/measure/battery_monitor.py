@@ -799,8 +799,8 @@ class BatteryInput:
         stats = self.stats[battery_id]
         day = dt_util.as_local(when).date().isoformat()
         days = stats.setdefault("days", [])
-        if days and days[-1]["date"] == day:
-            return
+        if days and days[-1]["date"] >= day:
+            return  # this day (or a late event of the day before)
         stored = self.states[battery_id].stored_kwh
         days.append(
             {
@@ -832,14 +832,19 @@ class BatteryInput:
         self, battery_id: str, when: datetime, power: float | None
     ) -> None:
         """Integrate the previous power value up to ``when`` (kWh counters)."""
+        last = self._last_power.get(battery_id)
+        if last is not None and when < last[0]:
+            return  # a late, older event: counted already
         if (last := self._last_power.pop(battery_id, None)) is not None:
             since, last_power = last
             kwh = last_power * max((when - since).total_seconds(), 0.0) / 3_600_000
             stats = self.stats[battery_id]
             if kwh > 0:
-                stats["charged_kwh"] = round(stats["charged_kwh"] + kwh, 4)
+                # Unrounded: rounded on every short stretch (a meter every
+                # second) the counters would run off, or not move at all.
+                stats["charged_kwh"] = stats["charged_kwh"] + kwh
             elif kwh < 0:
-                stats["discharged_kwh"] = round(stats["discharged_kwh"] - kwh, 4)
+                stats["discharged_kwh"] = stats["discharged_kwh"] - kwh
             # Realised value: what the grid would have cost without this
             # battery minus what it costs with it (no net metering).
             # The prices of the stretch itself (its middle): a stretch that
@@ -860,18 +865,14 @@ class BatteryInput:
                 grid_kwh = self._grid_with_batteries(battery_id, last_power, grid_avg)
                 stats.setdefault("value_since", when.isoformat())
                 # Energy through the battery behind the value (for its wear).
-                stats["value_kwh"] = round(stats.get("value_kwh", 0.0) + abs(kwh), 4)
-                stats["value"] = round(
-                    stats.get("value", 0.0)
-                    + realised_value(
-                        kwh,
-                        None if grid_kwh is None else grid_kwh * hours / 1000,
-                        price,
-                        self.export_price_now(middle)
-                        if self.export_price_now(middle) is not None
-                        else self.export_price_now(when),
-                    ),
-                    5,
+                stats["value_kwh"] = stats.get("value_kwh", 0.0) + abs(kwh)
+                stats["value"] = stats.get("value", 0.0) + realised_value(
+                    kwh,
+                    None if grid_kwh is None else grid_kwh * hours / 1000,
+                    price,
+                    self.export_price_now(middle)
+                    if self.export_price_now(middle) is not None
+                    else self.export_price_now(when),
                 )
         self._roll_day(battery_id, when)
         if power is not None:
@@ -954,6 +955,8 @@ class BatteryInput:
         if activity == self._activity[config.id]:
             return
         began = dt_util.utcnow()
+        # The counters when it began (not 5 minutes later when it settles).
+        start = self._period_start(config.id, began)
 
         @callback
         def _settled(_now: datetime) -> None:
@@ -964,7 +967,7 @@ class BatteryInput:
                 self._explain_stop(config, previous, began)
             elif activity != "idle":
                 self._explain_start(config, activity, began)
-            self._began[config.id] = self._period_start(config.id, began)
+            self._began[config.id] = start
 
         self._pending[config.id] = (
             activity,

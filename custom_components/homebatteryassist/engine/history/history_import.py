@@ -186,6 +186,14 @@ def merge(
         return any(start < o_end and end > o_start for o_start, o_end in others)
 
     own = [r for r in history.records if r.get("source") != SOURCE_IMPORT]
+    # Earlier imported records outside the new import stay (a short import
+    # to fill a gap must not delete the rest).
+    new_spans = [span(r) for r in imported]
+    earlier = [
+        r
+        for r in history.records
+        if r.get("source") == SOURCE_IMPORT and not overlaps(r, new_spans)
+    ]
     if replace:
         imported_spans = [span(r) for r in imported]
         kept = [r for r in own if not overlaps(r, imported_spans)]
@@ -195,7 +203,7 @@ def merge(
         kept = own
         added = [r for r in imported if not overlaps(r, own_spans)]
         skipped = len(imported) - len(added)
-    history.records = sorted([*kept, *added], key=lambda r: r["start"])
+    history.records = sorted([*kept, *earlier, *added], key=lambda r: r["start"])
     return len(added), skipped
 
 

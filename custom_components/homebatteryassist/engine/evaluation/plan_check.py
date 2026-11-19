@@ -187,12 +187,19 @@ class PlanVerification:
             slot_end = dt_util.parse_datetime(self.planned[key]["end"])
             if slot_end is not None and slot_end <= now:
                 ended.append(key)
+        # Slots not measured from their start (e.g. from before a restart)
+        # are dropped first: they must not make the next one "several".
+        measured = []
+        for key in ended:
+            slot_start = dt_util.parse_datetime(key)
+            if slot_start is None or slot_start < start - timedelta(minutes=1):
+                del self.planned[key]
+            else:
+                measured.append(key)
+        ended = measured
         for key in ended:
             entry = self.planned[key]
-            slot_start = dt_util.parse_datetime(key)
             del self.planned[key]
-            if slot_start is None or slot_start < start - timedelta(minutes=1):
-                continue  # not measured from its start (e.g. after a restart)
             if len(ended) > 1:
                 # Several slots between two snapshots (a missed tick): the
                 # counters cannot be split over them; none is counted.

@@ -44,7 +44,7 @@ class BatterySensorDescription(SensorEntityDescription):
 
 
 def _stat(key: str) -> Callable[[BatteryInput, BatteryState], Any]:
-    return lambda batteries, state: batteries.stats[state.config.id][key]
+    return lambda batteries, state: round(batteries.stats[state.config.id][key], 4)
 
 
 def _last_full(batteries: BatteryInput, state: BatteryState) -> datetime | None:

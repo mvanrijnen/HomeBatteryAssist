@@ -91,6 +91,7 @@ MIN_SAMPLES: dict[Kind, int] = {"consumption": 96, "pv": 24, "price": 48}
 PV_FACTOR_RANGE = (0.5, 1.5)
 PV_MIN_WH = 20.0  # night hours (both ~0) say nothing about PV accuracy
 MAPE_MIN = 50.0  # W / Wh: below this, relative errors are meaningless
+MAPE_MIN_PRICE = 0.05  # per kWh: a price near zero makes a relative error huge
 PRICE_CLIP = 3.0  # price bias: errors capped at 3 x the median error
 PRICE_CLIP_MIN = 0.02  # per kWh: the cap is never smaller than this
 PRICE_LIMIT_MIN = 0.10  # per kWh: a price correction may always be this large
@@ -427,7 +428,9 @@ class ForecastAccuracy:
                     error if cap is None else min(max(error, -cap), cap)
                 )
                 acc[3] += weight * abs(error)
-                if actual and (abs(actual) >= MAPE_MIN or kind == "price"):
+                if actual and abs(actual) >= (
+                    MAPE_MIN_PRICE if kind == "price" else MAPE_MIN
+                ):
                     acc[4] += weight * abs(error) / abs(actual)
                     acc[5] += weight
                 acc[6] += weight * actual
