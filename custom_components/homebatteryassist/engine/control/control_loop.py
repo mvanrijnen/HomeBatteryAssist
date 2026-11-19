@@ -151,8 +151,10 @@ Activating (later, deliberately, with the project owner)
 # from .targets import (  # step 1 of "Activating"
 #     battery_targets,
 #     intercept_input,
+#     phase_limited,  # the phase caps, as VirtualBatterySimulator._phase_limited
 #     protection_needed,
 # )
+# from ..measure.battery_monitor import twinned_ids
 #
 # _LOGGER = logging.getLogger(__name__)
 #

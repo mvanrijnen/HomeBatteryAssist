@@ -91,7 +91,7 @@ def schedule_full_charges(
     slot, e.g. lower when there is solar surplus.
     """
     if not prices:
-        return []
+        return list(fixed)  # running blocks stay
     horizon_end = max(p.end for p in prices)
     window = timedelta(days=window_days)
 
@@ -137,6 +137,8 @@ def schedule_full_charges(
         )
     ]
     max_power = {state.config.id: state.config.max_charge_w for _d, state in due}
+    for f in fixed:  # a running block at its own power
+        max_power.setdefault(f.battery_id, f.power_w)
     for deadline, state in due:
         config = state.config
         # Overdue: catch up within the window; otherwise finish before the deadline.

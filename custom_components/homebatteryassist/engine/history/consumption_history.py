@@ -224,6 +224,9 @@ class ConsumptionHistory:
                     self._finish()
                     self._interval_start = None
                 elif start < current:
+                    # Recorded already: only clear the restored sums.
+                    self._measured_s = 0.0
+                    self._finish()
                     self._interval_start = None
             if len(self.records) != len(records):
                 _LOGGER.warning(

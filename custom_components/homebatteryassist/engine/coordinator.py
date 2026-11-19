@@ -994,6 +994,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 continue
             kind = f"{PV_CORRECTOR_KIND}{key}"
             accuracy.track(kind)
+            if self.pv_partial:
+                continue  # a PV source is missing: not learned from
             accuracy.record(
                 kind,
                 [
@@ -1087,16 +1089,12 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             )
             # Per battery: what its phase leaves with all at full power (the
             # plan's split over the batteries must not overload a phase).
-            charge, _ = cap_powers(
-                {d.id: d.max_charge_w for d in devices}, devices, loads, limit
-            )
-            discharge, _ = cap_powers(
-                {d.id: -d.max_discharge_w for d in devices}, devices, loads, limit
-            )
-            members[start] = {
-                d.id: (charge.get(d.id, 0.0), -discharge.get(d.id, 0.0))
-                for d in devices
-            }
+            per: dict[str, tuple[float, float]] = {}
+            for d in devices:
+                charge, _ = cap_powers({d.id: d.max_charge_w}, [d], loads, limit)
+                discharge, _ = cap_powers({d.id: -d.max_discharge_w}, [d], loads, limit)
+                per[d.id] = (charge.get(d.id, 0.0), -discharge.get(d.id, 0.0))
+            members[start] = per
         self._member_limits = members
         return result
 

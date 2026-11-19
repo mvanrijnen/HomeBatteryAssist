@@ -434,6 +434,20 @@ def planner_input(
         else s
         for index, s in enumerate(slots)
     ]
+    forced = dict(forced or {})
+    forced_by = {k: dict(v) for k, v in (forced_by or {}).items()}
+    if peak_w > 0:
+        # A full charge stays under the peak limit (live, peak shaving would
+        # cut it): the planners plan with what can really happen.
+        for s in slots:
+            want = forced.get(s.start, 0.0)
+            room = max(peak_w - s.net_w, 0.0)
+            if want > room:
+                forced[s.start] = room
+                if want > 0 and s.start in forced_by:
+                    forced_by[s.start] = {
+                        i: w * room / want for i, w in forced_by[s.start].items()
+                    }
     return PlannerInput(
         now or slots[0].start,
         slots,
@@ -453,8 +467,8 @@ def planner_input(
         max_cycles_per_day,
         peak_w,
         target,
-        dict(forced or {}),
-        dict(forced_by or {}),
+        forced,
+        forced_by,
         dict(member_limits or {}),
     )
 

@@ -149,7 +149,7 @@ def _optimise(
                 best_j: float = i
                 best_kind = ""
                 for j in range(max(0, i - down), min(levels - 1, i + up) + 1):
-                    if j > i and i > top and not flag:
+                    if j > i and i > top and not flag and forced_w <= 0:
                         continue  # no top-up charge inside the hysteresis band
                     delta = (j - i) * step  # Wh stored
                     power = delta / (hours * eff) if delta >= 0 else delta * eff / hours
@@ -175,6 +175,7 @@ def _optimise(
                         power > max(-net, 0.0) + 1e-6
                         and rules.max_charge_price is not None
                         and price > rules.max_charge_price
+                        and forced_w <= 0  # a full charge must happen
                     ):
                         continue  # charging from the grid only when cheap enough
                     cost = (
