@@ -37,7 +37,7 @@ from .forecasters.weekday_hour_profile import (
 )
 from .planning_window import PlanningWindow
 from .temperature_effect import TemperatureEffect
-from .user_adjustments import Adjustment, apply_adjustments
+from .user_adjustments import Adjustment, apply_adjustments, rebalance_parts
 
 __all__ = [
     "HALF_LIFE",
@@ -160,7 +160,7 @@ def forecast_consumption(
     """
     records = list(records)
     adjustments = list(adjustments)
-    slots: list[ForecastSlot] = []
+    rows: list[tuple[datetime, datetime, float, str, tuple[str, ...], float]] = []
     for start, end, base, method in raw_forecast(
         forecaster,
         records,
@@ -172,5 +172,16 @@ def forecast_consumption(
     ):
         corrected = round(correct(base, start), 1) if correct else base
         power, applied = apply_adjustments(corrected, start, end, adjustments)
-        slots.append(ForecastSlot(start, end, power, base, method, applied, base))
-    return slots
+        rows.append((start, end, base, method, applied, power))
+    # Energy that is part of the learned consumption: taken from the rest of
+    # its day.
+    balanced = rebalance_parts(
+        [(start, end, power, applied) for start, end, _b, _m, applied, power in rows],
+        adjustments,
+    )
+    return [
+        ForecastSlot(start, end, power, base, method, applied, base)
+        for (start, end, base, method, _a, _p), (_s, _e, power, applied) in zip(
+            rows, balanced, strict=True
+        )
+    ]

@@ -310,3 +310,65 @@ async def test_today_energy(hass: HomeAssistant) -> None:
     # One measured quarter counts for its whole hour (as a gap would).
     assert [d["house"] for d in days] == [4000]
     assert days[0]["flows"] == {"grid-house": 4000}
+
+
+async def test_expected_extra_consumption_dialog(
+    hass: HomeAssistant, hass_ws_client: WebSocketGenerator
+) -> None:
+    """Add, change and remove energy per day from the dashboard."""
+    entry = await _setup(hass)
+    client = await hass_ws_client(hass)
+    tomorrow = (dt_util.now() + timedelta(days=1)).date().isoformat()
+    await client.send_json_auto_id(
+        {
+            "type": f"{DOMAIN}/adjustment_save",
+            "name": "Washing machine",
+            "date": tomorrow,
+            "from": "13:00",
+            "until": "15:00",
+            "energy_kwh": 1.5,
+            "part": True,
+        }
+    )
+    response = await client.receive_json()
+    assert response["success"], response
+    (row,) = response["result"]["adjustments"]
+    assert (row["date"], row["from"], row["until"]) == (tomorrow, "13:00", "15:00")
+    assert row["part"] is True and row["kind"] == "energy_kwh"
+
+    # Change: the whole day, extra.
+    await client.send_json_auto_id(
+        {
+            "type": f"{DOMAIN}/adjustment_save",
+            "adjustment_id": row["id"],
+            "date": tomorrow,
+            "energy_kwh": 3,
+        }
+    )
+    response = await client.receive_json()
+    (changed,) = response["result"]["adjustments"]
+    assert changed["id"] == row["id"] and changed["from"] is None
+    assert changed["value"] == 3 and changed["part"] is False
+
+    # Part of the day's consumption needs a time window.
+    await client.send_json_auto_id(
+        {
+            "type": f"{DOMAIN}/adjustment_save",
+            "date": tomorrow,
+            "energy_kwh": 1,
+            "part": True,
+        }
+    )
+    response = await client.receive_json()
+    assert not response["success"]
+
+    await client.send_json_auto_id({"type": f"{DOMAIN}/status"})
+    response = await client.receive_json()
+    assert [r["id"] for r in response["result"]["adjustments"]] == [row["id"]]
+
+    await client.send_json_auto_id(
+        {"type": f"{DOMAIN}/adjustment_delete", "adjustment_id": row["id"]}
+    )
+    response = await client.receive_json()
+    assert response["result"]["adjustments"] == []
+    await hass.config_entries.async_unload(entry.entry_id)

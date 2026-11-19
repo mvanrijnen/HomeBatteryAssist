@@ -2,10 +2,17 @@
 
 Set through the actions ``homebatteryassist.adjust_forecast`` and
 ``homebatteryassist.clear_forecast_adjustments`` (from scripts, automations or
-other integrations). An adjustment covers a period and either multiplies the
-expected consumption (``factor``), adds to it (``offset_w``, may be negative)
-or replaces it (``power_w``). Adjustments are persisted and expire after their
-end. When several overlap: ``power_w`` first, then factors, then offsets.
+other integrations) or the dashboard (*Expected extra consumption*). An
+adjustment covers a period and either multiplies the expected consumption
+(``factor``), adds to it (``offset_w``, may be negative), replaces it
+(``power_w``) or adds an amount of energy spread evenly over the period
+(``energy_kwh``, e.g. 1.5 kWh for the washing machine tomorrow 13:00-15:00).
+Energy is either extra, on top of the learned consumption, or *part* of it
+(``part``: the learned consumption of that day already holds it, it only
+happens at that time): then the same energy is taken from the rest of that
+local day, in proportion to its expected consumption (``rebalance_parts``).
+Adjustments are persisted and expire after their end. When several overlap:
+``power_w`` first, then factors, then offsets and energy.
 """
 
 from __future__ import annotations
@@ -14,7 +21,7 @@ import logging
 import uuid
 from collections.abc import Iterable
 from datetime import datetime
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
@@ -25,8 +32,8 @@ from ...const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 STORAGE_VERSION = 1
-KINDS = ("power_w", "factor", "offset_w")
-type AdjustmentKind = Literal["power_w", "factor", "offset_w"]
+KINDS = ("power_w", "factor", "offset_w", "energy_kwh")
+type AdjustmentKind = Literal["power_w", "factor", "offset_w", "energy_kwh"]
 
 
 class Adjustment(TypedDict):
@@ -38,6 +45,7 @@ class Adjustment(TypedDict):
     end: str
     kind: AdjustmentKind
     value: float
+    part: NotRequired[bool]  # energy_kwh: part of the learned consumption
 
 
 def _span(adjustment: Adjustment) -> tuple[datetime, datetime]:
@@ -74,9 +82,60 @@ def apply_adjustments(
                 power = power * (1 - share) + value * share
             elif kind == "factor":
                 power *= 1 + (value - 1) * share
+            elif kind == "energy_kwh":
+                power += energy_w(adjustment) * share
             else:
                 power += value * share
     return round(max(power, 0.0), 1), tuple(a["name"] for a, _ in active)
+
+
+def energy_w(adjustment: Adjustment) -> float:
+    """The power (W) that spreads an energy adjustment over its period."""
+    a_start, a_end = _span(adjustment)
+    hours = (a_end - a_start).total_seconds() / 3600
+    return adjustment["value"] * 1000 / hours if hours > 0 else 0.0
+
+
+type Row = tuple[datetime, datetime, float, tuple[str, ...]]
+
+
+def rebalance_parts(rows: list[Row], adjustments: Iterable[Adjustment]) -> list[Row]:
+    """For energy that is *part* of the learned consumption: take the energy
+    added in its period from the rest of the local day it starts on (the
+    rows given, outside the period), in proportion to their power, never
+    below 0 W.
+
+    ``rows``: (start, end, power W, applied names) after ``apply_adjustments``.
+    """
+    result = list(rows)
+    for adjustment in adjustments:
+        if adjustment["kind"] != "energy_kwh" or not adjustment.get("part"):
+            continue
+        a_start, a_end = _span(adjustment)
+        day = dt_util.as_local(a_start).date()
+        power_w = energy_w(adjustment)
+        added = rest = 0.0
+        others: list[int] = []
+        for i, (start, end, power, _names) in enumerate(result):
+            overlap = (min(end, a_end) - max(start, a_start)).total_seconds() / 3600
+            if overlap > 0:
+                added += power_w * overlap
+            elif dt_util.as_local(start).date() == day:
+                others.append(i)
+                rest += power * (end - start).total_seconds() / 3600
+        take = min(added, rest)  # Wh
+        if take <= 0 or rest <= 0:
+            continue
+        factor = 1 - take / rest
+        for i in others:
+            start, end, power, names = result[i]
+            result[i] = (
+                start,
+                end,
+                round(max(power * factor, 0.0), 1),
+                (*names, adjustment["name"]),
+            )
+    return result
 
 
 class AdjustmentStore:
@@ -110,16 +169,22 @@ class AdjustmentStore:
         end: datetime,
         kind: AdjustmentKind,
         value: float,
+        part: bool = False,
+        adjustment_id: str | None = None,
     ) -> Adjustment:
-        """Add an adjustment."""
+        """Add an adjustment (``part``: energy that is part of the learned
+        consumption); with the id of an existing one: replace it."""
         adjustment = Adjustment(
-            id=uuid.uuid4().hex[:8],
+            id=adjustment_id or uuid.uuid4().hex[:8],
             name=name or kind,
             start=dt_util.as_utc(start).isoformat(),
             end=dt_util.as_utc(end).isoformat(),
             kind=kind,
             value=float(value),
         )
+        if kind == "energy_kwh" and part:
+            adjustment["part"] = True
+        self.items = [a for a in self.items if a["id"] != adjustment["id"]]
         self.items.append(adjustment)
         await self.async_save()
         _LOGGER.debug("Added forecast adjustment %s", adjustment)

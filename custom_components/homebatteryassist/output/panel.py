@@ -43,6 +43,11 @@ from ..engine.planning.battery_plan import (
 )
 from ..engine.planning.phase_limit import phase_limit_w
 from ..models import HomeBatteryAssistConfigEntry
+from .adjustments_ws import (
+    adjustment_rows,
+    websocket_adjustment_delete,
+    websocket_adjustment_save,
+)
 from .batteries import BATTERY_SENSORS, TOTAL_SENSORS, TWIN_SENSOR
 
 _LOGGER = logging.getLogger(__name__)
@@ -76,6 +81,8 @@ async def async_setup_panel(hass: HomeAssistant, version: str) -> None:
         return
     websocket_api.async_register_command(hass, websocket_status)
     websocket_api.async_register_command(hass, websocket_history)
+    websocket_api.async_register_command(hass, websocket_adjustment_save)
+    websocket_api.async_register_command(hass, websocket_adjustment_delete)
     if "frontend" in hass.config.components:
         from homeassistant.components import panel_custom
         from homeassistant.components.http import StaticPathConfig
@@ -399,6 +406,9 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
     forecast_data = data.forecast.data
     window = forecast_data.window
     return {
+        # Adjustments of the consumption forecast (dialog *Expected extra
+        # consumption*).
+        "adjustments": adjustment_rows(entry),
         "phases": data.measurements.phases,
         "meter": _meter_info(hass, data.measurements),
         "max_current": data.measurements.max_current,

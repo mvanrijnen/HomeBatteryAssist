@@ -140,7 +140,12 @@ def _convert_cent_thresholds(
     hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry, decisions: DecisionLog
 ) -> None:
     """Price thresholds that were clearly entered in ct (above
-    ``CENT_THRESHOLD`` per kWh) are converted once to the main currency."""
+    ``CENT_THRESHOLD`` per kWh) are converted to euro. Only for the euro: in
+    other currencies (CZK, SEK, JPY, ...) such a price is normal. Once
+    converted a value is below the threshold, so it is not converted again
+    (the settings allow at most 5 per kWh)."""
+    if (hass.config.currency or "EUR").upper() != "EUR":
+        return
     options = dict(entry.options)
     changed = []
     for key in (CONF_MIN_DISCHARGE_PRICE, CONF_MAX_CHARGE_PRICE):

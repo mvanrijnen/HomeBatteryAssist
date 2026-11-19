@@ -1748,7 +1748,7 @@
     },
     "adjust_forecast": {
       "name": "Adjust consumption forecast",
-      "description": "Changes the expected house consumption for a period, e.g. from a script for a holiday, guests or a planned large load. Give a start (default: now), an end or duration, and exactly one change: a factor, an offset in W or a fixed power in W. Adjustments are kept until their end.",
+      "description": "Changes the expected house consumption for a period, e.g. from a script for a holiday, guests or a planned large load. Give a start (default: now), an end or duration, and exactly one change: a factor, an offset in W, a fixed power in W or an amount of energy in kWh (extra, or part of the expected consumption). Adjustments are kept until their end; the dashboard (tab Forecast) has a dialog for energy per day.",
       "fields": {
         "name": {
           "name": "Name",
@@ -1777,6 +1777,14 @@
         "power_w": {
           "name": "Fixed power",
           "description": "Replace the expected consumption by this power in W."
+        },
+        "energy_kwh": {
+          "name": "Energy",
+          "description": "An amount of energy in kWh spread evenly over the period, e.g. 1.5 for the washing machine (with a minus: less)."
+        },
+        "part_of_forecast": {
+          "name": "Part of the expected consumption",
+          "description": "With Energy: the learned consumption of that day already holds this energy, it only happens in this period; the same energy is then taken from the rest of that day. Off: extra, on top of it."
         }
       }
     },

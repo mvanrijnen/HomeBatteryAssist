@@ -582,15 +582,25 @@ class VirtualBatterySimulator:
         devices, factor = self._nominal_devices(flow, phases)
         # Active power per phase in the same (nominal current) terms as the
         # load, so the relief takes the reactive part into account.
+        # Only where the reactive part is really known: a measured voltage,
+        # or a power factor without a measured current; else the load as it
+        # is (a voltage below 230 V must not look like reactive power).
         volts = tuple(getattr(flow, "phase_v", ()) or ())
+        amps = tuple(getattr(flow, "phase_a", ()) or ())
+        pfs = tuple(getattr(flow, "phase_pf", ()) or ())
+        loads = flow.phase_load_w
         active = [
-            p * NOMINAL_VOLTAGE / volts[i] if i < len(volts) and volts[i] > 100 else p
+            p * NOMINAL_VOLTAGE / volts[i]
+            if i < len(volts) and volts[i] > 100
+            else p
+            if i >= len(amps) and i < len(pfs) and pfs[i]
+            else abs(loads[i])
             for i, p in enumerate(flow.phase_w)
         ]
         result, relieved = relieve(
             {i: w * factor[i] for i, w in wanted.items()},
             devices,
-            active_relief_loads(flow.phase_load_w, active, self._limit_w()),
+            active_relief_loads(loads, active, self._limit_w()),
             self._limit_w(),
             can_discharge=[
                 c.id

@@ -19,8 +19,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 # A published price that differs at least this much per kWh (main currency)
-# from the estimate is a surprise; smaller differences are normal noise.
+# and at least this share of the price from the estimate is a surprise;
+# smaller differences are normal noise (the share keeps currencies with
+# larger numbers, such as SEK, from a message at every publication).
 SURPRISE_PER_KWH = 0.08
+SURPRISE_SHARE = 0.25
 # Estimates whose period ended this long ago are forgotten.
 KEEP = timedelta(hours=1)
 
@@ -45,9 +48,10 @@ class PriceSurprises:
         self._estimates: dict[datetime, tuple[datetime, float]] = {}
 
     def remember(self, estimates: Iterable[tuple[datetime, datetime, float]]) -> None:
-        """The estimated prices (start, end, price) the plan uses now."""
-        for start, end, price in estimates:
-            self._estimates[start] = (end, price)
+        """The estimated prices (start, end, price) the plan uses now (after
+        ``check``): they replace the earlier ones, so an estimate replaced by
+        another one (e.g. hourly by quarters) is not compared later."""
+        self._estimates = {start: (end, price) for start, end, price in estimates}
 
     def check(
         self, published: Iterable[tuple[datetime, datetime, float]], now: datetime
@@ -72,7 +76,10 @@ class PriceSurprises:
                 continue  # not (completely) published yet
             del self._estimates[start]
             value = total / covered
-            if abs(value - estimate) >= self.threshold:
+            difference = abs(value - estimate)
+            if difference >= self.threshold and difference >= SURPRISE_SHARE * max(
+                abs(value), abs(estimate)
+            ):
                 surprises.append(PriceSurprise(start, end, estimate, value))
         surprises.sort(key=lambda s: -abs(s.difference))
         return surprises

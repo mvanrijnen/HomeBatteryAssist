@@ -50,6 +50,8 @@ ATTR_DURATION = "duration"
 ATTR_FACTOR = "factor"
 ATTR_OFFSET = "offset_w"
 ATTR_POWER = "power_w"
+ATTR_ENERGY = "energy_kwh"
+ATTR_PART = "part_of_forecast"
 ATTR_ID = "id"
 SERVICE_SET_PLAN_MODE = "set_plan_mode"
 SERVICE_SET_CORRECTION = "set_forecast_correction"
@@ -85,10 +87,34 @@ def _to_utc(value: datetime) -> datetime:
     return dt_util.as_utc(value)
 
 
+def describe_change(adjustment: dict[str, Any], language: str | None) -> str:
+    """The change of an adjustment in a few words (for *Why*)."""
+    value = adjustment["value"]
+    if adjustment["kind"] == ATTR_FACTOR:
+        return f"x{value:g}"
+    if adjustment["kind"] == ATTR_OFFSET:
+        return f"{value:+g} W"
+    if adjustment["kind"] == ATTR_POWER:
+        return f"= {value:g} W"
+    dutch = (language or "").startswith("nl")
+    amount = f"{value:g} kWh".replace(".", ",") if dutch else f"{value:g} kWh"
+    if adjustment.get("part"):
+        return (
+            f"{amount}, deel van het verwachte verbruik van die dag"
+            if dutch
+            else f"{amount}, part of that day's expected consumption"
+        )
+    return f"+{amount}" if value >= 0 else amount
+
+
 def _one_change(data: dict[str, Any]) -> dict[str, Any]:
-    changes = [k for k in (ATTR_FACTOR, ATTR_OFFSET, ATTR_POWER) if k in data]
+    changes = [
+        k for k in (ATTR_FACTOR, ATTR_OFFSET, ATTR_POWER, ATTR_ENERGY) if k in data
+    ]
     if len(changes) != 1:
-        raise vol.Invalid("give exactly one of factor, offset_w or power_w")
+        raise vol.Invalid("give exactly one of factor, offset_w, power_w or energy_kwh")
+    if data.get(ATTR_PART) and ATTR_ENERGY not in data:
+        raise vol.Invalid("part_of_forecast only goes with energy_kwh")
     if (ATTR_END in data) == (ATTR_DURATION in data):
         raise vol.Invalid("give either end or duration")
     return data
@@ -110,6 +136,10 @@ ADJUST_SCHEMA = vol.All(
             vol.Optional(ATTR_POWER): vol.All(
                 vol.Coerce(float), vol.Range(min=0, max=50000)
             ),
+            vol.Optional(ATTR_ENERGY): vol.All(
+                vol.Coerce(float), vol.Range(min=-500, max=500)
+            ),
+            vol.Optional(ATTR_PART, default=False): cv.boolean,
         }
     ),
     _one_change,
@@ -200,16 +230,21 @@ def async_setup_services(hass: HomeAssistant) -> None:
             raise ServiceValidationError(
                 translation_domain=DOMAIN, translation_key="end_before_start"
             )
-        kind = next(k for k in (ATTR_FACTOR, ATTR_OFFSET, ATTR_POWER) if k in call.data)
+        kind = next(
+            k
+            for k in (ATTR_FACTOR, ATTR_OFFSET, ATTR_POWER, ATTR_ENERGY)
+            if k in call.data
+        )
         forecast = entry.runtime_data.forecast
         adjustment = await forecast.adjustments.async_add(
-            call.data.get(ATTR_NAME), start, end, kind, call.data[kind]
+            call.data.get(ATTR_NAME),
+            start,
+            end,
+            kind,
+            call.data[kind],
+            bool(call.data.get(ATTR_PART)),
         )
-        change = {
-            ATTR_FACTOR: f"x{adjustment['value']:g}",
-            ATTR_OFFSET: f"{adjustment['value']:+g} W",
-            ATTR_POWER: f"= {adjustment['value']:g} W",
-        }[kind]
+        change = describe_change(adjustment, hass.config.language)
         entry.runtime_data.decisions.async_log(
             "forecast",
             "forecast_adjusted",

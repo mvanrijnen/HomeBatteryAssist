@@ -16,6 +16,13 @@ Het huisverbruik per tijdvak wordt voorspeld door een **verbruiksvoorspeller**-[
 
 Alle voorspellers draaien elke ronde; het tabblad *Nauwkeurigheid* vergelijkt ze, zodat je de voorspeller kunt kiezen die bij je huis past. Van verbruik tijdens een **vakantie** (instelling) wordt niet geleerd. Je kunt de voorspelling voor een periode **aanpassen** (bijv. een feestje) met de actie `adjust_forecast`.
 
+**Verwacht extra verbruik** (dashboard, tabblad *Voorspelling*; ook de actie `adjust_forecast` met `energy_kwh`): vertel de voorspelling per dag over verbruik dat hij niet uit de geschiedenis kan weten: een hoeveelheid energie (kWh), optioneel binnen een tijdvenster (zonder venster: verdeeld over de hele dag; een venster dat eindigt vóór het begint loopt over middernacht). Kies:
+
+- **Extra**: bovenop het geleerde verbruik (bijv. gasten, een eenmalige klus, iets groots opladen).
+- **Deel van het verwachte verbruik**: het geleerde verbruik van die dag bevat het al, het valt alleen op dat moment (bijv. de wasmachine die elke dag wel eens draait, morgen om 13:00–15:00). Dezelfde energie gaat af van de rest van die dag, naar verhouding van het verwachte verbruik, zodat het dagtotaal gelijk blijft. Dit vraagt een tijdvenster.
+
+Het venster voegt ze toe, wijzigt en verwijdert ze; aanpassingen via de actie staan er ook in en kunnen er worden verwijderd. *Waarom* meldt elke wijziging.
+
 ### Buitentemperatuur (optioneel) {#outdoor-temperature-optional}
 
 Een profiel volgt een plotselinge koudegolf pas na dagen. Huizen die elektrisch verwarmen of koelen (warmtepomp, elektrische verwarming, airco) kunnen de voorspelling de **weersverwachting** laten volgen:
@@ -48,7 +55,7 @@ Alles is optioneel: zonder weerbron verandert er niets.
 
 Uit een prijsbron naar keuze (*prijs-[drivers](drivers.md)*): [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (getest; Nederlandse dynamische tarieven met een prijsvoorspelling voor de komende dagen), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, of elke sensor met prijzen in zijn attributen; optioneel daarna een extra, langere voorspelling. Geschatte (voorspelde) prijzen zijn als zodanig gemarkeerd. Prijzen worden vanuit de eenheid van de bron omgerekend naar een prijs per kWh in de hoofdmunt (ct/kWh, EUR/MWh, öre/kWh, ...); een bron zonder bekende eenheid geldt als per kWh. Centen zonder eigen munt (c, ct, cent) zijn honderdsten van de valuta van Home Assistant, en bedragen in meldingen en het paneel gebruiken die valuta.
 
-Publiceert een bron prijzen die het plan alleen als schatting had, en wijkt een gepubliceerde prijs minstens 0,08 per kWh af van de schatting waar het plan mee rekende, dan meldt *Waarom* dat één keer: hoeveel tijdvakken, het grootste verschil (geschat en gepubliceerd) en dat het plan nu met de gepubliceerde prijzen rekent. Zo'n moment verklaart een plotselinge wijziging van het plan (in Nederland bijvoorbeeld rond 13:00 voor de volgende dag).
+Publiceert een bron prijzen die het plan alleen als schatting had, en wijkt een gepubliceerde prijs minstens 0,08 per kWh én een kwart van de prijs af van de schatting waar het plan mee rekende, dan meldt *Waarom* dat één keer: hoeveel tijdvakken, het grootste verschil (geschat en gepubliceerd) en dat het plan nu met de gepubliceerde prijzen rekent. Zo'n moment verklaart een plotselinge wijziging van het plan (in Nederland bijvoorbeeld rond 13:00 voor de volgende dag).
 
 ### Terugleverprijs en geen salderen {#export-price-and-no-net-metering}
 

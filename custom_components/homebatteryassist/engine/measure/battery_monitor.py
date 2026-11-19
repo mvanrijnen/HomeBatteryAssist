@@ -557,6 +557,9 @@ class BatteryInput:
                 # A day start from before the value per day: today counts
                 # from now.
                 days[-1]["value"] = round(stats.get("value", 0.0), 5)
+            if days and "value_kwh" not in days[-1]:
+                # The same for the energy behind the value (its wear today).
+                days[-1]["value_kwh"] = round(stats.get("value_kwh", 0.0), 4)
         await self._async_start_meters()
         entity_ids = [
             e

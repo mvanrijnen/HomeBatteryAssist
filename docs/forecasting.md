@@ -16,6 +16,13 @@ The house consumption per slot is predicted by a **consumption forecaster** [mod
 
 All forecasters run every cycle; the *Accuracy* tab compares them, so you can choose the one that fits your house. Consumption during a **vacation** (setting) is not learned from. You can **adjust** the forecast for a period (e.g. a party) with the action `adjust_forecast`.
 
+**Expected extra consumption** (dashboard, tab *Forecast*; also the action `adjust_forecast` with `energy_kwh`): tell the forecast about consumption it cannot know from the history, per day: an amount of energy (kWh), optionally within a time window (without one: spread over the whole day; a window that ends before it starts runs past midnight). Choose:
+
+- **Extra**: on top of the learned consumption (e.g. guests, a one-off job, charging something big).
+- **Part of the expected consumption**: the learned consumption of that day already holds it, it only happens at that time (e.g. the washing machine that runs some time every day, tomorrow at 13:00–15:00). The same energy is taken from the rest of that day, in proportion to its expected consumption, so the day's total stays the same. This needs a time window.
+
+The dialog adds, changes and removes them; adjustments from the action are listed and can be removed there. *Why* tells each change.
+
 ### Outdoor temperature (optional)
 
 A profile follows a sudden cold spell only after days. Houses that heat or cool with electricity (heat pump, electric heating, airco) can let the forecast follow the **weather forecast**:
@@ -48,7 +55,7 @@ Everything is optional: without a weather source nothing changes.
 
 From a price source of your choice (*price [drivers](drivers.md)*): [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (tested; Dutch dynamic tariffs with a price forecast for the coming days), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, or any sensor with prices in its attributes; optionally an extra, longer forecast after it. Estimated (forecast) prices are marked as such. Prices are converted to a price per kWh in the main currency from the source's unit (ct/kWh, EUR/MWh, öre/kWh, ...); a source without a known unit is taken as per kWh. Cents without a currency of their own (c, ct, cent) are hundredths of Home Assistant's currency, and amounts in messages and the panel use that currency.
 
-When a source publishes prices that the plan only had as estimates, and a published price differs at least 0.08 per kWh from the estimate the plan used, *Why* says so once: how many periods, the largest difference (estimated and published) and that the plan now uses the published prices. Such a moment explains a sudden change of the plan (e.g. around 13:00 for the next day in the Netherlands).
+When a source publishes prices that the plan only had as estimates, and a published price differs at least 0.08 per kWh and a quarter of the price from the estimate the plan used, *Why* says so once: how many periods, the largest difference (estimated and published) and that the plan now uses the published prices. Such a moment explains a sudden change of the plan (e.g. around 13:00 for the next day in the Netherlands).
 
 ### Export price and no net metering
 

@@ -405,7 +405,7 @@ Aan te roepen vanuit automatiseringen en scripts (zie [Werken met andere integra
 
 ### Verbruiksvoorspelling aanpassen {#action-adjust-forecast}
 
-`homebatteryassist.adjust_forecast` — Past het verwachte huisverbruik aan voor een periode, bijvoorbeeld vanuit een script voor vakantie, gasten of een geplande grote verbruiker. Geef een begin (standaard: nu), een einde of duur, en precies één wijziging: een factor, een extra vermogen in W of een vast vermogen in W. Aanpassingen blijven tot hun einde bewaard.
+`homebatteryassist.adjust_forecast` — Past het verwachte huisverbruik aan voor een periode, bijvoorbeeld vanuit een script voor vakantie, gasten of een geplande grote verbruiker. Geef een begin (standaard: nu), een einde of duur, en precies één wijziging: een factor, een extra vermogen in W, een vast vermogen in W of een hoeveelheid energie in kWh (extra, of deel van het verwachte verbruik). Aanpassingen blijven tot hun einde bewaard; het dashboard (tabblad Voorspelling) heeft een venster voor energie per dag.
 
 | Veld | Uitleg |
 |---|---|
@@ -416,6 +416,8 @@ Aan te roepen vanuit automatiseringen en scripts (zie [Werken met andere integra
 | **Factor** | Vermenigvuldig het verwachte verbruik, bijvoorbeeld 0,3 tijdens vakantie of 1,5 met gasten. |
 | **Extra vermogen** | Tel dit vermogen in W erbij op (of met een min eraf), bijvoorbeeld 2000 voor de oven. |
 | **Vast vermogen** | Vervang het verwachte verbruik door dit vermogen in W. |
+| **Energie** | Een hoeveelheid energie in kWh, gelijk verdeeld over de periode, bijv. 1,5 voor de wasmachine (met een min: minder). |
+| **Deel van het verwachte verbruik** | Met Energie: het geleerde verbruik van die dag bevat deze energie al, hij valt alleen in deze periode; dezelfde energie gaat dan af van de rest van die dag. Uit: extra, er bovenop. |
 
 ### Aanpassingen voorspelling verwijderen {#action-clear-forecast-adjustments}
 

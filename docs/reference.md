@@ -405,7 +405,7 @@ Callable from automations and scripts (see [Working with other integrations](int
 
 ### Adjust consumption forecast {#action-adjust-forecast}
 
-`homebatteryassist.adjust_forecast` — Changes the expected house consumption for a period, e.g. from a script for a holiday, guests or a planned large load. Give a start (default: now), an end or duration, and exactly one change: a factor, an offset in W or a fixed power in W. Adjustments are kept until their end.
+`homebatteryassist.adjust_forecast` — Changes the expected house consumption for a period, e.g. from a script for a holiday, guests or a planned large load. Give a start (default: now), an end or duration, and exactly one change: a factor, an offset in W, a fixed power in W or an amount of energy in kWh (extra, or part of the expected consumption). Adjustments are kept until their end; the dashboard (tab Forecast) has a dialog for energy per day.
 
 | Field | Explanation |
 |---|---|
@@ -416,6 +416,8 @@ Callable from automations and scripts (see [Working with other integrations](int
 | **Factor** | Multiply the expected consumption, e.g. 0.3 while on holiday or 1.5 with guests. |
 | **Extra power** | Add (or with a minus subtract) this power in W, e.g. 2000 for the oven. |
 | **Fixed power** | Replace the expected consumption by this power in W. |
+| **Energy** | An amount of energy in kWh spread evenly over the period, e.g. 1.5 for the washing machine (with a minus: less). |
+| **Part of the expected consumption** | With Energy: the learned consumption of that day already holds this energy, it only happens in this period; the same energy is then taken from the rest of that day. Off: extra, on top of it. |
 
 ### Remove forecast adjustments {#action-clear-forecast-adjustments}
 

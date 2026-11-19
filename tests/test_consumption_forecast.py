@@ -258,3 +258,34 @@ async def test_forecast_sensor_and_adjust_actions(
         DOMAIN, "clear_forecast_adjustments", {}, blocking=True
     )
     assert data.forecast.adjustments.items == []
+
+
+def test_energy_extra_and_part_of_the_day() -> None:
+    from custom_components.homebatteryassist.engine.forecast.user_adjustments import (
+        rebalance_parts,
+    )
+
+    day = dt_util.as_utc(
+        datetime.combine(
+            (dt_util.now() + timedelta(days=1)).date(),
+            datetime.min.time(),
+            dt_util.get_default_time_zone(),
+        )
+    )
+    hour = timedelta(hours=1)
+    s, e = day + 13 * hour, day + 15 * hour
+    # 1.5 kWh over two hours: 750 W on top.
+    extra = _adjustment("energy_kwh", 1.5, s, e)
+    assert apply_adjustments(400.0, s, s + hour, [extra])[0] == 1150.0
+    # Part of the day: the same 1.5 kWh comes off the rest of that day.
+    part = {**extra, "part": True}
+    rows = []
+    for h in range(24):
+        start = day + h * hour
+        power, names = apply_adjustments(400.0, start, start + hour, [part])
+        rows.append((start, start + hour, power, names))
+    balanced = rebalance_parts(rows, [part])
+    total = sum(p for _s, _e, p, _n in balanced)  # Wh (hourly rows)
+    assert abs(total - 24 * 400.0) < 1  # the day's energy stays the same
+    assert balanced[13][2] == 1150.0
+    assert abs(balanced[0][2] - 400.0 * (1 - 1500 / (22 * 400))) < 0.1

@@ -202,6 +202,29 @@ const TEXT = {
     vsMode: "{mode} vs {other}",
     modeNames: { nom: "Zero on the meter", arbitrage: "Arbitrage", arbitrage_full: "Full arbitrage", time_slots: "Time slots", manual: "Manual" },
     compareTitle: "Return compared",
+    adjTitle: "Expected extra consumption",
+    adjNote: "Tell the forecast about consumption it cannot know from the history, e.g. 1.5 kWh for the washing machine tomorrow 13:00–15:00. Extra comes on top of the learned consumption; part of the expected consumption moves that much of the day's expected consumption into the time window.",
+    adjNone: "Nothing set.",
+    adjAdd: "Add",
+    adjEdit: "Change",
+    adjDelete: "Remove",
+    adjName: "Name",
+    adjNamePlaceholder: "e.g. washing machine",
+    adjDay: "Day",
+    adjFrom: "From (optional)",
+    adjUntil: "Until (optional)",
+    adjEnergy: "Energy (kWh)",
+    adjExtra: "Extra, on top of the expected consumption",
+    adjPart: "Part of the day's expected consumption (needs a time window)",
+    adjPartShort: "part of the expected",
+    adjExtraShort: "extra",
+    adjWholeDay: "whole day",
+    adjSave: "Save",
+    adjCancel: "Cancel",
+    adjByAction: "via action",
+    adjNeedWindow: "Give a time window (from and until), or choose extra.",
+    adjNeedEnergy: "Give an amount of energy in kWh.",
+    adjFailed: "Saving failed",
     tabs: { overview: "Overview", forecast: "Forecast", value: "Return", batteries: "Batteries", check: "Accuracy" },
     compareShow: "Return overview ▾",
     compareHide: "Hide overview ▴",
@@ -462,6 +485,29 @@ const TEXT = {
     vsMode: "{mode} t.o.v. {other}",
     modeNames: { nom: "Nul op de meter", arbitrage: "Arbitrage", arbitrage_full: "Arbitrage volledig", time_slots: "Tijdvakken", manual: "Handmatig" },
     compareTitle: "Rendement vergeleken",
+    adjTitle: "Verwacht extra verbruik",
+    adjNote: "Vertel de voorspelling over verbruik dat hij niet uit de geschiedenis kan weten, bijv. 1,5 kWh voor de wasmachine morgen 13:00–15:00. Extra komt bovenop het geleerde verbruik; deel van het verwachte verbruik verschuift zoveel van het verwachte verbruik van die dag naar het tijdvenster.",
+    adjNone: "Niets ingesteld.",
+    adjAdd: "Toevoegen",
+    adjEdit: "Wijzigen",
+    adjDelete: "Verwijderen",
+    adjName: "Naam",
+    adjNamePlaceholder: "bijv. wasmachine",
+    adjDay: "Dag",
+    adjFrom: "Van (optioneel)",
+    adjUntil: "Tot (optioneel)",
+    adjEnergy: "Energie (kWh)",
+    adjExtra: "Extra, bovenop het verwachte verbruik",
+    adjPart: "Deel van het verwachte verbruik van die dag (vraagt een tijdvenster)",
+    adjPartShort: "deel van het verwachte",
+    adjExtraShort: "extra",
+    adjWholeDay: "hele dag",
+    adjSave: "Opslaan",
+    adjCancel: "Annuleren",
+    adjByAction: "via actie",
+    adjNeedWindow: "Geef een tijdvenster (van en tot), of kies extra.",
+    adjNeedEnergy: "Geef een hoeveelheid energie in kWh.",
+    adjFailed: "Opslaan mislukt",
     tabs: { overview: "Overzicht", forecast: "Voorspelling", value: "Rendement", batteries: "Batterijen", check: "Nauwkeurigheid" },
     compareShow: "Rendement overzicht ▾",
     compareHide: "Overzicht verbergen ▴",
@@ -635,6 +681,24 @@ const STYLE = `
   ul.decisions li > div > div + div { margin-top: 2px; }
   ul.decisions .lead { font-weight: 500; }
   .muted { color: var(--secondary-text-color); }
+  .adj-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 8px 0; border-top: 1px solid var(--divider-color); }
+  .adj-row .what { flex: 1 1 200px; }
+  .adj-row button, .adj-actions button, .card .adj-add { font: inherit; font-size: 14px; cursor: pointer; border-radius: 8px;
+    padding: 6px 12px; border: 1px solid var(--divider-color); background: none; color: var(--primary-color); }
+  .adj-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: flex; align-items: center;
+    justify-content: center; z-index: 10; padding: 16px; box-sizing: border-box; }
+  .adj-dialog { background: var(--card-background-color); color: var(--primary-text-color); border-radius: 12px;
+    padding: 20px; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; }
+  .adj-dialog label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--secondary-text-color); }
+  .adj-dialog label.choice { flex-direction: row; align-items: center; gap: 8px; color: var(--primary-text-color); }
+  .adj-dialog input[type="text"], .adj-dialog input[type="date"], .adj-dialog input[type="time"], .adj-dialog input[type="number"] {
+    font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--divider-color);
+    background: var(--primary-background-color); color: var(--primary-text-color); }
+  .adj-dialog .times { display: flex; gap: 12px; }
+  .adj-dialog .times label { flex: 1; }
+  .adj-dialog .error { color: var(--error-color, #db4437); font-size: 14px; }
+  .adj-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .adj-actions button.primary { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: var(--primary-color); }
   .small { font-size: 0.85em; margin-top: 4px; }
   .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
   .chart h3 { margin: 0 0 6px; font-size: 14px; font-weight: 500; }
@@ -2318,8 +2382,124 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return `<div class="card"><h2>${esc(t.decisions)}</h2>${items}</div>`;
   }
 
+  // Expected extra consumption: energy per day, extra or part of the
+  // expected consumption, optionally in a time window (dialog below).
+  _adjustments(s, t) {
+    const lang = this._hass.locale?.language || this._hass.language;
+    const rows = s.adjustments || [];
+    const dayText = (iso) =>
+      new Date(`${iso}T12:00:00`).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" });
+    const num = (v) => Number(v).toLocaleString(lang, { maximumFractionDigits: 2 });
+    const list = rows.length
+      ? rows
+          .map((r) => {
+            const when = r.from ? `${r.from}–${r.until}` : t.adjWholeDay;
+            let what;
+            if (r.kind === "energy_kwh") what = `${num(r.value)} kWh · ${r.part ? t.adjPartShort : t.adjExtraShort}`;
+            else if (r.kind === "factor") what = `× ${num(r.value)} · ${t.adjByAction}`;
+            else if (r.kind === "offset_w") what = `${r.value >= 0 ? "+" : ""}${num(r.value)} W · ${t.adjByAction}`;
+            else what = `= ${num(r.value)} W · ${t.adjByAction}`;
+            const edit = r.kind === "energy_kwh" ? `<button data-adj-edit="${esc(r.id)}">${esc(t.adjEdit)}</button>` : "";
+            return `<div class="adj-row"><span class="what"><b>${esc(dayText(r.date))} ${esc(when)}</b> · ${esc(r.name)}<br><span class="muted">${esc(what)}</span></span>
+              ${edit}<button data-adj-del="${esc(r.id)}">${esc(t.adjDelete)}</button></div>`;
+          })
+          .join("")
+      : `<div class="muted">${esc(t.adjNone)}</div>`;
+    return `<div class="card"><div class="head"><h2>${esc(t.adjTitle)}</h2><button class="adj-add" data-adj-add>${esc(t.adjAdd)}</button></div>
+      <div class="muted" style="margin-bottom:8px">${esc(t.adjNote)}</div>${list}</div>`;
+  }
+
+  _openAdjustment(row) {
+    const t = this._t;
+    const pad = (n) => String(n).padStart(2, "0");
+    const local = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    const today = new Date();
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const r = row || { name: "", date: local(tomorrow), from: null, until: null, value: "", part: false };
+    this._dialogOpen = true;
+    const overlay = document.createElement("div");
+    overlay.className = "adj-overlay";
+    overlay.innerHTML = `<div class="adj-dialog" role="dialog" aria-modal="true">
+        <h2>${esc(t.adjTitle)}</h2>
+        <label>${esc(t.adjName)}<input type="text" name="name" maxlength="40" placeholder="${esc(t.adjNamePlaceholder)}" value="${esc(r.name || "")}"></label>
+        <label>${esc(t.adjDay)}<input type="date" name="date" min="${local(today)}" value="${esc(r.date)}"></label>
+        <div class="times">
+          <label>${esc(t.adjFrom)}<input type="time" name="from" value="${esc(r.from || "")}"></label>
+          <label>${esc(t.adjUntil)}<input type="time" name="until" value="${esc(r.until || "")}"></label>
+        </div>
+        <label>${esc(t.adjEnergy)}<input type="number" name="energy" step="0.1" min="-500" max="500" value="${esc(r.value ?? "")}"></label>
+        <label class="choice"><input type="radio" name="kind" value="extra" ${r.part ? "" : "checked"}>${esc(t.adjExtra)}</label>
+        <label class="choice"><input type="radio" name="kind" value="part" ${r.part ? "checked" : ""}>${esc(t.adjPart)}</label>
+        <div class="error"></div>
+        <div class="adj-actions"><button data-act="cancel">${esc(t.adjCancel)}</button><button class="primary" data-act="save">${esc(t.adjSave)}</button></div>
+      </div>`;
+    this.shadowRoot.appendChild(overlay);
+    const field = (name) => overlay.querySelector(`[name="${name}"]`);
+    const error = overlay.querySelector(".error");
+    const close = () => {
+      overlay.remove();
+      this._dialogOpen = false;
+      this._render();
+    };
+    overlay.addEventListener("click", (ev) => {
+      if (ev.target === overlay) close();
+    });
+    overlay.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") close();
+    });
+    overlay.querySelector('[data-act="cancel"]').addEventListener("click", close);
+    overlay.querySelector('[data-act="save"]').addEventListener("click", async () => {
+      const from = field("from").value || null;
+      const until = field("until").value || null;
+      const energy = parseFloat(String(field("energy").value).replace(",", "."));
+      const part = overlay.querySelector('[name="kind"]:checked')?.value === "part";
+      if (Number.isNaN(energy) || energy === 0) {
+        error.textContent = t.adjNeedEnergy;
+        return;
+      }
+      if (part && !(from && until)) {
+        error.textContent = t.adjNeedWindow;
+        return;
+      }
+      const msg = {
+        type: "homebatteryassist/adjustment_save",
+        name: field("name").value,
+        date: field("date").value,
+        from: from && until ? from : null,
+        until: from && until ? until : null,
+        energy_kwh: energy,
+        part,
+      };
+      if (row?.id) msg.adjustment_id = row.id;
+      try {
+        const result = await this._hass.callWS(msg);
+        if (this._status) this._status.adjustments = result.adjustments;
+        close();
+        this._historyAt = 0;
+        this._load();
+      } catch (err) {
+        error.textContent = `${t.adjFailed}: ${err?.message || err}`;
+      }
+    });
+    field("energy").focus();
+  }
+
+  async _deleteAdjustment(id) {
+    try {
+      const result = await this._hass.callWS({ type: "homebatteryassist/adjustment_delete", adjustment_id: id });
+      if (this._status) this._status.adjustments = result.adjustments;
+      this._historyAt = 0;
+      this._load();
+    } catch (err) {
+      this._error = err?.message || String(err);
+    }
+    this._render();
+  }
+
   _render() {
     if (!this._hass) return;
+    // A dialog is open: keep its fields (render again when it closes).
+    if (this._dialogOpen) return;
     const t = this._t;
     let body;
     if (this._error === "not_loaded") body = `<div class="card">${esc(t.notLoaded)}</div>`;
@@ -2329,7 +2509,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const s = this._status;
       const tabs = {
         overview: () => [this._planner(s, t), this._flows(s, t), this._flowDiagram(s, t), this._phases(s, t), this._decisions(s, t)],
-        forecast: () => [this._consumption(t), this._planning(s, t), this._decisions(s, t)],
+        forecast: () => [this._consumption(t), this._adjustments(s, t), this._planning(s, t), this._decisions(s, t)],
         value: () => [this._compare(s, t), this._planCheck(s, t)],
         batteries: () => [this._batteries(s, t)],
         check: () => [this._accuracy(t)],
@@ -2365,6 +2545,15 @@ class HomeBatteryAssistPanel extends HTMLElement {
         this._render();
       }),
     );
+    this.shadowRoot.querySelector("button[data-adj-add]")?.addEventListener("click", () => this._openAdjustment(null));
+    this.shadowRoot.querySelectorAll("button[data-adj-edit]").forEach((button) =>
+      button.addEventListener("click", () =>
+        this._openAdjustment((this._status?.adjustments || []).find((r) => r.id === button.dataset.adjEdit)),
+      ),
+    );
+    this.shadowRoot
+      .querySelectorAll("button[data-adj-del]")
+      .forEach((button) => button.addEventListener("click", () => this._deleteAdjustment(button.dataset.adjDel)));
     this.shadowRoot.querySelector('button[data-toggle="compare"]')?.addEventListener("click", () => {
       this._showCompare = !this._showCompare;
       this._render();
