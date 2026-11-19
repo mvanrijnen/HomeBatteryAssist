@@ -523,3 +523,32 @@ def test_share_sequential_and_forced_first() -> None:
     power, new = _share([a, b], [4000.0, 1000.0], 1500.0, 1.0, {"a": 1000.0})
     assert new[0] == 5000.0  # a's full charge first (1000 W), b the rest
     assert new[1] == 1500.0
+
+
+def test_share_reserves_per_battery() -> None:
+    """Discharging: each battery keeps its own night reserve; below its own
+    peak reserve only for what the pack still asks."""
+    from custom_components.homebatteryassist.engine.planning.battery_plan import _share
+    from custom_components.homebatteryassist.engine.planning.planners.base import (
+        PackMember,
+    )
+
+    # Night reserve 1500 Wh each; a has 4000, b 1600.
+    a = PackMember(5000, 4000, 500, 5000, 1.0, 2000, 2000, "a", 1500, 0)
+    b = PackMember(5000, 1600, 500, 5000, 1.0, 2000, 2000, "b", 1500, 0)
+    power, new = _share([a, b], [4000.0, 1600.0], -2000.0, 1.0, night=True)
+    assert power == -2000.0
+    assert new[1] >= 1500.0  # b keeps its own night reserve
+    assert sum(new) == pytest.approx(5600.0 - 2000.0)
+    # By day the same request may go down to the minimum.
+    power, new = _share([a, b], [4000.0, 1600.0], -3000.0, 1.0)
+    assert power == -3000.0
+    # Peak reserve 3000 Wh each: first above it, below only when asked more.
+    a = PackMember(5000, 4000, 500, 5000, 1.0, 2000, 2000, "a", 0, 3000)
+    b = PackMember(5000, 3500, 500, 5000, 1.0, 2000, 2000, "b", 0, 3000)
+    power, new = _share([a, b], [4000.0, 3500.0], -1500.0, 1.0, peak=True)
+    assert power == -1500.0
+    assert new == [3000.0, 3000.0]
+    power, new = _share([a, b], [4000.0, 3500.0], -2000.0, 1.0, peak=True)
+    assert power == -2000.0
+    assert min(new) < 3000.0

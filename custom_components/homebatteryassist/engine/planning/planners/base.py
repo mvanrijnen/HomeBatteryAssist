@@ -58,6 +58,10 @@ class PackMember:
     max_charge_w: float
     max_discharge_w: float
     id: str = ""  # battery id (forced full charge power goes to it first)
+    # This battery's own share of the reserves (Wh; 0 = off): each battery
+    # keeps its night / peak reserve, not one battery for all of them.
+    night_floor_wh: float = 0.0
+    peak_floor_wh: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)

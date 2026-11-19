@@ -175,16 +175,19 @@ def _pack(
     if rules.max_discharge_w > 0:
         max_discharge = min(max_discharge, rules.max_discharge_w)
 
-    def at(soc: float) -> float:
-        """Wh over all batteries at ``soc`` (each within its own min/max)."""
+    def one(s: BatteryState, soc: float) -> float:
+        """Wh of one battery at ``soc`` (within its own min/max)."""
         if soc <= 0:
             return 0.0
-        return sum(
+        return (
             min(max(s.config.min_soc, rules.reserve_soc, soc), s.config.max_soc)
             * s.config.capacity_kwh
             * 10
-            for s in usable
         )
+
+    def at(soc: float) -> float:
+        """Wh over all batteries at ``soc`` (each within its own min/max)."""
+        return sum(one(s, soc) for s in usable)
 
     return _Pack(
         capacity=capacity,
@@ -217,6 +220,8 @@ def _pack(
                 s.config.max_charge_w * getattr(s, "charge_factor", 1.0),
                 s.config.max_discharge_w * getattr(s, "discharge_factor", 1.0),
                 getattr(s.config, "id", ""),
+                one(s, rules.night_reserve_soc),
+                one(s, rules.peak_reserve_soc),
             )
             for s in usable
         )
@@ -514,6 +519,8 @@ def finalise(
                 hours,
                 data.forced_by.get(slot.start),
                 sequential=rules.charge_sequential,
+                night=slot.reserve_wh > 0,
+                peak=data.peak_w > 0,
             )
             stored = sum(member_wh)
         else:
@@ -564,6 +571,8 @@ def _share(
     first: Mapping[str, float] | None = None,
     *,
     sequential: bool = False,
+    night: bool = False,
+    peak: bool = False,
 ) -> tuple[float, list[float]]:
     """Split a pack power over the batteries, each at most what it can (power,
     and the room up to its maximum / the energy above its minimum), in
@@ -572,17 +581,32 @@ def _share(
     own battery first, at its own power (not spread thin over all of them:
     a battery charges less efficiently at low power); the rest as above.
     ``sequential``: charging goes to the emptiest battery first, up to what it
-    can take, then the next (not in proportion)."""
+    can take, then the next (not in proportion).
+    Discharging: each battery keeps its own night reserve (``night``) and
+    first its own peak reserve (``peak``); below that only for what the
+    pack power (already limited to the import above the peak) still asks."""
     if power > 0:
         caps = [
             min(m.max_charge_w, max(m.ceiling_wh - wh, 0.0) / (hours * m.efficiency))
             for m, wh in zip(members, stored, strict=True)
         ]
     elif power < 0:
-        caps = [
-            min(m.max_discharge_w, max(wh - m.floor_wh, 0.0) * m.efficiency / hours)
-            for m, wh in zip(members, stored, strict=True)
+        lows = [max(m.floor_wh, m.night_floor_wh if night else 0.0) for m in members]
+        normal = [
+            max(low, m.peak_floor_wh if peak else 0.0)
+            for m, low in zip(members, lows, strict=True)
         ]
+        caps = [
+            min(m.max_discharge_w, max(wh - n, 0.0) * m.efficiency / hours)
+            for m, wh, n in zip(members, stored, normal, strict=True)
+        ]
+        if sum(caps) < -power:
+            # Below the peak reserve (only import above the peak): each
+            # battery down to its night reserve / floor, by what it has.
+            caps = [
+                min(m.max_discharge_w, max(wh - low, 0.0) * m.efficiency / hours)
+                for m, wh, low in zip(members, stored, lows, strict=True)
+            ]
     else:
         return 0.0, stored
     given = [0.0] * len(members)
