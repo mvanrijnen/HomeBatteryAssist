@@ -1,3 +1,7 @@
+---
+description: "Apparaten in HomeBatteryAssist: thuisbatterijen via hun eigen integratie (Marstek Venus, Victron) en rechtstreeks gelezen meters (HomeWizard P1, SMA, Shelly, IAMMETER)."
+---
+
 # Drivers: een apparaat aansluiten {#drivers-connecting-a-device}
 
 **Drivers** verbinden HomeBatteryAssist met fysieke *apparaten*: batterijen en meters (laag 1, `engine/devices/`, zie [Architectuur](architecture.md)). Al het andere dat je kunt verwisselen — planners, verbruiksvoorspellers, prijsbronnen, tarieven, bronnen voor PV-voorspellingen — is een [module](modules.md).

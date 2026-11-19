@@ -1,3 +1,7 @@
+---
+description: "Installeer HomeBatteryAssist met HACS en stel stap voor stap je slimme meter, thuisbatterijen, zonnepanelen en dynamische energieprijzen in Home Assistant in."
+---
+
 # Aan de slag
 
 Deze pagina neemt je **stap voor stap** mee door de installatie en het instellen. Reken op ongeveer een kwartier. Alles is later nog te wijzigen, dus maak je niet druk als niet elke instelling meteen goed staat.

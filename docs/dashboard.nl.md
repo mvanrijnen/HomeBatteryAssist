@@ -1,3 +1,7 @@
+---
+description: "Het HomeBatteryAssist-dashboard in Home Assistant: energiestromen, batterijplan, voorspellingen en hun nauwkeurigheid, in gewone taal uitgelegd."
+---
+
 # Dashboard {#dashboard}
 
 Een dashboard in de zijbalk (*HomeBatteryAssist*), in tabs. De gekozen tab wordt per browser onthouden. De titelbalk toont de geïnstalleerde versie.

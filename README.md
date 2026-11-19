@@ -9,6 +9,8 @@ A Home Assistant custom integration that gives insight into your home batteries 
 >
 > **In this phase of development** HomeBatteryAssist does not control any physical battery (or any other device): it reads, forecasts and advises. Only *virtual* batteries follow its plans, as a simulation. Controlling batteries itself is the goal; the control layer and a [test control](docs/measuring.md#test-control-switched-off-for-now) per battery are already built, but not active.
 
+🇳🇱 **Nederlands**: HomeBatteryAssist helpt je je thuisbatterij slim in te zetten in Home Assistant: nul op de meter, arbitrage met een dynamisch energiecontract, voorbereid op het einde van salderen in 2027. De documentatie is ook in het Nederlands.
+
 📖 **Documentation (English / Nederlands): https://mvanrijnen.github.io/HomeBatteryAssist/** — with a [step-by-step guide](https://mvanrijnen.github.io/HomeBatteryAssist/getting-started.html).
 
 HomeBatteryAssist measures, forecasts and plans your home batteries, and is built to control them. **For now it only reads, forecasts and advises**, so it runs next to the integration that controls your battery (e.g. Omnibattery) without interfering. It uses the price and PV forecasts you already have, and checks every forecast afterwards against what really happened.

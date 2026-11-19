@@ -1,3 +1,7 @@
+---
+description: "Devices in HomeBatteryAssist: home batteries through their own integration (Marstek Venus, Victron) and grid meters read directly (HomeWizard P1, SMA, Shelly, IAMMETER)."
+---
+
 # Drivers: connecting a device
 
 **Drivers** connect HomeBatteryAssist to physical *devices*: batteries and meters (layer 1, `engine/devices/`, see [Architecture](architecture.md)). Everything else that can be swapped — planners, consumption forecasters, price sources, tariffs, PV forecast sources — is a [module](modules.md).

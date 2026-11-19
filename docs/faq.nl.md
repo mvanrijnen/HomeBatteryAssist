@@ -1,3 +1,7 @@
+---
+description: "Veelgestelde vragen over HomeBatteryAssist, de Home Assistant-integratie voor thuisbatterijen, dynamische prijzen en nul op de meter."
+---
+
 # Veelgestelde vragen
 
 ## Over HomeBatteryAssist {#about}

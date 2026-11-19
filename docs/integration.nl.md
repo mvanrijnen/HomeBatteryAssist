@@ -1,3 +1,7 @@
+---
+description: "HomeBatteryAssist naast Omnibattery, Marstek, Victron en integraties voor prijzen en zonnevoorspellingen in Home Assistant."
+---
+
 # Samenwerken met andere integraties {#working-with-other-integrations}
 
 In deze fase van de ontwikkeling stuurt HomeBatteryAssist niets aan, dus het kan naast elke batterij- of energie-integratie draaien (bijvoorbeeld Omnibattery) zonder die in de weg te zitten.

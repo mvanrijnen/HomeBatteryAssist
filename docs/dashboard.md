@@ -1,3 +1,7 @@
+---
+description: "The HomeBatteryAssist dashboard in Home Assistant: energy flow, battery plan, forecasts and their accuracy, explained in plain language."
+---
+
 # Dashboard
 
 A dashboard in the sidebar (*HomeBatteryAssist*), in tabs. The chosen tab is remembered per browser. The title bar shows the installed version.

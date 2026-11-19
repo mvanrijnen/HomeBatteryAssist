@@ -1,3 +1,7 @@
+---
+description: "HomeBatteryAssist next to Omnibattery, Marstek, Victron and price or solar forecast integrations in Home Assistant."
+---
+
 # Working with other integrations
 
 In this phase of development HomeBatteryAssist controls nothing, so it can run next to any battery or energy integration (e.g. Omnibattery) without interfering.

@@ -1,3 +1,7 @@
+---
+description: "Battery plans in Home Assistant: zero on the meter (NOM), arbitrage with dynamic prices, phase protection, peak shaving, reserves and periodic full charges."
+---
+
 # Planning (advice)
 
 HomeBatteryAssist plans what the batteries could best do over the [planning window](forecasting.md#planning-window). **For now it is advice**: in this phase of development no physical battery is controlled; virtual batteries follow the plan, as a simulation. The plan is designed to become battery commands 1:1.

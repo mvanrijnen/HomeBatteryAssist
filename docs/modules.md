@@ -1,3 +1,7 @@
+---
+description: "Make HomeBatteryAssist your own: planners, consumption forecasters, tariffs, PV corrections and spike filters as modules."
+---
+
 # Modules: make HomeBatteryAssist your own
 
 The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [drivers](drivers.md); see [Architecture](architecture.md)). You choose between the built-in ones, and advanced users can add their own without changing the integration. Eight kinds can be added as own modules today:

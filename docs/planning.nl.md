@@ -1,3 +1,7 @@
+---
+description: "Batterijplannen in Home Assistant: nul op de meter (NOM), arbitrage met dynamische prijzen, fasebeveiliging, piekafvlakking, reserves en periodiek volladen."
+---
+
 # Planning (advies) {#planning-advice}
 
 HomeBatteryAssist plant wat de batterijen het beste kunnen doen binnen het [planningsvenster](forecasting.md#planning-window). **Voorlopig is dat advies**: in deze fase van de ontwikkeling wordt geen echte batterij aangestuurd; virtuele batterijen volgen het plan, als simulatie. Het plan is zo opgezet dat het 1-op-1 batterijopdrachten kan worden.

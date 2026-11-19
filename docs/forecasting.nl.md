@@ -1,3 +1,7 @@
+---
+description: "Voorspellingen van huisverbruik, zonne-energie (Solcast, Forecast.Solar) en dynamische energieprijzen voor thuisbatterijen in Home Assistant, achteraf gecontroleerd en gecorrigeerd."
+---
+
 # Voorspellen {#forecasting}
 
 HomeBatteryAssist voorspelt het verbruik zelf, maar haalt prijzen en zonvoorspellingen uit de integraties die je al hebt — en controleert elke voorspelling achteraf met wat er echt gebeurde.

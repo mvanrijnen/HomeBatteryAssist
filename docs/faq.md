@@ -1,3 +1,7 @@
+---
+description: "Frequently asked questions about HomeBatteryAssist, the Home Assistant integration for home batteries, dynamic prices and zero on the meter."
+---
+
 # FAQ
 
 ## About HomeBatteryAssist {#about}

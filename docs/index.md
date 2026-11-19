@@ -1,3 +1,7 @@
+---
+description: "HomeBatteryAssist: a Home Assistant integration (HACS) for home batteries. Measures, forecasts consumption, solar and prices, plans zero on the meter and arbitrage with dynamic prices."
+---
+
 # HomeBatteryAssist
 
 **Insight, forecasts and plans for your home batteries — in Home Assistant, explained in plain language.**

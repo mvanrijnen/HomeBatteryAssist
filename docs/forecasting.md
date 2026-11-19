@@ -1,3 +1,7 @@
+---
+description: "House consumption, solar (Solcast, Forecast.Solar) and dynamic energy price forecasts for home batteries in Home Assistant, checked afterwards and corrected."
+---
+
 # Forecasting
 
 HomeBatteryAssist forecasts consumption itself, but takes prices and PV forecasts from the integrations you already have — and checks every forecast afterwards against what really happened.

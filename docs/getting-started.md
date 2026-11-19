@@ -1,3 +1,7 @@
+---
+description: "Install HomeBatteryAssist with HACS and set up your grid meter, home batteries, solar panels and dynamic energy prices in Home Assistant, step by step."
+---
+
 # Getting started
 
 This page takes you through the installation and setup **step by step**. Count on about 15 minutes. You can change everything later, so do not worry about getting every setting right the first time.

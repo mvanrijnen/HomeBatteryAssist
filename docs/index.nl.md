@@ -1,3 +1,7 @@
+---
+description: "HomeBatteryAssist: een Home Assistant-integratie (HACS) voor thuisbatterijen. Meet, voorspelt verbruik, zonne-energie en prijzen, plant nul op de meter en arbitrage met dynamische prijzen."
+---
+
 # HomeBatteryAssist
 
 **Inzicht, voorspellingen en plannen voor je thuisbatterijen — in Home Assistant, uitgelegd in gewone taal.**

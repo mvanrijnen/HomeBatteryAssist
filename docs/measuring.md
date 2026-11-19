@@ -1,3 +1,7 @@
+---
+description: "How HomeBatteryAssist measures the grid per phase (HomeWizard P1, SMA Home Manager, Shelly), home batteries (Marstek, Victron), solar and house consumption in Home Assistant."
+---
+
 # Measuring
 
 ## Grid connection and meter

@@ -1,3 +1,7 @@
+---
+description: "Maak HomeBatteryAssist van jezelf: planners, verbruiksvoorspellers, tarieven, PV-correcties en piekfilters als modules."
+---
+
 # Modules: maak HomeBatteryAssist van jezelf {#modules-make-homebatteryassist-your-own}
 
 De verwisselbare onderdelen van de lagen van HomeBatteryAssist zijn *modules* (apparaten zijn [drivers](drivers.md); zie [Architectuur](architecture.md)). Je kiest uit de ingebouwde modules, en gevorderde gebruikers kunnen hun eigen modules toevoegen zonder de integratie aan te passen. Er zijn nu acht soorten waarvan je eigen modules kunt toevoegen:

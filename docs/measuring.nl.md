@@ -1,3 +1,7 @@
+---
+description: "Hoe HomeBatteryAssist het net per fase meet (HomeWizard P1, SMA Home Manager, Shelly), thuisbatterijen (Marstek, Victron), zonnepanelen en het huisverbruik in Home Assistant."
+---
+
 # Meten {#measuring}
 
 ## Netaansluiting en meter {#grid-connection-and-meter}
