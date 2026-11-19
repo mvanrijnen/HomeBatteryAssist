@@ -178,5 +178,8 @@ async def test_story_solar_charge_is_used_as_far_as_it_goes(
     text = plan_story(plan, {}, T0, "nl", 0.85, 0.02, False)
     # 1 kWh x 0.85 covers the discharges at 04:00 and 06:00 (local), not 08:00
     # and not the one after the next solar charge (12:00).
-    assert "04:00-05:00" in text and "06:00-07:00" in text
-    assert "08:00-09:00" not in text and "12:00-13:00" not in text
+    use, later = text.split("Daarna nog ")
+    assert "04:00-05:00" in use and "06:00-07:00" in use
+    assert "08:00-09:00" not in use and "12:00-13:00" not in use
+    # The rest of the plan in short.
+    assert later.startswith("1 keer laden (1 met zon) en 2 keer leveren tot 13:00")

@@ -47,6 +47,12 @@ TEXT = {
         "next_grid_small": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use}, als stroom gemiddeld {use_price} kost. Na verlies en slijtage levert dat vrijwel niets op (ongeveer {gain}).",
         "next_pv": "{when} laden we {energy} met zonnestroom, om die te gebruiken {use}.",
         "no_charge": "In de komende {hours} uur is laden niet nodig of levert het niets op.",
+        "later": "Daarna nog {parts} tot {end}{main}.",
+        "later_charge_detail": "{n} keer laden ({detail})",
+        "later_pv": "{n} met zon",
+        "later_grid": "{n} uit het net",
+        "later_discharge": "{n} keer leveren",
+        "later_main": "; het meeste leveren {span} ({energy})",
         "phase_limited": "Daarbij laden we soms langzamer dan kan, zodat de hoofdzekering ({amps} A per fase) niet overbelast raakt.",
         "vs_none_saves": "Tot {end} scheelt dit plan naar verwachting {diff} ten opzichte van geen batterij.",
         "vs_none_costs": "Tot {end} kost dit plan naar verwachting {diff} meer dan geen batterij.",
@@ -90,6 +96,12 @@ TEXT = {
         "next_grid_small": "{when} we charge {energy} from the grid at {price}, to use it {use}, when power costs {use_price} on average. After losses and wear that brings next to nothing (about {gain}).",
         "next_pv": "{when} we charge {energy} with solar power, to use it {use}.",
         "no_charge": "In the next {hours} hours charging is not needed or brings nothing.",
+        "later": "After that {parts} until {end}{main}.",
+        "later_charge_detail": "{n} more charges ({detail})",
+        "later_pv": "{n} with solar power",
+        "later_grid": "{n} from the grid",
+        "later_discharge": "{n} more discharges",
+        "later_main": "; the largest discharge {span} ({energy})",
         "phase_limited": "At times we charge slower than possible, so the main fuse ({amps} A per phase) is not overloaded.",
         "vs_none_saves": "Until {end} this plan is expected to save {diff} compared with no battery.",
         "vs_none_costs": "Until {end} this plan is expected to cost {diff} more than no battery.",
@@ -522,6 +534,38 @@ def plan_story(
                 )
         if block.limited and max_current:
             sentences.append(t["phase_limited"].format(amps=max_current))
+        # 2b. What else the plan does later, in short (the chart shows it).
+        later_c = [c for c in charges if c.start > block.start]
+        later_d = [d for d in discharges if d.start >= block.end and d not in uses]
+        if later_c or later_d:
+            parts = []
+            if later_c:
+                pv = sum(1 for c in later_c if not c.from_grid)
+                grid = len(later_c) - pv
+                detail = [
+                    t["later_pv"].format(n=pv) if pv else "",
+                    t["later_grid"].format(n=grid) if grid else "",
+                ]
+                parts.append(
+                    t["later_charge_detail"].format(
+                        n=len(later_c), detail=", ".join(x for x in detail if x)
+                    )
+                )
+            if later_d:
+                parts.append(t["later_discharge"].format(n=len(later_d)))
+            biggest = max(later_d, key=lambda d: d.energy_wh) if later_d else None
+            sentences.append(
+                t["later"].format(
+                    parts=f" {t['and']} ".join(parts),
+                    end=_at(slots[-1].end, lang, now),
+                    main=t["later_main"].format(
+                        span=f"{t['from']} {span(biggest)}",
+                        energy=_kwh(biggest.energy_wh, lang),
+                    )
+                    if biggest is not None
+                    else "",
+                )
+            )
     else:
         hours = round((slots[-1].end - now).total_seconds() / 3600)
         sentences.append(t["no_charge"].format(hours=hours))
