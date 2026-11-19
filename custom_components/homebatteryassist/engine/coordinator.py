@@ -191,6 +191,7 @@ from .sources.prices.price_points import (
     merge_price_forecasts,
     parse_market_forecast,
     parse_price_forecast,
+    per_kwh,
 )
 from .sources.pv_forecasts import PvForecastSource, async_read_pv_forecasts
 from .sources.pv_forecasts.energy_dashboard_platform import PV_PERIOD
@@ -1142,10 +1143,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         if driver is None:
             return PriceData([])
         try:
-            return await driver.async_read(self.hass, source, role)
+            data = await driver.async_read(self.hass, source, role)
         except Exception:  # an unverified source must not stop the whole cycle
             _LOGGER.exception("Price source %s (%s) failed", key, role)
             return PriceData([])
+        return PriceData(*per_kwh(data.points, data.unit))
 
     async def _async_read_prices(
         self, now: datetime
@@ -1156,8 +1158,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             prices, unit = data.points, data.unit
         elif self.price_entity:
             state = self.hass.states.get(self.price_entity)
-            prices = parse_price_forecast(state)
-            unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None
+            prices, unit = per_kwh(
+                parse_price_forecast(state),
+                state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None,
+            )
         else:
             return [], None
         if self.price_extension != PRICE_EXTENSION_NONE:
@@ -1209,7 +1213,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         return [
             p
             for p in merge_price_forecasts(
-                [parse(self.hass.states.get(e)) for e in self.export_entities]
+                [
+                    per_kwh(
+                        parse(state),
+                        state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
+                        if state
+                        else None,
+                    )[0]
+                    for state in (self.hass.states.get(e) for e in self.export_entities)
+                ]
             )
             if p.end > now
         ]

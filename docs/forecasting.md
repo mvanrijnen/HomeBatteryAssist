@@ -44,7 +44,7 @@ Everything is optional: without a weather source nothing changes.
 
 ## Prices
 
-From a price source of your choice (*price [drivers](drivers.md)*): [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (tested; Dutch dynamic tariffs with a price forecast for the coming days), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, or any sensor with prices in its attributes; optionally an extra, longer forecast after it. Estimated (forecast) prices are marked as such.
+From a price source of your choice (*price [drivers](drivers.md)*): [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (tested; Dutch dynamic tariffs with a price forecast for the coming days), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, or any sensor with prices in its attributes; optionally an extra, longer forecast after it. Estimated (forecast) prices are marked as such. Prices are converted to a price per kWh in the main currency from the source's unit (ct/kWh, EUR/MWh, öre/kWh, ...); a source without a known unit is taken as per kWh.
 
 ### Export price and no net metering
 

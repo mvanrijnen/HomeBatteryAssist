@@ -44,7 +44,7 @@ Alles is optioneel: zonder weerbron verandert er niets.
 
 ## Prijzen {#prices}
 
-Uit een prijsbron naar keuze (*prijs-[drivers](drivers.md)*): [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (getest; Nederlandse dynamische tarieven met een prijsvoorspelling voor de komende dagen), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, of elke sensor met prijzen in zijn attributen; optioneel daarna een extra, langere voorspelling. Geschatte (voorspelde) prijzen zijn als zodanig gemarkeerd.
+Uit een prijsbron naar keuze (*prijs-[drivers](drivers.md)*): [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (getest; Nederlandse dynamische tarieven met een prijsvoorspelling voor de komende dagen), Nord Pool, Tibber, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, of elke sensor met prijzen in zijn attributen; optioneel daarna een extra, langere voorspelling. Geschatte (voorspelde) prijzen zijn als zodanig gemarkeerd. Prijzen worden vanuit de eenheid van de bron omgerekend naar een prijs per kWh in de hoofdmunt (ct/kWh, EUR/MWh, öre/kWh, ...); een bron zonder bekende eenheid geldt als per kWh.
 
 ### Terugleverprijs en geen salderen {#export-price-and-no-net-metering}
 

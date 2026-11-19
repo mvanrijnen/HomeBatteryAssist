@@ -81,3 +81,38 @@ def state_to_celsius(state: State | None) -> float | None:
     if state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) == UnitOfTemperature.FAHRENHEIT:
         return (value - 32) / 1.8
     return value
+
+
+# Sub-units of a currency (a hundredth): cent, öre, øre, pence, ...
+_SUB_UNITS = {
+    "ct": "EUR",
+    "c": "EUR",
+    "cent": "EUR",
+    "cents": "EUR",
+    "eurocent": "EUR",
+    "€ct": "EUR",
+    "€cent": "EUR",
+    "öre": "SEK",
+    "øre": "NOK",
+    "ore": "SEK",
+    "p": "GBP",
+    "pence": "GBP",
+}
+_ENERGY = {"wh": 1000.0, "kwh": 1.0, "mwh": 0.001}
+
+
+def price_unit_factor(unit: str | None) -> tuple[float, str | None]:
+    """The factor that turns a price in ``unit`` into a price per kWh in the
+    main currency, and that unit: ``ct/kWh`` -> (0.01, "EUR/kWh"),
+    ``EUR/MWh`` -> (0.001, "EUR/kWh"). Unknown or missing units: (1, unit)
+    (taken as they are)."""
+    if not unit or "/" not in unit:
+        return 1.0, unit
+    money, _, energy = unit.replace(" ", "").rpartition("/")
+    per = _ENERGY.get(energy.lower())
+    if per is None or not money:
+        return 1.0, unit
+    sub = _SUB_UNITS.get(money.lower())
+    if sub is not None:
+        return per / 100, f"{sub}/kWh"
+    return per, f"{money}/kWh"

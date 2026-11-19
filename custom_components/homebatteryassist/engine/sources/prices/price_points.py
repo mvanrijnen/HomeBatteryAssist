@@ -18,14 +18,14 @@ checked afterwards against the published prices.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.core import State
 from homeassistant.util import dt as dt_util
 
-from ...units import parse_float, parse_time
+from ...units import parse_float, parse_time, price_unit_factor
 
 PRICE_ATTRIBUTES = (
     "prices",
@@ -209,3 +209,14 @@ def calibrate(
     return [
         PricePoint(p.start, p.end, round(a * p.price + b, 5), True) for p in forecast
     ]
+
+
+def per_kwh(
+    points: list[PricePoint], unit: str | None
+) -> tuple[list[PricePoint], str | None]:
+    """Prices per kWh in the main currency (ct/kWh and EUR/MWh converted, so
+    the planning's fixed amounts such as the wear per kWh fit)."""
+    factor, normal = price_unit_factor(unit)
+    if factor == 1.0:
+        return points, normal
+    return [replace(p, price=p.price * factor) for p in points], normal
