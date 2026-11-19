@@ -405,7 +405,7 @@ Callable from automations and scripts (see [Working with other integrations](int
 
 ### Adjust consumption forecast {#action-adjust-forecast}
 
-`homebatteryassist.adjust_forecast` — Changes the expected house consumption for a period, e.g. from a script for a holiday, guests or a planned large load. Give a start (default: now), an end or duration, and exactly one change: a factor, an offset in W, a fixed power in W or an amount of energy in kWh (extra, or part of the expected consumption). Adjustments are kept until their end; the dashboard has a dialog for energy per day (button Expected consumption in the top bar).
+`homebatteryassist.adjust_forecast` — Changes the expected house consumption for a period, e.g. from a script for a holiday, guests or a planned large load. Give a start (default: now), an end or duration, and exactly one change: a factor, an offset in W, a fixed power in W or an amount of energy in kWh (extra, or part of the expected consumption). Adjustments are kept until their end; the dashboard has a dialog for energy per day (button Occasional consumption in the top bar).
 
 | Field | Explanation |
 |---|---|

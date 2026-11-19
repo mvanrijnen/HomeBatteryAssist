@@ -202,10 +202,10 @@ const TEXT = {
     vsMode: "{mode} vs {other}",
     modeNames: { nom: "Zero on the meter", arbitrage: "Arbitrage", arbitrage_full: "Full arbitrage", time_slots: "Time slots", manual: "Manual" },
     compareTitle: "Return compared",
-    adjTitle: "Expected extra consumption",
+    adjTitle: "Occasional consumption",
     adjNote: "Tell the forecast about consumption it cannot know from the history, e.g. 1.5 kWh for the washing machine tomorrow 13:00–15:00. Extra comes on top of the learned consumption; part of the expected consumption moves that much of the day's expected consumption into the time window.",
     adjNone: "Nothing set.",
-    adjButton: "Expected consumption",
+    adjButton: "Occasional consumption",
     adjClose: "Close",
     adjAdd: "Add",
     adjEdit: "Change",
@@ -487,10 +487,10 @@ const TEXT = {
     vsMode: "{mode} t.o.v. {other}",
     modeNames: { nom: "Nul op de meter", arbitrage: "Arbitrage", arbitrage_full: "Arbitrage volledig", time_slots: "Tijdvakken", manual: "Handmatig" },
     compareTitle: "Rendement vergeleken",
-    adjTitle: "Verwacht extra verbruik",
+    adjTitle: "Incidenteel verbruik",
     adjNote: "Vertel de voorspelling over verbruik dat hij niet uit de geschiedenis kan weten, bijv. 1,5 kWh voor de wasmachine morgen 13:00–15:00. Extra komt bovenop het geleerde verbruik; deel van het verwachte verbruik verschuift zoveel van het verwachte verbruik van die dag naar het tijdvenster.",
     adjNone: "Niets ingesteld.",
-    adjButton: "Verwacht verbruik",
+    adjButton: "Incidenteel verbruik",
     adjClose: "Sluiten",
     adjAdd: "Toevoegen",
     adjEdit: "Wijzigen",
@@ -2388,7 +2388,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return `<div class="card"><h2>${esc(t.decisions)}</h2>${items}</div>`;
   }
 
-  // Expected extra consumption: energy per day, extra or part of the
+  // Occasional consumption: energy per day, extra or part of the
   // expected consumption, optionally in a time window. One dialog from the
   // toolbar: the list, and a form to add or change.
   _openAdjustments() {
@@ -2397,10 +2397,13 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const overlay = document.createElement("div");
     overlay.className = "adj-overlay";
     this.shadowRoot.appendChild(overlay);
+    // Recalculated once, when the dialog closes, and only after a change.
+    let changed = false;
     const close = () => {
       overlay.remove();
       this._dialogOpen = false;
-      this._render();
+      if (changed) this._recalculate();
+      else this._render();
     };
     overlay.addEventListener("click", (ev) => {
       if (ev.target === overlay) close();
@@ -2409,9 +2412,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
       if (ev.key === "Escape") close();
     });
     const after = (result) => {
+      changed = true;
       if (this._status) this._status.adjustments = result.adjustments;
-      this._historyAt = 0;
-      this._load(); // renders when the dialog closes
     };
     const list = () => this._adjustmentList(overlay, close, form, after);
     const form = (row) => this._adjustmentForm(overlay, row, list, after);

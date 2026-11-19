@@ -2,7 +2,7 @@
 
 Set through the actions ``homebatteryassist.adjust_forecast`` and
 ``homebatteryassist.clear_forecast_adjustments`` (from scripts, automations or
-other integrations) or the dashboard (*Expected extra consumption*). An
+other integrations) or the dashboard (*Occasional consumption*). An
 adjustment covers a period and either multiplies the expected consumption
 (``factor``), adds to it (``offset_w``, may be negative), replaces it
 (``power_w``) or adds an amount of energy spread evenly over the period

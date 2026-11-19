@@ -1,4 +1,4 @@
-"""Websocket commands for the dashboard's *Expected extra consumption* dialog.
+"""Websocket commands for the dashboard's *Occasional consumption* dialog.
 
 Add, change and remove energy adjustments of the consumption forecast per
 day (``engine/forecast/user_adjustments.py``): an amount of energy (kWh) on a
@@ -142,7 +142,8 @@ async def websocket_adjustment_save(
         start=start,
         end=end,
     )
-    await data.forecast.async_refresh()
+    # No recalculation here: the dashboard recalculates once when the dialog
+    # closes after a change (action recalculate).
     connection.send_result(msg["id"], {"adjustments": adjustment_rows(entry)})
 
 
@@ -168,5 +169,4 @@ async def websocket_adjustment_delete(
         data.decisions.async_log(
             "forecast", "forecast_adjustments_cleared", count=count
         )
-        await data.forecast.async_refresh()
     connection.send_result(msg["id"], {"adjustments": adjustment_rows(entry)})

@@ -16,12 +16,12 @@ The house consumption per slot is predicted by a **consumption forecaster** [mod
 
 All forecasters run every cycle; the *Accuracy* tab compares them, so you can choose the one that fits your house. Consumption during a **vacation** (setting) is not learned from. You can **adjust** the forecast for a period (e.g. a party) with the action `adjust_forecast`.
 
-**Expected extra consumption** (dashboard: button *Expected consumption* in the top bar; also the action `adjust_forecast` with `energy_kwh`): tell the forecast about consumption it cannot know from the history, per day: an amount of energy (kWh), optionally within a time window (without one: spread over the whole day; a window that ends before it starts runs past midnight). Choose:
+**Occasional consumption** (dashboard: button *Occasional consumption* in the top bar; also the action `adjust_forecast` with `energy_kwh`): tell the forecast about consumption it cannot know from the history, per day: an amount of energy (kWh), optionally within a time window (without one: spread over the whole day; a window that ends before it starts runs past midnight). Choose:
 
 - **Extra**: on top of the learned consumption (e.g. guests, a one-off job, charging something big).
 - **Part of the expected consumption**: the learned consumption of that day already holds it, it only happens at that time (e.g. the washing machine that runs some time every day, tomorrow at 13:00–15:00). The same energy is taken from the rest of that day, in proportion to its expected consumption, so the day's total stays the same. This needs a time window.
 
-The dialog lists them and adds, changes and removes them; adjustments from the action are listed too and can be removed there. *Why* tells each change.
+The dialog lists them and adds, changes and removes them; adjustments from the action are listed too and can be removed there. *Why* tells each change. The forecast and the plans are recalculated once when you close the dialog, and only after a change (otherwise at the next regular cycle).
 
 ### Outdoor temperature (optional)
 
