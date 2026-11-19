@@ -79,6 +79,7 @@ def schedule_full_charges(
     slot_price: Callable[[datetime, float, float], float] | None = None,
     together: str = "parallel",
     surplus: Callable[[datetime], float] | None = None,
+    fixed: Sequence[FullCharge] = (),
 ) -> list[FullCharge]:
     """Plan the full charges that are due within ``window_days``.
 
@@ -101,6 +102,8 @@ def schedule_full_charges(
         )
         if deadline is None or state.soc is None or now < deadline - window:
             continue
+        if any(f.battery_id == state.config.id for f in fixed):
+            continue  # running: its block stays (``fixed``)
         due.append((deadline, state))
     if together == "sequential":
         # One after the other: the emptiest battery first.
@@ -120,7 +123,19 @@ def schedule_full_charges(
             slots.append((when, price))
         when += step
 
-    planned: list[FullCharge] = []
+    # Running blocks stay; the others are planned around them.
+    planned: list[FullCharge] = [
+        f
+        for f in fixed
+        if any(
+            f.battery_id == s.config.id
+            and full_charge_due(
+                last_full.get(s.config.id), s.config.full_charge_interval_days, now
+            )
+            is not None
+            for s in states
+        )
+    ]
     max_power = {state.config.id: state.config.max_charge_w for _d, state in due}
     for deadline, state in due:
         config = state.config

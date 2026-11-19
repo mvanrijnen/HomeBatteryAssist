@@ -174,6 +174,9 @@ def rebalance_parts(rows: list[Row], adjustments: Iterable[Adjustment]) -> list[
     return result
 
 
+MAX_ADJUSTMENTS = 200  # adjustments kept at most
+
+
 class AdjustmentStore:
     """Persisted list of adjustments."""
 
@@ -222,6 +225,8 @@ class AdjustmentStore:
             adjustment["part"] = True
         self.items = [a for a in self.items if a["id"] != adjustment["id"]]
         self.items.append(adjustment)
+        # A bounded list: the oldest go first (a script adding thousands).
+        del self.items[:-MAX_ADJUSTMENTS]
         await self.async_save()
         _LOGGER.debug("Added forecast adjustment %s", adjustment)
         return adjustment

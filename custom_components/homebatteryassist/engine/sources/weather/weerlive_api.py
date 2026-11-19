@@ -146,7 +146,10 @@ class WeerliveWeatherSource(WeatherSource):
         except (aiohttp.ClientError, TimeoutError, ValueError) as err:
             self._failed = True
             self.error = f"request failed ({type(err).__name__})"
-            _LOGGER.debug("Weerlive: %s", err)
+            # Not the error itself: its URL holds the API key.
+            _LOGGER.debug(
+                "Weerlive: %s %s", type(err).__name__, getattr(err, "status", "")
+            )
             return self._cache
         temperature, forecast = parse_weerlive(payload)
         api = (payload.get("api") or [{}])[0] if isinstance(payload, dict) else {}

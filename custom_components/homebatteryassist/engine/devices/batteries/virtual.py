@@ -207,6 +207,7 @@ class VirtualBatterySimulator:
         self._measurements = measurements
         self._forecast = forecast
         self._last: datetime | None = None
+        self._full_w = 0.0  # virtual batteries charging fully now (W)
         self._unsub: CALLBACK_TYPE | None = None
         self.limited_phases: list[int] = []  # phases that limit right now
         self._limit_logged = False
@@ -556,6 +557,7 @@ class VirtualBatterySimulator:
             soc = self._batteries.states[config.id].soc
             if full[config.id] and (soc if soc is not None else 0.0) >= 100.0 - 0.01:
                 full[config.id] = None
+        self._full_w = sum(c.max_charge_w for c in self.virtual if full[c.id])
         targets = self._targets(now, hours, [c for c in self.virtual if not full[c.id]])
         socs: dict[str, float] = {}
         wanted: dict[str, float] = {}
@@ -835,14 +837,15 @@ class VirtualBatterySimulator:
                 s.config.capacity_kwh for s in states if s.config.virtual
             )
             planned = slot.power_w if slot else 0.0
-            if planned > 0:
+            if planned > 0 and slot is not None:
                 # The full charges in it run per battery (at their own
-                # power): not again spread over the virtual batteries.
-                ids = {s.config.id for s in states}
+                # power): the plan's part for them is not spread again over
+                # the virtual batteries (a battery already full has none).
+                full_soc = {s.config.id: s.soc for s in states if s.soc is not None}
                 forced = sum(
-                    f.power_w
-                    for f in data.full_charges
-                    if f.battery_id in ids and f.active(now)
+                    w
+                    for i, w in data.forced_by.get(slot.start, {}).items()
+                    if full_soc.get(i, 0.0) < 100.0 - 0.01
                 )
                 planned = max(planned - forced, 0.0)
             total = planned * virtual_capacity / capacity if slot and capacity else 0.0
@@ -886,6 +889,10 @@ class VirtualBatterySimulator:
                 if flow is not None
                 else 0.0
             )
+            if total > 0:
+                # A virtual battery charging fully takes part of the surplus
+                # (the measured grid does not contain virtual power).
+                total = max(total - self._full_w, 0.0)
             price = self._batteries.price_now()
             if (
                 total < 0

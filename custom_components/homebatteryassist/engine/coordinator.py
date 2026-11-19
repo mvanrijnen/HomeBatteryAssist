@@ -253,6 +253,9 @@ class ForecastData:
     night: set[datetime] = field(default_factory=set)
     # What exported energy earns per period (after the tariff), as published.
     export_prices: list[PricePoint] = field(default_factory=list)
+    # The full charges' power per slot start and battery (W), as the plan has
+    # them (``finalise`` adds them).
+    forced_by: dict[datetime, dict[str, float]] = field(default_factory=dict)
 
     @property
     def selected_plan(self) -> BatteryPlan | None:
@@ -758,6 +761,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         # Periodic full charges at the cheapest moment: part of every plan
         # (its final check adds them, so state of charge, grid and costs
         # count with them).
+        # A full charge that is running keeps its block (else every cycle
+        # would move it, and tell it again); the others are planned around it.
+        running = [
+            f
+            for f in (self.data.full_charges if self.data else [])
+            if f.start <= now < f.end
+        ]
         full_charges = schedule_full_charges(
             states,
             {
@@ -776,18 +786,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 if self.full_charge_solar
                 else None
             ),
+            fixed=running,
             together=self.charge_order,
             surplus=_surplus_fn(consumption, pv_plan),
         )
-        # A full charge that is running keeps its block (else every cycle
-        # would move it, and tell it again).
-        running = {
-            f.battery_id: f
-            for f in (self.data.full_charges if self.data else [])
-            if f.start <= now < f.end
-        }
-        if running:
-            full_charges = [running.get(f.battery_id, f) for f in full_charges]
         forced = _forced_power(consumption, full_charges, now)
         forced_by = {
             start: {
@@ -868,6 +870,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             if self.rules.night_reserve_soc
             else set(),
             export_prices,
+            forced_by,
         )
         self._explain_method(data)
         self._log_prices(
@@ -1538,7 +1541,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 forecast = await self.weather.async_forecast(self.hass)
             hourly = checked_forecast(forecast)
         except Exception:  # a weather source may fail in any way
-            _LOGGER.exception("Weather forecast of %s failed", self.weather.describe())
+            # The source key, not describe(): that holds the place the user set.
+            _LOGGER.exception("Weather forecast of %s failed", self.weather_key)
             hourly = {}
         self.weather_end = max(hourly) + timedelta(hours=1) if hourly else None
         slots = list(window.slots(step))

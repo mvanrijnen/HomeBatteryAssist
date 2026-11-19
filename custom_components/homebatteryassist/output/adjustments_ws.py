@@ -86,7 +86,7 @@ def _period(day: date, start: str | None, end: str | None) -> tuple[datetime, da
     {
         vol.Required("type"): f"{DOMAIN}/adjustment_save",
         vol.Optional("adjustment_id"): str,
-        vol.Optional("name"): str,
+        vol.Optional("name"): vol.All(str, vol.Length(max=60)),
         vol.Required("date"): str,
         vol.Optional("from"): vol.Any(None, str),
         vol.Optional("until"): vol.Any(None, str),

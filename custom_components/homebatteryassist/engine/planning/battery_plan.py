@@ -516,6 +516,9 @@ def finalise(
             extra = min(
                 extra, max(battery.capacity_wh - stored, 0.0) / (slot.hours * eff)
             )
+        if extra > 0 and data.peak_w > 0:
+            # Not above the peak limit (live, peak shaving would cut it).
+            extra = min(extra, max(data.peak_w - slot.net_w, 0.0))
         if extra > 0:
             # A periodic full charge must happen: when the plan charges
             # anyway, the battery that charges fully is part of that power

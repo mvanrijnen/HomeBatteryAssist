@@ -123,7 +123,7 @@ def _one_change(data: dict[str, Any]) -> dict[str, Any]:
 ADJUST_SCHEMA = vol.All(
     vol.Schema(
         {
-            vol.Optional(ATTR_NAME): cv.string,
+            vol.Optional(ATTR_NAME): vol.All(cv.string, vol.Length(max=60)),
             vol.Optional(ATTR_START): cv.datetime,
             vol.Optional(ATTR_END): cv.datetime,
             vol.Optional(ATTR_DURATION): cv.positive_time_period,
