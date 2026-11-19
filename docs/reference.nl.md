@@ -457,14 +457,6 @@ Aan te roepen vanuit automatiseringen en scripts (zie [Werken met andere integra
 |---|---|
 | **Modus** | nom of arbitrage. |
 
-### Virtuele batterij resetten {#action-reset-virtual-battery}
-
-`homebatteryassist.reset_virtual_battery` — Start een virtuele batterij opnieuw: terug naar haar start-laadniveau, met haar energietellers, gerealiseerde waarde, dagen en laadverloop gewist.
-
-| Veld | Uitleg |
-|---|---|
-| **Batterij** | Naam (of id) van de virtuele batterij; leeg = alle virtuele batterijen. |
-
 ---
 
 *Gemaakt door `scripts/docs_reference.py` uit de teksten van de integratie.*
