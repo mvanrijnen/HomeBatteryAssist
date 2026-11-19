@@ -35,8 +35,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
 from ..const import (
+    CHARGE_SEQUENTIAL,
     CONF_BALANCE_INTERVAL,
     CONF_CHARGE_HYSTERESIS,
+    CONF_CHARGE_ORDER,
     CONF_CONSUMPTION_FORECASTER,
     CONF_CYCLE_COST,
     CONF_EXPORT_ENTITIES,
@@ -412,6 +414,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             else None
         )
         self.full_charge_solar: bool = opts.get(CONF_FULL_CHARGE_SOLAR, True)
+        self.charge_order: str = opts.get(CONF_CHARGE_ORDER, CHARGE_SEQUENTIAL)
         self.temperature = {
             "limit": float(opts.get(CONF_TEMP_LIMIT, 40)),
             "band": float(opts.get(CONF_TEMP_BAND, 10)),
@@ -429,6 +432,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             max_charge_price=opts.get(CONF_MAX_CHARGE_PRICE),
             min_margin=float(opts.get(CONF_MIN_MARGIN, 0)),
             charge_hysteresis=float(opts.get(CONF_CHARGE_HYSTERESIS, 0)),
+            charge_sequential=opts.get(CONF_CHARGE_ORDER, CHARGE_SEQUENTIAL)
+            == CHARGE_SEQUENTIAL,
         )
         self.manual_power: float = entry.options.get(
             CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER
@@ -759,8 +764,18 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 if self.full_charge_solar
                 else None
             ),
+            together=self.charge_order,
+            surplus=_surplus_fn(consumption, pv_plan),
         )
         forced = _forced_power(consumption, full_charges, now)
+        forced_by = {
+            start: {
+                f.battery_id: round(w, 1)
+                for f in full_charges
+                if (w := _forced_power(consumption, [f], now).get(start, 0.0)) > 0
+            }
+            for start in forced
+        }
         plans: dict[str, BatteryPlan] = {}
         derated = [self._derated(s) for s in states]
         for mode in (*PLAN_MODES, *self.planners):
@@ -784,6 +799,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                         planner=p,
                         now=now,
                         forced=forced,
+                        forced_by=forced_by,
                     )
                 )
             except Exception:  # an own planner module may fail in any way
@@ -1043,22 +1059,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         export_prices: list[PricePoint],
     ) -> Callable[[datetime, float, float], float]:
         """Charging with solar surplus costs what exporting it would have earned."""
-        surplus: dict[datetime, float] = {}
-        for slot in consumption:
-            hour = slot.start.replace(minute=0, second=0, microsecond=0)
-            surplus[slot.start] = max(pv.get(hour, 0.0) - slot.power_w, 0.0)
+        surplus_at = _surplus_fn(consumption, pv)
         factor = self.export_factor
-
-        starts = sorted(surplus)
-        last_end = consumption[-1].end if consumption else None
-
-        def surplus_at(start: datetime) -> float:
-            # The consumption slot holding ``start`` (slots may be an hour);
-            # nothing known after the consumption forecast.
-            if last_end is None or start >= last_end:
-                return 0.0
-            k = bisect_right(starts, start) - 1
-            return surplus[starts[k]] if k >= 0 else 0.0
 
         def price(start: datetime, import_price: float, power: float) -> float:
             share = min(surplus_at(start) / power, 1.0) if power > 0 else 0.0
@@ -1658,6 +1660,27 @@ def _periods(
 
     text = ", ".join(fmt(a, b) for a, b in periods[:3])
     return text + (" ..." if len(periods) > 3 else "") if text else "-"
+
+
+def _surplus_fn(
+    consumption: list[ForecastSlot], pv: Mapping[datetime, float]
+) -> Callable[[datetime], float]:
+    """The expected solar surplus (W) at a moment: PV of its hour minus the
+    consumption of its slot; nothing after the consumption forecast."""
+    surplus: dict[datetime, float] = {}
+    for slot in consumption:
+        hour = slot.start.replace(minute=0, second=0, microsecond=0)
+        surplus[slot.start] = max(pv.get(hour, 0.0) - slot.power_w, 0.0)
+    starts = sorted(surplus)
+    last_end = consumption[-1].end if consumption else None
+
+    def surplus_at(start: datetime) -> float:
+        if last_end is None or start >= last_end:
+            return 0.0
+        k = bisect_right(starts, start) - 1
+        return surplus[starts[k]] if k >= 0 else 0.0
+
+    return surplus_at
 
 
 def _forced_power(

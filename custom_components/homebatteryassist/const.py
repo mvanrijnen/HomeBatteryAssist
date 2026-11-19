@@ -157,6 +157,15 @@ CONF_NOTIFY_TARGETS: Final = "notify_targets"  # notify services / persistent
 CONF_NOTIFY_KINDS: Final = "notify_kinds"  # which decisions
 CONF_FULL_CHARGE_DAY: Final = "full_charge_day"  # "none" or mon..sun
 CONF_FULL_CHARGE_SOLAR: Final = "full_charge_solar"  # prefer solar surplus
+# Several batteries: charge at the same time ("parallel"; full charges
+# together when the connection allows it) or one after the other
+# ("sequential": the emptiest first, the next only for what the first cannot
+# take at its full power or while the sun covers them all; a battery charges
+# less efficiently at low power).
+CONF_CHARGE_ORDER: Final = "charge_order"
+CHARGE_PARALLEL: Final = "parallel"
+CHARGE_SEQUENTIAL: Final = "sequential"
+CHARGE_ORDER_OPTIONS: Final = (CHARGE_PARALLEL, CHARGE_SEQUENTIAL)
 CONF_TEMPERATURE_SENSOR: Final = "temperature_sensor"
 CONF_TEMP_LIMIT: Final = "temperature_limit"  # °C, full power up to here
 CONF_TEMP_BAND: Final = "temperature_band"  # °C over which power is reduced

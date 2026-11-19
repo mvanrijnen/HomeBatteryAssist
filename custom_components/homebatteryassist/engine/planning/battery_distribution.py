@@ -43,10 +43,13 @@ def distribute(
     batteries: Sequence[Candidate],
     min_power_w: float,
     keep: Sequence[str] = (),
+    sequential: bool = False,
 ) -> dict[str, float]:
     """Split ``target_w`` (+ charging / - discharging) over the batteries.
 
     ``keep``: ids of batteries to use first (if they can), e.g. the ones in use.
+    ``sequential`` (charging): one after the other, the emptiest first, each
+    at its full power before the next takes the rest.
     """
     result = {b.id: 0.0 for b in batteries}
     if not target_w or not batteries:
@@ -69,6 +72,14 @@ def distribute(
         return b.max_charge_w if charging else b.max_discharge_w
 
     demand = abs(target_w)
+    if charging and sequential:
+        for b in usable:
+            take = min(cap(b), demand)
+            result[b.id] = take
+            demand -= take
+            if demand <= 1e-9:
+                break
+        return {k: round(v, 1) + 0.0 for k, v in result.items()}
     # Enough batteries for the power ...
     needed, total = 0, 0.0
     for b in usable:
@@ -123,6 +134,7 @@ class Distributor:
         batteries: Sequence[Candidate],
         min_power_w: float,
         now: datetime,
+        sequential: bool = False,
     ) -> tuple[dict[str, float], tuple[str, str] | None]:
         """Split the power; also return (new id, replaced id) on a balance switch."""
         if not target_w:
@@ -139,7 +151,7 @@ class Distributor:
             if switch:
                 new, old = switch
                 keep = [new] + [i for i in keep if i != old]
-        result = distribute(target_w, batteries, min_power_w, keep)
+        result = distribute(target_w, batteries, min_power_w, keep, sequential)
         self.active = [i for i in keep if result.get(i)] + [
             i for i, v in result.items() if v and i not in keep
         ]

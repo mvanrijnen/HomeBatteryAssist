@@ -133,6 +133,7 @@ Reserve, power limits, peak limit and phase margin.
 | **Peak limit includes excluded devices** | When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit. |
 | **Peak reserve state of charge** | Below this state of charge the batteries only discharge for grid import above the peak limit, so energy stays for peaks. Only with a peak limit. 0 = off. |
 | **Safety margin per phase** | Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation. |
+| **Charging several batteries** | Parallel: they charge at the same time (full charges together when the grid connection allows it). One after the other: the emptiest first, the next only for what the first cannot take at its full power, or while the sun covers them all. A battery charges less efficiently at low power. |
 
 ### Short peaks {#settings-spikes}
 

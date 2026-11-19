@@ -137,6 +137,9 @@ class PlanRules:
     max_charge_price: float | None = None
     min_margin: float = 0.0
     charge_hysteresis: float = 0.0  # % below max SoC before charging again
+    # Several batteries charge one after the other (the emptiest first, the
+    # next only for what it cannot take at its full power), not all at once.
+    charge_sequential: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -213,6 +216,7 @@ def _pack(
                 math.sqrt(s.config.efficiency),
                 s.config.max_charge_w * getattr(s, "charge_factor", 1.0),
                 s.config.max_discharge_w * getattr(s, "discharge_factor", 1.0),
+                getattr(s.config, "id", ""),
             )
             for s in usable
         )
@@ -316,6 +320,7 @@ def plan_batteries(
     planner: Planner | None = None,
     now: datetime | None = None,
     forced: Mapping[datetime, float] | None = None,
+    forced_by: Mapping[datetime, Mapping[str, float]] | None = None,
 ) -> BatteryPlan | None:
     """Plan the batteries with ``planner`` (default: the built-in planner of
     ``mode``) over the consumption slots, checked by ``finalise``; None
@@ -341,6 +346,7 @@ def plan_batteries(
         rules=rules,
         now=now,
         forced=forced,
+        forced_by=forced_by,
     )
     if data is None:
         return None
@@ -364,6 +370,7 @@ def planner_input(
     rules: PlanRules = PlanRules(),
     now: datetime | None = None,
     forced: Mapping[datetime, float] | None = None,
+    forced_by: Mapping[datetime, Mapping[str, float]] | None = None,
 ) -> PlannerInput | None:
     """What a planner gets; None without batteries or slots."""
     pack = _pack(states, rules)
@@ -432,6 +439,7 @@ def planner_input(
         peak_w,
         target,
         dict(forced or {}),
+        dict(forced_by or {}),
     )
 
 
@@ -499,7 +507,14 @@ def finalise(
             )
         power = max(power, 0.0) if requested > 0 else min(power, 0.0)
         if member_wh:
-            power, member_wh = _share(battery.members, member_wh, power, hours)
+            power, member_wh = _share(
+                battery.members,
+                member_wh,
+                power,
+                hours,
+                data.forced_by.get(slot.start),
+                sequential=rules.charge_sequential,
+            )
             stored = sum(member_wh)
         else:
             stored += power * hours * eff if power >= 0 else power * hours / eff
@@ -542,11 +557,22 @@ def finalise(
 
 
 def _share(
-    members: Sequence[PackMember], stored: list[float], power: float, hours: float
+    members: Sequence[PackMember],
+    stored: list[float],
+    power: float,
+    hours: float,
+    first: Mapping[str, float] | None = None,
+    *,
+    sequential: bool = False,
 ) -> tuple[float, list[float]]:
     """Split a pack power over the batteries, each at most what it can (power,
     and the room up to its maximum / the energy above its minimum), in
-    proportion to that; the power they give together and their new energy."""
+    proportion to that; the power they give together and their new energy.
+    ``first`` (battery id -> W, charging): a periodic full charge goes to its
+    own battery first, at its own power (not spread thin over all of them:
+    a battery charges less efficiently at low power); the rest as above.
+    ``sequential``: charging goes to the emptiest battery first, up to what it
+    can take, then the next (not in proportion)."""
     if power > 0:
         caps = [
             min(m.max_charge_w, max(m.ceiling_wh - wh, 0.0) / (hours * m.efficiency))
@@ -559,13 +585,39 @@ def _share(
         ]
     else:
         return 0.0, stored
+    given = [0.0] * len(members)
+    left = abs(power)
+    if power > 0 and first:
+        for k, m in enumerate(members):
+            if m.id in first:
+                given[k] = min(first[m.id], caps[k], left)
+                left -= given[k]
+        caps = [c - g for c, g in zip(caps, given, strict=True)]
     room = sum(caps)
-    if room <= 0:
+    if room <= 0 and not any(given):
         return 0.0, stored
-    total = min(abs(power), room)
+    rest = min(left, room) if room > 0 else 0.0
+    total = sum(given) + rest
+    if power > 0 and sequential and rest > 0:
+        # The emptiest first (by state of charge), each up to its cap.
+        order = sorted(
+            range(len(members)),
+            key=lambda k: (
+                stored[k] / members[k].capacity_wh if members[k].capacity_wh else 0.0
+            ),
+        )
+        extra = [0.0] * len(members)
+        todo = rest
+        for k in order:
+            extra[k] = min(caps[k], todo)
+            todo -= extra[k]
+        new = []
+        for m, wh, own, more in zip(members, stored, given, extra, strict=True):
+            new.append(wh + (own + more) * hours * m.efficiency)
+        return total, new
     new = []
-    for m, wh, cap in zip(members, stored, caps, strict=True):
-        part = total * cap / room
+    for m, wh, cap, own in zip(members, stored, caps, given, strict=True):
+        part = own + (rest * cap / room if room > 0 else 0.0)
         new.append(
             wh + part * hours * m.efficiency
             if power > 0

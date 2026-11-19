@@ -505,3 +505,21 @@ def test_arbitrage_stores_a_small_surplus() -> None:
     first = plan.slots[:4]
     assert all(s.power_w > 100 for s in first), [s.power_w for s in first]
     assert all(abs(s.grid_w) < 10 for s in first), [s.grid_w for s in first]
+
+
+def test_share_sequential_and_forced_first() -> None:
+    """Charging one after the other: the emptiest first, up to its power; a
+    full charge goes to its own battery first."""
+    from custom_components.homebatteryassist.engine.planning.battery_plan import _share
+    from custom_components.homebatteryassist.engine.planning.planners.base import (
+        PackMember,
+    )
+
+    a = PackMember(5000, 4000, 500, 5000, 1.0, 2000, 2000, "a")
+    b = PackMember(5000, 1000, 500, 5000, 1.0, 2000, 2000, "b")
+    power, new = _share([a, b], [4000.0, 1000.0], 2500.0, 1.0, sequential=True)
+    assert power == 2500.0
+    assert new == [4500.0, 3000.0]  # b (emptiest) 2000 W, a the rest
+    power, new = _share([a, b], [4000.0, 1000.0], 1500.0, 1.0, {"a": 1000.0})
+    assert new[0] == 5000.0  # a's full charge first (1000 W), b the rest
+    assert new[1] == 1500.0

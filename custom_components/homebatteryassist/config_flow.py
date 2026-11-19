@@ -71,11 +71,14 @@ from .const import (
     BALANCE_INTERVAL_OPTIONS,
     BATTERY_METER_NONE,
     BATTERY_SENSOR_KEYS,
+    CHARGE_ORDER_OPTIONS,
+    CHARGE_SEQUENTIAL,
     CONF_BALANCE_INTERVAL,
     CONF_BATTERY_METER,
     CONF_BATTERY_METER_ADDRESS,
     CONF_CAPACITY,
     CONF_CHARGE_HYSTERESIS,
+    CONF_CHARGE_ORDER,
     CONF_COMMAND_CHECK_MINUTES,
     CONF_COMMAND_CHECK_W,
     CONF_CONSUMPTION_FORECASTER,
@@ -483,6 +486,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "system_max_charge_w",
         "system_max_discharge_w",
         "min_battery_power",
+        "charge_order",
         "balance_interval",
         "peak_limit_w",
         "peak_include_excluded",
@@ -1023,6 +1027,16 @@ async def _flat_settings_schema(
             )
         ),
         vol.Required(
+            CONF_CHARGE_ORDER,
+            default=current.get(CONF_CHARGE_ORDER, CHARGE_SEQUENTIAL),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=list(CHARGE_ORDER_OPTIONS),
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_CHARGE_ORDER,
+            )
+        ),
+        vol.Required(
             CONF_MIN_BATTERY_POWER,
             default=current.get(CONF_MIN_BATTERY_POWER, DEFAULT_MIN_BATTERY_POWER),
         ): NumberSelector(
@@ -1123,6 +1137,7 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
         CONF_MIN_BATTERY_POWER: int(
             user_input.get(CONF_MIN_BATTERY_POWER, DEFAULT_MIN_BATTERY_POWER)
         ),
+        CONF_CHARGE_ORDER: user_input.get(CONF_CHARGE_ORDER, CHARGE_SEQUENTIAL),
         CONF_BALANCE_INTERVAL: int(
             user_input.get(CONF_BALANCE_INTERVAL, DEFAULT_BALANCE_INTERVAL)
         ),

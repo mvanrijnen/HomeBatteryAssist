@@ -57,6 +57,7 @@ class PackMember:
     efficiency: float  # one way
     max_charge_w: float
     max_discharge_w: float
+    id: str = ""  # battery id (forced full charge power goes to it first)
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +99,8 @@ class PlannerInput:
     peak_w: float = 0.0  # grid import to stay below (all phases), 0 = off
     target: Callable[[datetime], Any] | None = None
     forced: Mapping[datetime, float] = field(default_factory=dict)
+    # The same per battery: slot start -> battery id -> W (who it is for)
+    forced_by: Mapping[datetime, Mapping[str, float]] = field(default_factory=dict)
     priced: bool = field(init=False)
 
     def __post_init__(self) -> None:

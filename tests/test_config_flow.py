@@ -144,6 +144,7 @@ async def test_three_phase_flow(hass: HomeAssistant) -> None:
         "min_battery_power": 300,
         "phase_margin": 10,
         "balance_interval": 60,
+        "charge_order": "sequential",
         "full_charge_window_days": 3,
     }
 
@@ -233,6 +234,7 @@ async def test_single_phase_flow(hass: HomeAssistant) -> None:
         "min_battery_power": 300,
         "phase_margin": 10,
         "balance_interval": 60,
+        "charge_order": "sequential",
         "full_charge_window_days": 3,
     }
     assert result["data"] == {
@@ -384,6 +386,7 @@ async def test_options_flow_changes_settings(hass: HomeAssistant) -> None:
         "min_battery_power": 300,
         "phase_margin": 10,
         "balance_interval": 60,
+        "charge_order": "sequential",
         "full_charge_window_days": 3,
     }
     await hass.async_block_till_done()

@@ -876,7 +876,11 @@ class VirtualBatterySimulator:
                 )
             )
         shares, switch = self._distributor.distribute(
-            total, candidates, self._forecast.min_battery_power, now
+            total,
+            candidates,
+            self._forecast.min_battery_power,
+            now,
+            getattr(self._forecast.rules, "charge_sequential", False),
         )
         if switch:
             names = {c.id: c.name for c in virtual}

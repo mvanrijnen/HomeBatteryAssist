@@ -9,11 +9,15 @@ that period:
 - the block is as long as charging from the current state of charge to 100 %
   takes at the battery's maximum charge power;
 - its cost is the sum of the (forecast) prices over the block;
-- batteries are handled by earliest deadline. They may charge fully at the
-  same time when that costs nothing extra: ``fits(start, powers)`` tells
-  whether the batteries charging in a slot fit within the grid connection
-  (phase limits). Where they do not, a later battery gets the cheapest block
-  that does fit.
+- batteries are handled by earliest deadline. ``together`` "parallel": they
+  may charge fully at the same time when that costs nothing extra:
+  ``fits(start, powers)`` tells whether the batteries charging in a slot fit
+  within the grid connection (phase limits). "sequential": one after the
+  other (a battery charges less efficiently at low power), together only
+  where the batteries already charging run at their full power and the
+  connection has room for more, or where the solar surplus
+  (``surplus(start)``, W) covers them all. Where they may not overlap, a later
+  battery gets the cheapest block that does fit.
 
 Advice for real batteries; virtual batteries carry it out.
 """
@@ -31,6 +35,8 @@ from ..measure.battery_monitor import BatteryState
 from ..sources.prices.price_points import PricePoint
 
 DEFAULT_WINDOW_DAYS = 3
+# A battery counts as charging at its full power from this share of it.
+FULL_POWER_SHARE = 0.95
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +77,8 @@ def schedule_full_charges(
     fits: Callable[[datetime, Mapping[str, float]], bool] | None = None,
     preferred_day: int | None = None,
     slot_price: Callable[[datetime, float, float], float] | None = None,
+    together: str = "parallel",
+    surplus: Callable[[datetime], float] | None = None,
 ) -> list[FullCharge]:
     """Plan the full charges that are due within ``window_days``.
 
@@ -94,7 +102,11 @@ def schedule_full_charges(
         if deadline is None or state.soc is None or now < deadline - window:
             continue
         due.append((deadline, state))
-    due.sort(key=lambda item: item[0])
+    if together == "sequential":
+        # One after the other: the emptiest battery first.
+        due.sort(key=lambda item: (item[1].soc, item[0]))
+    else:
+        due.sort(key=lambda item: item[0])
 
     # Clock-aligned slots with a known price.
     ts = now.timestamp()
@@ -109,6 +121,7 @@ def schedule_full_charges(
         when += step
 
     planned: list[FullCharge] = []
+    max_power = {state.config.id: state.config.max_charge_w for _d, state in due}
     for deadline, state in due:
         config = state.config
         # Overdue: catch up within the window; otherwise finish before the deadline.
@@ -139,6 +152,21 @@ def schedule_full_charges(
                     p.battery_id: p.power_w for p in overlapping if p.active(when)
                 }
                 if powers and not fits(when, {**powers, own: power}):
+                    return False
+                if (
+                    powers
+                    and together == "sequential"
+                    and not all(
+                        powers[i] >= FULL_POWER_SHARE * max_power.get(i, math.inf)
+                        for i in powers
+                    )
+                    and (
+                        surplus is None or surplus(when) < sum(powers.values()) + power
+                    )
+                ):
+                    # One after the other: together only while the batteries
+                    # already charging run at their full power (more power
+                    # is still available), or the sun covers them all.
                     return False
                 when += step
             return True
