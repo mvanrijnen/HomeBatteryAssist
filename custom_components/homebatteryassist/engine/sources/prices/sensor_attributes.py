@@ -10,13 +10,18 @@ prices. Not yet verified on a real installation.
 
 from __future__ import annotations
 
+from dataclasses import replace
+from typing import Any
+
 from homeassistant.const import ATTR_UNIT_OF_MEASUREMENT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from .base import ROLE_IMPORT, ROLE_MARKET, PriceData, PriceDriver, PriceSource
-from .price_points import parse_price_forecast
+from .price_points import PricePoint, parse_price_forecast
+
+RAW_ABOVE = 1000.0  # a price per kWh above this is a raw API number
 
 
 class SensorAttributeDriver(PriceDriver):
@@ -29,6 +34,7 @@ class SensorAttributeDriver(PriceDriver):
         platform: str,
         roles: frozenset[str] = frozenset({ROLE_IMPORT}),
         days_ahead: float = 2,
+        raw_scale: float = 1.0,
     ) -> None:
         """Initialize: ``platform`` is the integration domain of the sensors."""
         self.key = key
@@ -36,6 +42,9 @@ class SensorAttributeDriver(PriceDriver):
         self.platform = platform
         self.roles = roles
         self.days_ahead = days_ahead
+        # Integrations that keep the raw API numbers in the attribute (the
+        # state itself is scaled): Zonneplan gives 1e-7 EUR per kWh.
+        self.raw_scale = raw_scale
 
     def find(self, hass: HomeAssistant) -> list[PriceSource]:
         """Sensors of the integration whose attributes hold future prices."""
@@ -44,7 +53,7 @@ class SensorAttributeDriver(PriceDriver):
         for entry in er.async_get(hass).entities.values():
             if entry.platform != self.platform or entry.domain != "sensor":
                 continue
-            points = parse_price_forecast(hass.states.get(entry.entity_id))
+            points = self._points(hass.states.get(entry.entity_id))
             if not any(p.end > now for p in points):
                 continue
             state = hass.states.get(entry.entity_id)
@@ -67,7 +76,19 @@ class SensorAttributeDriver(PriceDriver):
         """The prices in the sensor's attributes."""
         state = hass.states.get(source)
         unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT) if state else None
-        return PriceData(parse_price_forecast(state), unit)
+        return PriceData(self._points(state), unit)
+
+    def _points(self, state: Any) -> list[PricePoint]:
+        points = parse_price_forecast(state)
+        # Only when the numbers are raw (a price per kWh is never this large):
+        # a later version of the integration may scale them.
+        if (
+            self.raw_scale != 1.0
+            and points
+            and max(abs(p.price) for p in points) > RAW_ABOVE
+        ):
+            points = [replace(p, price=p.price * self.raw_scale) for p in points]
+        return points
 
     def watch(self, hass: HomeAssistant, source: str) -> list[str]:
         """The sensor itself."""
@@ -83,5 +104,5 @@ SENSOR_DRIVERS: tuple[PriceDriver, ...] = (
     ),
     SensorAttributeDriver("nordpool_hacs", "Nord Pool (HACS)", "nordpool"),
     SensorAttributeDriver("frank_energie", "Frank Energie", "frank_energie"),
-    SensorAttributeDriver("zonneplan", "Zonneplan", "zonneplan_one"),
+    SensorAttributeDriver("zonneplan", "Zonneplan", "zonneplan_one", raw_scale=1e-7),
 )

@@ -244,6 +244,15 @@ class ForecastAccuracy:
 
     # -- recording ---------------------------------------------------------------
 
+    def forget(self, kind: Kind, starts: Iterable[datetime]) -> None:
+        """Drop pending predictions for these slots (e.g. the user adjusted
+        them: what is measured then is intent, not a forecast error)."""
+        pending = self.predictions.get(kind)
+        if not pending:
+            return
+        for start in starts:
+            pending.pop(start.isoformat(), None)
+
     def record(
         self,
         kind: Kind,

@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Iterable, Mapping
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from homeassistant.core import HomeAssistant
@@ -95,20 +95,29 @@ async def async_read_pv_forecasts(
     hass: HomeAssistant,
     choices: Iterable[str],
     own: Mapping[str, PvForecastSource],
+    missing: list[str] | None = None,
 ) -> dict[datetime, float]:
-    """The chosen forecasts summed per hour (Wh), checked."""
+    """The chosen forecasts summed per hour (Wh), checked. A chosen source
+    without data is added to ``missing``; with several sources the sum stops
+    where the shortest one stops (beyond it a roof would be missing)."""
     total: dict[datetime, float] = {}
+    ends: list[datetime] = []
     for choice in choices:
         key, option_id = split_choice(choice)
         source = own.get(key) or BUILTIN.get(key)
         if source is None:
             _LOGGER.debug("PV forecast source %s is not available", key)
+            if missing is not None:
+                missing.append(choice)
             continue
         try:
             hours = await source.async_read(hass, option_id)
         except Exception:
             _LOGGER.exception("PV forecast %s failed", choice)
+            if missing is not None:
+                missing.append(choice)
             continue
+        last: datetime | None = None
         for start, wh in (hours or {}).items():
             try:
                 value = float(wh)
@@ -124,4 +133,21 @@ async def async_read_pv_forecasts(
             # Clock hours in UTC, whatever the source used.
             hour = dt_util.as_utc(start).replace(minute=0, second=0, microsecond=0)
             total[hour] = total.get(hour, 0.0) + value
+            last = hour if last is None or hour > last else last
+        if last is None:
+            if missing is not None:
+                missing.append(choice)
+        else:
+            ends.append(last)
+    if len(ends) > 1:
+        # A source that leaves out the night ends at its last daylight hour:
+        # the sum is complete up to the end of that local day.
+        shortest = min(ends)
+        local = dt_util.as_local(shortest)
+        cut = dt_util.as_utc(
+            (local + timedelta(days=1)).replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+        )
+        total = {h: v for h, v in total.items() if h < cut}
     return dict(sorted(total.items()))

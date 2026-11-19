@@ -413,6 +413,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             if opts.get(CONF_FULL_CHARGE_DAY) in WEEKDAYS
             else None
         )
+        self.pv_partial = False  # a chosen PV source gave no data
+        self._adjusted_starts: set[datetime] = set()
         self.full_charge_solar: bool = opts.get(CONF_FULL_CHARGE_SOLAR, True)
         self.charge_order: str = opts.get(CONF_CHARGE_ORDER, CHARGE_SEQUENTIAL)
         self.temperature = {
@@ -650,9 +652,12 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         accuracy.record(
             "price", [(p.start, p.end, p.price) for p in prices if p.estimated], now
         )
-        accuracy.record(
-            "pv", [(start, start + PV_PERIOD, wh) for start, wh in pv_wh.items()], now
-        )
+        if not self.pv_partial:
+            accuracy.record(
+                "pv",
+                [(start, start + PV_PERIOD, wh) for start, wh in pv_wh.items()],
+                now,
+            )
 
         # 4. Everything else only within the window, corrected.
         prices = [
@@ -860,9 +865,16 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
 
         # 5. Remember the raw consumption predictions, also of every
         # forecaster on its own (to compare them).
+        # Slots the user adjusted are intent, not a forecast error: not
+        # learned from (also not by the forecasters' comparison).
+        adjusted = {s.start for s in consumption if s.adjustments}
+        accuracy.forget("consumption", adjusted)
         accuracy.record(
-            "consumption", [(s.start, s.end, s.raw) for s in consumption], now
+            "consumption",
+            [(s.start, s.end, s.raw) for s in consumption if s.start not in adjusted],
+            now,
         )
+        self._adjusted_starts = adjusted
         self._record_forecasters(window, step, now)
         self._record_heating(window, step, now)
         self.hass.bus.async_fire(EVENT_FORECAST_UPDATED, summarise(data))
@@ -890,7 +902,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 continue
             kind = f"{FORECASTER_KIND}{key}"
             self.accuracy.track(kind)
-            self.accuracy.record(kind, [(a, b, v) for a, b, v, _m in slots], now)
+            adjusted = getattr(self, "_adjusted_starts", set())
+            self.accuracy.forget(kind, adjusted)
+            self.accuracy.record(
+                kind, [(a, b, v) for a, b, v, _m in slots if a not in adjusted], now
+            )
 
     def _record_heating(
         self, window: PlanningWindow, step: timedelta, now: datetime
@@ -1297,9 +1313,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
     async def _async_read_pv(self, now: datetime) -> dict[datetime, float]:
         if not self.pv_entries:
             return {}
+        missing: list[str] = []
         forecast = await async_read_pv_forecasts(
-            self.hass, self.pv_entries, self.pv_sources
+            self.hass, self.pv_entries, self.pv_sources, missing
         )
+        # A source without data (e.g. its integration retrying): the sum is
+        # too low; it is not learned from (it would inflate the correction).
+        self.pv_partial = bool(missing) and bool(forecast)
+        if missing:
+            _LOGGER.warning("PV forecast without data from: %s", ", ".join(missing))
         return {start: wh for start, wh in forecast.items() if start + PV_PERIOD > now}
 
     def _explain_corrections(self, now: datetime) -> None:

@@ -52,6 +52,10 @@ class ApiForecastDriver(PriceDriver):
         country = (hass.config.country or "").upper()
         if country not in self.countries:
             return []
+        if (hass.config.currency or "EUR").upper() != "EUR":
+            # The forecast is in EUR: fitting it to prices in another
+            # currency squeezes its swings (the fit's slope is limited).
+            return []
         return [
             PriceSource(
                 self.key,

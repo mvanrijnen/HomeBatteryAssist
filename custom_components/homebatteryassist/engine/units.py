@@ -127,6 +127,12 @@ def price_unit_factor(
     sub = _SUB_UNITS.get(money.lower())
     if currency and money.lower() in _GENERIC_SUB_UNITS:
         sub = currency.upper()
+    elif (
+        currency
+        and money.lower() in ("öre", "øre", "ore")
+        and currency.upper() in ("SEK", "NOK", "DKK")
+    ):
+        sub = currency.upper()  # øre of Home Assistant's own krone
     if sub is not None:
         return per / 100, f"{sub}/kWh"
     return per, f"{money}/kWh"

@@ -454,6 +454,9 @@ def fit_effect(
     return fit_temperature(records, now)
 
 
+SIGNIFICANCE = 2.0  # a slope must be this many standard errors above 0
+
+
 def _slopes(days: list[tuple[float, float, float]]) -> tuple[float, float, float]:
     """Least squares ``y = a + h·hd + c·cd``; a variable that hardly varies is
     left out. Slopes are never negative (colder never means less heating).
@@ -479,9 +482,30 @@ def _slopes(days: list[tuple[float, float, float]]) -> tuple[float, float, float
         h = shy / shh
     elif use_c:
         c = scy / scc
+    # A negative slope is 0; the other then fitted on its own (not kept from
+    # the joint fit, which shared the effect with the negative one).
+    if h < 0 < c and use_c:
+        h, c = 0.0, scy / scc
+    elif c < 0 < h and use_h:
+        h, c = shy / shh, 0.0
     h, c = (min(max(v, 0.0), MAX_SLOPE_W) for v in (h, c))
-    a = my - h * mh - c * mc
-    error = sum((d[0] - a - h * d[1] - c * d[2]) ** 2 for d in days)
+
+    def fit_error(h: float, c: float) -> tuple[float, float]:
+        a = my - h * mh - c * mc
+        return a, sum((d[0] - a - h * d[1] - c * d[2]) ** 2 for d in days)
+
+    _a, error = fit_error(h, c)
+    # Only a slope clearly above its noise counts (about 2 standard errors):
+    # else a house without heating would learn a phantom effect.
+    if n > 3:
+        noise = error / (n - 3)
+        if h > 0 and shh > 0 and h < SIGNIFICANCE * math.sqrt(noise / shh):
+            h = 0.0
+            c = min(max(scy / scc, 0.0), MAX_SLOPE_W) if use_c and c > 0 else c
+        if c > 0 and scc > 0 and c < SIGNIFICANCE * math.sqrt(noise / scc):
+            c = 0.0
+            h = min(max(shy / shh, 0.0), MAX_SLOPE_W) if use_h and h > 0 else h
+        _a, error = fit_error(h, c)
     return h, c, error
 
 

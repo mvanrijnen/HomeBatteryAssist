@@ -33,6 +33,7 @@ _LOGGER = logging.getLogger(__name__)
 CACHE = timedelta(minutes=30)
 KINDS = ("hourly", "daily", "twice_daily")
 STEP = {"hourly": 1, "twice_daily": 12, "daily": 24}  # hours one value covers
+MAX_HOURLY_GAP = 6  # an hourly item covers at most this many hours
 
 
 def _to_celsius(value: object, unit: str | None) -> float | None:
@@ -55,13 +56,23 @@ def parse_forecast(
     """Forecast items -> °C per UTC hour (a daily value covers its hours)."""
     out: dict[datetime, float] = {}
     hours = STEP.get(kind, 1)
+    points = []
     for item in items:
         when = dt_util.parse_datetime(str(item.get("datetime", "")))
         temp = _to_celsius(item.get("temperature"), unit)
         if when is None or temp is None:
             continue
         hour = dt_util.as_utc(when).replace(minute=0, second=0, microsecond=0)
-        for i in range(hours):
+        points.append((hour, temp))
+    points.sort(key=lambda p: p[0])
+    for k, (hour, temp) in enumerate(points):
+        span = hours
+        if kind == "hourly" and k + 1 < len(points):
+            # An "hourly" forecast may step to every few hours later on: an
+            # item covers the hours up to the next one (at most 6).
+            gap = int((points[k + 1][0] - hour).total_seconds() // 3600)
+            span = min(max(gap, 1), MAX_HOURLY_GAP)
+        for i in range(span):
             out.setdefault(hour + timedelta(hours=i), temp)
     return out
 

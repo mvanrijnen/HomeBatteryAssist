@@ -81,6 +81,9 @@ def weerlive_error(payload: object) -> str | None:
     return None
 
 
+NOW_VALID = timedelta(hours=1)  # an older 'now' is unknown
+
+
 class WeerliveWeatherSource(WeatherSource):
     """The Weerlive API with the user's key and place."""
 
@@ -92,6 +95,7 @@ class WeerliveWeatherSource(WeatherSource):
         """Initialize."""
         super().__init__(settings)
         self._now: float | None = None
+        self._now_at: datetime | None = None  # when it was read
         self._cache: dict[datetime, float] = {}
         self._read_at: datetime | None = None
         self._failed = False
@@ -114,7 +118,10 @@ class WeerliveWeatherSource(WeatherSource):
         return f"Weerlive ({self.settings.location or 'home'}): {state}"
 
     def temperature_now(self, hass: HomeAssistant) -> float | None:
-        """The temperature of the last answer."""
+        """The temperature of the last answer, while it is recent (requests
+        that fail must not record an old value as measured)."""
+        if self._now_at is None or dt_util.utcnow() - self._now_at > NOW_VALID:
+            return None
         return self._now
 
     async def async_forecast(self, hass: HomeAssistant) -> dict[datetime, float]:
@@ -155,5 +162,6 @@ class WeerliveWeatherSource(WeatherSource):
         self._failed = False
         self.error = None
         self._now = temperature
+        self._now_at = dt_util.utcnow()
         self._cache = forecast
         return forecast
