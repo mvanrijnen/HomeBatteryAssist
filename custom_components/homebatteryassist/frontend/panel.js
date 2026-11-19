@@ -25,8 +25,8 @@ const TEXT = {
     fdOlder: "Day before",
     fdNewer: "Day after",
     fdDayNote: "The energy of that day (kWh) per part and per flow; the thicker the line, the more energy went along it.",
-    fdImport: "← import",
-    fdExport: "→ export",
+    fdImport: "→ import",
+    fdExport: "← export",
     fdCharge: "↓ charge",
     fdDischarge: "↑ discharge",
     fdTodayTotal: "Today so far",
@@ -285,8 +285,8 @@ const TEXT = {
     fdOlder: "Dag ervoor",
     fdNewer: "Dag erna",
     fdDayNote: "De energie van die dag (kWh) per onderdeel en per stroom; hoe dikker de lijn, hoe meer energie erlangs ging.",
-    fdImport: "← afname",
-    fdExport: "→ terug",
+    fdImport: "→ afname",
+    fdExport: "← terug",
     fdCharge: "↓ laden",
     fdDischarge: "↑ ontladen",
     fdTodayTotal: "Vandaag tot nu",
@@ -951,9 +951,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
     };
     const zoneW = zones.reduce((a, z) => a + z.w, 0);
     const zoneWh = zones.some((z) => z.wh != null) ? zones.reduce((a, z) => a + (z.wh || 0), 0) : null;
+    // The grid is on the left, the house on the right: import flows → (to
+    // the house), export ← (to the grid).
     const nodes = [
       node("grid", "fd-grid", "mdi:transmission-tower", t.grid,
-        grid === null ? "–" : `${grid >= 0 ? "← " : "→ "}${this._power(Math.abs(grid))}`,
+        grid === null ? "–" : `${grid >= 0 ? "→ " : "← "}${this._power(Math.abs(grid))}`,
         [[t.fdImport, today.imported, expected.imported], [t.fdExport, today.exported, expected.exported]]),
       node("house", "fd-house", "mdi:home", t.house, this._power(house), [["", today.house, expected.house]]),
       pv !== null ? node("pv", "fd-pv", "mdi:solar-power", t.pv, this._power(pv), [["", today.pv, expected.pv]]) : "",
@@ -978,7 +980,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       ? [
           `${t.house} ${kwh(today.house)}${expected.house != null ? ` (${t.fdExpected} ${kwh(expected.house)})` : ""}`,
           pv !== null ? `${t.pv} ${kwh(today.pv)}${expected.pv != null ? ` (${t.fdExpected} ${kwh(expected.pv)})` : ""}` : "",
-          `${t.grid} ← ${kwh(today.imported)} → ${kwh(today.exported)}`,
+          `${t.grid} → ${kwh(today.imported)} ← ${kwh(today.exported)}`,
           battery !== null ? `${t.batteries} ↓ ${kwh(today.charged)} ↑ ${kwh(today.discharged)}` : "",
           zones.length && today.zones ? `${zones.map((z) => z.name).join(", ")} ${kwh(Object.values(today.zones).reduce((a, v) => a + v, 0))}` : "",
           excluded !== null ? `${(s.excluded_names || []).join(", ") || t.fdExcluded} ${kwh(today.excluded)}` : "",
@@ -1057,7 +1059,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         <div class="fd-info"><div class="fd-name">${esc(label)}</div>${table}</div></div>`;
     };
     const nodes = [
-      node("grid", "fd-grid", "mdi:transmission-tower", t.grid, `← ${kwh(d.imported)}`,
+      node("grid", "fd-grid", "mdi:transmission-tower", t.grid, `→ ${kwh(d.imported)}`,
         [[t.fdImport, d.imported], [t.fdExport, d.exported]]),
       node("house", "fd-house", "mdi:home", t.house, kwh(d.house)),
       s.has_pv ? node("pv", "fd-pv", "mdi:solar-power", t.pv, kwh(d.pv)) : "",
