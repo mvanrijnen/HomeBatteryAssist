@@ -24,6 +24,7 @@ from bisect import bisect_right
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import date, datetime
+from typing import Any
 
 from homeassistant.util import dt as dt_util
 
@@ -328,6 +329,7 @@ def plan_batteries(
     forced: Mapping[datetime, float] | None = None,
     forced_by: Mapping[datetime, Mapping[str, float]] | None = None,
     member_limits: Mapping[datetime, Mapping[str, tuple[float, float]]] | None = None,
+    phase_rooms: Mapping[datetime, Any] | None = None,
 ) -> BatteryPlan | None:
     """Plan the batteries with ``planner`` (default: the built-in planner of
     ``mode``) over the consumption slots, checked by ``finalise``; None
@@ -355,6 +357,7 @@ def plan_batteries(
         forced=forced,
         forced_by=forced_by,
         member_limits=member_limits,
+        phase_rooms=phase_rooms,
     )
     if data is None:
         return None
@@ -380,6 +383,7 @@ def planner_input(
     forced: Mapping[datetime, float] | None = None,
     forced_by: Mapping[datetime, Mapping[str, float]] | None = None,
     member_limits: Mapping[datetime, Mapping[str, tuple[float, float]]] | None = None,
+    phase_rooms: Mapping[datetime, Any] | None = None,
 ) -> PlannerInput | None:
     """What a planner gets; None without batteries or slots."""
     pack = _pack(states, rules)
@@ -470,6 +474,7 @@ def planner_input(
         forced,
         forced_by,
         dict(member_limits or {}),
+        dict(phase_rooms or {}),
     )
 
 
@@ -572,6 +577,7 @@ def finalise(
                 data.forced_by.get(slot.start),
                 sequential=rules.charge_sequential,
                 limits=data.member_limits.get(slot.start),
+                phases=data.phase_rooms.get(slot.start),
                 night=slot.reserve_wh > 0,
                 peak=data.peak_w > 0,
                 peak_excess=max(slot.net_w - data.peak_w, 0.0),
@@ -640,6 +646,8 @@ def _share(
     *,
     sequential: bool = False,
     limits: Mapping[str, tuple[float, float]] | None = None,
+    phases: tuple[Mapping[str, int | None], Sequence[float], Sequence[float]]
+    | None = None,
     night: bool = False,
     peak: bool = False,
     peak_excess: float = 0.0,
@@ -719,19 +727,60 @@ def _share(
         for k in order:
             extra[k] = min(caps[k], todo)
             todo -= extra[k]
-        new = []
-        for m, wh, own, more in zip(members, stored, given, extra, strict=True):
-            new.append(wh + (own + more) * hours * m.efficiency)
-        return total, new
-    new = []
-    for m, wh, cap, own in zip(members, stored, caps, given, strict=True):
-        part = own + (rest * cap / room if room > 0 else 0.0)
-        new.append(
-            wh + part * hours * m.efficiency
-            if power > 0
-            else wh - part * hours / m.efficiency
-        )
+        parts = [own + more for own, more in zip(given, extra, strict=True)]
+    else:
+        parts = [
+            own + (rest * cap / room if room > 0 else 0.0)
+            for cap, own in zip(caps, given, strict=True)
+        ]
+    if phases is not None:
+        parts = _fit_phases(members, parts, phases, charging=power > 0)
+    total = sum(parts)
+    new = [
+        wh + part * hours * m.efficiency
+        if power > 0
+        else wh - part * hours / m.efficiency
+        for m, wh, part in zip(members, stored, parts, strict=True)
+    ]
     return (total if power > 0 else -total), new
+
+
+def _fit_phases(
+    members: Sequence[PackMember],
+    parts: list[float],
+    phases: tuple[Mapping[str, int | None], Sequence[float], Sequence[float]],
+    *,
+    charging: bool,
+) -> list[float]:
+    """Scale the batteries of a phase down to the room it has (the batteries
+    on one phase together, a battery over all phases on each of them)."""
+    phase_of, room_c, room_d = phases
+    room = room_c if charging else room_d
+    count = len(room)
+    if not count:
+        return parts
+    load = [0.0] * count
+    for m, part in zip(members, parts, strict=True):
+        phase = phase_of.get(m.id)
+        if phase is None:
+            for p in range(count):
+                load[p] += part / count
+        elif 0 <= phase < count:
+            load[phase] += part
+    factor = [
+        min(max(room[p], 0.0) / load[p], 1.0) if load[p] > 0 else 1.0
+        for p in range(count)
+    ]
+    out = []
+    for m, part in zip(members, parts, strict=True):
+        phase = phase_of.get(m.id)
+        if phase is None:
+            out.append(part * min(factor))
+        elif 0 <= phase < count:
+            out.append(part * factor[phase])
+        else:
+            out.append(part)
+    return out
 
 
 def cycles_per_day(plan: BatteryPlan) -> dict[date, float]:

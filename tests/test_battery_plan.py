@@ -590,3 +590,21 @@ def test_arbitrage_short_slots_use_full_power() -> None:
     assert all(s.power_w < -900 for s in plan.slots[6:]), [
         s.power_w for s in plan.slots
     ]
+
+
+def test_share_keeps_each_phase_within_its_room() -> None:
+    """Two batteries on L1 together get no more than L1's room."""
+    from custom_components.homebatteryassist.engine.planning.battery_plan import _share
+    from custom_components.homebatteryassist.engine.planning.planners.base import (
+        PackMember,
+    )
+
+    a = PackMember(10000, 2000, 500, 10000, 1.0, 2500, 2500, "a")
+    b = PackMember(10000, 2000, 500, 10000, 1.0, 2500, 2500, "b")
+    c = PackMember(10000, 10000, 500, 10000, 1.0, 2500, 2500, "c")  # full
+    phases = ({"a": 0, "b": 0, "c": 1}, [3000.0, 5000.0, 5000.0], [5000.0] * 3)
+    power, new = _share(
+        [a, b, c], [2000.0, 2000.0, 10000.0], 5000.0, 1.0, phases=phases
+    )
+    assert power <= 3000.0 + 1e-6  # L1's room, not 5000
+    assert new[0] - 2000.0 + new[1] - 2000.0 <= 3000.0 + 1e-6

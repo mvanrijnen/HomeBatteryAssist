@@ -44,7 +44,7 @@ class BatterySensorDescription(SensorEntityDescription):
 
 
 def _stat(key: str) -> Callable[[BatteryInput, BatteryState], Any]:
-    return lambda batteries, state: round(batteries.stats[state.config.id][key], 4)
+    return lambda batteries, state: round(batteries.stats[state.config.id][key], 3)
 
 
 def _last_full(batteries: BatteryInput, state: BatteryState) -> datetime | None:
@@ -65,9 +65,16 @@ def _status_attrs(batteries: BatteryInput, state: BatteryState) -> dict[str, Any
     }
 
 
+def _kwh(value: float | None) -> float | None:
+    """Energy for an entity: to 10 Wh (the simulation changes every round)."""
+    return round(value, 2) if value is not None else None
+
+
 def _full_charge_attrs(batteries: BatteryInput, state: BatteryState) -> dict[str, Any]:
     now = dt_util.utcnow()
     due = batteries.full_charge_due(state.config.id, now)
+    if due is not None:
+        due = due.replace(second=0, microsecond=0)
     return {
         "interval_days": state.config.full_charge_interval_days,
         "next_due": due,
@@ -94,7 +101,7 @@ BATTERY_SENSORS: tuple[BatterySensorDescription, ...] = (
         device_class=SensorDeviceClass.BATTERY,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
-        value_fn=lambda b, s: s.soc,
+        value_fn=lambda b, s: round(s.soc, 1) if s.soc is not None else None,
     ),
     BatterySensorDescription(
         key="battery_power",
@@ -112,16 +119,16 @@ BATTERY_SENSORS: tuple[BatterySensorDescription, ...] = (
     ),
     BatterySensorDescription(
         key="battery_stored_energy",
-        value_fn=lambda b, s: s.stored_kwh,
+        value_fn=lambda b, s: _kwh(s.stored_kwh),
         **ENERGY_STORAGE,
     ),
     BatterySensorDescription(
         key="battery_usable_energy",
-        value_fn=lambda b, s: s.usable_kwh,
+        value_fn=lambda b, s: _kwh(s.usable_kwh),
         **ENERGY_STORAGE,
     ),
     BatterySensorDescription(
-        key="battery_room", value_fn=lambda b, s: s.room_kwh, **ENERGY_STORAGE
+        key="battery_room", value_fn=lambda b, s: _kwh(s.room_kwh), **ENERGY_STORAGE
     ),
     BatterySensorDescription(
         key="battery_time_to_target",
@@ -159,7 +166,9 @@ BATTERY_SENSORS: tuple[BatterySensorDescription, ...] = (
         key="battery_value_today",
         device_class=SensorDeviceClass.MONETARY,
         suggested_display_precision=2,
-        value_fn=lambda b, s: b.value_today(s.config.id),
+        value_fn=lambda b, s: (
+            round(v, 2) if (v := b.value_today(s.config.id)) is not None else None
+        ),
     ),
     BatterySensorDescription(
         key="battery_efficiency_measured",
@@ -337,17 +346,41 @@ class BatterySensor(_BatteryEntityBase):
         self._attr_unique_id = f"{battery_id}_{description.key}"
         name = self._state.config.name
         manufacturer, model = source
+        dutch = (self._batteries.hass.config.language or "").startswith("nl")
         if self._state.config.twin_of:
             real = self._batteries.states.get(self._state.config.twin_of)
             twin = real.config.name if real else "?"
-            manufacturer, model = NAME, f"Twin of {twin} (simulation)"
+            manufacturer, model = (
+                NAME,
+                (
+                    f"Tweeling van {twin} (simulatie)"
+                    if dutch
+                    else f"Twin of {twin} (simulation)"
+                ),
+            )
         elif self._state.config.virtual:
-            manufacturer, model = NAME, "Virtual battery (simulation)"
+            manufacturer, model = (
+                NAME,
+                (
+                    "Virtuele batterij (simulatie)"
+                    if dutch
+                    else "Virtual battery (simulation)"
+                ),
+            )
         else:
             # With a twin it is only measured: the twin is planned in its place.
             twinned = battery_id in twinned_ids(self._batteries.configs)
-            note = "measured only, the twin is planned" if twinned else "read-only"
-            model = f"{model} ({note})" if model else f"Home battery ({note})"
+            if dutch:
+                note = (
+                    "alleen gemeten, de tweeling wordt gepland"
+                    if twinned
+                    else "alleen lezen"
+                )
+                home = "Thuisbatterij"
+            else:
+                note = "measured only, the twin is planned" if twinned else "read-only"
+                home = "Home battery"
+            model = f"{model} ({note})" if model else f"{home} ({note})"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, battery_id)},
             name=name,

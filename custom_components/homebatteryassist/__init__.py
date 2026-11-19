@@ -219,6 +219,7 @@ async def async_setup_entry(
         forecast.last_full = lambda battery_id: batteries.stats.get(battery_id, {}).get(
             "last_full_charge"
         )
+        forecast.full_charge_since = batteries.full_charge_since
 
         def _price_now(when: datetime | None = None) -> float | None:
             data, now = forecast.data, when or dt_util.utcnow()

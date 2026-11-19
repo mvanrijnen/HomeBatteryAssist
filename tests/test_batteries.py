@@ -295,8 +295,10 @@ async def test_battery_values(
     assert float(_value(hass, entry, "battery_power")) == 1000.0
     assert _value(hass, entry, "battery_status") == "charging"
     assert float(_value(hass, entry, "battery_stored_energy")) == 2.56
-    assert float(_value(hass, entry, "battery_usable_energy")) == 2.048  # above 10%
-    assert float(_value(hass, entry, "battery_room")) == 2.048  # up to 90%
+    assert (
+        float(_value(hass, entry, "battery_usable_energy")) == 2.05
+    )  # above 10% (to 10 Wh)
+    assert float(_value(hass, entry, "battery_room")) == 2.05  # up to 90%
     # 2.048 kWh at 1 kW
     full_at = dt_util.parse_datetime(_value(hass, entry, "battery_time_to_target"))
     expected = NOW + timedelta(hours=2.048)  # 2.048 kWh at 1 kW

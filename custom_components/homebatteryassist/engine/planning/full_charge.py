@@ -137,8 +137,12 @@ def schedule_full_charges(
         )
     ]
     max_power = {state.config.id: state.config.max_charge_w for _d, state in due}
-    for f in fixed:  # a running block at its own power
-        max_power.setdefault(f.battery_id, f.power_w)
+    for f in fixed:  # a running block: the battery's own max power
+        own = next(
+            (s.config.max_charge_w for s in states if s.config.id == f.battery_id),
+            f.power_w,
+        )
+        max_power.setdefault(f.battery_id, own)
     for deadline, state in due:
         config = state.config
         # Overdue: catch up within the window; otherwise finish before the deadline.

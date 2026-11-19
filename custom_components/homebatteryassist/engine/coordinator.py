@@ -181,6 +181,7 @@ from .planning.battery_plan import (
 from .planning.full_charge import FullCharge, schedule_full_charges
 from .planning.phase_limit import (
     PhaseDevice,
+    _room,
     cap_powers,
     max_power,
     phase_limit_w,
@@ -420,6 +421,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.pv_partial = False  # a chosen PV source gave no data
         self._member_limits: dict = {}
+        # When the full charge interval counts from (set by __init__).
+        self.full_charge_since: Callable[[str], str | None] = lambda _id: None
+        self._phase_rooms: dict = {}
         self._story_band: int | None = None
         self._adjusted_starts: set[datetime] = set()
         self.full_charge_solar: bool = opts.get(CONF_FULL_CHARGE_SOLAR, True)
@@ -773,7 +777,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             states,
             {
                 c.id: dt_util.parse_datetime(last)
-                if (last := self.last_full(c.id))
+                if (last := self.full_charge_since(c.id))
                 else None
                 for c in (s.config for s in states)
             },
@@ -816,6 +820,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                         cycle_cost=self.cycle_cost,
                         limits=limits,
                         member_limits=self._member_limits,
+                        phase_rooms=self._phase_rooms,
                         export_prices=export_prices,
                         max_cycles_per_day=self.max_cycles,
                         peak_w=self.peak_w,
@@ -1082,6 +1087,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.phase_profile = PhaseProfile(self.history.records, phases)
         result = {}
         members: dict[datetime, dict[str, tuple[float, float]]] = {}
+        rooms: dict[datetime, Any] = {}
         for start, loads in self.phase_profile.loads(consumption, pv_wh).items():
             result[start] = (
                 max_power(devices, loads, limit, charging=True),
@@ -1095,7 +1101,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 discharge, _ = cap_powers({d.id: -d.max_discharge_w}, [d], loads, limit)
                 per[d.id] = (charge.get(d.id, 0.0), -discharge.get(d.id, 0.0))
             members[start] = per
+            rooms[start] = (
+                {d.id: d.phase for d in devices},
+                _room(loads, limit, True),
+                _room(loads, limit, False),
+            )
         self._member_limits = members
+        self._phase_rooms = rooms
         return result
 
     def _derated(self, state: BatteryState) -> Any:

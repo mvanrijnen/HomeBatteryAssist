@@ -110,6 +110,10 @@ class PlannerInput:
     member_limits: Mapping[datetime, Mapping[str, tuple[float, float]]] = field(
         default_factory=dict
     )
+    # Per slot start: (battery id -> phase index or None, charge room W per
+    # phase, discharge room W per phase): the batteries of a phase together
+    # stay within it.
+    phase_rooms: Mapping[datetime, Any] = field(default_factory=dict)
     priced: bool = field(init=False)
 
     def __post_init__(self) -> None:

@@ -554,6 +554,7 @@ class BatteryInput:
                 charged_kwh=0.0, discharged_kwh=0.0, last_full_charge=None
             ) | stored.get(config.id, {})
             stats = self.stats[config.id]
+            stats.setdefault("first_seen", dt_util.utcnow().isoformat())
             # A counter stored as null (a nan once) would break every update.
             for key in ("charged_kwh", "discharged_kwh", "value", "value_kwh"):
                 number = stats.get(key)
@@ -746,12 +747,21 @@ class BatteryInput:
         config = next(c for c in self.configs if c.id == battery_id)
         if config.full_charge_interval_days <= 0:
             return None
-        last = self.stats[battery_id]["last_full_charge"]
+        last = self.stats[battery_id]["last_full_charge"] or self.stats[battery_id].get(
+            "first_seen"
+        )
         if last is None:
             return now
         return dt_util.parse_datetime(last) + timedelta(  # type: ignore[operator]
             days=config.full_charge_interval_days
         )
+
+    def full_charge_since(self, battery_id: str) -> str | None:
+        """Since when the full charge interval counts: the last full charge,
+        else when HomeBatteryAssist first saw the battery (a new battery is
+        not overdue from the first minute)."""
+        stats = self.stats.get(battery_id, {})
+        return stats.get("last_full_charge") or stats.get("first_seen")
 
     @callback
     def _async_state_changed(self, event: Event[EventStateChangedData]) -> None:
