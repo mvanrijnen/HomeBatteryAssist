@@ -304,9 +304,34 @@ class ForecastAccuracy:
             self._settle(kind, actuals)
         return self._settle("pv", actuals)
 
-    def evaluate_prices(self, published: Mapping[str, float]) -> int:
-        """Compare estimated prices with prices published later (start ISO -> price)."""
-        return self._settle("price", published)
+    def evaluate_prices(
+        self,
+        published: Mapping[str, float] | Iterable[tuple[datetime, datetime, float]],
+    ) -> int:
+        """Compare estimated prices with prices published later: a mapping
+        start ISO -> price, or published periods (start, end, price). With
+        periods, an estimate is compared with the time-weighted published
+        price over its whole period (an hourly estimate against four quarter
+        prices), once they cover it completely."""
+        if isinstance(published, Mapping):
+            return self._settle("price", published)
+        periods = sorted(published)
+        actuals: dict[str, float] = {}
+        for start_iso, entry in self.predictions["price"].items():
+            start = dt_util.parse_datetime(start_iso)
+            end = dt_util.parse_datetime(entry["end"])
+            if start is None or end is None or end <= start:
+                continue
+            total = covered = 0.0
+            for p_start, p_end, price in periods:
+                if p_end <= start or p_start >= end:
+                    continue
+                seconds = (min(p_end, end) - max(p_start, start)).total_seconds()
+                total += price * seconds
+                covered += seconds
+            if covered >= (end - start).total_seconds() - 1:
+                actuals[start_iso] = total / covered
+        return self._settle("price", actuals)
 
     def prune(self, now: datetime) -> None:
         """Drop old results and predictions that will never be settled."""

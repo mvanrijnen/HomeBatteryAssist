@@ -488,10 +488,11 @@ class BatteryInput:
         self._listeners: list[Callable[[], None]] = []
         self._unsub: CALLBACK_TYPE | None = None
         self._unsub_log: CALLBACK_TYPE | None = None
-        # Price (per kWh) right now, set by the setup (from the price forecast).
-        self.price_now: Callable[[], float | None] = lambda: None
-        # What exported energy earns right now (None = the import price).
-        self.export_price_now: Callable[[], float | None] = lambda: None
+        # Price (per kWh) at a moment (default now), set by the setup (from
+        # the price forecast).
+        self.price_now: Callable[..., float | None] = lambda *_: None
+        # What exported energy earns at a moment (None = the import price).
+        self.export_price_now: Callable[..., float | None] = lambda *_: None
         # Measured grid power right now, W (+ import / - export), real
         # batteries included, virtual batteries not.
         self.grid_now: Callable[[], float | None] = lambda: None
@@ -796,7 +797,10 @@ class BatteryInput:
                 stats["discharged_kwh"] = round(stats["discharged_kwh"] - kwh, 4)
             # Realised value: what the grid would have cost without this
             # battery minus what it costs with it (no net metering).
-            if kwh and (price := self.price_now()) is not None:
+            # The prices of the stretch itself (its middle): a stretch that
+            # ends on a quarter boundary is not valued at the next quarter.
+            middle = since + (when - since) / 2
+            if kwh and (price := self.price_now(middle)) is not None:
                 hours = max((when - since).total_seconds(), 0.0) / 3600
                 grid_kwh = self._grid_with_batteries(battery_id, last_power)
                 stats.setdefault("value_since", when.isoformat())
@@ -808,7 +812,7 @@ class BatteryInput:
                         kwh,
                         None if grid_kwh is None else grid_kwh * hours / 1000,
                         price,
-                        self.export_price_now(),
+                        self.export_price_now(middle),
                     ),
                     5,
                 )

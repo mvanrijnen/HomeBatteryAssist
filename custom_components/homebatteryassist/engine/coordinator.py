@@ -621,7 +621,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         accuracy.evaluate_pv(self.history.records)
         accuracy.evaluate_heating(self.history.records)
         accuracy.evaluate_prices(
-            {p.start.isoformat(): p.price for p in prices if not p.estimated}
+            [(p.start, p.end, p.price) for p in prices if not p.estimated]
         )
         accuracy.prune(now)
         accuracy.refresh_stats(now)

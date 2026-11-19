@@ -87,7 +87,7 @@ from .engine.measure.battery_monitor import (
     BatteryInput,
     activity_of,
 )
-from .engine.measure.house_measurement import MeasurementInput, solar_surplus_w
+from .engine.measure.house_measurement import MeasurementInput
 from .engine.measure.spike_filters import (
     DEFAULT_SPIKE_FILTER,
     async_load_user_spike_filters,
@@ -175,14 +175,14 @@ async def async_setup_entry(
         "last_full_charge"
     )
 
-    def _price_now() -> float | None:
-        data, now = forecast.data, dt_util.utcnow()
+    def _price_now(when: datetime | None = None) -> float | None:
+        data, now = forecast.data, when or dt_util.utcnow()
         if data is None:
             return None
         return next((p.price for p in data.prices if p.start <= now < p.end), None)
 
-    def _export_price_now() -> float | None:
-        data, now = forecast.data, dt_util.utcnow()
+    def _export_price_now(when: datetime | None = None) -> float | None:
+        data, now = forecast.data, when or dt_util.utcnow()
         if data is None:
             return None
         # The export price point covering now (a slot may average several).
@@ -194,7 +194,7 @@ async def async_setup_entry(
         slot = next((s for s in data.battery if s.start <= now < s.end), None)
         if slot is not None and slot.export_price is not None:
             return slot.export_price
-        price = _price_now()
+        price = _price_now(now)
         return None if price is None else price * forecast.export_factor
 
     batteries.price_now = _price_now
@@ -428,7 +428,10 @@ async def async_setup_entry(
         for check in solar_checks:
             result = check.update(
                 when,
-                solar_surplus_w(flow) if known else None,
+                # Like with like: the forecast is the house without the
+                # excluded devices, so an EV charging on the sun is no
+                # "less sun than expected".
+                flow.pv_w - flow.house_w if known else None,
                 data.pv_now_w - slot.power_w if known else None,
                 nom=data is None or data.plan_mode == MODE_NOM,
             )

@@ -80,18 +80,29 @@ def apply_tariff(
     if not prices:
         return [], list(export_prices)
 
-    def at(points: Sequence[PricePoint], when: datetime) -> float | None:
-        return next((p.price for p in points if p.start <= when < p.end), None)
+    def over(
+        points: Sequence[PricePoint], start: datetime, end: datetime
+    ) -> float | None:
+        """Time-weighted price over [start, end) (hourly import prices with
+        quarter export or market prices); None when nothing covers it."""
+        total = seconds = 0.0
+        for p in points:
+            if p.end <= start or p.start >= end:
+                continue
+            part = (min(p.end, end) - max(p.start, start)).total_seconds()
+            total += p.price * part
+            seconds += part
+        return total / seconds if seconds else None
 
     slots = []
     for point in prices:
-        export = at(export_prices, point.start)
+        export = over(export_prices, point.start, point.end)
         slots.append(
             TariffSlot(
                 point.start,
                 point.end,
                 point.price,
-                at(market, point.start),
+                over(market, point.start, point.end),
                 export if export is not None else point.price * export_factor,
                 point.estimated,
             )
