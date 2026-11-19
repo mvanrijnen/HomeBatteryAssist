@@ -422,6 +422,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.pv_partial = False  # a chosen PV source gave no data
         self._member_limits: dict = {}
+        self._temperature_key: tuple | None = None  # (day, zones) fitted
         self.timings: dict[str, float] = {}  # ms per step, last cycle
         # When the full charge interval counts from (set by __init__).
         self.full_charge_since: Callable[[str], str | None] = lambda _id: None
@@ -1572,12 +1573,24 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         (only when a weather entity is set up)."""
         if self.weather is None:
             self.temperature_model = self.temperatures = None
+            self._temperature_key = None
             self.temperature_slots = []
             self.weather_end = None
             return
-        self.temperature_model = fit_effect(
-            self.forecast_records(), now, {z.zone_id: z.name for z in self.zones}
+        # Learned from daily means: they change once a day, so the model is
+        # fitted once per local day (a reload, e.g. a changed setting, fits
+        # again).
+        per_day = max(1, 1440 // self.history.minutes)
+        key = (
+            dt_util.as_local(now).date(),
+            tuple(z.zone_id for z in self.zones),
+            len(self.history.records) // per_day,  # an import: fit again
         )
+        if key != self._temperature_key:
+            self.temperature_model = fit_effect(
+                self.forecast_records(), now, {z.zone_id: z.name for z in self.zones}
+            )
+            self._temperature_key = key
         try:
             # An (own) weather source that does not answer: no forecast.
             async with asyncio.timeout(60):
