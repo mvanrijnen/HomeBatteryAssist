@@ -742,12 +742,19 @@ class VirtualBatterySimulator:
         if shaved > 0:
             event = self._peak
             if event is None:
-                names = [c.name for c in self.virtual if abs(result[c.id]) > 1]
+                names = [
+                    c.name
+                    for c in self.virtual
+                    if abs(result[c.id] - wanted.get(c.id, 0.0)) > 1
+                ]
+                checked = flow.grid_w - (
+                    0.0 if self._forecast.peak_include_excluded else flow.excluded_w
+                )
                 self._peak = event = {"start": now, "wh": 0.0}
                 self._decisions.async_log(
                     "battery",
                     "peak_shaving",
-                    grid=f"{flow.grid_w + sum(wanted.values()):.0f} W",
+                    grid=f"{checked + sum(wanted.values()):.0f} W",
                     limit=f"{peak:.0f} W",
                     names=", ".join(names) or "-",
                     power=f"{shaved:.0f} W",

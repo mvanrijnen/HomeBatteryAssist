@@ -8,6 +8,7 @@ in ``/config/homebatteryassist/pv_forecasts/`` (see ``template.py``), keyed
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
 from collections.abc import Iterable, Mapping
@@ -52,6 +53,9 @@ def load_pv_sources_from(folder: Path) -> dict[str, PvForecastSource]:
     return _usable(load_modules_from(folder, PvForecastSource, "pv_forecasts"))
 
 
+OWN_TIMEOUT_S = 60  # a forecast source that does not answer: skipped
+
+
 async def async_load_user_pv_sources(
     hass: HomeAssistant,
 ) -> dict[str, PvForecastSource]:
@@ -76,18 +80,20 @@ async def async_find_pv_forecasts(
     """(stored value, label) of every forecast offered now."""
     found: list[tuple[str, str]] = []
     for key, source in (*BUILTIN.items(), *own.items()):
-        try:
-            options = await source.async_find(hass)
-        except Exception:
-            _LOGGER.exception("PV forecast source %s failed to list its forecasts", key)
-            continue
         suffix = "" if key == DEFAULT_SOURCE else f" ({source.name or key})"
         if not source.verified:
             suffix += " (niet getest)" if dutch else " (not tested)"
-        found.extend(
-            (choice_value(key, option.id), f"{option.label}{suffix}")
-            for option in options
-        )
+        try:
+            # An own module may hang or answer in any shape.
+            async with asyncio.timeout(OWN_TIMEOUT_S):
+                options = await source.async_find(hass)
+            found.extend(
+                (choice_value(key, option.id), f"{option.label}{suffix}")
+                for option in options or ()
+            )
+        except Exception:
+            _LOGGER.exception("PV forecast source %s failed to list its forecasts", key)
+            continue
     return found
 
 
@@ -111,7 +117,10 @@ async def async_read_pv_forecasts(
                 missing.append(choice)
             continue
         try:
-            hours = await source.async_read(hass, option_id)
+            async with asyncio.timeout(OWN_TIMEOUT_S):
+                hours = await source.async_read(hass, option_id)
+            if hours is not None and not isinstance(hours, Mapping):
+                raise TypeError(f"expected a mapping, got {type(hours).__name__}")
         except Exception:
             _LOGGER.exception("PV forecast %s failed", choice)
             if missing is not None:

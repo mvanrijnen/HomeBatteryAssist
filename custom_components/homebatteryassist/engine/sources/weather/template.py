@@ -14,7 +14,13 @@ from datetime import date, datetime
 
 from homeassistant.core import HomeAssistant
 
-from .base import WeatherSource, combine, daily_curve, valid_temperature
+# Own modules import from the integration with an absolute import:
+from custom_components.homebatteryassist.engine.sources.weather.base import (
+    WeatherSource,
+    combine,
+    daily_curve,
+    valid_temperature,
+)
 
 
 class TemplateWeatherSource(WeatherSource):

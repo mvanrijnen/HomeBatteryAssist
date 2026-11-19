@@ -247,7 +247,9 @@ async def async_setup_entry(
 
         def _planned_now() -> float | None:
             data, now = forecast.data, dt_util.utcnow()
-            if data is None:
+            if data is None or len(batteries.plan_states()) != 1:
+                # Several batteries: the plan pools them (which one takes it
+                # depends on the charge order), so no per-battery comparison.
                 return None
             return next(
                 (s.power_w for s in data.battery if s.start <= now < s.end), None
@@ -272,6 +274,7 @@ async def async_setup_entry(
             ):
                 return None  # charging from the grid: not zero on the meter
             config = live[0].config
+            rules = forecast.rules
             for slot in plan.slots:
                 if slot.end <= now:
                     continue
@@ -287,7 +290,14 @@ async def async_setup_entry(
                         else "resume_supplying"
                     )
                 elif activity == "discharging":
-                    why = "empty" if slot.soc <= config.min_soc + 1 else "pv_covers"
+                    # Empty: at its minimum or at the reserve the plan holds.
+                    floor = max(
+                        config.min_soc,
+                        rules.reserve_soc,
+                        rules.night_reserve_soc if slot.start in data.night else 0.0,
+                        rules.peak_reserve_soc if forecast.peak_w > 0 else 0.0,
+                    )
+                    why = "empty" if slot.soc <= floor + 1 else "pv_covers"
                 else:
                     why = "full" if slot.soc >= config.max_soc - 1 else "pv_end"
                 return max(slot.start, now), why

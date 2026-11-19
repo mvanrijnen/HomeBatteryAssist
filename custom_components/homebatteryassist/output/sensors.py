@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -543,7 +543,16 @@ class PlanPhaseSensor(
         data = self.coordinator.data
         # The planned batteries (a real battery with a twin is not planned).
         configs = [s.config for s in self._batteries.plan_states()]
-        reserve = self.coordinator.rules.reserve_soc
+        rules = self.coordinator.rules
+        now = dt_util.utcnow()
+        night = any(start <= now < start + timedelta(hours=1) for start in data.night)
+        # The floor the plan holds now: the reserve, the night reserve at
+        # night, the peak reserve with a peak limit.
+        reserve = max(
+            rules.reserve_soc,
+            rules.night_reserve_soc if night else 0.0,
+            rules.peak_reserve_soc if self.coordinator.peak_w > 0 else 0.0,
+        )
         capacity = sum(c.capacity_kwh for c in configs) or 1.0
         floor = (
             sum(max(c.min_soc, reserve) * c.capacity_kwh for c in configs) / capacity
@@ -578,6 +587,8 @@ class PlanPhaseSensor(
         share = 1.0
         if self._battery_id is not None:
             share = shares.get(self._battery_id, ("", 0.0))[1]
+            if share <= 0:  # not planned (e.g. a real battery with a twin)
+                return {"current_start": None, "next_start": None}
         return {
             **phase_attributes(current, "current_", shares, share),
             **phase_attributes(following, "next_", shares, share),

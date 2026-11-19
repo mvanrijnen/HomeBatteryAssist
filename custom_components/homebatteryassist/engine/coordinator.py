@@ -18,6 +18,7 @@ decision log.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from bisect import bisect_right
 from collections import Counter
@@ -415,6 +416,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.pv_partial = False  # a chosen PV source gave no data
         self._member_limits: dict = {}
+        self._story_band: int | None = None
         self._adjusted_starts: set[datetime] = set()
         self.full_charge_solar: bool = opts.get(CONF_FULL_CHARGE_SOLAR, True)
         self.charge_order: str = opts.get(CONF_CHARGE_ORDER, CHARGE_SEQUENTIAL)
@@ -777,6 +779,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             together=self.charge_order,
             surplus=_surplus_fn(consumption, pv_plan),
         )
+        # A full charge that is running keeps its block (else every cycle
+        # would move it, and tell it again).
+        running = {
+            f.battery_id: f
+            for f in (self.data.full_charges if self.data else [])
+            if f.start <= now < f.end
+        }
+        if running:
+            full_charges = [running.get(f.battery_id, f) for f in full_charges]
         forced = _forced_power(consumption, full_charges, now)
         forced_by = {
             start: {
@@ -1478,7 +1489,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             ),
             None,
         )
-        band = round((plan.saving or 0.0) / 0.25)  # saving in steps of 0.25
+        # The saving in steps of 0.25, with hysteresis: a saving wobbling
+        # around a step boundary is no new story.
+        saving = plan.saving or 0.0
+        band = round(saving / 0.25)
+        if self._story_band is not None and abs(saving - self._story_band * 0.25) < 0.2:
+            band = self._story_band
+        self._story_band = band
         key = f"{plan.mode}|{action}|{next_charge}|{band}"
         if key == self._last_plan and not forced:
             return
@@ -1516,7 +1533,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             self.forecast_records(), now, {z.zone_id: z.name for z in self.zones}
         )
         try:
-            hourly = checked_forecast(await self.weather.async_forecast(self.hass))
+            # An (own) weather source that does not answer: no forecast.
+            async with asyncio.timeout(60):
+                forecast = await self.weather.async_forecast(self.hass)
+            hourly = checked_forecast(forecast)
         except Exception:  # a weather source may fail in any way
             _LOGGER.exception("Weather forecast of %s failed", self.weather.describe())
             hourly = {}
