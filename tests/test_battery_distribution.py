@@ -38,3 +38,28 @@ def test_one_direction() -> None:
     }
     # One direction already: unchanged.
     assert one_direction({"a": 100.0, "b": 0.0}) == {"a": 100.0, "b": 0.0}
+
+
+def test_one_direction_fuse_first() -> None:
+    """Two phases overloaded the opposite way: the protection stands (the
+    fuse comes first), the other batteries stop."""
+    from custom_components.homebatteryassist.engine.planning.battery_distribution import (
+        one_direction,
+    )
+
+    out = one_direction({"a": -2800.0, "b": 2800.0, "c": -500.0}, ["a", "b"], [])
+    assert out == {"a": -2800.0, "b": 2800.0, "c": 0.0}
+
+
+def test_system_limited() -> None:
+    """The system's max powers hold for all batteries together."""
+    from types import SimpleNamespace
+
+    from custom_components.homebatteryassist.engine.devices.batteries.virtual import (
+        system_limited,
+    )
+
+    rules = SimpleNamespace(max_charge_w=0.0, max_discharge_w=2000.0)
+    out = system_limited({"a": -2000.0, "b": -2000.0}, rules)
+    assert out == {"a": -1000.0, "b": -1000.0}
+    assert system_limited({"a": 3000.0}, rules) == {"a": 3000.0}

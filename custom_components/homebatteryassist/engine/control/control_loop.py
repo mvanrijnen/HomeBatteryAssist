@@ -53,6 +53,9 @@ the dashboard simulates is what would be sent:
    charge sets the direction and the batteries against it stop; otherwise
    the net stands (the grid sees the same, without the losses of moving
    energy from one battery into the other).
+   Exception: two phases overloaded the opposite way are both relieved (the
+   main fuse first). The system's max charge / discharge power is a hard
+   limit, also for protection (``virtual.system_limited``).
 6. **HomeBatteryAssist's own final check**, which always wins: phase limits
    (``_phase_limited``), power limits and the state of charge: never below
    max(min SoC, reserve SoC), never above max SoC (100 % during a full
@@ -302,6 +305,8 @@ Activating (later, deliberately, with the project owner)
 #         # The phase caps after it (a full charge at full power included):
 #         # HomeBatteryAssist's own check always wins.
 #         wanted = phase_limited(wanted, now)
+#         # The system's max powers: a hard limit, also for protection.
+#         wanted = system_limited(wanted, self._forecast.rules)
 #         for config in configs:
 #             soc = socs[config.id]
 #             controller = self.controllers[config.id]

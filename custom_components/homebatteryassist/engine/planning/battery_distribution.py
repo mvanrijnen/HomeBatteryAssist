@@ -196,6 +196,11 @@ def one_direction(
     it stops. Without such a group the net stands: the direction of the sum
     stays, the batteries against it stop, and those with it together give
     the sum (the grid sees the same).
+
+    The one exception, by the owner's decision: a group with both directions
+    (protection of two phases overloaded the opposite way, one importing and
+    one exporting too much) stands as it is, because the main fuse comes
+    first; every other battery stops.
     """
     out = {k: float(v) for k, v in powers.items()}
     if not any(p > 0 for p in out.values()) or not any(p < 0 for p in out.values()):
@@ -204,9 +209,13 @@ def one_direction(
         members = [i for i in group if out.get(i, 0.0)]
         if not members:
             continue
-        # Both ways inside the group (e.g. one phase importing too much,
-        # another exporting too much): the larger need sets the direction.
-        sign = math.copysign(1.0, sum(out[i] for i in members) or out[members[0]])
+        if any(out[i] > 0 for i in members) and any(out[i] < 0 for i in members):
+            # Both ways inside the group (one phase importing too much,
+            # another exporting too much): the fuse comes first, the group
+            # stands; all others stop.
+            keep = set(members)
+            return {k: (p if k in keep else 0.0) for k, p in out.items()}
+        sign = math.copysign(1.0, out[members[0]])
         return {k: (0.0 if p * sign < 0 else p) for k, p in out.items()}
     total = sum(out.values())
     same = sum(p for p in out.values() if p * total > 0)

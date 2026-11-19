@@ -186,6 +186,20 @@ def random_efficiency(config: BatteryConfig) -> float:
     return 1 - random.uniform(config.loss_min, config.loss_max)
 
 
+def system_limited(powers: dict[str, float], rules: Any) -> dict[str, float]:
+    """All batteries together within the system's max charge and discharge
+    power (0 = no limit), each scaled by the same factor."""
+    out = dict(powers)
+    for sign, cap in ((1.0, rules.max_charge_w), (-1.0, rules.max_discharge_w)):
+        if cap <= 0:
+            continue
+        total = sum(p for p in out.values() if p * sign > 0) * sign
+        if total > cap:
+            factor = cap / total
+            out = {k: (p * factor if p * sign > 0 else p) for k, p in out.items()}
+    return out
+
+
 class VirtualBatterySimulator:
     """Steps all virtual batteries forward in time."""
 
@@ -619,6 +633,9 @@ class VirtualBatterySimulator:
             [i for i in wanted if full.get(i)],
         )
         wanted = self._phase_limited(wanted, now)
+        # The system's max charge / discharge power is a hard limit, also for
+        # protection (phase relief, peak shaving) — the owner's decision.
+        wanted = system_limited(wanted, self._forecast.rules)
         wanted = self._hold_without_meter(wanted)
         for config in self.virtual:
             limits = replace(config, max_soc=100.0) if full[config.id] else config
