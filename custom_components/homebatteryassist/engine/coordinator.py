@@ -169,6 +169,8 @@ from .measure.battery_monitor import BatteryState
 from .measure.heating_zones import heating_zones
 from .planning.battery_plan import (
     DEFAULT_PLAN_MODE,
+    MODE_ARBITRAGE,
+    MODE_ARBITRAGE_FULL,
     MODE_MANUAL,
     MODE_NOM,
     MODE_TIME_SLOTS,
@@ -422,6 +424,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         self.pv_partial = False  # a chosen PV source gave no data
         self._member_limits: dict = {}
+        self._planned_at: dict[str, datetime] = {}  # when each mode was planned
         self._temperature_key: tuple | None = None  # (day, zones) fitted
         self.timings: dict[str, float] = {}  # ms per step, last cycle
         # When the full charge interval counts from (set by __init__).
@@ -819,6 +822,18 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         for mode in (*PLAN_MODES, *self.planners):
             planner = self.planners.get(mode) or BUILTIN.get(mode)
             lap(None)
+            previous = self.data.plans.get(mode) if self.data else None
+            if (
+                mode in HEAVY_MODES
+                and mode != self.plan_mode
+                and previous is not None
+                and (at := self._planned_at.get(mode)) is not None
+                and now - at < HEAVY_EVERY
+            ):
+                # A heavy mode that is not chosen is only there to compare
+                # with: computed once an hour, not every cycle.
+                plans[mode] = previous
+                continue
             try:
                 plan = await self.hass.async_add_executor_job(
                     lambda m=mode, p=planner: plan_batteries(
@@ -853,6 +868,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                     )
                 continue
             lap(f"plan:{mode}")
+            self._planned_at[mode] = now
             self._failed_planners.discard(mode)
             if plan is not None:
                 plans[mode] = plan
@@ -1795,6 +1811,12 @@ def _periods(
 
     text = ", ".join(fmt(a, b) for a, b in periods[:3])
     return text + (" ..." if len(periods) > 3 else "") if text else "-"
+
+
+# Modes that take long to plan: when not chosen, planned once an hour (they
+# are only compared with on the dashboard).
+HEAVY_MODES = (MODE_ARBITRAGE, MODE_ARBITRAGE_FULL)
+HEAVY_EVERY = timedelta(hours=1)
 
 
 class _Laps:

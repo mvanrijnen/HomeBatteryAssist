@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import math
 from datetime import date
+from typing import ClassVar
 
 from homeassistant.util import dt as dt_util
 
@@ -330,8 +331,14 @@ def _optimise(
     return powers
 
 
+WARM_SEARCH_STEPS = 3  # bisection steps when starting near the last penalty
+
+
 class ArbitragePlanner(Planner):
     """Cost-optimal for own use (no battery energy to the grid)."""
+
+    # The last cycle limit penalty per planner key (a warm start).
+    _penalty: ClassVar[dict[str, float]] = {}
 
     key = "arbitrage"
     verified = True
@@ -354,18 +361,41 @@ class ArbitragePlanner(Planner):
             )
 
         if limit > 0 and not within(powers):
-            low, high = 0.0, 0.5  # extra cost per kWh discharged
-            best = _optimise(data, self.allow_export, high)
-            while not within(best) and high < 8:
-                low, high = high, high * 2
+            # Extra cost per kWh discharged that keeps the cycles within the
+            # limit. It hardly changes from one cycle to the next: the search
+            # starts around the last one (a few runs instead of a dozen).
+            last = self._penalty.get(self.key)
+            steps = CYCLE_SEARCH_STEPS
+            if last:
+                low, high = last * 0.7, last * 1.3
                 best = _optimise(data, self.allow_export, high)
-            for _ in range(CYCLE_SEARCH_STEPS):
+                if within(best):
+                    candidate = _optimise(data, self.allow_export, low)
+                    if within(candidate):
+                        low, high, best = 0.0, low, candidate  # lower than before
+                    else:
+                        steps = WARM_SEARCH_STEPS
+                else:
+                    low, high = high, high * 2
+                    best = _optimise(data, self.allow_export, high)
+                    while not within(best) and high < 8:
+                        low, high = high, high * 2
+                        best = _optimise(data, self.allow_export, high)
+                    steps = WARM_SEARCH_STEPS
+            else:
+                low, high = 0.0, 0.5
+                best = _optimise(data, self.allow_export, high)
+                while not within(best) and high < 8:
+                    low, high = high, high * 2
+                    best = _optimise(data, self.allow_export, high)
+            for _ in range(steps):
                 middle = (low + high) / 2
                 candidate = _optimise(data, self.allow_export, middle)
                 if within(candidate):
                     high, best = middle, candidate
                 else:
                     low = middle
+            self._penalty[self.key] = high
             powers = best
         return PlannerResult(powers, strategy=self.key)
 
