@@ -262,6 +262,7 @@ from .engine.devices.meters import get_driver as get_meter_driver
 from .engine.devices.meters.discovery import (
     DIRECT_SOURCES,
     SOURCE_HOMEWIZARD,
+    SOURCE_HOMEWIZARD_V2,
     SOURCE_NAMES,
     SOURCE_SPEEDWIRE,
     DirectCandidate,
@@ -1278,11 +1279,18 @@ def _direct_options(
 
 
 def _direct_label(candidate: DirectCandidate, dutch: bool) -> str:
-    how = (
-        "rechtstreeks, elke seconde, alleen lezen"
-        if dutch
-        else "read directly, every second, read-only"
-    )
+    if candidate.source == SOURCE_HOMEWIZARD_V2:
+        how = (
+            "rechtstreeks, de meter stuurt elke meting, alleen lezen"
+            if dutch
+            else "read directly, the meter pushes every reading, read-only"
+        )
+    else:
+        how = (
+            "rechtstreeks, elke seconde, alleen lezen"
+            if dutch
+            else "read directly, every second, read-only"
+        )
     driver = get_meter_driver(candidate.source)
     mark = untested(driver is not None and driver.verified, dutch)
     return f"{candidate.name} {candidate.address} ({how}){mark}"

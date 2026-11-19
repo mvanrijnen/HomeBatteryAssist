@@ -419,6 +419,7 @@
     "meter_source": {
       "options": {
         "homewizard": "HomeWizard P1 or kWh meter (local API)",
+        "homewizard_v2": "HomeWizard P1 or kWh meter (local API v2, pushed) (not tested)",
         "speedwire": "SMA Home Manager / Energy Meter (Speedwire)",
         "shelly": "Shelly Pro 3EM / 3EM (not tested)",
         "shelly_em": "Shelly EM / Pro EM (1 phase) (not tested)",

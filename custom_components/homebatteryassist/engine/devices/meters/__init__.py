@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from .base import MeterDriver
 from .discovery import (
     SOURCE_HOMEWIZARD,
+    SOURCE_HOMEWIZARD_V2,
     SOURCE_IAMMETER,
     SOURCE_NAMES,
     SOURCE_SHELLY,
@@ -39,6 +40,7 @@ class _Driver(MeterDriver):
 
 DRIVERS: tuple[MeterDriver, ...] = (
     _Driver(SOURCE_HOMEWIZARD, verified=True),
+    _Driver(SOURCE_HOMEWIZARD_V2, verified=False),
     _Driver(SOURCE_SPEEDWIRE, verified=True),
     _Driver(SOURCE_SHELLY, verified=False),
     _Driver(SOURCE_SHELLY_EM, verified=False),

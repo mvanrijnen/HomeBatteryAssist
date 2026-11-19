@@ -21,12 +21,14 @@ _LOGGER = logging.getLogger(__name__)
 
 SOURCE_SENSORS = "sensors"
 SOURCE_HOMEWIZARD = "homewizard"
+SOURCE_HOMEWIZARD_V2 = "homewizard_v2"  # API v2, pushed (websocket)
 SOURCE_SPEEDWIRE = "speedwire"
 SOURCE_SHELLY = "shelly"
 SOURCE_SHELLY_EM = "shelly_em"
 SOURCE_IAMMETER = "iammeter"
 DIRECT_SOURCES = (
     SOURCE_HOMEWIZARD,
+    SOURCE_HOMEWIZARD_V2,
     SOURCE_SPEEDWIRE,
     SOURCE_SHELLY,
     SOURCE_SHELLY_EM,
@@ -34,6 +36,7 @@ DIRECT_SOURCES = (
 )
 SOURCE_NAMES = {
     SOURCE_HOMEWIZARD: "HomeWizard",
+    SOURCE_HOMEWIZARD_V2: "HomeWizard (API v2, push)",
     SOURCE_SPEEDWIRE: "SMA Home Manager / Energy Meter",
     SOURCE_SHELLY: "Shelly 3EM",
     SOURCE_SHELLY_EM: "Shelly EM",

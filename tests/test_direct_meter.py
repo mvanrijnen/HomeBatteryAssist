@@ -340,3 +340,54 @@ def test_reactive_current_learned_per_phase(hass: HomeAssistant) -> None:
     assert profile._with_reactive(0.0, 228.0) == 228.0  # nothing on, still current
     assert profile._with_reactive(-500.0, 0.0) == -500.0
     assert PhaseProfile(records[:3], 2).reactive == [0.0, 0.0]  # too little yet
+
+
+def test_homewizard_v2_reading() -> None:
+    """API v2 measurement: power, current (as size) and voltage per phase."""
+    from custom_components.homebatteryassist.engine.devices.meters.homewizard_v2 import (
+        homewizard_v2_reading,
+    )
+
+    reading = homewizard_v2_reading(
+        {
+            "power_w": -543,
+            "power_l1_w": -676,
+            "power_l2_w": 133,
+            "power_l3_w": 0,
+            "current_l1_a": -4,
+            "current_l2_a": 2,
+            "current_l3_a": 0,
+            "voltage_l1_v": 228,
+            "voltage_l2_v": 229,
+            "voltage_l3_v": 230,
+        }
+    )
+    assert reading is not None
+    assert reading.phase_w == (-676.0, 133.0, 0.0)
+    assert reading.phase_a == (4.0, 2.0, 0.0)
+    assert reading.phase_v == (228.0, 229.0, 230.0)
+    one = homewizard_v2_reading({"power_w": 300})
+    assert one is not None and one.phase_w == (300.0,)
+    assert homewizard_v2_reading({}) is None
+
+
+async def test_homewizard_v2_token_and_candidate(hass) -> None:
+    """The v2 driver is offered only when the HomeWizard integration has a
+    token; the token is taken from it, never created."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.homebatteryassist.engine.devices.meters.homewizard_v2 import (
+        HomeWizardPush,
+        homewizard_token,
+    )
+
+    entry = MockConfigEntry(
+        domain="homewizard", data={"ip_address": "10.0.0.5", "token": "abc"}
+    )
+    entry.add_to_hass(hass)
+    assert homewizard_token(hass, "10.0.0.5") == "abc"
+    assert homewizard_token(hass, "10.0.0.6") is None
+    meter = HomeWizardPush(hass, "10.0.0.5")
+    meter.handle({"power_l1_w": 100, "power_l2_w": 200, "power_l3_w": -50})
+    assert meter.available and meter.phase_w == (100.0, 200.0, -50.0)
+    meter.cancel_stale()

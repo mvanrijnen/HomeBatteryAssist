@@ -13,6 +13,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .direct_reading import (
     SOURCE_HOMEWIZARD,
+    SOURCE_HOMEWIZARD_V2,
     DirectCandidate,
     PhaseReading,
     PollingMeter,
@@ -74,7 +75,8 @@ def homewizard_reading(data: dict[str, Any]) -> PhaseReading | None:
 
 
 def find_homewizard(hass: HomeAssistant) -> list[DirectCandidate]:
-    """HomeWizard grid meters known to Home Assistant (config entries)."""
+    """HomeWizard grid meters known to Home Assistant (config entries);
+    also as API v2 (pushed) when the integration has a v2 token."""
     devices = dr.async_get(hass)
     found: list[DirectCandidate] = []
     for entry in hass.config_entries.async_entries(SOURCE_HOMEWIZARD):
@@ -85,13 +87,16 @@ def find_homewizard(hass: HomeAssistant) -> list[DirectCandidate]:
                 and device.model_id in HOMEWIZARD_METERS
                 and not device.via_device_id  # e.g. the gas meter of a P1
             ):
-                found.append(
-                    DirectCandidate(
-                        SOURCE_HOMEWIZARD,
-                        address,
-                        f"HomeWizard {device.name_by_user or device.name or device.model}",
-                        HOMEWIZARD_METERS[device.model_id],
-                    )
+                name = (
+                    f"HomeWizard {device.name_by_user or device.name or device.model}"
                 )
+                phases = HOMEWIZARD_METERS[device.model_id]
+                found.append(DirectCandidate(SOURCE_HOMEWIZARD, address, name, phases))
+                if entry.data.get("token"):
+                    found.append(
+                        DirectCandidate(
+                            SOURCE_HOMEWIZARD_V2, address, f"{name} (API v2)", phases
+                        )
+                    )
                 break
     return found

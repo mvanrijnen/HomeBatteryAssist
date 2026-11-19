@@ -55,6 +55,7 @@ One file per brand, sharing `direct_reading.py` (reading about once a second; a 
 | File | Meters | Status |
 |---|---|---|
 | `homewizard.py` | HomeWizard P1 meter and kWh meters (1/3 phase), local API v1 | verified |
+| `homewizard_v2.py` | The same through the local API v2: the meter pushes every reading (websocket). Uses the token of Home Assistant's HomeWizard integration (only offered when it talks API v2; HBA never creates a token) | not tested |
 | `sma.py` | SMA Sunny Home Manager 2.0 / Energy Meter, Speedwire (only received) | verified |
 | `shelly.py` | Shelly Pro 3EM / 3EM / EM / Pro EM, local API | from the API documentation |
 | `iammeter.py` | Iammeter WEM3080 / WEM3080T, local API | from the API documentation |
