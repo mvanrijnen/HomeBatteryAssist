@@ -79,6 +79,20 @@
           "tariff": "How the prices of the price source become what a kWh really costs and earns. Own tariffs from /config/homebatteryassist/tariffs appear here too (after a reload)."
         },
         "sections": {
+          "tariff_costs": {
+            "name": "Tariff costs",
+            "description": "Only for the tariff 'Market price + surcharge + energy tax, plus VAT' (for a price source with bare market prices such as Nord Pool, EnergyZero or easyEnergy).",
+            "data": {
+              "tariff_surcharge": "Supplier surcharge",
+              "tariff_energy_tax": "Energy tax",
+              "tariff_vat": "VAT"
+            },
+            "data_description": {
+              "tariff_surcharge": "What the supplier adds per kWh on top of the market price, excl. VAT (price unit of the source per kWh).",
+              "tariff_energy_tax": "Energy tax per kWh excl. VAT (see your contract or the tax authority).",
+              "tariff_vat": "VAT over market price, surcharge and energy tax."
+            }
+          },
           "export": {
             "name": "Export price",
             "description": "What returning power earns.",
@@ -506,7 +520,8 @@
     },
     "tariff": {
       "options": {
-        "source": "As the price source and export settings give them"
+        "source": "As the price source and export settings give them",
+        "market_plus_costs": "Market price + surcharge + energy tax, plus VAT (not tested)"
       }
     },
     "battery_meter": {
@@ -568,6 +583,20 @@
           "tariff": "How the prices of the price source become what a kWh really costs and earns. Own tariffs from /config/homebatteryassist/tariffs appear here too (after a reload)."
         },
         "sections": {
+          "tariff_costs": {
+            "name": "Tariff costs",
+            "description": "Only for the tariff 'Market price + surcharge + energy tax, plus VAT' (for a price source with bare market prices such as Nord Pool, EnergyZero or easyEnergy).",
+            "data": {
+              "tariff_surcharge": "Supplier surcharge",
+              "tariff_energy_tax": "Energy tax",
+              "tariff_vat": "VAT"
+            },
+            "data_description": {
+              "tariff_surcharge": "What the supplier adds per kWh on top of the market price, excl. VAT (price unit of the source per kWh).",
+              "tariff_energy_tax": "Energy tax per kWh excl. VAT (see your contract or the tax authority).",
+              "tariff_vat": "VAT over market price, surcharge and energy tax."
+            }
+          },
           "export": {
             "name": "Export price",
             "description": "What returning power earns.",

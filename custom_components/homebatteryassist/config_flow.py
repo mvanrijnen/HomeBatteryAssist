@@ -164,6 +164,9 @@ from .const import (
     CONF_SYSTEM_MAX_CHARGE,
     CONF_SYSTEM_MAX_DISCHARGE,
     CONF_TARIFF,
+    CONF_TARIFF_ENERGY_TAX,
+    CONF_TARIFF_SURCHARGE,
+    CONF_TARIFF_VAT,
     CONF_TEMP_BAND,
     CONF_TEMP_DISCHARGE,
     CONF_TEMP_LIMIT,
@@ -210,6 +213,7 @@ from .const import (
     DEFAULT_REACT_JUMP_W,
     DEFAULT_SPIKE_DURATION,
     DEFAULT_SPIKE_THRESHOLD,
+    DEFAULT_TARIFF_VAT,
     DOMAIN,
     EXPORT_MODES,
     FORECAST_INTERVAL_OPTIONS,
@@ -452,6 +456,7 @@ def _price_source_selector(
 
 # Settings grouped in collapsible sections; the rest stays at the top.
 SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
+    "tariff_costs": ("tariff_surcharge", "tariff_energy_tax", "tariff_vat"),
     "export": ("export_price_mode", "export_price_entities", "export_price_factor"),
     "solar": (
         "pv_correction",
@@ -760,6 +765,15 @@ async def _flat_settings_schema(
                 translation_key=CONF_TARIFF,
             )
         ),
+        vol.Required(
+            CONF_TARIFF_SURCHARGE, default=current.get(CONF_TARIFF_SURCHARGE, 0.0)
+        ): _price_number(),
+        vol.Required(
+            CONF_TARIFF_ENERGY_TAX, default=current.get(CONF_TARIFF_ENERGY_TAX, 0.0)
+        ): _price_number(),
+        vol.Required(
+            CONF_TARIFF_VAT, default=current.get(CONF_TARIFF_VAT, DEFAULT_TARIFF_VAT)
+        ): _number(0, 50, 0.1, "%"),
         vol.Required(
             CONF_MANUAL_POWER,
             default=current.get(CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER),
@@ -1099,6 +1113,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
             CONF_CONSUMPTION_FORECASTER, DEFAULT_FORECASTER
         ),
         CONF_TARIFF: user_input.get(CONF_TARIFF, DEFAULT_TARIFF),
+        CONF_TARIFF_SURCHARGE: float(user_input.get(CONF_TARIFF_SURCHARGE, 0.0)),
+        CONF_TARIFF_ENERGY_TAX: float(user_input.get(CONF_TARIFF_ENERGY_TAX, 0.0)),
+        CONF_TARIFF_VAT: float(user_input.get(CONF_TARIFF_VAT, DEFAULT_TARIFF_VAT)),
         CONF_EXPORT_FACTOR: float(
             user_input.get(CONF_EXPORT_FACTOR, DEFAULT_EXPORT_FACTOR)
         ),
@@ -1797,6 +1814,19 @@ class HeatingCoolingSubentryFlow(_MeasuredDeviceSubentryFlow):
             EntitySelectorConfig(domain="sensor", device_class="temperature")
         ),
     }
+
+
+def _price_number() -> NumberSelector:
+    """An amount per kWh (price unit of the source), e.g. 0.0916."""
+    return NumberSelector(
+        NumberSelectorConfig(
+            min=-1,
+            max=1,
+            step="any",
+            mode=NumberSelectorMode.BOX,
+            unit_of_measurement="/kWh",
+        )
+    )
 
 
 def _number(

@@ -68,6 +68,16 @@ Select for each phase the sensor that measures the power (W) on that phase, typi
 | **Consumption forecaster** | How the house consumption is forecast. The accuracy of every forecaster is shown side by side on the dashboard. Own forecasters from /config/homebatteryassist/forecasters appear here too (after a reload). |
 | **Tariff** | How the prices of the price source become what a kWh really costs and earns. Own tariffs from /config/homebatteryassist/tariffs appear here too (after a reload). |
 
+### Tariff costs {#settings-tariff-costs}
+
+Only for the tariff 'Market price + surcharge + energy tax, plus VAT' (for a price source with bare market prices such as Nord Pool, EnergyZero or easyEnergy).
+
+| Field | Explanation |
+|---|---|
+| **Supplier surcharge** | What the supplier adds per kWh on top of the market price, excl. VAT (price unit of the source per kWh). |
+| **Energy tax** | Energy tax per kWh excl. VAT (see your contract or the tax authority). |
+| **VAT** | VAT over market price, surcharge and energy tax. |
+
 ### Export price {#settings-export}
 
 What returning power earns.

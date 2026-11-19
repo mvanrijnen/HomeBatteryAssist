@@ -79,6 +79,20 @@
           "tariff": "Hoe de prijzen van de prijsbron worden omgezet in wat een kWh echt kost en oplevert. Eigen tarieven uit /config/homebatteryassist/tariffs verschijnen hier ook (na herladen)."
         },
         "sections": {
+          "tariff_costs": {
+            "name": "Tariefkosten",
+            "description": "Alleen voor het tarief 'Marktprijs + opslag + energiebelasting, plus btw' (voor een prijsbron met kale marktprijzen zoals Nord Pool, EnergyZero of easyEnergy).",
+            "data": {
+              "tariff_surcharge": "Opslag leverancier",
+              "tariff_energy_tax": "Energiebelasting",
+              "tariff_vat": "Btw"
+            },
+            "data_description": {
+              "tariff_surcharge": "Wat de leverancier per kWh bovenop de marktprijs rekent, excl. btw (prijseenheid van de bron per kWh).",
+              "tariff_energy_tax": "Energiebelasting per kWh excl. btw (zie je contract of de Belastingdienst).",
+              "tariff_vat": "Btw over marktprijs, opslag en energiebelasting."
+            }
+          },
           "export": {
             "name": "Terugleverprijs",
             "description": "Wat teruggeleverde stroom oplevert.",
@@ -506,7 +520,8 @@
     },
     "tariff": {
       "options": {
-        "source": "Zoals de prijsbron en de terugleverinstellingen ze geven"
+        "source": "Zoals de prijsbron en de terugleverinstellingen ze geven",
+        "market_plus_costs": "Marktprijs + opslag + energiebelasting, plus btw (niet getest)"
       }
     },
     "battery_meter": {
@@ -568,6 +583,20 @@
           "tariff": "Hoe de prijzen van de prijsbron worden omgezet in wat een kWh echt kost en oplevert. Eigen tarieven uit /config/homebatteryassist/tariffs verschijnen hier ook (na herladen)."
         },
         "sections": {
+          "tariff_costs": {
+            "name": "Tariefkosten",
+            "description": "Alleen voor het tarief 'Marktprijs + opslag + energiebelasting, plus btw' (voor een prijsbron met kale marktprijzen zoals Nord Pool, EnergyZero of easyEnergy).",
+            "data": {
+              "tariff_surcharge": "Opslag leverancier",
+              "tariff_energy_tax": "Energiebelasting",
+              "tariff_vat": "Btw"
+            },
+            "data_description": {
+              "tariff_surcharge": "Wat de leverancier per kWh bovenop de marktprijs rekent, excl. btw (prijseenheid van de bron per kWh).",
+              "tariff_energy_tax": "Energiebelasting per kWh excl. btw (zie je contract of de Belastingdienst).",
+              "tariff_vat": "Btw over marktprijs, opslag en energiebelasting."
+            }
+          },
           "export": {
             "name": "Terugleverprijs",
             "description": "Wat teruggeleverde stroom oplevert.",

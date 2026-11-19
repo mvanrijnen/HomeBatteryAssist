@@ -164,6 +164,9 @@ class EnergyZeroDriver(ActionDriver):
     name = "EnergyZero"
     domain = "energyzero"
     service = "get_energy_prices"
+    # Import: the market price incl. VAT (no energy tax or surcharge: choose
+    # the tariff "market price + costs" for an all-in price); market: excl.
+    roles = frozenset({ROLE_IMPORT, ROLE_MARKET})
 
     async def _async_fetch(
         self, hass: HomeAssistant, source: str, role: str
@@ -175,7 +178,7 @@ class EnergyZeroDriver(ActionDriver):
             self._service(role),
             {
                 "config_entry": source,
-                "incl_vat": True,
+                "incl_vat": role != ROLE_MARKET,
                 "start": start.isoformat(),
                 "end": end.isoformat(),
             },
@@ -198,7 +201,7 @@ class EasyEnergyDriver(EnergyZeroDriver):
     key = "easyenergy"
     name = "easyEnergy"
     domain = "easyenergy"
-    roles = frozenset({ROLE_IMPORT, ROLE_EXPORT})
+    roles = frozenset({ROLE_IMPORT, ROLE_MARKET, ROLE_EXPORT})
 
     def _service(self, role: str) -> str:
         return (

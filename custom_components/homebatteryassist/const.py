@@ -58,6 +58,11 @@ CONF_PV_FORECAST: Final = "pv_forecast_entries"
 CONF_PLAN_MODE: Final = "plan_mode"
 CONF_CONSUMPTION_FORECASTER: Final = "consumption_forecaster"
 CONF_TARIFF: Final = "tariff"
+# Built-in tariff "market_plus_costs": market price + these, then VAT.
+CONF_TARIFF_SURCHARGE: Final = "tariff_surcharge"  # per kWh, excl. VAT
+CONF_TARIFF_ENERGY_TAX: Final = "tariff_energy_tax"  # per kWh, excl. VAT
+CONF_TARIFF_VAT: Final = "tariff_vat"  # %
+DEFAULT_TARIFF_VAT: Final = 21.0
 CONF_EXPORT_FACTOR: Final = "export_price_factor"
 CONF_EXPORT_MODE: Final = "export_price_mode"
 CONF_PRICE_SOURCE: Final = "price_source"  # "<driver>:<source>" or "sensor"

@@ -13,7 +13,8 @@ source's prices, before the tariff.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import datetime
 
 MAX_PRICE = 10.0  # per kWh; anything beyond is not believed
@@ -38,6 +39,9 @@ class TariffInput:
     now: datetime
     slots: list[TariffSlot]
     unit: str | None  # e.g. "EUR/kWh"
+    # The tariff settings (``tariff_surcharge``, ``tariff_energy_tax`` per
+    # kWh excl. VAT, ``tariff_vat`` in %).
+    settings: Mapping[str, float] = field(default_factory=dict)
 
 
 @dataclass(slots=True)

@@ -54,7 +54,7 @@ De terugleverprijs is de kale marktprijs (EPEX, standaard), de terugleverprijs �
 
 ### Tarief {#tariff}
 
-Een **tarief**-[module](modules.md) zet deze prijzen om in wat een kWh echt kost en oplevert — bijvoorbeeld voor een contract met terugleverkosten of eigen toeslagen. Het ingebouwde tarief gebruikt ze zoals ze zijn; het sjabloon laat een dynamisch contract zien dat is opgebouwd uit de marktprijs.
+Een **tarief**-[module](modules.md) zet deze prijzen om in wat een kWh echt kost en oplevert — bijvoorbeeld voor een contract met terugleverkosten of eigen toeslagen. Het ingebouwde tarief *Zoals de prijsbron ze geeft* gebruikt ze zoals ze zijn. Voor een bron met kale marktprijzen (Nord Pool, EnergyZero, easyEnergy: zonder energiebelasting en opslag) kies je het ingebouwde tarief *Marktprijs + opslag + energiebelasting, plus btw* (niet getest) en vul je de bedragen in onder *Tariefkosten*; anders ziet arbitrage de verliezen van een rondje laden/ontladen te goedkoop. Het sjabloon laat een dynamisch contract zien dat is opgebouwd uit de marktprijs.
 
 ## PV {#pv}
 

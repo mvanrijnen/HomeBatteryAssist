@@ -68,6 +68,16 @@ Kies per fase de sensor die het vermogen (W) op die fase meet, meestal afkomstig
 | **Verbruiksvoorspeller** | Hoe het huisverbruik voorspeld wordt. De nauwkeurigheid van elke voorspeller staat naast elkaar op het dashboard. Eigen voorspellers uit /config/homebatteryassist/forecasters verschijnen hier ook (na herladen). |
 | **Tarief** | Hoe de prijzen van de prijsbron worden omgezet in wat een kWh echt kost en oplevert. Eigen tarieven uit /config/homebatteryassist/tariffs verschijnen hier ook (na herladen). |
 
+### Tariefkosten {#settings-tariff-costs}
+
+Alleen voor het tarief 'Marktprijs + opslag + energiebelasting, plus btw' (voor een prijsbron met kale marktprijzen zoals Nord Pool, EnergyZero of easyEnergy).
+
+| Veld | Uitleg |
+|---|---|
+| **Opslag leverancier** | Wat de leverancier per kWh bovenop de marktprijs rekent, excl. btw (prijseenheid van de bron per kWh). |
+| **Energiebelasting** | Energiebelasting per kWh excl. btw (zie je contract of de Belastingdienst). |
+| **Btw** | Btw over marktprijs, opslag en energiebelasting. |
+
 ### Terugleverprijs {#settings-export}
 
 Wat teruggeleverde stroom oplevert.

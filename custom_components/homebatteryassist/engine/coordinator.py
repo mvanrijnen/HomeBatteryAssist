@@ -81,6 +81,9 @@ from ..const import (
     CONF_SYSTEM_MAX_CHARGE,
     CONF_SYSTEM_MAX_DISCHARGE,
     CONF_TARIFF,
+    CONF_TARIFF_ENERGY_TAX,
+    CONF_TARIFF_SURCHARGE,
+    CONF_TARIFF_VAT,
     CONF_TEMP_BAND,
     CONF_TEMP_DISCHARGE,
     CONF_TEMP_LIMIT,
@@ -105,6 +108,7 @@ from ..const import (
     DEFAULT_PV_MARGIN,
     DEFAULT_REACT_INTERVAL,
     DEFAULT_REACT_JUMP_W,
+    DEFAULT_TARIFF_VAT,
     DOMAIN,
     EXPORT_FACTOR,
     EXPORT_MARKET,
@@ -1124,7 +1128,26 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         market = self.market_prices if tariff.needs_market else []
         try:
             return apply_tariff(
-                tariff, prices, export_prices, market, now, unit, self.export_factor
+                tariff,
+                prices,
+                export_prices,
+                market,
+                now,
+                unit,
+                self.export_factor,
+                {
+                    CONF_TARIFF_SURCHARGE: float(
+                        self.config_entry.options.get(CONF_TARIFF_SURCHARGE, 0.0)
+                    ),
+                    CONF_TARIFF_ENERGY_TAX: float(
+                        self.config_entry.options.get(CONF_TARIFF_ENERGY_TAX, 0.0)
+                    ),
+                    CONF_TARIFF_VAT: float(
+                        self.config_entry.options.get(
+                            CONF_TARIFF_VAT, DEFAULT_TARIFF_VAT
+                        )
+                    ),
+                },
             )
         except Exception:  # an own tariff module may fail in any way
             _LOGGER.exception("Tariff %s failed", self.tariff_key)

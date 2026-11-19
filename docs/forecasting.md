@@ -54,7 +54,7 @@ The export price is the bare market price (EPEX, default), the export price — 
 
 ### Tariff
 
-A **tariff** [module](modules.md) turns these prices into what a kWh really costs and earns — for example for a contract with export costs or own surcharges. The built-in tariff uses them as they are; the template shows a dynamic contract built from the market price.
+A **tariff** [module](modules.md) turns these prices into what a kWh really costs and earns — for example for a contract with export costs or own surcharges. The built-in tariff *As the price source gives them* uses them as they are. For a source with bare market prices (Nord Pool, EnergyZero, easyEnergy: no energy tax or supplier surcharge) choose the built-in tariff *Market price + surcharge + energy tax, plus VAT* (not tested) and fill in the amounts under *Tariff costs*; otherwise arbitrage sees the losses of a round trip too cheaply. The template shows a dynamic contract built from the market price.
 
 ## PV
 

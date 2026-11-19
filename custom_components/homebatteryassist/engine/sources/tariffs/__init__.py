@@ -18,9 +18,12 @@ from ...own_modules import async_load_modules, load_modules_from
 from ..prices.price_points import PricePoint
 from .as_price_source import SourceTariff
 from .base import MAX_PRICE, Tariff, TariffInput, TariffResult, TariffSlot
+from .market_plus_costs import MarketPlusCostsTariff
 
 DEFAULT_TARIFF = "source"
-BUILTIN: dict[str, Tariff] = {t.key: t for t in (SourceTariff(),)}
+BUILTIN: dict[str, Tariff] = {
+    t.key: t for t in (SourceTariff(), MarketPlusCostsTariff())
+}
 
 __all__ = [
     "BUILTIN",
@@ -67,6 +70,7 @@ def apply_tariff(
     now: datetime,
     unit: str | None,
     export_factor: float,
+    settings: dict[str, float] | None = None,
 ) -> tuple[list[PricePoint], list[PricePoint]]:
     """Import and export prices per period of ``prices`` after ``tariff``.
 
@@ -92,7 +96,7 @@ def apply_tariff(
                 point.estimated,
             )
         )
-    result = tariff.prices(TariffInput(now, slots, unit))
+    result = tariff.prices(TariffInput(now, slots, unit, dict(settings or {})))
     imports, exports = [], []
     for i, (point, slot) in enumerate(zip(prices, slots, strict=True)):
         new_import = _checked(

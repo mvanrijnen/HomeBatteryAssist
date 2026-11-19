@@ -89,6 +89,9 @@ async def test_three_phase_flow(hass: HomeAssistant) -> None:
         "plan_mode": "nom",  # defaults of the battery plan
         "consumption_forecaster": "profile",
         "tariff": "source",
+        "tariff_surcharge": 0.0,
+        "tariff_energy_tax": 0.0,
+        "tariff_vat": 21.0,
         "export_price_factor": 0.25,
         "export_price_mode": "market",
         "price_source": "sensor",
@@ -175,6 +178,9 @@ async def test_single_phase_flow(hass: HomeAssistant) -> None:
         "plan_mode": "nom",  # defaults of the battery plan
         "consumption_forecaster": "profile",
         "tariff": "source",
+        "tariff_surcharge": 0.0,
+        "tariff_energy_tax": 0.0,
+        "tariff_vat": 21.0,
         "export_price_factor": 0.25,
         "export_price_mode": "market",
         "price_source": "sensor",
@@ -323,6 +329,9 @@ async def test_options_flow_changes_settings(hass: HomeAssistant) -> None:
         "plan_mode": "nom",  # defaults of the battery plan
         "consumption_forecaster": "profile",
         "tariff": "source",
+        "tariff_surcharge": 0.0,
+        "tariff_energy_tax": 0.0,
+        "tariff_vat": 21.0,
         "export_price_factor": 0.25,
         "export_price_mode": "market",
         "price_source": "sensor",
