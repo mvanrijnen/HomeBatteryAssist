@@ -272,8 +272,7 @@ def _prices_now(hass: HomeAssistant, data: Any) -> dict[str, Any] | None:
     def export_at(when: datetime) -> float | None:
         # The export price period holding ``when`` (a quarter stays a
         # quarter), else the plan slot.
-        data = getattr(forecast, "data", None)
-        for p in getattr(data, "export_prices", None) or ():
+        for p in getattr(forecast, "export_prices", None) or ():
             if p.start <= when < p.end:
                 return p.price
         slot = next((s for s in slots if s.start <= when < s.end), None)

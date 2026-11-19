@@ -14,6 +14,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from ..const import DOMAIN
 from ..models import HomeBatteryAssistConfigEntry
+from .registry_cleanup import tracked
 
 
 async def async_setup_entry(
@@ -22,6 +23,7 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """One problem sensor per real battery (on its device)."""
+    async_add_entities = tracked(entry, async_add_entities, "binary_sensor")
     commands = entry.runtime_data.commands
     if commands is None:
         return

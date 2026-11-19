@@ -37,6 +37,7 @@ from .batteries import (
     source_device,
 )
 from .control_test import ControlTestStatus
+from .registry_cleanup import tracked
 
 MAX_STATE_LENGTH = 255
 RECENT_DECISIONS = 10
@@ -48,6 +49,7 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the sensors: main device, battery totals and one device per battery."""
+    async_add_entities = tracked(entry, async_add_entities, "sensor")
     phases = entry.runtime_data.measurements.phases
     main: list[SensorEntity] = [
         HouseConsumptionSensor(entry),

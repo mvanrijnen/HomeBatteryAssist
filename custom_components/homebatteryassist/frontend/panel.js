@@ -792,8 +792,17 @@ class HomeBatteryAssistPanel extends HTMLElement {
     this._scheduleRender();
     try {
       await this._hass.callService("homebatteryassist", "set_plan_mode", { mode });
-      // The integration reloads and plans again with the new mode.
-      await new Promise((resolve) => setTimeout(resolve, 8000));
+      // The integration reloads and plans again with the new mode: wait
+      // until it answers again (a slow machine may take longer), at most 60 s.
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      for (let i = 0; i < 19; i++) {
+        try {
+          await this._hass.callWS({ type: "homebatteryassist/status" });
+          break;
+        } catch (err) {
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+        }
+      }
     } catch (err) {
       this._actionError = err?.message || String(err);
     }

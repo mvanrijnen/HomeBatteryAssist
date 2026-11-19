@@ -355,7 +355,8 @@ class ConsumptionHistory:
                 record["phase_q"] = [round(v / self._grid_s, 1) for v in self._q_s]
             self.records.append(record)
             self.prune(self._interval_start)
-            self._store.async_delay_save(self._data, SAVE_DELAY)
+            # With the running interval (Home Assistant may be stopping).
+            self._store.async_delay_save(lambda: self._data(running=True), SAVE_DELAY)
             _LOGGER.debug("Recorded %s", record)
 
         self._energy_ws = 0.0

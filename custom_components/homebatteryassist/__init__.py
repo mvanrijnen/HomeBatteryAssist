@@ -15,7 +15,6 @@ from datetime import datetime, timedelta
 
 from homeassistant.const import (
     CONF_NAME,
-    EVENT_HOMEASSISTANT_STARTED,
     EVENT_HOMEASSISTANT_STOP,
     Platform,
 )
@@ -25,6 +24,7 @@ from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_utc_time_change,
 )
+from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util import dt as dt_util
 
@@ -112,6 +112,7 @@ from .engine.sources.tariffs import async_load_user_tariffs
 from .engine.sources.weather import async_load_user_weather_sources
 from .models import HomeBatteryAssistConfigEntry, HomeBatteryAssistData
 from .output.panel import async_setup_panel
+from .output.registry_cleanup import remove_stale
 from .services import async_setup_services
 
 PLATFORMS: list[Platform] = [
@@ -302,12 +303,10 @@ async def async_setup_entry(
             # Other integrations (price and PV forecasts) may still be starting:
             # recalculate once Home Assistant has fully started.
             @callback
-            def _started(event: Event) -> None:
+            def _started(_hass: HomeAssistant) -> None:
                 hass.async_create_task(forecast.async_request_refresh())
 
-            entry.async_on_unload(
-                hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _started)
-            )
+            entry.async_on_unload(async_at_started(hass, _started))
         if price_entities := forecast.price_watch:
             # New day-ahead prices arrive as a state/attribute update of the sensor.
             @callback
@@ -652,6 +651,7 @@ async def async_setup_entry(
             export_limit=export_limiter,
         )
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        remove_stale(hass, entry)
     except Exception:
         if measurements is not None:
             measurements.async_stop()

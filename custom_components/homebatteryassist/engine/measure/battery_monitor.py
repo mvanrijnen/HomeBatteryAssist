@@ -1129,7 +1129,10 @@ class BatteryInput:
             if state.soc is not None:
                 log.append([now.isoformat(), round(state.soc, 2)])
             self.soc_log[battery_id] = [e for e in log if e[0] >= cutoff]
-        self._store.async_delay_save(self._data, SAVE_DELAY)
+        # Written every quarter: the delayed save of every update keeps moving
+        # (a battery changes every few seconds), so it would only be written
+        # when Home Assistant stops cleanly.
+        self.hass.async_create_task(self._store.async_save(self._data()))
 
     def _data(self) -> dict[str, Any]:
         return {"stats": self.stats, "soc_log": self.soc_log}

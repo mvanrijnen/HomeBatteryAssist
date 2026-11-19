@@ -18,6 +18,7 @@ from ..engine.devices.meters import SOURCE_NAMES
 from ..engine.explain.input_report import input_report
 from ..models import HomeBatteryAssistConfigEntry
 from .control_test import control_test_buttons
+from .registry_cleanup import tracked
 from .sensors import HomeBatteryAssistEntity, grid_device_info
 
 TEST_SECONDS = 10
@@ -29,6 +30,7 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up the buttons."""
+    async_add_entities = tracked(entry, async_add_entities, "button")
     async_add_entities([RecalculateButton(entry), InputTestButton(entry)])
     for battery_id in entry.runtime_data.control_test.configs:
         async_add_entities(

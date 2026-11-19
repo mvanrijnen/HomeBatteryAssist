@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -29,6 +29,8 @@ class HomeBatteryAssistData:
     commands: Any = None  # CommandMonitor (does each battery follow its command)
     control_test: Any = None  # ControlTest (switched off in this phase)
     export_limit: Any = None  # ExportLimiter (shown and explained only)
+    # Unique ids each platform added this time (stale ones are removed).
+    provided: dict[str, set[str]] = field(default_factory=dict)
 
 
 type HomeBatteryAssistConfigEntry = ConfigEntry[HomeBatteryAssistData]
