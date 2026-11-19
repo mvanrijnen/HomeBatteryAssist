@@ -104,6 +104,18 @@ def bucket_for(lead: timedelta) -> str | None:
     return next(key for key, low, high in BUCKETS if low <= hours < high)
 
 
+def _numbers(result: Any) -> bool:
+    """A stored result with a number as actual value and as every prediction."""
+    try:
+        values = [result["actual"], *result["pred"].values()]
+    except (KeyError, TypeError, AttributeError):
+        return False
+    return all(
+        isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+        for v in values
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class BucketStats:
     """Running (exponentially weighted) accuracy of one lead time bucket."""
@@ -189,7 +201,10 @@ class ForecastAccuracy:
                     self.track(kind)
             for kind in self.kinds:
                 self.predictions[kind] = data.get("predictions", {}).get(kind, {})
-                self.results[kind] = data.get("results", {}).get(kind, [])
+                # Only results with numbers (a stored nan comes back as null).
+                self.results[kind] = [
+                    r for r in data.get("results", {}).get(kind, []) if _numbers(r)
+                ]
                 self.settings[kind] = (
                     data.get("settings", {}).get(kind) or _default_setting()
                 )

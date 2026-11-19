@@ -72,7 +72,7 @@ class PriceSurprises:
                 seconds = (min(p_end, end) - max(p_start, start)).total_seconds()
                 total += price * seconds
                 covered += seconds
-            if covered < (end - start).total_seconds() - 1:
+            if covered <= 0 or covered < (end - start).total_seconds() - 1:
                 continue  # not (completely) published yet
             del self._estimates[start]
             value = total / covered

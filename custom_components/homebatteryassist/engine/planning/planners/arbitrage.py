@@ -97,9 +97,15 @@ def _optimise(
     night = [level(s.reserve_wh) for s in slots]
     peak_level = level(battery.peak_floor_wh) if data.peak_w > 0 else 0
 
-    # Value of energy left at the end: what it saves later, at the average price.
+    # Value of energy left at the end: what it saves later, at the average
+    # price, minus what using it then costs (wear, the minimum gain), as a
+    # discharge now pays them too; else with flat prices nothing is used.
     avg_price = sum(s.price for s in slots) / count
-    terminal = [-(i * step) / 1000 * avg_price * eff for i in range(levels)]
+    # (Not the cycle limit's steering penalty: that is for discharging now.)
+    later = max(
+        avg_price * eff - data.cycle_cost - rules.min_margin - MIN_GAIN_PER_KWH, 0.0
+    )
+    terminal = [-(i * step) / 1000 * later for i in range(levels)]
 
     # Charge hysteresis: a charge may not *start* in the top band below the
     # maximum; the state remembers whether the previous slot was charging.

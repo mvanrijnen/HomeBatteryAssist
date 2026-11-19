@@ -9,6 +9,7 @@ Battery power is normalised to: positive = charging, negative = discharging.
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
@@ -550,6 +551,13 @@ class BatteryInput:
                 charged_kwh=0.0, discharged_kwh=0.0, last_full_charge=None
             ) | stored.get(config.id, {})
             stats = self.stats[config.id]
+            # A counter stored as null (a nan once) would break every update.
+            for key in ("charged_kwh", "discharged_kwh", "value", "value_kwh"):
+                number = stats.get(key)
+                if key in stats and (
+                    not isinstance(number, (int, float)) or not math.isfinite(number)
+                ):
+                    stats[key] = 0.0
             if stats.get("value_basis") != VALUE_BASIS:
                 # Older counters (net metering, or without the energy for the
                 # wear): start again.

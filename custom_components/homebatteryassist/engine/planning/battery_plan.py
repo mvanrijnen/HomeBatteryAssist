@@ -485,6 +485,22 @@ def finalise(
         # price rules; a planner's own reason never does.
         fixed = data.target is not None and data.target(slot.start) is not None
         extra = data.forced.get(slot.start, 0.0)
+        first = data.forced_by.get(slot.start)
+        if extra > 0 and member_wh and first:
+            # Only what the batteries charging fully can still take: once
+            # full, their block does not spill over to the others.
+            extra = min(
+                extra,
+                sum(
+                    min(
+                        first[m.id],
+                        m.max_charge_w,
+                        max(m.ceiling_wh - wh, 0.0) / (slot.hours * m.efficiency),
+                    )
+                    for m, wh in zip(battery.members, member_wh, strict=True)
+                    if m.id in first
+                ),
+            )
         if extra > 0:
             # A periodic full charge must happen: when the plan charges
             # anyway, the battery that charges fully is part of that power

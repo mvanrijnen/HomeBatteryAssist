@@ -38,6 +38,8 @@ def state_to_watts(state: State | None) -> float | None:
         value = float(state.state)
     except ValueError:
         return None
+    if not math.isfinite(value):  # "nan" / "inf" would poison every average
+        return None
 
     unit = state.attributes.get(ATTR_UNIT_OF_MEASUREMENT)
     if not unit:
@@ -68,9 +70,10 @@ def parse_float(value: Any) -> float | None:
     if isinstance(value, bool):
         return None
     try:
-        return float(value)
+        number = float(value)
     except (TypeError, ValueError):
         return None
+    return number if math.isfinite(number) else None  # no nan / inf
 
 
 def state_to_celsius(state: State | None) -> float | None:

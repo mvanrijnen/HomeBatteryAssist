@@ -800,9 +800,18 @@ class VirtualBatterySimulator:
             virtual_capacity = sum(
                 s.config.capacity_kwh for s in states if s.config.virtual
             )
-            total = (
-                slot.power_w * virtual_capacity / capacity if slot and capacity else 0.0
-            )
+            planned = slot.power_w if slot else 0.0
+            if planned > 0:
+                # The full charges in it run per battery (at their own
+                # power): not again spread over the virtual batteries.
+                ids = {s.config.id for s in states}
+                forced = sum(
+                    f.power_w
+                    for f in data.full_charges
+                    if f.battery_id in ids and f.active(now)
+                )
+                planned = max(planned - forced, 0.0)
+            total = planned * virtual_capacity / capacity if slot and capacity else 0.0
             # The real solar surplus instead of the forecast one: more is
             # stored on top of the plan, less is not taken from the grid.
             flow = self._flow()
