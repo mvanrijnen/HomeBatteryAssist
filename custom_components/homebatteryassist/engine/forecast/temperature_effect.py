@@ -134,17 +134,30 @@ class TemperatureModel:
         ] or [NOMINAL_INDOOR_C]
         return round(sum(values) / len(values), 1)
 
-    def effect(self, start: datetime, temp_c: float | None) -> float:
-        """Extra W in a slot starting at ``start`` with ``temp_c`` forecast."""
+    def effect(
+        self,
+        start: datetime,
+        temp_c: float | None,
+        reference: Sequence[float] | None = None,
+    ) -> float:
+        """Extra W in a slot starting at ``start`` with ``temp_c`` forecast.
+        ``reference``: the outdoor temperatures the forecast value was made
+        from (e.g. the same time last weeks); else the profile's usual
+        degrees for that day of the week and hour."""
         if temp_c is None or not math.isfinite(temp_c):
             return 0.0
         local = dt_util.as_local(start)
         weekday, hour = local.weekday(), local.hour
         base = self.room(weekday, hour) - self.gain_c
-        heat = heating_degrees(temp_c, base) - _usual(
-            self.usual_heating, weekday, hour, 0.0
-        )
-        cool = cooling_degrees(temp_c) - _usual(self.usual_cooling, weekday, hour, 0.0)
+        known = [t for t in reference or () if math.isfinite(t)]
+        if known:
+            usual_heat = sum(heating_degrees(t, base) for t in known) / len(known)
+            usual_cool = sum(cooling_degrees(t) for t in known) / len(known)
+        else:
+            usual_heat = _usual(self.usual_heating, weekday, hour, 0.0)
+            usual_cool = _usual(self.usual_cooling, weekday, hour, 0.0)
+        heat = heating_degrees(temp_c, base) - usual_heat
+        cool = cooling_degrees(temp_c) - usual_cool
         return self.heat_w_per_deg * heat + self.cool_w_per_deg * cool
 
     def demand(self, start: datetime, temp_c: float | None) -> float | None:
@@ -183,8 +196,13 @@ class ZoneModels:
     def days(self) -> int:
         return min(m.days for m in self.models)
 
-    def effect(self, start: datetime, temp_c: float | None) -> float:
-        return sum(m.effect(start, temp_c) for m in self.models)
+    def effect(
+        self,
+        start: datetime,
+        temp_c: float | None,
+        reference: Sequence[float] | None = None,
+    ) -> float:
+        return sum(m.effect(start, temp_c, reference) for m in self.models)
 
     def demand(self, start: datetime, temp_c: float | None) -> float | None:
         values = [m.demand(start, temp_c) for m in self.models]

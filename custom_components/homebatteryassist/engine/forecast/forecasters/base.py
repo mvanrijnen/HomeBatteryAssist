@@ -42,10 +42,16 @@ class ForecasterInput:
 @dataclass(slots=True)
 class ForecasterResult:
     """Expected consumption per slot (W, None = no idea) and optionally the
-    method used per slot (shown in the explanation)."""
+    method used per slot (shown in the explanation) and the weather it was
+    made from (``reference_temps``)."""
 
     values: list[float | None]
     methods: list[str | None] | None = None
+    # Optional per slot: the outdoor temperatures (°C) of the records a value
+    # was made from. HomeBatteryAssist's temperature step then adds only the
+    # difference between the forecast and that weather (None: the usual
+    # weather of the profile).
+    reference_temps: list[list[float] | None] | None = None
 
 
 class Forecaster:

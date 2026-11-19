@@ -2,21 +2,31 @@
 
 The expected consumption of a slot is the average of the same local weekday
 and time in the last ``WEEKS`` weeks (only measured, non-vacation records).
-Without such a record the slot has no prediction, and HomeBatteryAssist uses
-the profile's prediction for it.
+Every record that overlaps the slot's time of day counts, by its overlap and
+measured part (5-minute records in a 15-minute slot, an hourly imported
+record for a quarter). Without such a record the slot has no prediction, and
+HomeBatteryAssist uses the profile's prediction for it.
+
+It also tells the outdoor temperatures of those records
+(``reference_temps``), so the temperature step adds only the difference
+between the forecast and the weather of those very weeks.
 
 Simple and quick to follow changes in habits; sensitive to one-off days.
 """
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
 
 from homeassistant.util import dt as dt_util
 
 from .base import Forecaster, ForecasterInput, ForecasterResult
 
 WEEKS = 2
+
+type _Part = tuple[
+    int, int, float, float, float | None
+]  # from, to (min), weight, W, °C
 
 
 class LastWeeksForecaster(Forecaster):
@@ -27,30 +37,67 @@ class LastWeeksForecaster(Forecaster):
     name = "Same time in the last weeks"
 
     def forecast(self, data: ForecasterInput) -> ForecasterResult:
-        # Local (weekday, hour, minute) -> recent values, newest first.
-        by_time: dict[tuple[int, int, int], list[tuple[object, float]]] = {}
+        # Local date -> parts of that day (minutes from local midnight).
+        days: dict[date, list[_Part]] = {}
         cutoff = data.now - timedelta(weeks=WEEKS, days=1)
         for record in data.history:
-            if record.get("vacation") or record["coverage"] < 0.5:
+            coverage = float(record.get("coverage", 0) or 0)
+            if record.get("vacation") or coverage < 0.5:
                 continue
-            start = dt_util.parse_datetime(record["start"])
+            start = dt_util.parse_datetime(str(record["start"]))
             if start is None or start < cutoff:
                 continue
             local = dt_util.as_local(start)
-            key = (local.weekday(), local.hour, local.minute)
-            by_time.setdefault(key, []).append((local.date(), record["avg_w"]))
+            begin = local.hour * 60 + local.minute
+            minutes = int(record.get("minutes") or data.interval.total_seconds() // 60)
+            temp = record.get("temp_c")
+            days.setdefault(local.date(), []).append(
+                (
+                    begin,
+                    begin + minutes,
+                    coverage,
+                    float(record["avg_w"]),
+                    float(temp) if temp is not None else None,
+                )
+            )
         values: list[float | None] = []
-        for start, _end in data.slots:
+        references: list[list[float] | None] = []
+        for start, end in data.slots:
             local = dt_util.as_local(start)
-            # Records may be hourly (imported) while slots are shorter.
-            found = by_time.get(
-                (local.weekday(), local.hour, local.minute)
-            ) or by_time.get((local.weekday(), local.hour, 0))
+            begin = local.hour * 60 + local.minute
+            finish = begin + max(int((end - start).total_seconds() // 60), 1)
+            found: list[tuple[float, list[float] | None]] = []
+            for day in sorted(days, reverse=True):
+                if day.weekday() != local.weekday() or day >= local.date():
+                    continue
+                total = weight = 0.0
+                temps: list[float] | None = []
+                for lo, hi, coverage, watts, temp in days[day]:
+                    overlap = min(hi, finish) - max(lo, begin)
+                    if overlap <= 0:
+                        continue
+                    w = overlap * coverage
+                    total += w * watts
+                    weight += w
+                    if temp is None:
+                        temps = None
+                    elif temps is not None:
+                        temps.append(temp)
+                if weight > 0:
+                    found.append((total / weight, temps or None))
+                if len(found) == WEEKS:
+                    break
             if not found:
                 values.append(None)
+                references.append(None)
                 continue
-            recent = sorted(found, key=lambda item: item[0], reverse=True)[:WEEKS]
-            values.append(round(sum(v for _, v in recent) / len(recent), 1))
+            values.append(round(sum(v for v, _ in found) / len(found), 1))
+            temps_all = [t for _, ts in found if ts for t in ts]
+            references.append(
+                temps_all if all(ts for _, ts in found) and temps_all else None
+            )
         return ForecasterResult(
-            values, [self.key if v is not None else None for v in values]
+            values,
+            [self.key if v is not None else None for v in values],
+            references,
         )

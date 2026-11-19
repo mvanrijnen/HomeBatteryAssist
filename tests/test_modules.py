@@ -209,3 +209,54 @@ def test_load_own_pv_sources(tmp_path: Path) -> None:
         template.read_text(encoding="utf-8"), encoding="utf-8"
     )
     assert list(load_pv_sources_from(tmp_path)) == ["custom_sensor_wh_hours"]
+
+
+def test_last_weeks_whole_slot_and_reference_temps() -> None:
+    """Same time last weeks: every record overlapping the slot counts (three
+    5-minute records in a quarter), and it tells their outdoor temperature;
+    the temperature step then compares with that weather."""
+    from datetime import timedelta
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.homebatteryassist.engine.forecast.forecasters.base import (
+        ForecasterInput,
+    )
+    from custom_components.homebatteryassist.engine.forecast.forecasters.same_time_last_weeks import (
+        LastWeeksForecaster,
+    )
+    from custom_components.homebatteryassist.engine.forecast.temperature_effect import (
+        TemperatureModel,
+    )
+
+    now = dt_util.as_utc(
+        dt_util.as_local(dt_util.utcnow()).replace(
+            hour=6, minute=0, second=0, microsecond=0
+        )
+    )
+    slot = (
+        now + timedelta(days=7, hours=12),
+        now + timedelta(days=7, hours=12, minutes=15),
+    )
+    history = []
+    for weeks, temps in ((1, 5.0), (2, 9.0)):
+        base = slot[0] - timedelta(weeks=weeks)
+        for k, watts in enumerate((300.0, 600.0, 900.0)):
+            history.append(
+                {
+                    "start": (base + timedelta(minutes=5 * k)).isoformat(),
+                    "minutes": 5,
+                    "avg_w": watts,
+                    "coverage": 1.0,
+                    "temp_c": temps,
+                }
+            )
+    result = LastWeeksForecaster().forecast(
+        ForecasterInput(now, [slot], history, timedelta(minutes=5))
+    )
+    assert result.values == [600.0]  # the whole quarter, not its first record
+    assert sorted(result.reference_temps[0]) == [5.0, 5.0, 5.0, 9.0, 9.0, 9.0]
+    model = TemperatureModel(100.0, 0.0, 10, "avg_w", {}, {}, 4.0)
+    # Room 20, gain 4: heating from 16 °C. Those weeks: 11 and 7 degrees -> 9.
+    assert model.effect(slot[0], 7.0, result.reference_temps[0]) == 0.0
+    assert model.effect(slot[0], 6.0, [7.0]) == 100.0

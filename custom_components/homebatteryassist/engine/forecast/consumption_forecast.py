@@ -105,6 +105,7 @@ def raw_forecast(
         BUILTIN[DEFAULT_FORECASTER]
     ):
         own = profile
+        refs: list = [None] * len(slots)
     else:
         result = forecaster.forecast(data)
         if not isinstance(result, ForecasterResult):
@@ -117,6 +118,8 @@ def raw_forecast(
             )
             for i in range(len(slots))
         ]
+        refs = list(result.reference_temps or [])
+        refs += [None] * (len(slots) - len(refs))
     out = []
     for i, ((start, end), (value, method), (fallback, fallback_method)) in enumerate(
         zip(slots, own, profile, strict=True)
@@ -129,8 +132,9 @@ def raw_forecast(
             if fallback is None:
                 continue
             number, method = fallback, fallback_method or DEFAULT_FORECASTER
+            refs[i] = None  # the profile: its usual weather
         if step_on and i < len(temperatures):  # type: ignore[arg-type]
-            extra = temperature.effect(start, temperatures[i])  # type: ignore[index,union-attr]
+            extra = temperature.effect(start, temperatures[i], refs[i])  # type: ignore[index,union-attr]
             number = min(max(number + extra, 0.0), MAX_W)
         out.append((start, end, round(number, 1), method or forecaster.key))
     return out
