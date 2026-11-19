@@ -58,7 +58,7 @@ A **tariff** [module](modules.md) turns these prices into what a kWh really cost
 
 ## PV
 
-From a **PV forecast source** [module](modules.md): by default any integration that supports the Energy dashboard's solar forecast (e.g. Forecast.Solar, Solcast); several forecasts (e.g. one per roof) are summed. Corrected automatically (learned), with a fixed safety margin, both, or not at all.
+From a **PV forecast source** [module](modules.md): by default any integration that supports the Energy dashboard's solar forecast (e.g. Forecast.Solar, Solcast); several forecasts (e.g. one per roof) are summed. Forecast.Solar labels each amount with the end of its period (19:00 = 18:00-19:00); HomeBatteryAssist puts it in the right hour. Corrected automatically (learned), with a fixed safety margin, both, or not at all.
 
 ### PV correction
 

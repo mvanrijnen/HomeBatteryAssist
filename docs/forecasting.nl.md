@@ -58,7 +58,7 @@ Een **tarief**-[module](modules.md) zet deze prijzen om in wat een kWh echt kost
 
 ## PV {#pv}
 
-Uit een **zonvoorspellingsbron**-[module](modules.md): standaard elke integratie die de zonvoorspelling van het Energie-dashboard ondersteunt (bijv. Forecast.Solar, Solcast); meerdere voorspellingen (bijv. een per dak) worden opgeteld. Automatisch gecorrigeerd (geleerd), met een vaste veiligheidsmarge, allebei, of helemaal niet.
+Uit een **zonvoorspellingsbron**-[module](modules.md): standaard elke integratie die de zonvoorspelling van het Energie-dashboard ondersteunt (bijv. Forecast.Solar, Solcast); meerdere voorspellingen (bijv. een per dak) worden opgeteld. Forecast.Solar zet elke hoeveelheid op het eind van haar periode (19:00 = 18:00-19:00); HomeBatteryAssist zet die in het juiste uur. Automatisch gecorrigeerd (geleerd), met een vaste veiligheidsmarge, allebei, of helemaal niet.
 
 ### PV-correctie {#pv-correction}
 

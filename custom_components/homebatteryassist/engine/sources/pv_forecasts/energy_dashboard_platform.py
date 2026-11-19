@@ -26,6 +26,11 @@ SOLAR_FORECAST_METHOD = "async_get_solar_forecast"
 PV_PERIOD = timedelta(hours=1)
 
 
+# Integrations whose solar forecast keys are the end of each period.
+PERIOD_END_DOMAINS = frozenset({"forecast_solar"})
+PERIOD_END_SHIFT = timedelta(seconds=1)
+
+
 async def _async_solar_forecast_platform(hass: HomeAssistant, domain: str) -> Any:
     try:
         integration = await async_get_integration(hass, domain)
@@ -70,8 +75,14 @@ async def async_get_pv_forecast(
         except Exception:
             _LOGGER.exception("Solar forecast of %s failed", entry.title)
             continue
+        # Forecast.Solar labels each amount with the END of its period (19:00
+        # = 18:00-19:00, 19:40 = 19:00-19:40): a second before it lies in the
+        # period, so it lands in the right clock hour.
+        shift = PERIOD_END_SHIFT if entry.domain in PERIOD_END_DOMAINS else None
         for key, wh in ((forecast or {}).get("wh_hours") or {}).items():
             start, value = parse_time(key), parse_float(wh)
             if start is not None and value is not None:
+                if shift is not None:
+                    start -= shift
                 total[start] = total.get(start, 0.0) + value
     return dict(sorted(total.items()))

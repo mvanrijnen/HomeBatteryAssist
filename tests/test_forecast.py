@@ -201,7 +201,7 @@ async def test_pv_forecast_is_summed(hass: HomeAssistant) -> None:
     """Solar forecasts of several integrations are added up per hour."""
     entries = []
     for name in ("east", "west"):
-        entry = MockConfigEntry(domain="forecast_solar", title=name)
+        entry = MockConfigEntry(domain="solcast_solar", title=name)
         entry.add_to_hass(hass)
         entry.mock_state(hass, ConfigEntryState.LOADED)
         entries.append(entry)
@@ -221,6 +221,27 @@ async def test_pv_forecast_is_summed(hass: HomeAssistant) -> None:
     for entry in entries:  # fake integrations: don't let teardown unload them
         entry.mock_state(hass, ConfigEntryState.NOT_LOADED)
     assert total == {NOW: 100.0, NOW + H: 250.0}
+
+
+async def test_forecast_solar_keys_are_period_ends(hass: HomeAssistant) -> None:
+    """Forecast.Solar labels an amount with the end of its period: 19:00 is
+    18:00-19:00, so it counts in the hour before."""
+    entry = MockConfigEntry(domain="forecast_solar", title="roof")
+    entry.add_to_hass(hass)
+    entry.mock_state(hass, ConfigEntryState.LOADED)
+    platform = SimpleNamespace(
+        async_get_solar_forecast=AsyncMock(
+            return_value={"wh_hours": {_iso(NOW + H): 300}}
+        )
+    )
+    with patch(
+        "custom_components.homebatteryassist.engine.sources.pv_forecasts.energy_dashboard_platform._async_solar_forecast_platform",
+        AsyncMock(return_value=platform),
+    ):
+        total = await async_get_pv_forecast(hass, [entry.entry_id])
+    entry.mock_state(hass, ConfigEntryState.NOT_LOADED)
+    (start,) = total
+    assert start.replace(minute=0, second=0) == NOW.replace(minute=0, second=0)
 
 
 async def test_planning_horizon_sensor(
