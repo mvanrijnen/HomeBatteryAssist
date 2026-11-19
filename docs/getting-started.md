@@ -13,7 +13,7 @@ You need:
 - [x] **Home Assistant 2025.6 or newer**, with **HACS** installed.
 - [x] **A measurement of your grid connection** per phase. One of:
     - a meter HomeBatteryAssist reads directly: **HomeWizard P1** (local API on), **SMA Home Manager / Energy Meter**, **Shelly Pro 3EM / EM** or **Iammeter**;
-    - or sensors per phase from any integration (e.g. your smart meter / P1 integration), in W (or A).
+    - or sensors per phase from any integration (e.g. your smart meter / P1 integration), in W (current in A only in the optional current fields).
 
 Useful, but optional (you can add them later):
 

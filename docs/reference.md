@@ -123,8 +123,8 @@ Reserve, power limits, peak limit and phase margin.
 
 | Field | Explanation |
 |---|---|
-| **Reserve state of charge** | The plans never go below this state of charge (e.g. as backup reserve), on top of each battery's own minimum. Peak shaving and phase protection may still use it. 0 = off. |
-| **Night reserve state of charge** | From the evening (the sun gone) until the sun is up again (per the PV forecast) the plans do not go below this state of charge. Arbitrage charges from the grid for it at the cheapest moment before sunrise when needed; zero on the meter only keeps it. Peak shaving and phase protection may still use it. 0 = off. |
+| **Reserve state of charge** | The plans never go below this state of charge (e.g. as backup reserve), on top of each battery's own minimum. Phase protection may still use it. 0 = off. |
+| **Night reserve state of charge** | From the evening (the sun gone) until the sun is up again (per the PV forecast) the plans do not go below this state of charge. Arbitrage charges from the grid for it at the cheapest moment before sunrise when needed; zero on the meter only keeps it. Phase protection may still use it. 0 = off. |
 | **Max. charge power, all batteries** | All batteries together never charge at more than this power. 0 = no limit. |
 | **Max. discharge power, all batteries** | All batteries together never discharge at more than this power. 0 = no limit. |
 | **Minimum power per battery** | Below this power the conversion losses of a battery are high: a request is spread over as few batteries as possible, each running at least at this power, and over more batteries when more power is needed. |

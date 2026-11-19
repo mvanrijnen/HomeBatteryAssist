@@ -818,9 +818,17 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             if plan is not None:
                 plans[mode] = plan
         selected = plans.get(self.plan_mode)
-        self.plan_fallback = selected is None and self.plan_mode not in PLAN_MODES
+        # The chosen planner (own or built-in) is gone or failed: zero on
+        # the meter, never no plan at all.
+        self.plan_fallback = (
+            selected is None
+            and self.plan_mode != MODE_NOM
+            and (
+                self.plan_mode not in PLAN_MODES
+                or self.plan_mode in self._failed_planners
+            )
+        )
         if self.plan_fallback:
-            # The chosen own planner is gone or failed: zero on the meter.
             selected = plans.get(MODE_NOM)
         battery = selected.slots if selected else []
 

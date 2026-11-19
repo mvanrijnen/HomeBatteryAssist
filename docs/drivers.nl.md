@@ -54,7 +54,7 @@ Geen ervan is al op een apparaat geverifieerd. De apparaatfeiten (registers, end
 
 ## Meters — `engine/devices/meters/` {#meters-enginedevicesmeters}
 
-Eén bestand per merk, die samen `direct_reading.py` gebruiken (ongeveer één keer per seconde uitlezen; een waarde ouder dan 10 s telt als onbekend):
+Eén bestand per merk, die samen `direct_reading.py` gebruiken (ongeveer één keer per seconde uitlezen; een waarde ouder dan 10 s telt als onbekend; HomeWizard API v2, per telegram gepusht: 25 s):
 
 | Bestand | Meters | Status |
 |---|---|---|

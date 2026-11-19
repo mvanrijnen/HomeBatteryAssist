@@ -539,7 +539,7 @@ async def settings_schema(
     section gets its part as default, because the frontend shows a section
     from its default (an empty one would show every field in it empty).
     """
-    flat = await _flat_settings_schema(hass, current)
+    flat = _keep_stored_choices(await _flat_settings_schema(hass, current), current)
     top: dict[Any, Any] = {}
     grouped: dict[str, dict[Any, Any]] = {name: {} for name in SETTINGS_SECTIONS}
     where = {key: name for name, keys in SETTINGS_SECTIONS.items() for key in keys}
@@ -553,6 +553,30 @@ async def settings_schema(
                 vol.Schema(fields), {"collapsed": True}
             )
     return vol.Schema(top)
+
+
+def _keep_stored_choices(
+    schema: vol.Schema, current: Mapping[str, Any] | None
+) -> vol.Schema:
+    """A stored choice that is not offered now (an own module that failed to
+    load or was removed, a notify service that is gone) stays a valid
+    option: else saving any other setting fails on it."""
+    for marker, validator in schema.schema.items():
+        if not isinstance(validator, SelectSelector):
+            continue
+        stored = (current or {}).get(str(marker))
+        values = stored if isinstance(stored, list) else [stored]
+        config = validator.config
+        options = list(config.get("options") or [])
+        offered = {o["value"] if isinstance(o, dict) else o for o in options}
+        missing = [v for v in values if isinstance(v, str) and v and v not in offered]
+        if not missing:
+            continue
+        options += [SelectOptionDict(value=v, label=v) for v in missing]
+        schema.schema[marker] = SelectSelector(
+            SelectSelectorConfig(**{**config, "options": options})
+        )
+    return schema
 
 
 def _section_values(fields: Mapping[Any, Any]) -> dict[str, Any]:
@@ -1306,6 +1330,10 @@ class _GridSteps:
     _data: dict[str, Any]
     hass: Any
 
+    def _existing_entry(self) -> ConfigEntry | None:
+        """The entry being changed (None at the first setup)."""
+        return None
+
     def _init_grid(self) -> None:
         self._data = {}
         self._meters: dict[str, MeterCandidate] = {}
@@ -1521,7 +1549,12 @@ class _GridSteps:
             selected = [value for value in user_input.values() if value]
             if len(set(selected)) != len(selected):
                 errors["base"] = "duplicate_sensor"
-            else:
+            if not errors and (entry := self._existing_entry()) is not None:
+                # Every sensor once: not one a subentry already measures.
+                for key, value in user_input.items():
+                    if value and sensor_conflict(entry, value, None) == "sensor_in_use":
+                        errors[key] = "sensor_in_use"
+            if not errors:
                 # Rebuild, so sensors of removed phases or emptied fields go away.
                 self._data = {
                     CONF_PHASES: phases,
@@ -1543,6 +1576,11 @@ class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
     """Handle the UI setup of HomeBatteryAssist."""
 
     VERSION = 1
+
+    def _existing_entry(self) -> ConfigEntry | None:
+        return (
+            self._get_reconfigure_entry() if self.source == SOURCE_RECONFIGURE else None
+        )
 
     def __init__(self) -> None:
         """Initialize the flow."""
@@ -1603,6 +1641,9 @@ class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
 
 class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
     """Change an existing entry: settings, or the grid connection and meter."""
+
+    def _existing_entry(self) -> ConfigEntry | None:
+        return self.config_entry
 
     def __init__(self) -> None:
         """Initialize the flow."""

@@ -487,19 +487,24 @@ def finalise(
         extra = data.forced.get(slot.start, 0.0)
         first = data.forced_by.get(slot.start)
         if extra > 0 and member_wh and first:
-            # Only what the batteries charging fully can still take: once
-            # full, their block does not spill over to the others.
+            # Only what the batteries charging fully can still take (up to
+            # 100 %: a full charge goes above the maximum state of charge):
+            # once full, their block does not spill over to the others.
             extra = min(
                 extra,
                 sum(
                     min(
                         first[m.id],
                         m.max_charge_w,
-                        max(m.ceiling_wh - wh, 0.0) / (slot.hours * m.efficiency),
+                        max(m.capacity_wh - wh, 0.0) / (slot.hours * m.efficiency),
                     )
                     for m, wh in zip(battery.members, member_wh, strict=True)
                     if m.id in first
                 ),
+            )
+        elif extra > 0 and not member_wh:
+            extra = min(
+                extra, max(battery.capacity_wh - stored, 0.0) / (slot.hours * eff)
             )
         if extra > 0:
             # A periodic full charge must happen: when the plan charges
@@ -515,6 +520,8 @@ def finalise(
                 slot.max_charge_w,
                 max(battery.ceiling_wh - stored, 0.0) / (hours * eff),
             )
+            # A full charge up to 100 % (above the maximum state of charge).
+            power = max(power, min(extra, slot.max_charge_w))
             if (
                 not fixed
                 and rules.max_charge_price is not None
@@ -640,9 +647,14 @@ def _share(
     if power > 0 and first:
         for k, m in enumerate(members):
             if m.id in first:
-                given[k] = min(first[m.id], caps[k], left)
+                # Its full charge up to 100 % (above its maximum SoC).
+                full_cap = min(
+                    m.max_charge_w,
+                    max(m.capacity_wh - stored[k], 0.0) / (hours * m.efficiency),
+                )
+                given[k] = min(first[m.id], full_cap, left)
                 left -= given[k]
-        caps = [c - g for c, g in zip(caps, given, strict=True)]
+        caps = [max(c - g, 0.0) for c, g in zip(caps, given, strict=True)]
     room = sum(caps)
     if room <= 0 and not any(given):
         return 0.0, stored

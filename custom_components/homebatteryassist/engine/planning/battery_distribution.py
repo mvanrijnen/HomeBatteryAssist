@@ -18,7 +18,7 @@ controls them.
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -182,3 +182,31 @@ class Distributor:
             worst = min(in_use, key=lambda b: b.soc)
             better = best.soc > worst.soc + BALANCE_TOLERANCE
         return (best.id, worst.id) if better else None
+
+
+def one_direction(
+    powers: Mapping[str, float], *priority: Iterable[str]
+) -> dict[str, float]:
+    """Never one battery charging while another discharges (power + charging).
+
+    That only moves energy from one battery into the other, with the losses
+    of both. ``priority``: groups of battery ids whose power stands, most
+    important first (protection of a phase or the peak, then a full charge):
+    the first group with power sets the direction and every battery against
+    it stops. Without such a group the net stands: the direction of the sum
+    stays, the batteries against it stop, and those with it together give
+    the sum (the grid sees the same).
+    """
+    out = {k: float(v) for k, v in powers.items()}
+    if not any(p > 0 for p in out.values()) or not any(p < 0 for p in out.values()):
+        return out
+    for group in priority:
+        signs = {math.copysign(1.0, out[i]) for i in group if out.get(i, 0.0)}
+        if len(signs) != 1:
+            continue  # nothing in this group, or (should not be) both ways
+        sign = signs.pop()
+        return {k: (0.0 if p * sign < 0 else p) for k, p in out.items()}
+    total = sum(out.values())
+    same = sum(p for p in out.values() if p * total > 0)
+    factor = total / same if same else 0.0
+    return {k: (p * factor if p * total > 0 else 0.0) for k, p in out.items()}

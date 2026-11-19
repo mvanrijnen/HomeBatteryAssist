@@ -67,7 +67,7 @@ from ...measure.house_measurement import (
     planned_discharge,
     solar_surplus_w,
 )
-from ...planning.battery_distribution import Candidate, Distributor
+from ...planning.battery_distribution import Candidate, Distributor, one_direction
 from ...planning.battery_plan import MODE_NOM
 from ...planning.phase_limit import (
     PhaseDevice,
@@ -581,6 +581,13 @@ class VirtualBatterySimulator:
         for i, reason in reasons.items():
             if reason in ("phase_relief", "peak_shaving"):
                 wanted[i] = proposed[i]
+        # Never one battery charging while another discharges: protection
+        # first, then a full charge sets the direction; else the net stands.
+        wanted = one_direction(
+            wanted,
+            [i for i, r in reasons.items() if r in ("phase_relief", "peak_shaving")],
+            [i for i in wanted if full.get(i)],
+        )
         wanted = self._phase_limited(wanted, now)
         wanted = self._hold_without_meter(wanted)
         for config in self.virtual:

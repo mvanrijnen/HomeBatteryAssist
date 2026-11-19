@@ -123,8 +123,8 @@ Reserve, vermogensgrenzen, piekgrens en fasemarge.
 
 | Veld | Uitleg |
 |---|---|
-| **Reserve laadniveau** | De plannen gaan nooit onder dit laadniveau (bijv. als noodreserve), bovenop het eigen minimum van elke batterij. Piekafvlakking en fasebeveiliging mogen het nog wel gebruiken. 0 = uit. |
-| **Nachtreserve laadniveau** | Vanaf de avond (zon weg) tot de zon weer op is (volgens de PV-voorspelling) gaan de plannen niet onder dit laadniveau. Arbitrage laadt er zo nodig voor uit het net op het goedkoopste moment vóór zonsopkomst; nul op de meter houdt het alleen vast. Piekafvlakking en fasebeveiliging mogen het nog wel gebruiken. 0 = uit. |
+| **Reserve laadniveau** | De plannen gaan nooit onder dit laadniveau (bijv. als noodreserve), bovenop het eigen minimum van elke batterij. Fasebeveiliging mag het nog wel gebruiken. 0 = uit. |
+| **Nachtreserve laadniveau** | Vanaf de avond (zon weg) tot de zon weer op is (volgens de PV-voorspelling) gaan de plannen niet onder dit laadniveau. Arbitrage laadt er zo nodig voor uit het net op het goedkoopste moment vóór zonsopkomst; nul op de meter houdt het alleen vast. Fasebeveiliging mag het nog wel gebruiken. 0 = uit. |
 | **Max. laadvermogen alle batterijen** | Alle batterijen samen laden nooit met meer dan dit vermogen. 0 = geen grens. |
 | **Max. ontlaadvermogen alle batterijen** | Alle batterijen samen ontladen nooit met meer dan dit vermogen. 0 = geen grens. |
 | **Minimaal vermogen per batterij** | Onder dit vermogen is het omzetverlies van een batterij hoog: een vraag wordt over zo min mogelijk batterijen verdeeld, die elk minstens dit vermogen draaien, en over meer batterijen als er meer vermogen nodig is. |

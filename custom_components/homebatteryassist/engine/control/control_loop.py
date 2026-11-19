@@ -48,6 +48,11 @@ the dashboard simulates is what would be sent:
    by the approved batteries. ``run_interceptor`` holds it to that. Where
    phase relief or peak shaving set the power, that power stands: the
    interceptor cannot undo protection.
+   **Never one battery charging while another discharges**
+   (``battery_distribution.one_direction``): protection first, then a full
+   charge sets the direction and the batteries against it stop; otherwise
+   the net stands (the grid sees the same, without the losses of moving
+   energy from one battery into the other).
 6. **HomeBatteryAssist's own final check**, which always wins: phase limits
    (``_phase_limited``), power limits and the state of charge: never below
    max(min SoC, reserve SoC), never above max SoC (100 % during a full
@@ -271,6 +276,12 @@ Activating (later, deliberately, with the project owner)
 #             intercept_input(configs, socs, full, wanted, reasons, now, ...),
 #         )
 #         wanted, released = outcome.powers, outcome.released
+#         # Never one battery charging while another discharges.
+#         wanted = one_direction(
+#             wanted,
+#             [i for i, r in reasons.items() if r in ("phase_relief", "peak_shaving")],
+#             [i for i in configs_ids if full[i]],
+#         )
 #         for config in configs:
 #             soc = socs[config.id]
 #             controller = self.controllers[config.id]

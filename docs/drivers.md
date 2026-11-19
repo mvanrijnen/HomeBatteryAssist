@@ -54,7 +54,7 @@ None is verified on a device yet. The device facts (registers, endpoints, scales
 
 ## Meters — `engine/devices/meters/`
 
-One file per brand, sharing `direct_reading.py` (reading about once a second; a value older than 10 s counts as unknown):
+One file per brand, sharing `direct_reading.py` (reading about once a second; a value older than 10 s counts as unknown; HomeWizard API v2, pushed per telegram: 25 s):
 
 | File | Meters | Status |
 |---|---|---|

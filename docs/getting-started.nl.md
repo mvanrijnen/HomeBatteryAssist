@@ -13,7 +13,7 @@ Je hebt nodig:
 - [x] **Home Assistant 2025.6 of nieuwer**, met **HACS** geïnstalleerd.
 - [x] **Een meting van je netaansluiting** per fase. Een van deze:
     - een meter die HomeBatteryAssist rechtstreeks uitleest: **HomeWizard P1** (lokale API aan), **SMA Home Manager / Energy Meter**, **Shelly Pro 3EM / EM** of **Iammeter**;
-    - of sensoren per fase van een andere integratie (bijv. je slimme meter / P1-integratie), in W (of A).
+    - of sensoren per fase van een andere integratie (bijv. je slimme meter / P1-integratie), in W (stroom in A alleen in de optionele stroomvelden).
 
 Handig, maar niet verplicht (kun je later toevoegen):
 
