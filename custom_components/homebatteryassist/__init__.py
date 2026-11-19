@@ -373,6 +373,13 @@ async def async_setup_entry(
         batteries.grid_now = lambda: (
             measurements.flow.grid_w if measurements.flow is not None else None
         )
+
+        @callback
+        def _note_grid(when: datetime, _power: float | None) -> None:
+            flow = measurements.flow
+            batteries.note_grid(when, flow.grid_w if flow is not None else None)
+
+        entry.async_on_unload(measurements.async_add_listener(_note_grid))
         measurements.async_start()
         await measurements.async_start_meter()
 

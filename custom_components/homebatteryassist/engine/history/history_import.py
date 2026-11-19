@@ -44,6 +44,8 @@ class Term:
     weight: float
     absolute: bool = False
     required: bool = False  # grid sensors: without them no value
+    # Required for the periods of a series that has this sensor at all (PV)
+    required_when_known: bool = False
 
 
 def formula_terms(
@@ -67,7 +69,12 @@ def formula_terms(
         terms.append(Term(main, 1.0, required=True))
         if ret:
             terms.append(Term(ret, -1.0, absolute=True, required=True))
-    terms += [Term(e, 1.0, absolute=True) for e in data.measurements.pv_sensors]
+    # PV is required where its statistics exist: a period without them would
+    # count as (almost) no house consumption in the sun.
+    terms += [
+        Term(e, 1.0, absolute=True, required_when_known=True)
+        for e in data.measurements.pv_sensors
+    ]
     terms += [Term(e, -1.0, absolute=True) for e in data.measurements.excluded_sensors]
     real = [b for b in data.batteries.configs if not b.virtual]
     for index, battery in enumerate(real):
@@ -94,7 +101,9 @@ def combine(
         for term in terms:
             value = series.get(term.entity_id, {}).get(start)
             if value is None:
-                if term.required:
+                if term.required or (
+                    term.required_when_known and series.get(term.entity_id)
+                ):
                     complete = False
                     break
                 continue

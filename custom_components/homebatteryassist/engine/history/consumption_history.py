@@ -63,6 +63,31 @@ def _valid(record: object) -> bool:
         return False
 
 
+# The sums of the running interval (saved with the records, so a reload
+# within the interval does not lose what was measured so far).
+RUNNING_SUMS = (
+    "_energy_ws",
+    "_excluded_ws",
+    "_heating_ws",
+    "_heating_s",
+    "_temp_cs",
+    "_temp_s",
+    "_zone_sums",
+    "_spike_wh",
+    "_pv_ws",
+    "_pv_s",
+    "_battery_ws",
+    "_battery_s",
+    "_measured_s",
+    "_phase_house_ws",
+    "_phase_pv_ws",
+    "_grid_ws",
+    "_amp_s",
+    "_grid_s",
+    "_phase_s",
+)
+
+
 class ConsumptionHistory:
     """Time-weighted average of house consumption per interval, persisted to disk.
 
@@ -131,17 +156,33 @@ class ConsumptionHistory:
         )
 
     async def async_stop(self) -> None:
-        """Stop the boundary timer and write records to disk."""
+        """Stop the boundary timer and write records to disk (with the sums
+        of the running interval up to now)."""
         if self._unsub_timer is not None:
             self._unsub_timer()
             self._unsub_timer = None
-        await self.async_save()
+        if self._interval_start is not None and self._last_time is not None:
+            self._integrate(dt_util.utcnow())
+        await self._store.async_save(self._data(running=True))
 
     async def async_load(self) -> None:
         """Load stored records."""
         if (data := await self._store.async_load()) is not None:
             records = data.get("records", [])
             self.records = [r for r in records if _valid(r)]
+            running = data.get("running") or {}
+            start = dt_util.parse_datetime(running.get("start") or "")
+            if (
+                start is not None
+                and running.get("minutes") == self.minutes
+                and start == self.interval_start(dt_util.utcnow())
+            ):
+                # The same interval still runs: go on with its sums (the
+                # time in between counts as not measured).
+                self._interval_start = start
+                for name in RUNNING_SUMS:
+                    if name in running:
+                        setattr(self, name, running[name])
             if len(self.records) != len(records):
                 _LOGGER.warning(
                     "Skipped %d invalid consumption history records",
@@ -527,5 +568,12 @@ class ConsumptionHistory:
         cutoff = (dt_util.as_utc(now) - HISTORY_RETENTION).isoformat()
         self.records = [r for r in self.records if r["start"] >= cutoff]
 
-    def _data(self) -> dict[str, Any]:
-        return {"records": self.records}
+    def _data(self, running: bool = False) -> dict[str, Any]:
+        data: dict[str, Any] = {"records": self.records}
+        if running and self._interval_start is not None and self._measured_s > 0:
+            data["running"] = {
+                "start": self._interval_start.isoformat(),
+                "minutes": self.minutes,
+                **{name: getattr(self, name) for name in RUNNING_SUMS},
+            }
+        return data

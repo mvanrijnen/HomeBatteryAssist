@@ -501,6 +501,11 @@ class BatteryInput:
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry.entry_id}.batteries"
         )
         self._last_power: dict[str, tuple[datetime, float]] = {}
+        # Integral of the measured grid power (Wh) and its last reading, so a
+        # stretch is valued against the grid's average over that stretch.
+        self._grid_wh = 0.0
+        self._grid_last: tuple[datetime, float] | None = None
+        self._grid_at_start: dict[str, float | None] = {}
         self._was_available: dict[str, bool] = {}
         self._listeners: list[Callable[[], None]] = []
         self._unsub: CALLBACK_TYPE | None = None
@@ -832,7 +837,14 @@ class BatteryInput:
                 price = self.price_now(when)  # the middle's period already gone
             if kwh and price is not None:
                 hours = max((when - since).total_seconds(), 0.0) / 3600
-                grid_kwh = self._grid_with_batteries(battery_id, last_power)
+                start_wh = self._grid_at_start.get(battery_id)
+                end_wh = self._grid_integral(when)
+                grid_avg = (
+                    (end_wh - start_wh) / hours
+                    if start_wh is not None and end_wh is not None and hours > 0
+                    else None
+                )
+                grid_kwh = self._grid_with_batteries(battery_id, last_power, grid_avg)
                 stats.setdefault("value_since", when.isoformat())
                 # Energy through the battery behind the value (for its wear).
                 stats["value_kwh"] = round(stats.get("value_kwh", 0.0) + abs(kwh), 4)
@@ -851,8 +863,28 @@ class BatteryInput:
         self._roll_day(battery_id, when)
         if power is not None:
             self._last_power[battery_id] = (when, power)
+            self._grid_at_start[battery_id] = self._grid_integral(when)
 
-    def _grid_with_batteries(self, battery_id: str, last_power: float) -> float | None:
+    def note_grid(self, when: datetime, grid_w: float | None) -> None:
+        """A new grid reading (W, None = unknown): integrated over time."""
+        if self._grid_last is not None:
+            since, value = self._grid_last
+            self._grid_wh += value * max((when - since).total_seconds(), 0.0) / 3600
+        self._grid_last = None if grid_w is None else (when, grid_w)
+        if grid_w is None:
+            # A gap: stretches across it are valued against the reading at
+            # their end instead.
+            self._grid_at_start = dict.fromkeys(self._grid_at_start)
+
+    def _grid_integral(self, when: datetime) -> float | None:
+        if self._grid_last is None:
+            return None
+        since, value = self._grid_last
+        return self._grid_wh + value * max((when - since).total_seconds(), 0.0) / 3600
+
+    def _grid_with_batteries(
+        self, battery_id: str, last_power: float, grid_avg: float | None = None
+    ) -> float | None:
         """Grid power (W) with all batteries, the virtual ones included, while
         ``battery_id`` ran at ``last_power``.
 
@@ -862,7 +894,7 @@ class BatteryInput:
         without the real batteries that have a twin (the twin acts in their
         place).
         """
-        grid = self.grid_now()
+        grid = grid_avg if grid_avg is not None else self.grid_now()
         if grid is None:
             return None
         if not next(c for c in self.configs if c.id == battery_id).virtual:
