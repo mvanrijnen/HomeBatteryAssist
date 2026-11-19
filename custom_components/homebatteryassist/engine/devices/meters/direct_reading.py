@@ -83,6 +83,9 @@ class DirectMeter:
     """Latest grid power per phase from a directly read meter."""
 
     label = "meter"
+    # No value this long: unknown. A meter that pushes only on a new telegram
+    # (DSMR 4: every 10 s) needs longer than one polled every second.
+    stale_after = STALE_AFTER
 
     def __init__(self, hass: HomeAssistant, address: str) -> None:
         """Initialize."""
@@ -105,7 +108,7 @@ class DirectMeter:
         return (
             self.phase_w is not None
             and self.updated is not None
-            and dt_util.utcnow() - self.updated < STALE_AFTER
+            and dt_util.utcnow() - self.updated < self.stale_after
         )
 
     @callback
@@ -129,7 +132,7 @@ class DirectMeter:
         # No value for STALE_AFTER: tell the listeners, so they see "unknown".
         self.cancel_stale()
         self._unsub_stale = async_call_later(
-            self.hass, STALE_AFTER + timedelta(seconds=1), self._stale
+            self.hass, self.stale_after + timedelta(seconds=1), self._stale
         )
 
     @callback

@@ -413,7 +413,7 @@ def fit_temperature(
             if h > 0 and e < BETTER_FIT * error:
                 gain, heat, cool, error = candidate, h, c, e
     base_w = 0.0
-    if target == "heating_w":
+    if target in ("heating_w", "zone"):
         chosen = days_for(gain)
         n = len(chosen)
         base_w = max(

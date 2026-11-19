@@ -665,6 +665,11 @@ class BatteryInput:
         """Realised value (currency) since ``value_since``, after wear."""
         return value_after_wear(self.stats[battery_id], self.cycle_cost)
 
+    async def async_save_now(self) -> None:
+        """Count up to now and write the counters (Home Assistant stops)."""
+        self.count_up_to(dt_util.utcnow())
+        await self._store.async_save(self._data())
+
     async def async_stop(self) -> None:
         """Stop following and persist the counters."""
         if self._unsub is not None:
@@ -1096,6 +1101,7 @@ class BatteryInput:
         for config in self.configs:
             if not config.virtual and config.id in self._last_power:
                 self._count_energy(config.id, now, self._last_power[config.id][1])
+        self._store.async_delay_save(self._data, SAVE_DELAY)
 
     @callback
     def _async_log_soc(self, now: datetime) -> None:
@@ -1103,15 +1109,17 @@ class BatteryInput:
         count the real batteries' energy up to now: a battery whose sensors
         do not change (idle overnight, or a constant power) still starts the
         new day at midnight and has every quarter valued at its own price."""
-        new_day = False
+        before = {
+            c.id: (self.stats[c.id].get("days") or [{}])[-1].get("date")
+            for c in self.configs
+        }
         self.count_up_to(now)
+        new_day = False
         for config in self.configs:
             # Also a battery without a power reading (or a virtual one that
             # did not move) starts the new day: *today* back to 0.
-            days = self.stats[config.id].get("days") or [{}]
-            before = days[-1].get("date")
             self._roll_day(config.id, now)
-            new_day |= self.stats[config.id]["days"][-1]["date"] != before
+            new_day |= self.stats[config.id]["days"][-1]["date"] != before[config.id]
         if new_day:
             for listener in list(self._listeners):
                 listener()

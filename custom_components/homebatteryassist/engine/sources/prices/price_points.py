@@ -177,6 +177,21 @@ def parse_market_forecast(state: State | None) -> list[PricePoint]:
     return parse_price_forecast(state, MARKET_ATTRIBUTES) or parse_price_forecast(state)
 
 
+def _mean_over(points: list[PricePoint], start: Any, end: Any) -> float | None:
+    """Time-weighted mean price over [start, end) (an hourly forecast against
+    quarter prices); None unless the points cover all of it."""
+    total = covered = 0.0
+    for r in points:
+        overlap = (min(r.end, end) - max(r.start, start)).total_seconds()
+        if overlap > 0:
+            total += r.price * overlap
+            covered += overlap
+    span = (end - start).total_seconds()
+    if span <= 0 or covered < span - 1:
+        return None
+    return total / covered
+
+
 def calibrate(
     forecast: list[PricePoint], reference: list[PricePoint], minimum: int = 8
 ) -> list[PricePoint]:
@@ -189,7 +204,7 @@ def calibrate(
     """
     pairs = []
     for point in forecast:
-        ref = next((r.price for r in reference if r.start <= point.start < r.end), None)
+        ref = _mean_over(reference, point.start, point.end)
         if ref is not None:
             pairs.append((point.price, ref))
     if not pairs:

@@ -488,9 +488,9 @@ def finalise(
         if extra > 0:
             # A periodic full charge must happen: when the plan charges
             # anyway, the battery that charges fully is part of that power
-            # (the larger of the two, not both). Price rules do not stop it.
+            # (the larger of the two, not both). Price rules do not stop the
+            # full charge itself, but still the rest of the request.
             requested = max(requested, extra)
-            fixed = True
         hours = slot.hours
         power = 0.0
         if requested > 0:
@@ -505,7 +505,8 @@ def finalise(
                 and slot.price is not None
                 and slot.price > rules.max_charge_price
             ):
-                power = min(power, max(-slot.net_w, 0.0))  # only surplus PV
+                # Only surplus PV (and a periodic full charge).
+                power = min(power, max(extra, -slot.net_w, 0.0))
         elif requested < 0 and (fixed or may_discharge(rules, slot.price)):
             power = -min(
                 -requested, slot.max_discharge_w, discharge_room(data, slot, stored)
@@ -521,6 +522,7 @@ def finalise(
                 sequential=rules.charge_sequential,
                 night=slot.reserve_wh > 0,
                 peak=data.peak_w > 0,
+                peak_excess=max(slot.net_w - data.peak_w, 0.0),
             )
             stored = sum(member_wh)
         else:
@@ -573,6 +575,7 @@ def _share(
     sequential: bool = False,
     night: bool = False,
     peak: bool = False,
+    peak_excess: float = 0.0,
 ) -> tuple[float, list[float]]:
     """Split a pack power over the batteries, each at most what it can (power,
     and the room up to its maximum / the energy above its minimum), in
@@ -583,8 +586,8 @@ def _share(
     ``sequential``: charging goes to the emptiest battery first, up to what it
     can take, then the next (not in proportion).
     Discharging: each battery keeps its own night reserve (``night``) and
-    first its own peak reserve (``peak``); below that only for what the
-    pack power (already limited to the import above the peak) still asks."""
+    its own peak reserve (``peak``); below that only for the grid import
+    above the peak limit (``peak_excess``, W), as for the pack."""
     if power > 0:
         caps = [
             min(m.max_charge_w, max(m.ceiling_wh - wh, 0.0) / (hours * m.efficiency))
@@ -600,13 +603,20 @@ def _share(
             min(m.max_discharge_w, max(wh - n, 0.0) * m.efficiency / hours)
             for m, wh, n in zip(members, stored, normal, strict=True)
         ]
-        if sum(caps) < -power:
-            # Below the peak reserve (only import above the peak): each
-            # battery down to its night reserve / floor, by what it has.
-            caps = [
-                min(m.max_discharge_w, max(wh - low, 0.0) * m.efficiency / hours)
-                for m, wh, low in zip(members, stored, lows, strict=True)
+        if peak and peak_excess > 0 and sum(caps) < -power:
+            # Below the peak reserve, only for the import above the peak:
+            # each battery down to its night reserve / floor, by what it has.
+            deep = [
+                min(m.max_discharge_w, max(wh - low, 0.0) * m.efficiency / hours) - cap
+                for m, wh, low, cap in zip(members, stored, lows, caps, strict=True)
             ]
+            deep = [max(d, 0.0) for d in deep]
+            room_deep = sum(deep)
+            if room_deep > 0:
+                use = min(room_deep, peak_excess, -power - sum(caps))
+                caps = [
+                    c + d * use / room_deep for c, d in zip(caps, deep, strict=True)
+                ]
     else:
         return 0.0, stored
     given = [0.0] * len(members)

@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from datetime import timedelta
 from typing import Any
 
 import aiohttp
@@ -69,6 +70,8 @@ class HomeWizardPush(DirectMeter):
     """A HomeWizard meter pushing its measurements (API v2 websocket)."""
 
     label = SOURCE_HOMEWIZARD_V2
+    # Pushed per telegram: DSMR 5 every second, DSMR 4 every 10 s.
+    stale_after = timedelta(seconds=25)
 
     def __init__(self, hass: HomeAssistant, address: str) -> None:
         """Initialize."""
@@ -110,6 +113,9 @@ class HomeWizardPush(DirectMeter):
                         "HomeWizard API v2 at %s: %s (trying again)", self.address, err
                     )
                 self._failed = True
+            except Exception:  # anything unexpected: log it, keep reading
+                _LOGGER.exception("HomeWizard API v2 at %s failed", self.address)
+                self._failed = True
             await asyncio.sleep(RETRY_S)
 
     async def _listen(self) -> None:
@@ -129,6 +135,8 @@ class HomeWizardPush(DirectMeter):
                         break
                     continue
                 body = message.json()
+                if not isinstance(body, dict):
+                    continue
                 kind = body.get("type")
                 if kind == "authorization_requested":
                     await ws.send_json({"type": "authorization", "data": token})
@@ -139,8 +147,8 @@ class HomeWizardPush(DirectMeter):
                     self._failed = False
                 elif kind == "error":
                     raise ValueError(str(body.get("data")))
-                elif kind == "measurement":
-                    self.handle(body.get("data") or {})
+                elif kind == "measurement" and isinstance(body.get("data"), dict):
+                    self.handle(body["data"])
         raise OSError("connection closed")
 
     def handle(self, data: dict[str, Any]) -> None:

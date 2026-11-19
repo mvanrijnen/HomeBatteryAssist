@@ -140,13 +140,16 @@ def rebalance_parts(rows: list[Row], adjustments: Iterable[Adjustment]) -> list[
             for s, e in (*spans, *fixed)
         )
         power_w = energy_w(adjustment)
-        added = rest = hours = 0.0
+        # The whole energy of the adjustment (also the part already past or
+        # beyond the window); below scaled by the share of the day left.
+        added = power_w * (a_end - a_start).total_seconds() / 3600
+        rest = hours = 0.0
         others: list[int] = []
         for i, (start, end, power, _names) in enumerate(result):
             overlap = (min(end, a_end) - max(start, a_start)).total_seconds() / 3600
             if overlap > 0:
-                added += power_w * overlap
-            elif dt_util.as_local(start).date() == day and not in_a_part(start, end):
+                continue
+            if dt_util.as_local(start).date() == day and not in_a_part(start, end):
                 others.append(i)
                 length = (end - start).total_seconds() / 3600
                 rest += power * length

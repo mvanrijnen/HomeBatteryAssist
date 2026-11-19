@@ -20,6 +20,7 @@ import math
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 
 from ..history.consumption_history import ConsumptionRecord
 from .forecasters import (
@@ -118,7 +119,7 @@ def raw_forecast(
             )
             for i in range(len(slots))
         ]
-        refs = list(result.reference_temps or [])
+        refs = [_reference(r) for r in list(result.reference_temps or [])[: len(slots)]]
         refs += [None] * (len(slots) - len(refs))
     out = []
     for i, ((start, end), (value, method), (fallback, fallback_method)) in enumerate(
@@ -138,6 +139,18 @@ def raw_forecast(
             number = min(max(number + extra, 0.0), MAX_W)
         out.append((start, end, round(number, 1), method or forecaster.key))
     return out
+
+
+def _reference(value: Any) -> list[float] | None:
+    """A forecaster's reference temperatures for a slot: a list of finite
+    numbers, else None (the profile's usual weather)."""
+    if not isinstance(value, (list, tuple)) or not value:
+        return None
+    try:
+        temps = [float(t) for t in value]
+    except (TypeError, ValueError):
+        return None
+    return temps if all(math.isfinite(t) for t in temps) else None
 
 
 def _profile(data: ForecasterInput) -> list[tuple[float | None, str | None]]:

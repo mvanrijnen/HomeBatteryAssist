@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.diagnostics import async_redact_data
+from homeassistant.components.diagnostics import REDACTED, async_redact_data
 from homeassistant.core import HomeAssistant
 
 from .engine.evaluation.pv_corrections import BUILTIN as PV_CORRECTORS
@@ -108,9 +108,7 @@ async def async_get_config_entry_diagnostics(
             "consumption_forecaster": data.forecast.forecaster_key,
             "forecaster_fallback": data.forecast.forecaster_fallback,
             "weather_source": data.forecast.weather_key,
-            "weather": (
-                data.forecast.weather.describe() if data.forecast.weather else None
-            ),
+            "weather": _weather(data.forecast.weather),
             "outdoor_temperature": data.forecast.outdoor_temperature(),
             "temperature_model": (
                 [
@@ -221,3 +219,14 @@ def _spike_details(data: Any) -> dict[str, Any] | None:
         "regular_peak_hours": sorted(data.forecast.regular_peaks),
         "seen": seen,
     }
+
+
+def _weather(source: Any) -> str | None:
+    """The weather source and its state, without the place the user set
+    (``weather_location`` is redacted)."""
+    if source is None:
+        return None
+    text = source.describe()
+    settings = getattr(source, "settings", None)
+    location = getattr(settings, "location", None)
+    return text.replace(str(location), REDACTED) if location else text

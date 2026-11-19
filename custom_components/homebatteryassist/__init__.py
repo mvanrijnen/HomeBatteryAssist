@@ -13,7 +13,12 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 
-from homeassistant.const import CONF_NAME, EVENT_HOMEASSISTANT_STARTED, Platform
+from homeassistant.const import (
+    CONF_NAME,
+    EVENT_HOMEASSISTANT_STARTED,
+    EVENT_HOMEASSISTANT_STOP,
+    Platform,
+)
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import (
@@ -314,6 +319,16 @@ async def async_setup_entry(
             )
 
         await history.async_start()
+
+        async def _async_save_on_stop(_event: Event) -> None:
+            # Home Assistant does not unload config entries when it stops:
+            # keep the running history interval and the battery counters.
+            await history.async_save_running()
+            await batteries.async_save_now()
+
+        entry.async_on_unload(
+            hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_save_on_stop)
+        )
         history_started = True
         if forecast.outdoor_sensor or forecast.zones:
             # Past records get their outdoor temperature and the heating/cooling

@@ -185,6 +185,13 @@ class ConsumptionHistory:
             self._integrate(dt_util.utcnow())
         await self._store.async_save(self._data(running=True))
 
+    async def async_save_running(self) -> None:
+        """Write the records and the running interval up to now (Home
+        Assistant stops: config entries are not unloaded then)."""
+        if self._interval_start is not None and self._last_time is not None:
+            self._integrate(dt_util.utcnow())
+        await self._store.async_save(self._data(running=True))
+
     async def async_load(self) -> None:
         """Load stored records."""
         if (data := await self._store.async_load()) is not None:
@@ -401,7 +408,13 @@ class ConsumptionHistory:
                 volts = (
                     self._last_grid_phases[2] if len(self._last_grid_phases) > 2 else ()
                 )
-                if len(self._grid_ws) != len(grid):
+                if not (
+                    len(self._grid_ws)
+                    == len(self._amp_s)
+                    == len(self._q_s)
+                    == len(grid)
+                ):
+                    # A new phase count, or sums saved by an older version.
                     self._grid_ws = [0.0] * len(grid)
                     self._amp_s = [0.0] * len(grid)
                     self._q_s = [0.0] * len(grid)

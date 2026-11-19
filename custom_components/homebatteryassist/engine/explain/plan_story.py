@@ -13,6 +13,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 
 from homeassistant.util import dt as dt_util
 
@@ -142,6 +143,14 @@ class _Block:
     limited: bool = False  # held back by the phase limits
 
 
+def _hours(slot: Any) -> float:
+    """The hours a slot counts (the running one only from now)."""
+    hours = getattr(slot, "duration_h", None)
+    if hours is None:
+        hours = (slot.end - slot.start).total_seconds() / 3600
+    return hours
+
+
 def _lang(language: str | None) -> str:
     return "nl" if (language or "").startswith("nl") else "en"
 
@@ -163,23 +172,20 @@ def _blocks(slots: list[PlanSlot], charging: bool) -> list[_Block]:
     def close() -> None:
         if not current:
             return
-        energy = sum(
-            abs(s.power_w) * (s.end - s.start).total_seconds() / 3600 for s in current
-        )
+        energy = sum(abs(s.power_w) * _hours(s) for s in current)
         priced = [s for s in current if s.price is not None]
-        weight = sum(abs(s.power_w) for s in priced)
+        weight = sum(abs(s.power_w) * _hours(s) for s in priced)
         price = (
-            sum(s.price * abs(s.power_w) for s in priced) / weight if weight else None
+            sum(s.price * abs(s.power_w) * _hours(s) for s in priced) / weight
+            if weight
+            else None
         )
         if charging:
             # Mostly from the grid: at least half of the charged energy came
             # from the grid (the grid import up to the charge power per slot);
             # a solar charge with a little grid import stays a solar charge.
             from_grid_wh = sum(
-                min(s.power_w, max(s.grid_w, 0.0))
-                * (s.end - s.start).total_seconds()
-                / 3600
-                for s in current
+                min(s.power_w, max(s.grid_w, 0.0)) * _hours(s) for s in current
             )
             from_grid = from_grid_wh >= energy / 2
         else:

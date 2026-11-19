@@ -2576,10 +2576,6 @@ class HomeBatteryAssistPanel extends HTMLElement {
     let body;
     if (this._error === "not_loaded") body = `<div class="card">${esc(t.notLoaded)}</div>`;
     else if (this._error) body = `<div class="card">${esc(t.error)}: ${esc(this._error)}</div>`;
-    if (this._actionError && this._status) {
-      // An action (plan mode, recalculate) failed: shown until the next one.
-      body = `<div class="card">${esc(t.error)}: ${esc(this._actionError)}</div>${body}`;
-    }
     else if (!this._status) body = "";
     else {
       const s = this._status;
@@ -2595,6 +2591,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
         .map((k) => `<button data-tab="${k}" class="${k === tab ? "active" : ""}">${esc(t.tabs[k])}</button>`)
         .join("");
       body = `<div class="tabs">${bar}</div>${tabs[tab]().join("")}`;
+      if (this._actionError) {
+        // An action (plan mode, recalculate) failed: shown until the next one.
+        body = `<div class="card">${esc(t.error)}: ${esc(this._actionError)}</div>${body}`;
+      }
     }
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar"><span class="menu"></span><span class="title">${esc(t.title)}${VERSION ? `<span class="version">v${esc(VERSION)}</span>` : ""}</span>

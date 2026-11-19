@@ -241,6 +241,8 @@ class ForecastAccuracy:
             if bucket is None:
                 continue  # already started
             entry = bucket_slots.setdefault(start.isoformat(), {"end": end.isoformat()})
+            # A slot cut at the end of an earlier window is whole now.
+            entry["end"] = max(entry["end"], end.isoformat())
             entry[bucket] = round(value, 4)
         self._store.async_delay_save(self._data, SAVE_DELAY)
 

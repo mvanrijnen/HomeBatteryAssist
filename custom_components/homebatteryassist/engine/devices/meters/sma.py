@@ -131,15 +131,19 @@ class _SpeedwireProtocol(asyncio.DatagramProtocol):
 
 def _multicast_socket() -> socket.socket:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    if hasattr(socket, "SO_REUSEPORT"):
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
-    sock.bind(("", PORT))
-    membership = struct.pack(
-        "4s4s", socket.inet_aton(GROUP), socket.inet_aton("0.0.0.0")
-    )
-    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, membership)
-    sock.setblocking(False)
+    try:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if hasattr(socket, "SO_REUSEPORT"):
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        sock.bind(("", PORT))
+        membership = struct.pack(
+            "4s4s", socket.inet_aton(GROUP), socket.inet_aton("0.0.0.0")
+        )
+        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, membership)
+        sock.setblocking(False)
+    except OSError:
+        sock.close()  # the network is not ready: no socket left behind
+        raise
     return sock
 
 

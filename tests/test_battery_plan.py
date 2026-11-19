@@ -549,6 +549,12 @@ def test_share_reserves_per_battery() -> None:
     power, new = _share([a, b], [4000.0, 3500.0], -1500.0, 1.0, peak=True)
     assert power == -1500.0
     assert new == [3000.0, 3000.0]
+    # More asked, but no import above the peak: not below the peak reserve.
     power, new = _share([a, b], [4000.0, 3500.0], -2000.0, 1.0, peak=True)
+    assert power == -1500.0
+    # 500 W import above the peak: that part from below the peak reserve.
+    power, new = _share(
+        [a, b], [4000.0, 3500.0], -2000.0, 1.0, peak=True, peak_excess=500.0
+    )
     assert power == -2000.0
     assert min(new) < 3000.0
