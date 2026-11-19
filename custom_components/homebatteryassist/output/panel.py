@@ -239,7 +239,8 @@ def _vs_none(forecast: Any) -> list[list[float]]:
     plan = forecast.data.selected_plan
     if plan is None or not plan.slots or plan.cost is None:
         return []
-    start_soc = plan.slots[0].soc
+    # From the state of charge now (a slot's SoC is at its end).
+    start_soc = plan.start_soc if plan.start_soc is not None else plan.slots[0].soc
     total = 0.0
     series = []
     for slot in plan.slots:
@@ -325,7 +326,9 @@ def _interceptor_info(entry: HomeBatteryAssistConfigEntry) -> dict[str, Any] | N
     }
 
 
-def _today_expected(data: Any) -> dict[str, float | None]:
+def _today_expected(
+    data: Any, today: dict[str, Any] | None = None
+) -> dict[str, float | None]:
     """The whole day as expected (Wh): measured so far plus the forecast
     until local midnight (house consumption, PV, heating/cooling zones) and
     the battery plan (charge / discharge, grid import / export). Excluded
@@ -334,7 +337,8 @@ def _today_expected(data: Any) -> dict[str, float | None]:
     end = dt_util.as_utc(
         dt_util.start_of_local_day(dt_util.as_local(now)) + timedelta(days=1)
     )
-    today = data.history.today_energy(now)
+    if today is None:
+        today = data.history.today_energy(now)
     forecast = data.forecast
     fdata = forecast.data
 
@@ -410,6 +414,7 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
     registry = er.async_get(hass)
     forecast_data = data.forecast.data
     window = forecast_data.window
+    today = data.history.today_energy(dt_util.utcnow())  # once
     return {
         # Adjustments of the consumption forecast (dialog *Expected extra
         # consumption*).
@@ -451,8 +456,8 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             for zone in data.forecast.zones
         ],
         # Energy since local midnight (Wh), incl. the interval running now.
-        "today": data.history.today_energy(dt_util.utcnow()),
-        "today_expected": _today_expected(data),
+        "today": today,
+        "today_expected": _today_expected(data, today),
         "entities": _entity_ids(registry, entry.entry_id, MAIN_KEYS),
         "batteries": [
             {

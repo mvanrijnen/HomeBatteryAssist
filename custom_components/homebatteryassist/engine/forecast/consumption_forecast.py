@@ -153,6 +153,21 @@ def _reference(value: Any) -> list[float] | None:
     return temps if all(math.isfinite(t) for t in temps) else None
 
 
+def consumption_profile_for(
+    records: Sequence[ConsumptionRecord],
+    window: PlanningWindow,
+    step: timedelta,
+    now: datetime,
+    temperatures: Sequence[float | None] | None = None,
+) -> list[tuple[float | None, str | None]]:
+    """The built-in profile's prediction per slot (to share between several
+    ``raw_forecast`` calls)."""
+    if window.is_empty:
+        return []
+    slots = list(window.slots(step))
+    return _profile(ForecasterInput(now, slots, records, step, temperatures))
+
+
 def _profile(data: ForecasterInput) -> list[tuple[float | None, str | None]]:
     result = BUILTIN[DEFAULT_FORECASTER].forecast(data)
     methods = result.methods or [None] * len(result.values)

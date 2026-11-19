@@ -570,6 +570,21 @@ class VirtualBatterySimulator:
             wanted[config.id] = (
                 config.max_charge_w if full[config.id] else targets(config, soc)
             )
+        cap = self._forecast.rules.max_charge_w
+        if cap > 0:
+            # The system's max charge power counts for all together, a full
+            # charge first, the others what is left (as in the plan).
+            fulls = [i for i in wanted if full[i] and wanted[i] > 0]
+            full_sum = sum(wanted[i] for i in fulls)
+            if full_sum > cap:
+                for i in fulls:
+                    wanted[i] *= cap / full_sum
+                full_sum = cap
+            rest = [i for i in wanted if not full[i] and wanted[i] > 0]
+            rest_sum = sum(wanted[i] for i in rest)
+            if rest_sum > cap - full_sum:
+                for i in rest:
+                    wanted[i] *= max(cap - full_sum, 0.0) / rest_sum
         nom = data is None or data.plan_mode == MODE_NOM
         reasons = {
             c.id: "full_charge" if full[c.id] else "zero_on_meter" if nom else "plan"

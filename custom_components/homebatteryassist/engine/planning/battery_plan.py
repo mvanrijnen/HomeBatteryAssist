@@ -97,6 +97,7 @@ class BatteryPlan:
     cost_without: float | None  # expected cost without battery
     capacity_kwh: float = 0.0  # behind the state of charge in the slots
     value_per_kwh: float = 0.0  # value of stored energy (avg price x efficiency)
+    start_soc: float | None = None  # % now (slot SoCs are at their end)
 
     @property
     def saving(self) -> float | None:
@@ -599,6 +600,9 @@ def finalise(
         round(cost_without, 4),
         battery.capacity_wh / 1000,
         avg_price * eff,
+        round(battery.stored_wh / battery.capacity_wh * 100, 2)
+        if battery.capacity_wh
+        else None,
     )
 
 

@@ -300,7 +300,7 @@ async def test_battery_values(
     # 2.048 kWh at 1 kW
     full_at = dt_util.parse_datetime(_value(hass, entry, "battery_time_to_target"))
     expected = NOW + timedelta(hours=2.048)  # 2.048 kWh at 1 kW
-    assert abs((full_at - expected).total_seconds()) < 1  # stored in whole seconds
+    assert abs((full_at - expected).total_seconds()) < 60  # to the minute
 
     _set(hass, "sensor.marstek_power", "10", "W")
     await hass.async_block_till_done()

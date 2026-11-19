@@ -147,6 +147,7 @@ from .explain.plan_story import plan_story
 from .forecast.consumption_forecast import (
     METHODS,
     ForecastSlot,
+    consumption_profile_for,
     forecast_consumption,
     raw_forecast,
 )
@@ -901,6 +902,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
     ) -> None:
         """Each forecaster's own prediction, for the comparison of accuracy."""
         records = self.forecast_records()
+        # The built-in profile (every forecaster's fallback) once, not per
+        # forecaster: it parses the whole history.
+        profile = consumption_profile_for(records, window, step, now, self.temperatures)
         for key, forecaster in (*FORECASTERS.items(), *self.forecasters.items()):
             try:
                 slots = raw_forecast(
@@ -909,6 +913,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                     window,
                     step,
                     now,
+                    profile=profile,
                     temperatures=self.temperatures,
                     temperature=self.temperature_model,
                 )

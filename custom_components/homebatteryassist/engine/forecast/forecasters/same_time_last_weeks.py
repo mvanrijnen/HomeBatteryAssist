@@ -16,6 +16,7 @@ Simple and quick to follow changes in habits; sensitive to one-off days.
 
 from __future__ import annotations
 
+from bisect import bisect_right
 from datetime import date, timedelta
 
 from homeassistant.util import dt as dt_util
@@ -60,6 +61,10 @@ class LastWeeksForecaster(Forecaster):
                     float(temp) if temp is not None else None,
                 )
             )
+        for parts in days.values():
+            parts.sort(key=lambda p: p[0])
+        starts = {day: [p[0] for p in parts] for day, parts in days.items()}
+        ordered = sorted(days, reverse=True)
         values: list[float | None] = []
         references: list[list[float] | None] = []
         for start, end in data.slots:
@@ -67,12 +72,17 @@ class LastWeeksForecaster(Forecaster):
             begin = local.hour * 60 + local.minute
             finish = begin + max(int((end - start).total_seconds() // 60), 1)
             found: list[tuple[float, list[float] | None]] = []
-            for day in sorted(days, reverse=True):
+            for day in ordered:
                 if day.weekday() != local.weekday() or day >= local.date():
                     continue
                 total = weight = 0.0
                 temps: list[float] | None = []
-                for lo, hi, coverage, watts, temp in days[day]:
+                parts = days[day]
+                # Parts by start (sorted once): only the ones near the slot.
+                k = max(bisect_right(starts[day], begin) - 1, 0)
+                for lo, hi, coverage, watts, temp in parts[k:]:
+                    if lo >= finish:
+                        break
                     overlap = min(hi, finish) - max(lo, begin)
                     if overlap <= 0:
                         continue

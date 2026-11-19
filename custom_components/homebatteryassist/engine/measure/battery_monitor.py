@@ -288,7 +288,10 @@ class BatteryState:
             energy, power = self.usable_kwh, -self.power_w  # type: ignore[operator]
         else:
             return None
-        return now + timedelta(hours=energy * 1000 / power)  # type: ignore[operator]
+        when = now + timedelta(hours=energy * 1000 / power)  # type: ignore[operator]
+        # To the minute: written every few seconds, a value in seconds would
+        # be a new state (and recorder row) every time.
+        return when.replace(second=0, microsecond=0)
 
 
 def battery_configs(

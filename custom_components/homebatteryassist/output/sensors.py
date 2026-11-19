@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -542,10 +542,10 @@ class PlanPhaseSensor(
     def _phases(self):
         data = self.coordinator.data
         # The planned batteries (a real battery with a twin is not planned).
-        configs = [s.config for s in self._batteries.plan_states()]
+        configs = [s.config for s in self._batteries.plan_states() if s.soc is not None]
         rules = self.coordinator.rules
         now = dt_util.utcnow()
-        night = any(start <= now < start + timedelta(hours=1) for start in data.night)
+        night = data.night_at(now)
         # The floor the plan holds now: the reserve, the night reserve at
         # night, the peak reserve with a peak limit.
         reserve = max(

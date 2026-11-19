@@ -272,11 +272,16 @@ Activating (later, deliberately, with the project owner)
 #         )
 #         # Step 5: the interceptor (the same input as for the virtual
 #         # batteries, built by targets.intercept_input), then step 6.
+#         proposed = dict(wanted)
 #         outcome = run_interceptor(
 #             self._forecast.interceptor,
 #             intercept_input(configs, socs, full, wanted, reasons, now, ...),
 #         )
 #         wanted, released = outcome.powers, outcome.released
+#         # Protection is not the interceptor's to undo (as virtual.step).
+#         for i, reason in reasons.items():
+#             if reason in ("phase_relief", "peak_shaving"):
+#                 wanted[i] = proposed[i]
 #         # A full charge at the battery's full power (up to 100 %), in
 #         # ``wanted`` so it counts in the next check.
 #         for config in configs:
@@ -292,6 +297,9 @@ Activating (later, deliberately, with the project owner)
 #             [i for i, r in reasons.items() if r in ("phase_relief", "peak_shaving")],
 #             [c.id for c in configs if full[c.id]],
 #         )
+#         # The phase caps after it (a full charge at full power included):
+#         # HomeBatteryAssist's own check always wins.
+#         wanted = phase_limited(wanted, now)
 #         for config in configs:
 #             soc = socs[config.id]
 #             controller = self.controllers[config.id]
