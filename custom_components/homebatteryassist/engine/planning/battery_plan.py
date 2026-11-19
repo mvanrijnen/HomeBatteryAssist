@@ -326,6 +326,7 @@ def plan_batteries(
     now: datetime | None = None,
     forced: Mapping[datetime, float] | None = None,
     forced_by: Mapping[datetime, Mapping[str, float]] | None = None,
+    member_limits: Mapping[datetime, Mapping[str, tuple[float, float]]] | None = None,
 ) -> BatteryPlan | None:
     """Plan the batteries with ``planner`` (default: the built-in planner of
     ``mode``) over the consumption slots, checked by ``finalise``; None
@@ -352,6 +353,7 @@ def plan_batteries(
         now=now,
         forced=forced,
         forced_by=forced_by,
+        member_limits=member_limits,
     )
     if data is None:
         return None
@@ -376,6 +378,7 @@ def planner_input(
     now: datetime | None = None,
     forced: Mapping[datetime, float] | None = None,
     forced_by: Mapping[datetime, Mapping[str, float]] | None = None,
+    member_limits: Mapping[datetime, Mapping[str, tuple[float, float]]] | None = None,
 ) -> PlannerInput | None:
     """What a planner gets; None without batteries or slots."""
     pack = _pack(states, rules)
@@ -451,6 +454,7 @@ def planner_input(
         target,
         dict(forced or {}),
         dict(forced_by or {}),
+        dict(member_limits or {}),
     )
 
 
@@ -549,6 +553,7 @@ def finalise(
                 hours,
                 data.forced_by.get(slot.start),
                 sequential=rules.charge_sequential,
+                limits=data.member_limits.get(slot.start),
                 night=slot.reserve_wh > 0,
                 peak=data.peak_w > 0,
                 peak_excess=max(slot.net_w - data.peak_w, 0.0),
@@ -594,6 +599,17 @@ def finalise(
     )
 
 
+def _cap(
+    member: PackMember, limits: Mapping[str, tuple[float, float]] | None, which: int
+) -> float:
+    """A battery's charge (0) / discharge (1) power, within the room its
+    phase leaves in this slot (the split must not overload a phase)."""
+    own = member.max_charge_w if which == 0 else member.max_discharge_w
+    if limits and member.id in limits:
+        return min(own, max(limits[member.id][which], 0.0))
+    return own
+
+
 def _share(
     members: Sequence[PackMember],
     stored: list[float],
@@ -602,6 +618,7 @@ def _share(
     first: Mapping[str, float] | None = None,
     *,
     sequential: bool = False,
+    limits: Mapping[str, tuple[float, float]] | None = None,
     night: bool = False,
     peak: bool = False,
     peak_excess: float = 0.0,
@@ -619,7 +636,9 @@ def _share(
     above the peak limit (``peak_excess``, W), as for the pack."""
     if power > 0:
         caps = [
-            min(m.max_charge_w, max(m.ceiling_wh - wh, 0.0) / (hours * m.efficiency))
+            min(
+                _cap(m, limits, 0), max(m.ceiling_wh - wh, 0.0) / (hours * m.efficiency)
+            )
             for m, wh in zip(members, stored, strict=True)
         ]
     elif power < 0:
@@ -629,14 +648,14 @@ def _share(
             for m, low in zip(members, lows, strict=True)
         ]
         caps = [
-            min(m.max_discharge_w, max(wh - n, 0.0) * m.efficiency / hours)
+            min(_cap(m, limits, 1), max(wh - n, 0.0) * m.efficiency / hours)
             for m, wh, n in zip(members, stored, normal, strict=True)
         ]
         if peak and peak_excess > 0 and sum(caps) < -power:
             # Below the peak reserve, only for the import above the peak:
             # each battery down to its night reserve / floor, by what it has.
             deep = [
-                min(m.max_discharge_w, max(wh - low, 0.0) * m.efficiency / hours) - cap
+                min(_cap(m, limits, 1), max(wh - low, 0.0) * m.efficiency / hours) - cap
                 for m, wh, low, cap in zip(members, stored, lows, caps, strict=True)
             ]
             deep = [max(d, 0.0) for d in deep]
@@ -655,7 +674,7 @@ def _share(
             if m.id in first:
                 # Its full charge up to 100 % (above its maximum SoC).
                 full_cap = min(
-                    m.max_charge_w,
+                    _cap(m, limits, 0),
                     max(m.capacity_wh - stored[k], 0.0) / (hours * m.efficiency),
                 )
                 given[k] = min(first[m.id], full_cap, left)

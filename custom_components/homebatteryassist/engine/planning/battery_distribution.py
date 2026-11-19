@@ -201,10 +201,12 @@ def one_direction(
     if not any(p > 0 for p in out.values()) or not any(p < 0 for p in out.values()):
         return out
     for group in priority:
-        signs = {math.copysign(1.0, out[i]) for i in group if out.get(i, 0.0)}
-        if len(signs) != 1:
-            continue  # nothing in this group, or (should not be) both ways
-        sign = signs.pop()
+        members = [i for i in group if out.get(i, 0.0)]
+        if not members:
+            continue
+        # Both ways inside the group (e.g. one phase importing too much,
+        # another exporting too much): the larger need sets the direction.
+        sign = math.copysign(1.0, sum(out[i] for i in members) or out[members[0]])
         return {k: (0.0 if p * sign < 0 else p) for k, p in out.items()}
     total = sum(out.values())
     same = sum(p for p in out.values() if p * total > 0)

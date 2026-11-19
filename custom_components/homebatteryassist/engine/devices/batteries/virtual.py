@@ -578,6 +578,7 @@ class VirtualBatterySimulator:
         reasons.update(
             {i: "phase_relief" for i in wanted if abs(wanted[i] - before[i]) > 1.0}
         )
+        self._relief_ids = {i for i, r in reasons.items() if r == "phase_relief"}
         before = dict(wanted)
         wanted = self._peak_shaving(wanted, socs, full, now, hours)
         reasons.update(
@@ -734,6 +735,7 @@ class VirtualBatterySimulator:
                 > max(c.min_soc, self._reserve_floor(now, peak=False)) + 0.01
                 and not full[c.id]
             ],
+            keep=getattr(self, "_relief_ids", set()),
         )
         dutch = (self.hass.config.language or "").startswith("nl")
         self.peak_now = shaved

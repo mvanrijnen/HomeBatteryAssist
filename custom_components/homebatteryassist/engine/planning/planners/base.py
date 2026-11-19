@@ -105,6 +105,11 @@ class PlannerInput:
     forced: Mapping[datetime, float] = field(default_factory=dict)
     # The same per battery: slot start -> battery id -> W (who it is for)
     forced_by: Mapping[datetime, Mapping[str, float]] = field(default_factory=dict)
+    # Per slot start: battery id -> (charge W, discharge W) its phase allows
+    # (with the other batteries at their power), for the split in finalise.
+    member_limits: Mapping[datetime, Mapping[str, tuple[float, float]]] = field(
+        default_factory=dict
+    )
     priced: bool = field(init=False)
 
     def __post_init__(self) -> None:

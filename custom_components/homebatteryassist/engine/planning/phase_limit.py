@@ -235,6 +235,7 @@ def shave_peak(
     grid_w: float,
     peak_w: float,
     can_discharge: Iterable[str],
+    keep: Iterable[str] = (),
 ) -> tuple[dict[str, float], float]:
     """Keep the total grid import (all phases) at or below ``peak_w``.
 
@@ -249,7 +250,9 @@ def shave_peak(
     if excess <= 0.5:
         return result, 0.0
     need = excess
-    charging = {k: v for k, v in result.items() if v > 0}
+    # A battery charging to relieve an exporting phase keeps that charge.
+    kept = set(keep)
+    charging = {k: v for k, v in result.items() if v > 0 and k not in kept}
     total_charge = sum(charging.values())
     if total_charge > 0:
         cut = min(total_charge, need)

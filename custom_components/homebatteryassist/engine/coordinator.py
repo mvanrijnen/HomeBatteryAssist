@@ -414,6 +414,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             else None
         )
         self.pv_partial = False  # a chosen PV source gave no data
+        self._member_limits: dict = {}
         self._adjusted_starts: set[datetime] = set()
         self.full_charge_solar: bool = opts.get(CONF_FULL_CHARGE_SOLAR, True)
         self.charge_order: str = opts.get(CONF_CHARGE_ORDER, CHARGE_SEQUENTIAL)
@@ -800,6 +801,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                         export_factor=self.export_factor,
                         cycle_cost=self.cycle_cost,
                         limits=limits,
+                        member_limits=self._member_limits,
                         export_prices=export_prices,
                         max_cycles_per_day=self.max_cycles,
                         peak_w=self.peak_w,
@@ -1057,13 +1059,27 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         if not devices:
             return {}
         self.phase_profile = PhaseProfile(self.history.records, phases)
-        return {
-            start: (
+        result = {}
+        members: dict[datetime, dict[str, tuple[float, float]]] = {}
+        for start, loads in self.phase_profile.loads(consumption, pv_wh).items():
+            result[start] = (
                 max_power(devices, loads, limit, charging=True),
                 max_power(devices, loads, limit, charging=False),
             )
-            for start, loads in self.phase_profile.loads(consumption, pv_wh).items()
-        }
+            # Per battery: what its phase leaves with all at full power (the
+            # plan's split over the batteries must not overload a phase).
+            charge, _ = cap_powers(
+                {d.id: d.max_charge_w for d in devices}, devices, loads, limit
+            )
+            discharge, _ = cap_powers(
+                {d.id: -d.max_discharge_w for d in devices}, devices, loads, limit
+            )
+            members[start] = {
+                d.id: (charge.get(d.id, 0.0), -discharge.get(d.id, 0.0))
+                for d in devices
+            }
+        self._member_limits = members
+        return result
 
     def _derated(self, state: BatteryState) -> Any:
         """The battery with its power reduced when it is warm (temperature
