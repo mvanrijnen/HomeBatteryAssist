@@ -491,3 +491,17 @@ def test_a_full_battery_takes_no_more_charge() -> None:
         [full, empty], _slots([5000.0]), {}, _prices([0.3]), mode=MODE_NOM
     )
     assert plan.slots[0].power_w == -2500.0
+
+
+def test_arbitrage_stores_a_small_surplus() -> None:
+    """A solar surplus that is not a whole number of levels is stored, not
+    exported (or rounded up with grid power)."""
+    slots = _slots([200.0] * 8)
+    pv = {T0 + i * H: 350.0 for i in range(4)}  # 150 W surplus
+    prices = _prices([0.25] * 4 + [0.40] * 4)
+    plan = plan_batteries(
+        [_battery(soc=20.0)], slots, pv, prices, mode=MODE_ARBITRAGE, export_factor=0.25
+    )
+    first = plan.slots[:4]
+    assert all(s.power_w > 100 for s in first), [s.power_w for s in first]
+    assert all(abs(s.grid_w) < 10 for s in first), [s.grid_w for s in first]

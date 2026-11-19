@@ -75,6 +75,15 @@ class PlanSlot:
     limited: bool = False  # less power because of the phase limits
     export_price: float | None = None  # what exported energy earns in this slot
     reason: str | None = None  # time slot name / "manual" in the fixed modes
+    # Hours planned (the slot now only from now); None = the whole slot
+    hours: float | None = None
+
+    @property
+    def duration_h(self) -> float:
+        """The planned hours of the slot (energy = power x this)."""
+        if self.hours is not None:
+            return self.hours
+        return (self.end - self.start).total_seconds() / 3600
 
 
 @dataclass(frozen=True, slots=True)
@@ -511,6 +520,7 @@ def finalise(
                 _limited(battery, power, slot.max_charge_w, slot.max_discharge_w),
                 slot.export_price,
                 reason,
+                hours,
             )
         )
     strategy = result.strategy or mode
@@ -571,7 +581,7 @@ def cycles_per_day(plan: BatteryPlan) -> dict[date, float]:
         return days
     for slot in plan.slots:
         if slot.power_w < 0:
-            hours = (slot.end - slot.start).total_seconds() / 3600
+            hours = slot.duration_h
             day = dt_util.as_local(slot.start).date()
             days[day] = days.get(day, 0.0) - slot.power_w * hours / 1000
     return {d: kwh / plan.capacity_kwh for d, kwh in days.items()}
@@ -592,7 +602,7 @@ def slot_costs(
     """Expected cost per slot of a plan (grid cost + battery wear)."""
     costs = []
     for slot in plan.slots:
-        hours = (slot.end - slot.start).total_seconds() / 3600
+        hours = slot.duration_h
         cost = abs(slot.power_w) * hours / 1000 * cycle_cost
         if slot.price is not None:
             export = (

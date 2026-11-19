@@ -1695,7 +1695,7 @@ def _avg_price(
         active = slot.power_w > threshold if charging else slot.power_w < -threshold
         if not active or slot.price is None:
             continue
-        energy = abs(slot.power_w) * (slot.end - slot.start).total_seconds()
+        energy = abs(slot.power_w) * slot.duration_h
         total += slot.price * energy
         weight += energy
     return total / weight if weight else None

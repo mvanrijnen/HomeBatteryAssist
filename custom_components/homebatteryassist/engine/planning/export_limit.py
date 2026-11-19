@@ -45,6 +45,14 @@ class ExpectedLimit:
     lowest_price: float | None  # lowest net export price in the period
 
 
+def _hours(slot: Any) -> float:
+    """Planned hours of a plan slot (the slot now only from now)."""
+    hours = getattr(slot, "duration_h", None)
+    return (
+        hours if hours is not None else (slot.end - slot.start).total_seconds() / 3600
+    )
+
+
 def expected_limits(
     slots: list[Any],
     now: datetime,
@@ -66,9 +74,7 @@ def expected_limits(
     def close() -> None:
         if not run:
             return
-        kwh = sum(
-            -s.grid_w * (s.end - s.start).total_seconds() / 3_600_000 for s in run
-        )
+        kwh = sum(-s.grid_w * _hours(s) / 1000 for s in run)
         prices = [p for s in run if (p := _net(s, cost, export_factor)) is not None]
         if run[-1].end - run[0].start >= EXPECT_MIN and kwh >= EXPECT_MIN_KWH:
             periods.append(

@@ -69,7 +69,7 @@ def slot_saving(
     """Expected saving of one plan slot compared with no battery."""
     if slot.price is None:
         return None
-    hours = (slot.end - slot.start).total_seconds() / 3600
+    hours = slot.duration_h
     export = (
         slot.export_price
         if slot.export_price is not None

@@ -198,6 +198,30 @@ def _optimise(
                     )
                     if cost < best:
                         best, best_j = cost, target
+                # Storing the solar surplus exactly: charge just that, also
+                # when it is not a whole number of levels (else a small surplus
+                # could only be exported, or rounded up with grid power).
+                surplus = max(-net, 0.0)
+                part = surplus * hours * eff / step if surplus > 0 else 0.0
+                target = i + part
+                charged_flag = 1 if band > 0 else 0
+                if (
+                    part > 0
+                    and part != int(part)
+                    and target <= levels - 1
+                    and surplus <= slot.max_charge_w
+                    and not (i > top and not flag)
+                ):
+                    low = int(target)
+                    frac = target - low
+                    cost = (
+                        grid_cost(net + surplus, hours, price, export)
+                        + surplus * hours / 1000 * data.cycle_cost
+                        + (1 - frac) * future[charged_flag][low]
+                        + frac * future[charged_flag][min(low + 1, levels - 1)]
+                    )
+                    if cost < best:
+                        best, best_j = cost, target
                 current[flag][i] = best
                 choice[i] = best_j
         future = current
@@ -210,7 +234,12 @@ def _optimise(
     for t, slot in enumerate(slots):
         i = min(max(round((stored - battery.floor_wh) / step), 0), levels - 1)
         j = best_next[t][flag][i]
-        if j != int(j):
+        if j != int(j) and j > i:
+            # Store the solar surplus with part of a level.
+            room = max(battery.ceiling_wh - stored, 0.0) / (slot.hours * eff)
+            power = min(max(-slot.net_w, 0.0), room)
+            flag = 1 if band > 0 else 0
+        elif j != int(j):
             # Cover the house load with part of a level.
             power = -min(max(slot.net_w, 0.0), discharge_room(data, slot, stored))
             flag = 0

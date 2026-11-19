@@ -113,7 +113,11 @@ def schedule_full_charges(
         config = state.config
         # Overdue: catch up within the window; otherwise finish before the deadline.
         latest_end = min(deadline if deadline > now else now + window, horizon_end)
-        missing_wh = max(100.0 - state.soc, 0.0) * config.capacity_kwh * 10
+        # Sized for the worst case: by the time the block runs the battery
+        # may be as low as its minimum (it can be days later). A block that
+        # turns out longer than needed stops at full (``finalise``).
+        start_soc = min(state.soc, getattr(config, "min_soc", state.soc))
+        missing_wh = max(100.0 - start_soc, 0.0) * config.capacity_kwh * 10
         eff = math.sqrt(config.efficiency)
         hours = missing_wh / (config.max_charge_w * eff) if config.max_charge_w else 0
         count = max(1, math.ceil(hours * 3600 / seconds))
