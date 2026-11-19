@@ -468,3 +468,19 @@ async def test_history_reactive_not_from_averages(hass) -> None:
     record = history.records[-1]
     assert abs(record["phase_grid_w"][0]) < 200  # the averages differ a lot
     assert record["phase_q"] == [0.0]  # but per reading there is none
+
+
+def test_plan_room_with_reactive_part() -> None:
+    """A learned reactive part: the room is sqrt(limit^2 - Q^2) - P, not
+    limit + hypot(P, Q) (which would let the plan overload the phase)."""
+    from custom_components.homebatteryassist.engine.planning.phase_limit import (
+        PhaseDevice,
+        max_power,
+    )
+
+    load = (50.0**2 + 2500.0**2) ** 0.5  # hypot(P, Q), signed as P (+)
+    device = PhaseDevice("b", 0, 5000.0, 5000.0)
+    room = max_power([device], [load], 5175.0, charging=False, active_w=[50.0])
+    expected = (5175.0**2 - 2500.0**2) ** 0.5 + 50.0
+    assert abs(room - expected) < 1.0
+    assert room < 5000.0

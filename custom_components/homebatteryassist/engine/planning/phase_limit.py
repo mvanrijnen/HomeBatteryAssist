@@ -84,10 +84,12 @@ def max_power(
     load_w: Sequence[float],
     limit_w: float,
     charging: bool,
+    active_w: Sequence[float] | None = None,
 ) -> float:
-    """Most power the devices can charge (or discharge) together without overload."""
+    """Most power the devices can charge (or discharge) together without
+    overload (``active_w``: see ``_room``)."""
     devices = list(devices)
-    room = _room(load_w, limit_w, charging)
+    room = _room(load_w, limit_w, charging, active_w)
     total = 0.0
 
     def cap(d: PhaseDevice) -> float:

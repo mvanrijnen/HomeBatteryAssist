@@ -879,14 +879,28 @@ class BatteryInput:
                 stats.setdefault("value_since", when.isoformat())
                 # Energy through the battery behind the value (for its wear).
                 stats["value_kwh"] = stats.get("value_kwh", 0.0) + abs(kwh)
-                stats["value"] = stats.get("value", 0.0) + realised_value(
-                    kwh,
-                    None if grid_kwh is None else grid_kwh * hours / 1000,
-                    price,
+                export = (
                     self.export_price_now(middle)
                     if self.export_price_now(middle) is not None
-                    else self.export_price_now(when),
+                    else self.export_price_now(when)
                 )
+                grid_e = None if grid_kwh is None else grid_kwh * hours / 1000
+                group_w = sum(self._group_powers(battery_id, last_power).values())
+                if (
+                    grid_e is not None
+                    and abs(group_w) > abs(last_power) + 1e-6
+                    and group_w * last_power > 0
+                ):
+                    # Several batteries the same way: valued together (the
+                    # grid crosses zero only with all of them), this one its
+                    # share by power; apart, the values would not add up.
+                    joint = realised_value(
+                        group_w * hours / 1000, grid_e, price, export
+                    )
+                    value = joint * last_power / group_w
+                else:
+                    value = realised_value(kwh, grid_e, price, export)
+                stats["value"] = stats.get("value", 0.0) + value
         self._roll_day(battery_id, when)
         if power is not None:
             self._last_power[battery_id] = (when, power)
@@ -908,6 +922,21 @@ class BatteryInput:
             return None
         since, value = self._grid_last
         return self._grid_wh + value * max((when - since).total_seconds(), 0.0) / 3600
+
+    def _group_powers(self, battery_id: str, last_power: float) -> dict[str, float]:
+        """The powers (W) of the batteries valued together with ``battery_id``:
+        the real ones (all in the measured grid), or the virtual ones (the
+        simulated grid); ``battery_id`` at ``last_power``."""
+        virtual = next(c for c in self.configs if c.id == battery_id).virtual
+        out: dict[str, float] = {}
+        for config in self.configs:
+            if config.virtual != virtual:
+                continue
+            if config.id == battery_id:
+                out[config.id] = last_power
+            elif (power := self.states[config.id].power_w) is not None:
+                out[config.id] = power
+        return out
 
     def _grid_with_batteries(
         self, battery_id: str, last_power: float, grid_avg: float | None = None

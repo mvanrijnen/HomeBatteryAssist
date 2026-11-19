@@ -1088,23 +1088,31 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         result = {}
         members: dict[datetime, dict[str, tuple[float, float]]] = {}
         rooms: dict[datetime, Any] = {}
+        # The active power apart: with a learned reactive part the room is
+        # sqrt(limit^2 - Q^2) - P, not limit - hypot(P, Q).
+        actives = self.phase_profile.active_loads(consumption, pv_wh)
         for start, loads in self.phase_profile.loads(consumption, pv_wh).items():
+            active = actives.get(start)
             result[start] = (
-                max_power(devices, loads, limit, charging=True),
-                max_power(devices, loads, limit, charging=False),
+                max_power(devices, loads, limit, charging=True, active_w=active),
+                max_power(devices, loads, limit, charging=False, active_w=active),
             )
             # Per battery: what its phase leaves with all at full power (the
             # plan's split over the batteries must not overload a phase).
             per: dict[str, tuple[float, float]] = {}
             for d in devices:
-                charge, _ = cap_powers({d.id: d.max_charge_w}, [d], loads, limit)
-                discharge, _ = cap_powers({d.id: -d.max_discharge_w}, [d], loads, limit)
+                charge, _ = cap_powers(
+                    {d.id: d.max_charge_w}, [d], loads, limit, active
+                )
+                discharge, _ = cap_powers(
+                    {d.id: -d.max_discharge_w}, [d], loads, limit, active
+                )
                 per[d.id] = (charge.get(d.id, 0.0), -discharge.get(d.id, 0.0))
             members[start] = per
             rooms[start] = (
                 {d.id: d.phase for d in devices},
-                _room(loads, limit, True),
-                _room(loads, limit, False),
+                _room(loads, limit, True, active),
+                _room(loads, limit, False, active),
             )
         self._member_limits = members
         self._phase_rooms = rooms
@@ -1174,12 +1182,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         devices = [PhaseDevice.from_config(s.config, phases) for s in states]
         profile = self.phase_profile or PhaseProfile(self.history.records, phases)
         loads = profile.loads(consumption, pv_wh)
+        actives = profile.active_loads(consumption, pv_wh)
         starts = sorted(loads)
 
         def fits(when: datetime, powers: Mapping[str, float]) -> bool:
             start = next((s for s in reversed(starts) if s <= when), None)
             load = loads[start] if start is not None else [0.0] * phases
-            capped, _ = cap_powers(powers, devices, load, limit)
+            capped, _ = cap_powers(
+                powers, devices, load, limit, actives.get(start) if start else None
+            )
             return all(abs(capped[k] - v) < 1 for k, v in powers.items())
 
         return fits

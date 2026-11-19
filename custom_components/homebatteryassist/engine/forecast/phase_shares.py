@@ -118,6 +118,24 @@ class PhaseProfile:
             ]
         return result
 
+    def active_loads(
+        self, consumption: Sequence[ForecastSlot], pv_wh: Mapping[datetime, float]
+    ) -> dict[datetime, list[float]]:
+        """The active power per phase per slot start (without the current
+        besides it): with ``loads`` the room per phase counts the reactive
+        part right (``phase_limit._room``)."""
+        result = {}
+        for slot in consumption:
+            hour = slot.start.replace(minute=0, second=0, microsecond=0)
+            pv = pv_wh.get(hour, 0.0)
+            result[slot.start] = [
+                round(slot.power_w * h - pv * p, 1)
+                for h, p in zip(
+                    self.house_share(slot.start), self.pv_share(slot.start), strict=True
+                )
+            ]
+        return result
+
     @staticmethod
     def _with_reactive(load: float, reactive: float) -> float:
         """The load as the current it will draw (W at 230 V), signed."""

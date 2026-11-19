@@ -962,12 +962,69 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return value === null ? "–" : `${value.toFixed(2)} kWh`;
   }
 
+  // Times in Home Assistant's time zone, as the integration's own texts and
+  // day boundaries (the browser may be in another one).
+  get _tz() {
+    return this._hass?.config?.time_zone || undefined;
+  }
+
+  // The local date and time parts of a moment in Home Assistant's zone.
+  _zone(ts) {
+    const tz = this._tz;
+    if (!this._zoneFmt || this._zoneFmtTz !== tz) {
+      this._zoneFmtTz = tz;
+      this._zoneFmt = new Intl.DateTimeFormat("en-US", {
+        timeZone: tz,
+        hourCycle: "h23",
+        year: "numeric",
+        month: "numeric",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+      });
+    }
+    const p = Object.fromEntries(this._zoneFmt.formatToParts(new Date(ts)).map((x) => [x.type, x.value]));
+    return { y: +p.year, mo: +p.month, d: +p.day, h: +p.hour % 24, mi: +p.minute };
+  }
+
+  // The next local midnight after ``ts`` (``days`` later: further).
+  _zoneMidnight(ts, days = 1) {
+    const z = this._zone(ts);
+    let guess = Date.UTC(z.y, z.mo - 1, z.d + days);
+    for (let i = 0; i < 2; i++) {
+      const g = this._zone(guess);
+      const local = Date.UTC(g.y, g.mo - 1, g.d, g.h, g.mi);
+      guess -= local - Date.UTC(z.y, z.mo - 1, z.d + days);
+    }
+    return guess;
+  }
+
+  // Ticks every ``step`` local hours between two moments; a local midnight
+  // gets the date as label.
+  _hourTicks(xMin, xMax, step, lang, inclusive = false) {
+    const ticks = [];
+    const z = this._zone(xMin);
+    let ts = xMin + ((60 - z.mi) % 60) * 60e3 - (new Date(xMin).getSeconds() * 1e3 + new Date(xMin).getMilliseconds());
+    for (let guard = 0; guard < 2000 && (inclusive ? ts <= xMax : ts < xMax); guard++, ts += 3600e3) {
+      const h = this._zone(ts).h;
+      if (h % step !== 0) continue;
+      ticks.push([
+        ts,
+        h === 0
+          ? new Date(ts).toLocaleDateString(lang, { timeZone: this._tz, weekday: "short", day: "numeric", month: "numeric" })
+          : `${String(h).padStart(2, "0")}:00`,
+      ]);
+    }
+    return ticks;
+  }
+
   _time(iso) {
     if (!iso) return "–";
     const date = new Date(iso);
-    const sameDay = date.toDateString() === new Date().toDateString();
+    const day = (z) => `${z.y}-${z.mo}-${z.d}`;
+    const sameDay = day(this._zone(date.getTime())) === day(this._zone(Date.now()));
     const opts = sameDay ? { hour: "2-digit", minute: "2-digit" } : { weekday: "short", hour: "2-digit", minute: "2-digit" };
-    return date.toLocaleString(this._hass.locale?.language || this._hass.language, opts);
+    return date.toLocaleString(this._hass.locale?.language || this._hass.language, { ...opts, timeZone: this._tz });
   }
 
   _flow(cls, icon, label, value, sub = "") {
@@ -1119,7 +1176,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const label =
       i == null
         ? t.fdLive
-        : new Date(`${days[i].date}T12:00:00`).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "short" });
+        : new Date(`${days[i].date}T12:00:00`).toLocaleDateString(lang, { timeZone: this._tz, weekday: "short", day: "numeric", month: "short" });
     const older = i == null ? 0 : i + 1;
     const newer = i == null ? null : i - 1;
     return `<div class="nav">
@@ -1229,7 +1286,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const fmt = (v, est) =>
         v == null ? "–" : `${est ? "≈ " : ""}${new Intl.NumberFormat(lang, { style: "currency", currency: p.currency || "EUR", minimumFractionDigits: 2, maximumFractionDigits: 3 }).format(v)}`;
       // Now and from the next price change: market, import and export price.
-      const hhmm = (iso) => new Date(iso).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" });
+      const hhmm = (iso) => new Date(iso).toLocaleTimeString(lang, { timeZone: this._tz, hour: "2-digit", minute: "2-digit" });
       const row = (label, market, imp, est, exp) =>
         `<tr><th>${esc(label)}</th><td>${fmt(market)}</td><td>${fmt(imp, est)}</td><td>${fmt(exp)}</td></tr>`;
       const rows = [row(t.priceNowAt.replace("{time}", hhmm(p.start || new Date().toISOString())), p.market_now, p.now, p.now_estimated, p.export_now)];
@@ -1326,7 +1383,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       `<tr><td>${esc(t.realizedRow.replace("{mode}", name(value.mode).toLowerCase()))}</td><td>${esc(t.vsNone)}</td><td class="num">${esc(signed(value.realized))}</td></tr>`,
     );
     const date = value.until
-      ? new Date(value.until).toLocaleString(lang, { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })
+      ? new Date(value.until).toLocaleString(lang, { timeZone: this._tz, weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })
       : "–";
     // Choose the plan mode here (the integration reloads with it).
     const modes = Object.keys(t.modeNames).filter((m) => m in value.by_mode || m === value.mode);
@@ -1356,7 +1413,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     // Only the groups that exist (real and/or virtual batteries).
     const followGroups = ["virtual", "real"].filter((g) => s.batteries.some((b) => !b.twinned && !!b.virtual === (g === "virtual")));
     const rows = days.map((d) => {
-      const day = new Date(`${d.day}T12:00:00`).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" });
+      const day = new Date(`${d.day}T12:00:00`).toLocaleDateString(lang, { timeZone: this._tz, weekday: "short", day: "numeric", month: "numeric" });
       const diff = d.realized - d.planned;
       const groups = followGroups.map((g) => `<td class="num">${d[`followed_${g}`] == null ? "–" : `${Math.round(d[`followed_${g}`])}%`}</td>`).join("");
       return `<tr><td>${esc(day)}</td><td class="num">${esc(money(d.planned))}</td><td class="num">${esc(money(d.realized))}</td>
@@ -1680,7 +1737,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       thursday.setDate(from.getDate() + 3);
       const jan4 = new Date(thursday.getFullYear(), 0, 4);
       const week = 1 + Math.round(((thursday - jan4) / 864e5 - 3 + ((jan4.getDay() + 6) % 7)) / 7);
-      const fmt = (d) => d.toLocaleDateString(lang, { day: "numeric", month: "short" });
+      const fmt = (d) => d.toLocaleDateString(lang, { timeZone: this._tz, day: "numeric", month: "short" });
       label = t.weekOf.replace("{week}", week).replace("{from}", fmt(from)).replace("{to}", fmt(to));
     }
     const older = i === null ? weeks.length - 1 : i - 1;
@@ -1853,15 +1910,13 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const xMin = pts.length ? pts[0][0] : Date.now() - 7 * 864e5;
     const xMax = Date.now();
     const ticks = [];
-    const day = new Date(xMin);
-    day.setHours(24, 0, 0, 0);
-    for (; day.getTime() < xMax; day.setDate(day.getDate() + 1)) {
-      ticks.push([day.getTime(), day.toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" })]);
+    for (let day = this._zoneMidnight(xMin); day < xMax; day = this._zoneMidnight(day)) {
+      ticks.push([day, new Date(day).toLocaleDateString(lang, { timeZone: this._tz, weekday: "short", day: "numeric", month: "numeric" })]);
     }
     const weekSeries = [{ points: pts, color: primary, label: t.houseLine }];
     if (h.has_excluded) weekSeries.push({ points: excludedPts, color: excludedColor, label: t.excludedLine });
     const hourFmt = (v) =>
-      new Date(v).toLocaleString(lang, { weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
+      new Date(v).toLocaleString(lang, { timeZone: this._tz, weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
     const week = this._chart("week", weekSeries, xMin, xMax, ticks, 2 * 3600e3, [], hourFmt);
     const weekLegend = h.has_excluded
       ? `<div class="legend"><span><i style="background:${primary}"></i>${esc(t.houseLine)}</span>
@@ -1877,7 +1932,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const shown = this._dayWeek === null ? null : weeks[this._dayWeek];
     // Monday first; 1 January 2024 was a Monday.
     const dayNames = [0, 1, 2, 3, 4, 5, 6].map((i) =>
-      new Date(2024, 0, 1 + i).toLocaleDateString(lang, { weekday: "short" }),
+      new Date(2024, 0, 1 + i).toLocaleDateString(lang, { timeZone: this._tz, weekday: "short" }),
     );
     const dayColors = ["#1e88e5", "#43a047", "#8e24aa", "#00acc1", "#fdd835", "#fb8c00", "#e53935"];
     const profile = shown || h.profile || {};
@@ -1960,29 +2015,18 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const dataMin = Math.min(now - 24 * 3600e3, ...firsts);
       const dataMax = Math.max(now + 3600e3, ...lasts.map((v) => v + 3600e3));
       this._flowBounds = { dataMin, dataMax, now };
-      const midnight = new Date(now);
-      midnight.setHours(24, 0, 0, 0);
+      const midnight = this._zoneMidnight(now);
       const rangeEnd = {
-        today: midnight.getTime(),
-        tomorrow: midnight.getTime() + 864e5,
+        today: midnight,
+        tomorrow: this._zoneMidnight(now, 2),
       }[this._flowRange] ?? dataMax;
       const span = Math.max(rangeEnd - (now - FLOW_LEAD), FLOW_LEAD);
       this._flowSpan = span / 3600e3;
       let fMax = this._flowEnd ?? now - FLOW_LEAD + span;
       fMax = Math.min(Math.max(fMax, dataMin + span), Math.max(dataMax, dataMin + span));
       const fMin = fMax - span;
-      const fTicks = [];
       const step = this._flowSpan <= 24 ? 3 : this._flowSpan <= 72 ? 12 : 24;
-      const d = new Date(fMin);
-      d.setMinutes(0, 0, 0);
-      d.setHours(Math.ceil(d.getHours() / step) * step);
-      for (; d.getTime() < fMax; d.setHours(d.getHours() + step)) {
-        const midnight = d.getHours() === 0;
-        const label = midnight
-          ? d.toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" })
-          : `${String(d.getHours()).padStart(2, "0")}:00`;
-        fTicks.push([d.getTime(), label]);
-      }
+      const fTicks = this._hourTicks(fMin, fMax, step, lang);
       const margin = 2 * 3600e3;
       const inView = (points) => points.filter(([ts]) => ts >= fMin - margin && ts <= fMax + margin);
       const slot = 3600e3;  // verification/forecast points are at most an hour apart
@@ -2067,6 +2111,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         now >= fMin && now <= fMax ? [[now, t.now]] : [],
         (v) =>
           new Date(v).toLocaleString(lang, {
+            timeZone: this._tz,
             weekday: "short",
             day: "numeric",
             month: "numeric",
@@ -2235,20 +2280,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const rows = temp.slots;
     const xMin = rows[0][0];
     const xMax = rows[rows.length - 1][0];
-    const ticks = [];
     const span = (xMax - xMin) / 3600e3;
     const step = span <= 48 ? 6 : 24;
-    const d = new Date(xMin);
-    d.setMinutes(0, 0, 0);
-    d.setHours(Math.ceil(d.getHours() / step) * step);
-    for (; d.getTime() <= xMax; d.setHours(d.getHours() + step)) {
-      ticks.push([
-        d.getTime(),
-        d.getHours() === 0
-          ? d.toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" })
-          : `${String(d.getHours()).padStart(2, "0")}:00`,
-      ]);
-    }
+    const ticks = this._hourTicks(xMin, xMax, step, lang, true);
     const degrees = (v) => (v == null ? "–" : `${v.toFixed(1).replace(".", lang.startsWith("nl") ? "," : ".")} °C`);
     const axisDeg = (v) => `${Math.round(v)} °C`;
     const outdoorColor = "#039be5";
@@ -2268,7 +2302,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const [ts, , , w] = rows[i];
       if (w == null) continue;
       const next = rows[i + 1]?.[0] ?? ts + (rows.length > 1 ? rows[1][0] - rows[0][0] : 900e3);
-      const day = new Date(ts).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" });
+      const day = new Date(ts).toLocaleDateString(lang, { timeZone: this._tz, weekday: "short", day: "numeric", month: "numeric" });
       perDay.set(day, (perDay.get(day) || 0) + (w * (next - ts)) / 3600e6);
     }
     const kwh = [...perDay.entries()]
@@ -2481,7 +2515,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const lang = this._hass.locale?.language || this._hass.language;
     const rows = this._status?.adjustments || [];
     const dayText = (iso) =>
-      new Date(`${iso}T12:00:00`).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "numeric" });
+      new Date(`${iso}T12:00:00`).toLocaleDateString(lang, { timeZone: this._tz, weekday: "short", day: "numeric", month: "numeric" });
     const num = (v) => Number(v).toLocaleString(lang, { maximumFractionDigits: 2 });
     const items = rows.length
       ? rows
