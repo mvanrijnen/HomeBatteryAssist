@@ -38,7 +38,7 @@ from .planners import (
     PlannerResult,
 )
 from .planners import PlannerSlot as _InSlot
-from .planners.base import discharge_room, grid_cost, may_discharge
+from .planners.base import PackMember, discharge_room, grid_cost, may_discharge
 from .time_slots import Target
 
 DEFAULT_EXPORT_FACTOR = 1.0  # export earns the import price (net metering)
@@ -140,6 +140,7 @@ class _Pack:
     rules: PlanRules = PlanRules()
     night_floor: float = 0.0  # Wh at the night reserve (0 = off)
     peak_floor: float = 0.0  # Wh at the peak reserve (0 = off)
+    members: tuple[PackMember, ...] = ()
 
 
 def _pack(
@@ -190,6 +191,22 @@ def _pack(
             sum(s.config.efficiency * s.config.capacity_kwh for s in usable)
             / (capacity / 1000)
         ),
+        members=tuple(
+            PackMember(
+                s.config.capacity_kwh * 1000,
+                s.soc * s.config.capacity_kwh * 10,
+                min(max(s.config.min_soc, rules.reserve_soc), s.config.max_soc)
+                * s.config.capacity_kwh
+                * 10,
+                s.config.max_soc * s.config.capacity_kwh * 10,
+                math.sqrt(s.config.efficiency),
+                s.config.max_charge_w * getattr(s, "charge_factor", 1.0),
+                s.config.max_discharge_w * getattr(s, "discharge_factor", 1.0),
+            )
+            for s in usable
+        )
+        if len(usable) > 1
+        else (),
     )
 
 
@@ -388,6 +405,7 @@ def planner_input(
             pack.max_charge,
             pack.max_discharge,
             pack.peak_floor,
+            pack.members,
         ),
         rules,
         cycle_cost,
@@ -417,6 +435,9 @@ def finalise(
     rules = data.rules
     eff = battery.efficiency
     stored = battery.stored_wh
+    # Several batteries: each apart, so a full one takes no more charge and an
+    # empty one gives nothing (the pack's sum would allow both).
+    member_wh = [m.stored_wh for m in battery.members]
     reasons = result.reasons or []
     out: list[PlanSlot] = []
     cost_with = cost_without = 0.0
@@ -458,7 +479,11 @@ def finalise(
                 -requested, slot.max_discharge_w, discharge_room(data, slot, stored)
             )
         power = max(power, 0.0) if requested > 0 else min(power, 0.0)
-        stored += power * hours * eff if power >= 0 else power * hours / eff
+        if member_wh:
+            power, member_wh = _share(battery.members, member_wh, power, hours)
+            stored = sum(member_wh)
+        else:
+            stored += power * hours * eff if power >= 0 else power * hours / eff
         grid = slot.net_w + power
         if data.priced:
             export = slot.export_price if slot.export_price is not None else slot.price
@@ -494,6 +519,39 @@ def finalise(
         battery.capacity_wh / 1000,
         avg_price * eff,
     )
+
+
+def _share(
+    members: Sequence[PackMember], stored: list[float], power: float, hours: float
+) -> tuple[float, list[float]]:
+    """Split a pack power over the batteries, each at most what it can (power,
+    and the room up to its maximum / the energy above its minimum), in
+    proportion to that; the power they give together and their new energy."""
+    if power > 0:
+        caps = [
+            min(m.max_charge_w, max(m.ceiling_wh - wh, 0.0) / (hours * m.efficiency))
+            for m, wh in zip(members, stored, strict=True)
+        ]
+    elif power < 0:
+        caps = [
+            min(m.max_discharge_w, max(wh - m.floor_wh, 0.0) * m.efficiency / hours)
+            for m, wh in zip(members, stored, strict=True)
+        ]
+    else:
+        return 0.0, stored
+    room = sum(caps)
+    if room <= 0:
+        return 0.0, stored
+    total = min(abs(power), room)
+    new = []
+    for m, wh, cap in zip(members, stored, caps, strict=True):
+        part = total * cap / room
+        new.append(
+            wh + part * hours * m.efficiency
+            if power > 0
+            else wh - part * hours / m.efficiency
+        )
+    return (total if power > 0 else -total), new
 
 
 def cycles_per_day(plan: BatteryPlan) -> dict[date, float]:

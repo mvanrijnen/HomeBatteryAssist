@@ -79,7 +79,7 @@ class Planner:
     def plan(self, data: PlannerInput) -> PlannerResult | list[float]: ...
 ```
 
-`data.slots` (per slot: `start`, `end`, `hours`, `house_w`, `pv_w`, `net_w`, `price`, `export_price`, `max_charge_w`, `max_discharge_w`), `data.battery` (all batteries as one: `capacity_wh`, `stored_wh`, `floor_wh`, `ceiling_wh`, `efficiency`), `data.rules` (your plan rules), `data.cycle_cost`, `data.peak_w`, `data.priced`. Return the requested power per slot in W (+ charging, − discharging). Runs outside the event loop; no I/O.
+`data.slots` (per slot: `start`, `end`, `hours`, `house_w`, `pv_w`, `net_w`, `price`, `export_price`, `max_charge_w`, `max_discharge_w`), `data.battery` (all batteries as one: `capacity_wh`, `stored_wh`, `floor_wh`, `ceiling_wh`, `efficiency`; `members` = the batteries apart when there are several), `data.forced` (extra charge W per slot start that must happen: the periodic full charges), `data.rules` (your plan rules), `data.cycle_cost`, `data.peak_w`, `data.priced`. Return the requested power per slot in W (+ charging, − discharging). The final check splits it over the batteries (a full battery takes no more charge, an empty one gives nothing) and adds the full charges. Runs outside the event loop; no I/O.
 
 ### Consumption forecaster — `engine/forecast/forecasters/base.py`
 

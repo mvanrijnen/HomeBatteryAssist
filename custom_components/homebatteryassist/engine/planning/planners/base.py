@@ -46,6 +46,20 @@ class PlannerSlot:
 
 
 @dataclass(frozen=True, slots=True)
+class PackMember:
+    """One battery of the pack (for the final check: a full battery takes
+    no more charge, an empty one gives nothing, whatever the others can)."""
+
+    capacity_wh: float
+    stored_wh: float
+    floor_wh: float
+    ceiling_wh: float
+    efficiency: float  # one way
+    max_charge_w: float
+    max_discharge_w: float
+
+
+@dataclass(frozen=True, slots=True)
 class PlannerBattery:
     """All batteries together, as one."""
 
@@ -59,6 +73,8 @@ class PlannerBattery:
     # Peak reserve: below this stored energy (Wh) only grid import above the
     # peak limit is discharged for (0 = off; only with a peak limit).
     peak_floor_wh: float = 0.0
+    # The batteries apart (empty with one battery).
+    members: tuple[PackMember, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

@@ -79,7 +79,7 @@ class Planner:
     def plan(self, data: PlannerInput) -> PlannerResult | list[float]: ...
 ```
 
-`data.slots` (per tijdvak: `start`, `end`, `hours`, `house_w`, `pv_w`, `net_w`, `price`, `export_price`, `max_charge_w`, `max_discharge_w`), `data.battery` (alle batterijen als één: `capacity_wh`, `stored_wh`, `floor_wh`, `ceiling_wh`, `efficiency`), `data.rules` (je planregels), `data.cycle_cost`, `data.peak_w`, `data.priced`. Geef het gevraagde vermogen per tijdvak terug in W (+ laden, − ontladen). Draait buiten de event loop; geen I/O.
+`data.slots` (per tijdvak: `start`, `end`, `hours`, `house_w`, `pv_w`, `net_w`, `price`, `export_price`, `max_charge_w`, `max_discharge_w`), `data.battery` (alle batterijen als één: `capacity_wh`, `stored_wh`, `floor_wh`, `ceiling_wh`, `efficiency`; `members` = de batterijen apart als er meer zijn), `data.forced` (extra laadvermogen in W per tijdvakstart dat moet gebeuren: het periodiek volladen), `data.rules` (je planregels), `data.cycle_cost`, `data.peak_w`, `data.priced`. Geef het gevraagde vermogen per tijdvak terug in W (+ laden, − ontladen). De eindcontrole verdeelt het over de batterijen (een volle batterij neemt niets meer op, een lege geeft niets) en voegt het volladen toe. Draait buiten de event loop; geen I/O.
 
 ### Verbruiksvoorspeller — `engine/forecast/forecasters/base.py` {#consumption-forecaster--engineforecastforecastersbasepy}
 

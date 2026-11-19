@@ -453,3 +453,19 @@ def test_full_charge_is_in_the_state_of_charge() -> None:
     assert plan.slots[1].soc == 100.0
     assert plan.slots[1].power_w < 2500.0
     assert plan.slots[2].power_w == 0.0
+
+
+def test_a_full_battery_takes_no_more_charge() -> None:
+    """Two batteries of 2.5 kW, one full and one at 10 %: with 5 kW surplus
+    only the empty one charges (2.5 kW), not the pack's 5 kW."""
+    full, empty = _battery(soc=100.0), _battery(soc=10.0)
+    slots = _slots([0.0])
+    plan = plan_batteries(
+        [full, empty], slots, {T0: 5000.0}, _prices([0.3]), mode=MODE_NOM
+    )
+    assert plan.slots[0].power_w == 2500.0
+    # Discharging: only the full one gives (the other is at its minimum).
+    plan = plan_batteries(
+        [full, empty], _slots([5000.0]), {}, _prices([0.3]), mode=MODE_NOM
+    )
+    assert plan.slots[0].power_w == -2500.0
