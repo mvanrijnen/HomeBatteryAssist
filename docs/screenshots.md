@@ -1,6 +1,6 @@
 # Screenshots
 
-Every screen of HomeBatteryAssist (Dutch interface, dark theme), taken from a live installation (v0.73/v0.74). Each large screen has an overview and a picture per part; click a picture for full size. Private details (network addresses, serial numbers) are replaced by example values.
+Every screen of HomeBatteryAssist (Dutch interface, dark theme), taken from a live installation (the overview per screen v0.106, the parts v0.73/v0.74). Each large screen has an overview and a picture per part; click a picture for full size. Private details (network addresses, serial numbers) are replaced by example values.
 
 - **Dashboard**: [Overview](#overview) · [Forecast](#forecast) · [Return](#return) · [Batteries](#batteries) · [Accuracy](#accuracy)
 - **Configuration**: [Integration page and menu](#integration-page-and-menu) · [Settings](#settings) · [Grid connection and meter (also the first setup steps)](#grid-connection-and-meter-also-the-first-setup-steps) · [Battery](#battery) · [Virtual battery](#virtual-battery) · [PV source](#pv-source) · [Excluded device](#excluded-device) · [Heating/cooling](#heatingcooling) · [Time slot](#time-slot)
@@ -54,6 +54,10 @@ Every screen of HomeBatteryAssist (Dutch interface, dark theme), taken from a li
 **Planning window**
 
 [![Planning window](screenshots/forecast-planning-window.png)](screenshots/forecast-planning-window.png)
+
+**Planning window and Why (v0.106)**
+
+[![Planning window and Why](screenshots/forecast-planning-why.png)](screenshots/forecast-planning-why.png)
 
 ### Return
 

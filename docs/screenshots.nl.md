@@ -1,6 +1,6 @@
 # Schermafbeeldingen {#screenshots}
 
-Elk scherm van HomeBatteryAssist (Nederlandse interface, donker thema), gemaakt op een live installatie (v0.73/v0.74). Elk groot scherm heeft een overzicht en een afbeelding per onderdeel; klik op een afbeelding voor het volledige formaat. Privégegevens (netwerkadressen, serienummers) zijn vervangen door voorbeeldwaarden.
+Elk scherm van HomeBatteryAssist (Nederlandse interface, donker thema), gemaakt op een live installatie (het overzicht per scherm v0.106, de onderdelen v0.73/v0.74). Elk groot scherm heeft een overzicht en een afbeelding per onderdeel; klik op een afbeelding voor het volledige formaat. Privégegevens (netwerkadressen, serienummers) zijn vervangen door voorbeeldwaarden.
 
 - **Dashboard**: [Overzicht](#overview) · [Voorspelling](#forecast) · [Rendement](#return) · [Batterijen](#batteries) · [Nauwkeurigheid](#accuracy)
 - **Configuratie**: [Integratiepagina en menu](#integration-page-and-menu) · [Instellingen](#settings) · [Netaansluiting en meter (ook de eerste installatiestappen)](#grid-connection-and-meter-also-the-first-setup-steps) · [Batterij](#battery) · [Virtuele batterij](#virtual-battery) · [PV-bron](#pv-source) · [Uitgesloten apparaat](#excluded-device) · [Verwarming/koeling](#heatingcooling) · [Tijdvak](#time-slot)
@@ -54,6 +54,10 @@ Elk scherm van HomeBatteryAssist (Nederlandse interface, donker thema), gemaakt 
 **Planningsvenster**
 
 [![Planningsvenster](screenshots/forecast-planning-window.png)](screenshots/forecast-planning-window.png)
+
+**Planningsvenster en Waarom (v0.106)**
+
+[![Planningsvenster en Waarom](screenshots/forecast-planning-why.png)](screenshots/forecast-planning-why.png)
 
 ### Rendement {#return}
 
