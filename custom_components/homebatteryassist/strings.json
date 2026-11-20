@@ -210,13 +210,27 @@
               "react_interval_s": "A round every",
               "react_average": "Use the average over the round",
               "react_jump": "React at once on a large jump",
-              "react_jump_w": "Large jump: at least"
+              "react_jump_w": "Large jump: at least",
+              "nom_control": "Zero on the meter control",
+              "pd_kp": "Proportional gain (Kp)",
+              "pd_kd": "Derivative gain (Kd)",
+              "pd_max_step_w": "Max. power change per round",
+              "pd_hysteresis_w": "Direction hysteresis",
+              "sim_delay_s": "Simulated battery delay",
+              "sim_ramp_w_s": "Simulated battery ramp"
             },
             "data_description": {
               "react_interval_s": "How often the batteries are adjusted to the meter. Every second hardly brings anything (the batteries take 1 to 2 seconds themselves); less often means fewer commands. Default 5 seconds.",
               "react_average": "Adjust to the average of the meter over the last round instead of its last value, so a single outlier steers nothing.",
               "react_jump": "When the grid changes by more than the jump below, an extra round at once (e.g. an oven or an EV charger switching on), not only at the next round.",
-              "react_jump_w": "Default 1000 W."
+              "react_jump_w": "Default 1000 W.",
+              "nom_control": "Direct: every round the batteries are set to what the grid asks. PD: towards it in steps (proportional-derivative), as a real battery with a delay needs to avoid overshooting. For the virtual batteries now; the same control is meant for real control later. See the control quality sensor.",
+              "pd_kp": "PD: how much of the difference is closed per round (1 = all, as direct). Lower = calmer, slower.",
+              "pd_kd": "PD: reacts to how fast the difference changes, damping an overshoot. 0 = proportional only.",
+              "pd_max_step_w": "PD: the most the batteries' power changes in one round (0 = no limit).",
+              "pd_hysteresis_w": "PD: a change between charging and discharging only from this power; below it the batteries stop.",
+              "sim_delay_s": "Virtual batteries: how long a battery takes before it follows a new power (0 = at once). A real battery often takes a few seconds.",
+              "sim_ramp_w_s": "Virtual batteries: how fast a battery changes its power, in W per second (0 = at once)."
             }
           },
           "full_charge": {
@@ -579,6 +593,12 @@
         "mysql": "MySQL / MariaDB (not tested)",
         "postgresql": "PostgreSQL (not tested)"
       }
+    },
+    "nom_control": {
+      "options": {
+        "direct": "Direct",
+        "pd": "PD control"
+      }
     }
   },
   "options": {
@@ -750,13 +770,27 @@
               "react_interval_s": "A round every",
               "react_average": "Use the average over the round",
               "react_jump": "React at once on a large jump",
-              "react_jump_w": "Large jump: at least"
+              "react_jump_w": "Large jump: at least",
+              "nom_control": "Zero on the meter control",
+              "pd_kp": "Proportional gain (Kp)",
+              "pd_kd": "Derivative gain (Kd)",
+              "pd_max_step_w": "Max. power change per round",
+              "pd_hysteresis_w": "Direction hysteresis",
+              "sim_delay_s": "Simulated battery delay",
+              "sim_ramp_w_s": "Simulated battery ramp"
             },
             "data_description": {
               "react_interval_s": "How often the batteries are adjusted to the meter. Every second hardly brings anything (the batteries take 1 to 2 seconds themselves); less often means fewer commands. Default 5 seconds.",
               "react_average": "Adjust to the average of the meter over the last round instead of its last value, so a single outlier steers nothing.",
               "react_jump": "When the grid changes by more than the jump below, an extra round at once (e.g. an oven or an EV charger switching on), not only at the next round.",
-              "react_jump_w": "Default 1000 W."
+              "react_jump_w": "Default 1000 W.",
+              "nom_control": "Direct: every round the batteries are set to what the grid asks. PD: towards it in steps (proportional-derivative), as a real battery with a delay needs to avoid overshooting. For the virtual batteries now; the same control is meant for real control later. See the control quality sensor.",
+              "pd_kp": "PD: how much of the difference is closed per round (1 = all, as direct). Lower = calmer, slower.",
+              "pd_kd": "PD: reacts to how fast the difference changes, damping an overshoot. 0 = proportional only.",
+              "pd_max_step_w": "PD: the most the batteries' power changes in one round (0 = no limit).",
+              "pd_hysteresis_w": "PD: a change between charging and discharging only from this power; below it the batteries stop.",
+              "sim_delay_s": "Virtual batteries: how long a battery takes before it follows a new power (0 = at once). A real battery often takes a few seconds.",
+              "sim_ramp_w_s": "Virtual batteries: how fast a battery changes its power, in W per second (0 = at once)."
             }
           },
           "full_charge": {

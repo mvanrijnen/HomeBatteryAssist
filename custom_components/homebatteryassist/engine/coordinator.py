@@ -59,8 +59,13 @@ from ..const import (
     CONF_MIN_DISCHARGE_PRICE,
     CONF_MIN_MARGIN,
     CONF_NIGHT_RESERVE_SOC,
+    CONF_NOM_CONTROL,
     CONF_NOM_TARGET,
     CONF_OUTDOOR_TEMPERATURE,
+    CONF_PD_HYSTERESIS,
+    CONF_PD_KD,
+    CONF_PD_KP,
+    CONF_PD_MAX_STEP,
     CONF_PEAK_INCLUDE_EXCLUDED,
     CONF_PEAK_LIMIT,
     CONF_PEAK_RESERVE_SOC,
@@ -81,6 +86,8 @@ from ..const import (
     CONF_REACT_JUMP,
     CONF_REACT_JUMP_W,
     CONF_RESERVE_SOC,
+    CONF_SIM_DELAY,
+    CONF_SIM_RAMP,
     CONF_SPIKE_BATTERY,
     CONF_SPIKE_HISTORY,
     CONF_SYSTEM_MAX_CHARGE,
@@ -124,6 +131,14 @@ from ..const import (
     PV_CORRECTION_BOTH,
     PV_CORRECTION_FIXED,
     SUBENTRY_TIME_SLOT,
+)
+from .control.pd_controller import (
+    CONTROL_DIRECT,
+    DEFAULT_HYSTERESIS_W,
+    DEFAULT_KD,
+    DEFAULT_KP,
+    DEFAULT_MAX_STEP_W,
+    PdSettings,
 )
 from .devices.batteries import telemetry as battery_telemetry
 from .evaluation.forecast_accuracy import (
@@ -524,6 +539,16 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             seconds=options.get(CONF_REACT_INTERVAL, DEFAULT_REACT_INTERVAL)
         )
         self.react_average: bool = options.get(CONF_REACT_AVERAGE, True)
+        # Zero on the meter: direct or PD, and the simulated battery reaction.
+        self.nom_control: str = options.get(CONF_NOM_CONTROL, CONTROL_DIRECT)
+        self.pd_settings = PdSettings(
+            kp=float(options.get(CONF_PD_KP, DEFAULT_KP)),
+            kd=float(options.get(CONF_PD_KD, DEFAULT_KD)),
+            max_step_w=float(options.get(CONF_PD_MAX_STEP, DEFAULT_MAX_STEP_W)),
+            hysteresis_w=float(options.get(CONF_PD_HYSTERESIS, DEFAULT_HYSTERESIS_W)),
+        )
+        self.sim_delay_s = float(options.get(CONF_SIM_DELAY, 0))
+        self.sim_ramp_w_s = float(options.get(CONF_SIM_RAMP, 0))
         self.react_jump_w: float | None = (
             float(options.get(CONF_REACT_JUMP_W, DEFAULT_REACT_JUMP_W))
             if options.get(CONF_REACT_JUMP, True)

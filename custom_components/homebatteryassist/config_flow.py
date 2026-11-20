@@ -122,10 +122,15 @@ from .const import (
     CONF_MIN_MARGIN,
     CONF_MIN_SOC,
     CONF_NIGHT_RESERVE_SOC,
+    CONF_NOM_CONTROL,
     CONF_NOM_TARGET,
     CONF_NOTIFY_KINDS,
     CONF_NOTIFY_TARGETS,
     CONF_OUTDOOR_TEMPERATURE,
+    CONF_PD_HYSTERESIS,
+    CONF_PD_KD,
+    CONF_PD_KP,
+    CONF_PD_MAX_STEP,
     CONF_PEAK_INCLUDE_EXCLUDED,
     CONF_PEAK_LIMIT,
     CONF_PEAK_RESERVE_SOC,
@@ -158,6 +163,8 @@ from .const import (
     CONF_REACT_JUMP_W,
     CONF_RESERVE_SOC,
     CONF_SENSOR,
+    CONF_SIM_DELAY,
+    CONF_SIM_RAMP,
     CONF_SOC_SENSOR,
     CONF_SOURCE,
     CONF_SPIKE_BATTERY,
@@ -254,6 +261,14 @@ from .engine.control.interceptors import BUILTIN as INTERCEPTORS
 from .engine.control.interceptors import (
     DEFAULT_INTERCEPTOR,
     async_load_user_interceptors,
+)
+from .engine.control.pd_controller import (
+    CONTROL_DIRECT,
+    CONTROLS,
+    DEFAULT_HYSTERESIS_W,
+    DEFAULT_KD,
+    DEFAULT_KP,
+    DEFAULT_MAX_STEP_W,
 )
 from .engine.db_store import (
     BACKEND_JSON,
@@ -512,7 +527,19 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "spike_max_minutes",
         "spike_filter",
     ),
-    "reaction": ("react_interval_s", "react_average", "react_jump", "react_jump_w"),
+    "reaction": (
+        "react_interval_s",
+        "react_average",
+        "react_jump",
+        "react_jump_w",
+        "nom_control",
+        "pd_kp",
+        "pd_kd",
+        "pd_max_step_w",
+        "pd_hysteresis_w",
+        "sim_delay_s",
+        "sim_ramp_w_s",
+    ),
     "command_check": ("command_check_w", "command_check_minutes"),
     "export_limit": (
         "export_never",
@@ -966,6 +993,35 @@ async def _flat_settings_schema(
             default=current.get(CONF_REACT_JUMP_W, DEFAULT_REACT_JUMP_W),
         ): _number(100, 10000, 100, "W"),
         vol.Required(
+            CONF_NOM_CONTROL,
+            default=current.get(CONF_NOM_CONTROL, CONTROL_DIRECT),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=list(CONTROLS),
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_NOM_CONTROL,
+            )
+        ),
+        vol.Required(CONF_PD_KP, default=current.get(CONF_PD_KP, DEFAULT_KP)): _number(
+            0.05, 1.5, 0.05, "", slider=True
+        ),
+        vol.Required(CONF_PD_KD, default=current.get(CONF_PD_KD, DEFAULT_KD)): _number(
+            0, 1.5, 0.05, "", slider=True
+        ),
+        vol.Required(
+            CONF_PD_MAX_STEP, default=current.get(CONF_PD_MAX_STEP, DEFAULT_MAX_STEP_W)
+        ): _number(0, 5000, 50, "W"),
+        vol.Required(
+            CONF_PD_HYSTERESIS,
+            default=current.get(CONF_PD_HYSTERESIS, DEFAULT_HYSTERESIS_W),
+        ): _number(0, 500, 10, "W"),
+        vol.Required(CONF_SIM_DELAY, default=current.get(CONF_SIM_DELAY, 0)): _number(
+            0, 60, 1, "s"
+        ),
+        vol.Required(CONF_SIM_RAMP, default=current.get(CONF_SIM_RAMP, 0)): _number(
+            0, 10000, 50, "W/s"
+        ),
+        vol.Required(
             CONF_SPIKE_DURATION,
             default=current.get(CONF_SPIKE_DURATION, DEFAULT_SPIKE_DURATION),
         ): _number(1, 60, 1, "min"),
@@ -1292,6 +1348,17 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     )
     options[CONF_REACT_AVERAGE] = bool(user_input.get(CONF_REACT_AVERAGE, True))
     options[CONF_REACT_JUMP] = bool(user_input.get(CONF_REACT_JUMP, True))
+    options[CONF_NOM_CONTROL] = user_input.get(CONF_NOM_CONTROL, CONTROL_DIRECT)
+    options[CONF_PD_KP] = float(user_input.get(CONF_PD_KP, DEFAULT_KP))
+    options[CONF_PD_KD] = float(user_input.get(CONF_PD_KD, DEFAULT_KD))
+    options[CONF_PD_MAX_STEP] = int(
+        user_input.get(CONF_PD_MAX_STEP, DEFAULT_MAX_STEP_W)
+    )
+    options[CONF_PD_HYSTERESIS] = int(
+        user_input.get(CONF_PD_HYSTERESIS, DEFAULT_HYSTERESIS_W)
+    )
+    options[CONF_SIM_DELAY] = int(user_input.get(CONF_SIM_DELAY, 0))
+    options[CONF_SIM_RAMP] = int(user_input.get(CONF_SIM_RAMP, 0))
     options[CONF_REACT_JUMP_W] = int(
         user_input.get(CONF_REACT_JUMP_W, DEFAULT_REACT_JUMP_W)
     )

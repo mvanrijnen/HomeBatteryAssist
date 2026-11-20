@@ -86,6 +86,12 @@ the dashboard simulates is what would be sent:
    points to a too fast reaction (raise the deadband or the round time),
    *sluggish* to a battery that follows slowly; the sensor
    ``control_quality`` then shows the real control instead of the virtual.
+9. Zero on the meter's total goes through the same ``PdController``
+   (``engine/control/pd_controller.py``) as the virtual batteries: built on
+   the previous command and the measured battery power, with the user's
+   ``nom_control`` / Kp / Kd / max step / direction hysteresis. Tune it on
+   the virtual batteries first (``sim_delay_s`` / ``sim_ramp_w_s`` set to
+   what the real battery shows), then use the same settings here.
 
 **Does the battery follow?** ``CommandMonitor``
 (``engine/evaluation/command_check.py``, already active) reads every real

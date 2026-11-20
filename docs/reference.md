@@ -158,6 +158,13 @@ How often the batteries follow the grid meter (zero on the meter, phase protecti
 | **Use the average over the round** | Adjust to the average of the meter over the last round instead of its last value, so a single outlier steers nothing. |
 | **React at once on a large jump** | When the grid changes by more than the jump below, an extra round at once (e.g. an oven or an EV charger switching on), not only at the next round. |
 | **Large jump: at least** | Default 1000 W. |
+| **Zero on the meter control** | Direct: every round the batteries are set to what the grid asks. PD: towards it in steps (proportional-derivative), as a real battery with a delay needs to avoid overshooting. For the virtual batteries now; the same control is meant for real control later. See the control quality sensor. |
+| **Proportional gain (Kp)** | PD: how much of the difference is closed per round (1 = all, as direct). Lower = calmer, slower. |
+| **Derivative gain (Kd)** | PD: reacts to how fast the difference changes, damping an overshoot. 0 = proportional only. |
+| **Max. power change per round** | PD: the most the batteries' power changes in one round (0 = no limit). |
+| **Direction hysteresis** | PD: a change between charging and discharging only from this power; below it the batteries stop. |
+| **Simulated battery delay** | Virtual batteries: how long a battery takes before it follows a new power (0 = at once). A real battery often takes a few seconds. |
+| **Simulated battery ramp** | Virtual batteries: how fast a battery changes its power, in W per second (0 = at once). |
 
 ### Full charge {#settings-full-charge}
 

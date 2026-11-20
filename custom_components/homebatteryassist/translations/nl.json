@@ -210,13 +210,27 @@
               "react_interval_s": "Een ronde elke",
               "react_average": "Rekenen met het gemiddelde over de ronde",
               "react_jump": "Direct reageren op een grote sprong",
-              "react_jump_w": "Grote sprong: minstens"
+              "react_jump_w": "Grote sprong: minstens",
+              "nom_control": "Regeling nul op de meter",
+              "pd_kp": "Proportionele versterking (Kp)",
+              "pd_kd": "Differentiële versterking (Kd)",
+              "pd_max_step_w": "Max. vermogenswijziging per ronde",
+              "pd_hysteresis_w": "Richtingshysterese",
+              "sim_delay_s": "Gesimuleerde vertraging batterij",
+              "sim_ramp_w_s": "Gesimuleerde opbouw batterij"
             },
             "data_description": {
               "react_interval_s": "Hoe vaak de batterijen op de meter worden bijgeregeld. Elke seconde levert nauwelijks iets op (de batterijen hebben zelf 1 à 2 seconden nodig); minder vaak betekent minder opdrachten. Standaard 5 seconden.",
               "react_average": "Bijregelen op het gemiddelde van de meter over de afgelopen ronde in plaats van de laatste waarde, zodat één uitschieter niets aanstuurt.",
               "react_jump": "Verandert het net meer dan de sprong hieronder, dan direct een extra ronde (bijv. een oven of laadpaal die aangaat), niet pas bij de volgende ronde.",
-              "react_jump_w": "Standaard 1000 W."
+              "react_jump_w": "Standaard 1000 W.",
+              "nom_control": "Direct: elke ronde worden de batterijen gezet op wat het net vraagt. PD: in stappen ernaartoe (proportioneel-differentieel), zoals een echte batterij met vertraging nodig heeft om niet door te schieten. Nu voor de virtuele batterijen; dezelfde regeling is bedoeld voor echte aansturing later. Zie de sensor regelkwaliteit.",
+              "pd_kp": "PD: hoeveel van het verschil per ronde wordt gedicht (1 = alles, zoals direct). Lager = rustiger, trager.",
+              "pd_kd": "PD: reageert op hoe snel het verschil verandert en dempt doorschieten. 0 = alleen proportioneel.",
+              "pd_max_step_w": "PD: hoeveel het vermogen van de batterijen per ronde hoogstens verandert (0 = geen grens).",
+              "pd_hysteresis_w": "PD: wisselen tussen laden en ontladen pas vanaf dit vermogen; daaronder stoppen de batterijen.",
+              "sim_delay_s": "Virtuele batterijen: hoe lang een batterij erover doet voor ze een nieuw vermogen volgt (0 = meteen). Een echte batterij doet vaak een paar seconden.",
+              "sim_ramp_w_s": "Virtuele batterijen: hoe snel een batterij haar vermogen verandert, in W per seconde (0 = meteen)."
             }
           },
           "full_charge": {
@@ -579,6 +593,12 @@
         "mysql": "MySQL / MariaDB (niet getest)",
         "postgresql": "PostgreSQL (niet getest)"
       }
+    },
+    "nom_control": {
+      "options": {
+        "direct": "Direct",
+        "pd": "PD-regeling"
+      }
     }
   },
   "options": {
@@ -750,13 +770,27 @@
               "react_interval_s": "Een ronde elke",
               "react_average": "Rekenen met het gemiddelde over de ronde",
               "react_jump": "Direct reageren op een grote sprong",
-              "react_jump_w": "Grote sprong: minstens"
+              "react_jump_w": "Grote sprong: minstens",
+              "nom_control": "Regeling nul op de meter",
+              "pd_kp": "Proportionele versterking (Kp)",
+              "pd_kd": "Differentiële versterking (Kd)",
+              "pd_max_step_w": "Max. vermogenswijziging per ronde",
+              "pd_hysteresis_w": "Richtingshysterese",
+              "sim_delay_s": "Gesimuleerde vertraging batterij",
+              "sim_ramp_w_s": "Gesimuleerde opbouw batterij"
             },
             "data_description": {
               "react_interval_s": "Hoe vaak de batterijen op de meter worden bijgeregeld. Elke seconde levert nauwelijks iets op (de batterijen hebben zelf 1 à 2 seconden nodig); minder vaak betekent minder opdrachten. Standaard 5 seconden.",
               "react_average": "Bijregelen op het gemiddelde van de meter over de afgelopen ronde in plaats van de laatste waarde, zodat één uitschieter niets aanstuurt.",
               "react_jump": "Verandert het net meer dan de sprong hieronder, dan direct een extra ronde (bijv. een oven of laadpaal die aangaat), niet pas bij de volgende ronde.",
-              "react_jump_w": "Standaard 1000 W."
+              "react_jump_w": "Standaard 1000 W.",
+              "nom_control": "Direct: elke ronde worden de batterijen gezet op wat het net vraagt. PD: in stappen ernaartoe (proportioneel-differentieel), zoals een echte batterij met vertraging nodig heeft om niet door te schieten. Nu voor de virtuele batterijen; dezelfde regeling is bedoeld voor echte aansturing later. Zie de sensor regelkwaliteit.",
+              "pd_kp": "PD: hoeveel van het verschil per ronde wordt gedicht (1 = alles, zoals direct). Lager = rustiger, trager.",
+              "pd_kd": "PD: reageert op hoe snel het verschil verandert en dempt doorschieten. 0 = alleen proportioneel.",
+              "pd_max_step_w": "PD: hoeveel het vermogen van de batterijen per ronde hoogstens verandert (0 = geen grens).",
+              "pd_hysteresis_w": "PD: wisselen tussen laden en ontladen pas vanaf dit vermogen; daaronder stoppen de batterijen.",
+              "sim_delay_s": "Virtuele batterijen: hoe lang een batterij erover doet voor ze een nieuw vermogen volgt (0 = meteen). Een echte batterij doet vaak een paar seconden.",
+              "sim_ramp_w_s": "Virtuele batterijen: hoe snel een batterij haar vermogen verandert, in W per seconde (0 = meteen)."
             }
           },
           "full_charge": {

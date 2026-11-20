@@ -134,6 +134,15 @@ CONF_REACT_AVERAGE: Final = "react_average"
 CONF_REACT_JUMP: Final = "react_jump"
 CONF_REACT_JUMP_W: Final = "react_jump_w"
 DEFAULT_REACT_JUMP_W: Final = 1000
+# Zero on the meter: direct, or PD control (engine/control/pd_controller.py)
+CONF_NOM_CONTROL: Final = "nom_control"
+CONF_PD_KP: Final = "pd_kp"
+CONF_PD_KD: Final = "pd_kd"
+CONF_PD_MAX_STEP: Final = "pd_max_step_w"
+CONF_PD_HYSTERESIS: Final = "pd_hysteresis_w"
+# Simulated battery reaction of the virtual batteries (0 = at once)
+CONF_SIM_DELAY: Final = "sim_delay_s"
+CONF_SIM_RAMP: Final = "sim_ramp_w_s"
 CONF_SPIKE_HISTORY: Final = "spike_exclude_average"
 CONF_SPIKE_BATTERY: Final = "spike_no_discharge"
 CONF_SPIKE_THRESHOLD: Final = "spike_threshold_w"
