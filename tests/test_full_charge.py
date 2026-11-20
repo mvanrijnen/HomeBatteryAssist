@@ -74,21 +74,6 @@ def test_never_two_batteries_at_once() -> None:
     assert second.start == NOW + H + timedelta(minutes=30)
 
 
-def test_together_when_the_connection_allows() -> None:
-    """Full charges may overlap if that costs nothing extra (phase limits ok)."""
-    prices = _prices([0.30, 0.05, 0.10, 0.30])
-    batteries = [_battery("a"), _battery("b")]
-    first, second = schedule_full_charges(
-        batteries, {}, prices, 3, NOW, fits=lambda when, powers: True
-    )
-    assert first.start == second.start == NOW + H  # both in the cheapest block
-    # Not together when the connection cannot carry both.
-    first, second = schedule_full_charges(
-        batteries, {}, prices, 3, NOW, fits=lambda when, powers: len(powers) < 2
-    )
-    assert second.start >= first.end or second.end <= first.start
-
-
 def test_preferred_day_and_solar() -> None:
     """A preferred weekday wins when possible; solar surplus counts as cheap."""
     prices = _prices([0.30, 0.05, 0.10, 0.30])
@@ -110,51 +95,18 @@ def test_preferred_day_and_solar() -> None:
 
 
 def test_one_after_the_other_emptiest_first() -> None:
-    """Sequential: the emptiest battery first; together only at full power or
-    in the sun."""
+    """Sequential: the emptiest battery first; never two at the same time,
+    whatever the connection or the sun allows."""
     prices = _prices([0.30, 0.05, 0.10, 0.30])
     batteries = [_battery("a", soc=80.0), _battery("b", soc=60.0)]
-    first, second = schedule_full_charges(
-        batteries,
-        {},
-        prices,
-        3,
-        NOW,
-        fits=lambda when, powers: True,
-        together="sequential",
+    for together in ("sequential", "parallel"):
+        charges = schedule_full_charges(
+            batteries, {}, prices, 3, NOW, together=together
+        )
+        assert len(charges) == 2
+        first, second = charges
+        assert second.start >= first.end or second.end <= first.start
+    first, _second = schedule_full_charges(
+        batteries, {}, prices, 3, NOW, together="sequential"
     )
     assert first.battery_id == "b"  # the emptiest first
-    # Both blocks run at their full power (2 kW): together is fine.
-    assert first.power_w == second.power_w == 2000.0
-    assert first.start == second.start == NOW + H
-    # The first one below its full power (a small battery, 400 Wh in a
-    # quarter = 1600 W): the next not at the same time, unless the sun
-    # covers them both.
-    small = SimpleNamespace(
-        soc=60.0,
-        config=SimpleNamespace(
-            id="s",
-            name="S",
-            capacity_kwh=1.0,
-            max_charge_w=2000.0,
-            efficiency=1.0,
-            full_charge_interval_days=28,
-        ),
-    )
-    slow = [_battery("a", soc=80.0), small]
-    s_, a = schedule_full_charges(
-        slow, {}, prices, 3, NOW, fits=lambda w, p: True, together="sequential"
-    )
-    assert s_.battery_id == "s" and s_.power_w < 1900.0
-    assert a.start >= s_.end or a.end <= s_.start
-    s_, a = schedule_full_charges(
-        slow,
-        {},
-        prices,
-        3,
-        NOW,
-        fits=lambda w, p: True,
-        together="sequential",
-        surplus=lambda when: 10_000.0,
-    )
-    assert a.start == s_.start == NOW + H

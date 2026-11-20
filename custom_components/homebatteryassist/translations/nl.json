@@ -182,7 +182,7 @@
               "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
               "peak_reserve_soc": "Onder dit laadniveau ontladen de batterijen alleen nog voor netafname boven de piekgrens, zodat er energie blijft voor pieken. Alleen met een piekgrens. 0 = uit.",
               "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie.",
-              "charge_order": "Parallel: ze laden tegelijk (volladen samen als de netaansluiting dat toelaat). Na elkaar: de leegste eerst, de volgende alleen voor wat de eerste op vol vermogen niet kan opnemen, of zolang de zon ze allemaal dekt. Een batterij laadt minder efficiënt bij een laag vermogen."
+              "charge_order": "Parallel: ze laden tegelijk (volladen nooit tegelijk). Na elkaar: de leegste eerst, de volgende alleen voor wat de eerste op vol vermogen niet kan opnemen, of zolang de zon ze allemaal dekt. Een batterij laadt minder efficiënt bij een laag vermogen."
             }
           },
           "spikes": {
@@ -722,7 +722,7 @@
               "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
               "peak_reserve_soc": "Onder dit laadniveau ontladen de batterijen alleen nog voor netafname boven de piekgrens, zodat er energie blijft voor pieken. Alleen met een piekgrens. 0 = uit.",
               "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie.",
-              "charge_order": "Parallel: ze laden tegelijk (volladen samen als de netaansluiting dat toelaat). Na elkaar: de leegste eerst, de volgende alleen voor wat de eerste op vol vermogen niet kan opnemen, of zolang de zon ze allemaal dekt. Een batterij laadt minder efficiënt bij een laag vermogen."
+              "charge_order": "Parallel: ze laden tegelijk (volladen nooit tegelijk). Na elkaar: de leegste eerst, de volgende alleen voor wat de eerste op vol vermogen niet kan opnemen, of zolang de zon ze allemaal dekt. Een batterij laadt minder efficiënt bij een laag vermogen."
             }
           },
           "spikes": {
@@ -1961,6 +1961,12 @@
   "device": {
     "grid": {
       "name": "Netaansluiting"
+    }
+  },
+  "issues": {
+    "recorder_excluded_sensors": {
+      "title": "Sensoren niet bewaard door de recorder",
+      "description": "HomeBatteryAssist gebruikt deze sensoren, maar de recorder van Home Assistant slaat ze over: {sensors}. Hun geschiedenis kan niet worden geïmporteerd of gebruikt om het verleden aan te vullen (verbruiksgeschiedenis, temperaturen). Haal ze uit `recorder: exclude:` in configuration.yaml (of neem ze op) en herstart; daarna verdwijnt deze melding."
     }
   }
 }

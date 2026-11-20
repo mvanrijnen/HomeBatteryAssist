@@ -822,7 +822,6 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             prices,
             self.full_charge_window,
             now,
-            fits=self._fits_connection(states, consumption, pv_plan),
             preferred_day=self.full_charge_day,
             slot_price=(
                 self._solar_price(consumption, pv_plan, export_prices)
@@ -831,7 +830,6 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             ),
             fixed=running,
             together=self.charge_order,
-            surplus=_surplus_fn(consumption, pv_plan),
         )
         forced = _forced_power(consumption, full_charges, now)
         forced_by = {
@@ -1354,33 +1352,6 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             slots = self.time_slots
             return lambda when: slot_target(slots, when)
         return None
-
-    def _fits_connection(
-        self,
-        states: list[BatteryState],
-        consumption: list[ForecastSlot],
-        pv_wh: dict[datetime, float],
-    ) -> Callable[[datetime, Mapping[str, float]], bool]:
-        """Whether batteries charging together stay within the phase limits."""
-        phases = self.config_entry.data[CONF_PHASES]
-        limit = phase_limit_w(
-            self.config_entry.data[CONF_MAX_CURRENT], self.phase_margin
-        )
-        devices = [PhaseDevice.from_config(s.config, phases) for s in states]
-        profile = self.phase_profile or PhaseProfile(self.history.records, phases)
-        loads = profile.loads(consumption, pv_wh)
-        actives = profile.active_loads(consumption, pv_wh)
-        starts = sorted(loads)
-
-        def fits(when: datetime, powers: Mapping[str, float]) -> bool:
-            start = next((s for s in reversed(starts) if s <= when), None)
-            load = loads[start] if start is not None else [0.0] * phases
-            capped, _ = cap_powers(
-                powers, devices, load, limit, actives.get(start) if start else None
-            )
-            return all(abs(capped[k] - v) < 1 for k, v in powers.items())
-
-        return fits
 
     def summary(self) -> dict[str, Any]:
         """Short description of the latest result (action response, event)."""

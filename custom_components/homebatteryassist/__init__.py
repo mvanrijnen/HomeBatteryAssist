@@ -98,6 +98,7 @@ from .engine.measure.battery_monitor import (
     activity_of,
 )
 from .engine.measure.house_measurement import MeasurementInput
+from .engine.measure.recorder_check import check_recorder
 from .engine.measure.spike_filters import (
     DEFAULT_SPIKE_FILTER,
     async_load_user_spike_filters,
@@ -681,6 +682,26 @@ async def async_setup_entry(
         if history_started:
             await history.async_stop()
         raise
+
+    # Sensors the recorder leaves out cannot be filled in from its history:
+    # a repair issue names them (checked once Home Assistant has started).
+    @callback
+    def _check_recorder(_hass: HomeAssistant) -> None:
+        try:
+            check_recorder(
+                hass,
+                entry.entry_id,
+                [
+                    *measurements.source_entity_ids,
+                    *(c.soc_sensor for c in batteries.configs if not c.virtual),
+                    *([forecast.outdoor_sensor] if forecast.outdoor_sensor else []),
+                    *(s for zone in forecast.zones for s in zone.temperature_sensors),
+                ],
+            )
+        except Exception:  # only a hint: never in the way of the rest
+            _LOGGER.exception("Checking the recorder's sensors failed")
+
+    entry.async_on_unload(async_at_started(hass, _check_recorder))
     # Options and subentry changes (PV sources, excluded loads) require a reload.
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     return True
