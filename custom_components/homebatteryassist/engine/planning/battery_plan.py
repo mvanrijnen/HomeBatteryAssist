@@ -105,7 +105,7 @@ class BatteryPlan:
     cost: float | None  # expected cost with the plan (price unit x kWh)
     cost_without: float | None  # expected cost without battery
     capacity_kwh: float = 0.0  # behind the state of charge in the slots
-    value_per_kwh: float = 0.0  # value of stored energy (avg price x efficiency)
+    value_per_kwh: float = 0.0  # stored energy: avg price x efficiency - wear
     start_soc: float | None = None  # % now (slot SoCs are at their end)
     # How finalise valued what is left (``outlook_split``): above ``keep_wh``
     # (over ``floor_wh``) only ``overflow_per_kwh``.
@@ -534,6 +534,42 @@ def planner_input(
                     forced_by[s.start] = {
                         i: w * room / want for i, w in forced_by[s.start].items()
                     }
+    if forced_by:
+        # Each block only what its battery can still take up to 100 %, its
+        # power and its phase room (it gets the full charge first, so how
+        # full it gets is known): once full, the rest of its block is no
+        # forced charge, for no planner (it would charge the others).
+        by_id = {getattr(s.config, "id", None): s for s in states}
+        wh = {
+            i: st.soc * st.config.capacity_kwh * 10
+            for i, st in by_id.items()
+            if st.soc is not None
+        }
+        for s in slots:
+            by = forced_by.get(s.start)
+            if not by:
+                continue
+            limits = (member_limits or {}).get(s.start) or {}
+            given: dict[str, float] = {}
+            for i, w in by.items():
+                st = by_id.get(i)
+                if st is None or i not in wh:
+                    continue
+                config = st.config
+                eff = math.sqrt(config.efficiency)
+                most = config.max_charge_w * getattr(st, "charge_factor", 1.0)
+                if i in limits:
+                    most = min(most, max(limits[i][0], 0.0))
+                room = max(config.capacity_kwh * 1000 - wh[i], 0.0) / (s.hours * eff)
+                given[i] = max(min(w, most, room), 0.0)
+                wh[i] += given[i] * s.hours * eff
+            total = sum(given.values())
+            if total > 0.5:
+                forced_by[s.start] = given
+                forced[s.start] = min(forced.get(s.start, 0.0), total)
+            else:
+                forced_by.pop(s.start)
+                forced.pop(s.start, None)
     return PlannerInput(
         now or slots[0].start,
         slots,
@@ -700,8 +736,10 @@ def finalise(
     # are comparable over the same window; valued as arbitrage values what is
     # left (``outlook_split``: what the next sun fills anyway at its export
     # price), so a plan that empties the battery for that sun is not shown
-    # as costing more.
-    rate = avg_price * eff
+    # as costing more. Minus the wear of using it later (as the arbitrage
+    # planner values it): with flat prices using it now or later is the
+    # same, not a loss.
+    rate = max(avg_price * eff - data.cycle_cost, 0.0)
     keep, overflow = outlook_split(
         data, max(battery.ceiling_wh - battery.floor_wh, 0.0), eff, rate
     )
@@ -716,7 +754,7 @@ def finalise(
         round(cost_with, 4),
         round(cost_without, 4),
         battery.capacity_wh / 1000,
-        avg_price * eff,
+        rate,
         round(battery.stored_wh / battery.capacity_wh * 100, 2)
         if battery.capacity_wh
         else None,

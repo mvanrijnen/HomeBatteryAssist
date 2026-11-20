@@ -118,7 +118,56 @@ def test_block_long_enough_within_the_limits() -> None:
     prices = _prices([0.30, 0.05, 0.10, 0.30, 0.30, 0.30])
     (fast,) = schedule_full_charges([_battery("a")], {}, prices, 3, NOW)
     (slow,) = schedule_full_charges(
-        [_battery("a")], {}, prices, 3, NOW, room=lambda when: 500.0
+        [_battery("a")], {}, prices, 3, NOW, room=lambda when, _id: 500.0
     )
     assert slow.end - slow.start > fast.end - fast.start
     assert slow.power_w >= 500.0
+
+
+def test_block_sized_with_the_battery_own_room() -> None:
+    """The room is asked per battery (its own phase): a battery on a full
+    phase gets a block long enough at what that phase leaves."""
+    prices = _prices([0.30] * 24)
+    (block,) = schedule_full_charges(
+        [_battery("a", soc=10.0), _battery("b")],
+        {"b": NOW},
+        prices,
+        3,
+        NOW,
+        room=lambda when, battery_id: 300.0 if battery_id == "a" else 2000.0,
+    )
+    assert block.battery_id == "a"
+    assert (block.end - block.start) * 300.0 / H >= 4500.0  # 90 % of 5 kWh
+
+
+def test_full_battery_block_does_not_charge_the_others() -> None:
+    """Once the battery charging fully is full, the rest of its block is no
+    forced charge: zero on the meter does not charge the other battery from
+    the grid."""
+    from custom_components.homebatteryassist.engine.forecast.consumption_forecast import (
+        ForecastSlot,
+    )
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        plan_batteries,
+    )
+
+    a, b = _battery("a", soc=80.0), _battery("b", soc=50.0)
+    for battery in (a, b):
+        battery.config.min_soc, battery.config.max_soc = 10.0, 100.0
+        battery.config.max_discharge_w = 2000.0
+    slots = [
+        ForecastSlot(NOW + k * H, NOW + (k + 1) * H, 500.0, 500.0, "x")
+        for k in range(6)
+    ]
+    block = {NOW + k * H: 2000.0 for k in (1, 2, 3)}
+    plan = plan_batteries(
+        [a, b],
+        slots,
+        {},
+        _prices([0.30] * 6),
+        mode="nom",
+        forced=block,
+        forced_by={k: {"a": w} for k, w in block.items()},
+    )
+    charged = sum(max(s.power_w, 0.0) for s in plan.slots)  # Wh (1 h slots)
+    assert charged <= 1000.0 + 1  # a's missing 20 % only

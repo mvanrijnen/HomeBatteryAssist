@@ -86,13 +86,13 @@ def schedule_full_charges(
     together: str = "parallel",
     max_charge_w: float = 0.0,
     window_end: datetime | None = None,
-    room: Callable[[datetime], float] | None = None,
+    room: Callable[[datetime, str], float] | None = None,
     fixed: Sequence[FullCharge] = (),
 ) -> list[FullCharge]:
     """Plan the full charges that are due within ``window_days``.
 
-    ``room(start)``: the most a battery can charge in that slot (W) within the
-    phase limits and the peak limit; a block is made as long as it takes to
+    ``room(start, battery_id)``: the most that battery can charge in that
+    slot (W) within the phase limits (its own phase too) and the peak limit; a block is made as long as it takes to
     really reach 100 % with it (else it would end short and be planned again).
     Full charges never overlap (one battery at a time); ``step`` should be the
     plan's slot length, so two blocks never share a plan slot either.
@@ -178,6 +178,7 @@ def schedule_full_charges(
             missing_wh: float = missing_wh,
             can_w: float = can_w,
             eff: float = eff,
+            battery_id: str = config.id,
         ) -> int | None:
             """Slots from ``i`` needed to charge ``missing_wh`` within the
             room per slot (None: not within the prices)."""
@@ -187,7 +188,7 @@ def schedule_full_charges(
             while energy < missing_wh - 1e-6:
                 if i + n >= len(slots) or n > 4 * count + 96:
                     return None
-                w = min(can_w, max(room(slots[i + n][0]), 0.0))
+                w = min(can_w, max(room(slots[i + n][0], battery_id), 0.0))
                 energy += w * eff * seconds / 3600
                 n += 1
             return max(n, count)
@@ -212,7 +213,11 @@ def schedule_full_charges(
             cost = left = 0.0
             left = missing_wh
             for when, price in block:
-                w = block_w if room is None else min(block_w, max(room(when), 0.0))
+                w = (
+                    block_w
+                    if room is None
+                    else min(block_w, max(room(when, config.id), 0.0))
+                )
                 energy = min(w * eff * seconds / 3600, left)
                 left -= energy
                 rate = slot_price(when, price, w) if slot_price else price

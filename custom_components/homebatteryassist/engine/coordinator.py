@@ -844,10 +844,14 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         ]
         by_start = {s.start: s for s in consumption}
 
-        def charge_room(start: datetime) -> float:
-            """The most the batteries can charge in the slot: the phase
-            limits, and the peak limit with the expected house and PV."""
+        def charge_room(start: datetime, battery_id: str) -> float:
+            """The most a battery can charge in the slot: the phase limits
+            (all batteries together and its own phase), and the peak limit
+            with the expected house and PV."""
             most = limits.get(start, (math.inf, 0.0))[0]
+            own = self._member_limits.get(start, {}).get(battery_id)
+            if own is not None:
+                most = min(most, own[0])
             slot = by_start.get(start)
             if self.peak_w > 0 and slot is not None:
                 hour = start.replace(minute=0, second=0, microsecond=0)

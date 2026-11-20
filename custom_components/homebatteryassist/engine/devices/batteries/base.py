@@ -156,6 +156,12 @@ class BatteryReader:
         (read only), or None: not readable, or the battery controls itself."""
         return None
 
+    def command_readable(self, hass: HomeAssistant, config: BatteryConfig) -> bool:
+        """False when the command cannot be read now (its entities are
+        unavailable): ``command`` None then does not mean the battery
+        controls itself."""
+        return True
+
     async def async_set_power(
         self, hass: HomeAssistant, config: BatteryConfig, power_w: float
     ) -> None:

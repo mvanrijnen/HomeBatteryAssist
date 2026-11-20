@@ -31,7 +31,7 @@ from typing import Any
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.event import async_track_time_interval
 
-from ..devices.batteries import BatteryCommand
+from ..devices.batteries import BatteryCommand, command_readable
 from ..devices.batteries import command as read_command
 from ..explain import DecisionLog
 from ..measure.battery_monitor import BatteryConfig, BatteryInput
@@ -134,20 +134,25 @@ class CommandCheck:
         actual_w: float | None,
         config: BatteryConfig,
         temperature_c: float | None = None,
+        command_unknown: bool = False,
     ) -> tuple[str, dict[str, Any]] | None:
-        """One look; returns a message to log, if any."""
+        """One look; returns a message to log, if any. ``command_unknown``:
+        the command cannot be read now (not: the battery controls itself)."""
         self.command, self.actual_w = command, actual_w
+        if command_unknown or (command is not None and actual_w is None):
+            # The command or the battery's power is unknown now: nothing
+            # tells it follows (again), so a problem stays as it is and a
+            # count towards one waits (a sensor dropping out for one poll
+            # does not start it over).
+            if self.event is not None:
+                self.event.seen = when
+            self._quiet = None
+            return None
         max_w = 0.0
         if command is not None:
             max_w = (
                 config.max_charge_w if command.power_w > 0 else config.max_discharge_w
             )
-        if command is not None and actual_w is None and self.event is not None:
-            # The battery's power is unknown now: nothing tells it follows
-            # again, so a problem stays as it is.
-            self.event.seen = when
-            self._quiet = None
-            return None
         failing = (
             command is not None
             and actual_w is not None
@@ -232,12 +237,14 @@ class CommandMonitor:
         read: Callable[
             [HomeAssistant, BatteryConfig], BatteryCommand | None
         ] = read_command,
+        readable: Callable[[HomeAssistant, BatteryConfig], bool] = command_readable,
     ) -> None:
         """Initialize."""
         self.hass = hass
         self._batteries = batteries
         self._decisions = decisions
         self._read = read
+        self._readable = readable
         self.checks: dict[str, CommandCheck] = {
             c.id: CommandCheck(threshold_w, start_after)
             for c in batteries.configs
@@ -280,15 +287,17 @@ class CommandMonitor:
             if check is None:
                 continue
             state = self._batteries.states[config.id]
+            command = self._read(self.hass, config)
             result = check.update(
                 now,
-                self._read(self.hass, config),
+                command,
                 state.soc,
                 state.power_w,
                 config,
                 state_to_celsius(self.hass.states.get(config.temperature_sensor))
                 if config.temperature_sensor
                 else None,
+                command is None and not self._readable(self.hass, config),
             )
             if result is not None:
                 key, params = result

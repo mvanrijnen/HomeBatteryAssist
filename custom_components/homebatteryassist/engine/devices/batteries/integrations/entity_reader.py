@@ -88,6 +88,30 @@ class EntityReader(BatteryReader):
             hysteresis=state("hysteresis") == "on",
         )
 
+    def command_readable(self, hass: HomeAssistant, config: BatteryConfig) -> bool:
+        """False when an entity the command is read from is there but
+        unavailable / unknown (its integration lost the battery)."""
+        keys = self.command_entities
+        if not all(k in keys for k in ("external", "mode", "charge", "discharge")):
+            return True
+        entities = device_entities(hass, config)
+
+        def missing(name: str) -> bool:
+            entity_id = entities.get(keys[name])
+            value = hass.states.get(entity_id) if entity_id else None
+            return value is not None and value.state in ("unknown", "unavailable")
+
+        if missing("external"):
+            return False
+        external = hass.states.get(entities.get(keys["external"]) or "")
+        if external is None or external.state != "on":
+            return True  # released: the battery controls itself
+        if missing("mode"):
+            return False
+        mode = hass.states.get(entities.get(keys["mode"]) or "")
+        name = (mode.state if mode else "").lower()
+        return not (name in ("charge", "discharge") and missing(name))
+
     async def _async_number(
         self, hass: HomeAssistant, config: BatteryConfig, key: str, value: float
     ) -> None:

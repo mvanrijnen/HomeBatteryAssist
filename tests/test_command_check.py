@@ -10,6 +10,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.homebatteryassist.engine.devices.batteries import (
     BatteryCommand,
     command,
+    command_readable,
 )
 from custom_components.homebatteryassist.engine.evaluation.command_check import (
     CommandCheck,
@@ -198,3 +199,55 @@ async def test_command_read_from_omnibattery(hass: HomeAssistant) -> None:
     # External control off: the battery controls itself, no command.
     hass.states.async_set(ids["rs485_control_mode"], "off")
     assert command(hass, CONFIG) is None
+    assert command_readable(hass, CONFIG)
+    # Its integration lost the battery: not readable (not: released).
+    hass.states.async_set(ids["rs485_control_mode"], "unavailable")
+    assert command(hass, CONFIG) is None
+    assert not command_readable(hass, CONFIG)
+    hass.states.async_set(ids["rs485_control_mode"], "on")
+    assert command_readable(hass, CONFIG)  # mode None: no power needed
+    hass.states.async_set(ids["force_mode"], "Charge")
+    hass.states.async_set(ids["set_charge_power"], "unavailable")
+    assert not command_readable(hass, CONFIG)
+
+
+def test_power_dropping_out_does_not_restart_the_count() -> None:
+    """The power sensor unavailable for one poll now and then: the count
+    towards a message waits, it does not start over."""
+    check = CommandCheck(100, timedelta(minutes=2))
+    told = [
+        r[0]
+        for i in range(40)
+        if (
+            r := check.update(
+                T0 + timedelta(seconds=15 * i),
+                BatteryCommand(1000),
+                50,
+                None if i % 4 == 3 else 0.0,
+                CONFIG,
+            )
+        )
+    ]
+    assert told == ["battery_not_following"]
+
+
+def test_unreadable_command_keeps_the_problem() -> None:
+    """The command cannot be read (its integration unavailable): the problem
+    stays, it is not told as ended."""
+    check = CommandCheck(100, timedelta(minutes=2))
+    told = _run(check, T0, 3, BatteryCommand(1000), 50, 0.0)
+    assert [k for k, _ in told] == ["battery_not_following"]
+    start = T0 + timedelta(minutes=3)
+    for i in range(20):
+        assert (
+            check.update(
+                start + timedelta(seconds=15 * i),
+                None,
+                50,
+                0.0,
+                CONFIG,
+                command_unknown=True,
+            )
+            is None
+        )
+    assert check.problem

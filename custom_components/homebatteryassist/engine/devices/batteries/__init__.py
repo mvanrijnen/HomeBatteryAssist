@@ -144,3 +144,9 @@ def command(hass: HomeAssistant, config: BatteryConfig) -> BatteryCommand | None
     readable (None without a reader, or when the battery controls itself)."""
     reader = reader_for(hass, config)
     return reader.command(hass, config) if reader else None
+
+
+def command_readable(hass: HomeAssistant, config: BatteryConfig) -> bool:
+    """False when the command cannot be read now (see ``command``)."""
+    reader = reader_for(hass, config)
+    return reader.command_readable(hass, config) if reader else True

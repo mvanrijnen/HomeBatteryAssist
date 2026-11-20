@@ -684,6 +684,22 @@ def test_peak_reserve_kept_per_battery_below_the_peak() -> None:
     assert plan.slots[0].grid_w <= 2500.0
 
 
+def test_flat_prices_using_the_battery_is_no_loss() -> None:
+    """Flat prices: discharging now or later costs the same wear, so a plan
+    that uses the battery is not shown as costing more than no battery."""
+    battery = _battery(soc=100.0, capacity=10.0)
+    plan = plan_batteries(
+        [battery],
+        _slots([500.0] * 24),
+        {},
+        _prices([0.25] * 24),
+        mode=MODE_ARBITRAGE,
+        cycle_cost=0.05,
+    )
+    assert min(s.soc for s in plan.slots) < 50  # the battery is used
+    assert plan.saving is not None and plan.saving > -0.01
+
+
 def test_hysteresis_held_now() -> None:
     """A battery the hysteresis holds now (it was full, still in its band)
     starts the plan held: no top-up, in arbitrage and zero on the meter."""
