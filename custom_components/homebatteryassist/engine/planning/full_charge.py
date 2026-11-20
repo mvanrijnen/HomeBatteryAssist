@@ -217,8 +217,9 @@ def schedule_full_charges(
             ):
                 rank += 1000  # only when the preferred day is not possible
             if best is None or rank < best[0]:
-                # Longer than at full power (limits): at the most it can.
-                best = (rank, i, cost, n, power if n == count else round(can_w, 1))
+                # With limits per slot: at the most it can in every slot (the
+                # length counted on that; finalise stops at 100 %).
+                best = (rank, i, cost, n, power if room is None else round(can_w, 1))
         if best is None:
             continue
         start = slots[best[1]][0]

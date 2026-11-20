@@ -713,21 +713,47 @@ class VirtualBatterySimulator:
         wanted = self._hold_without_meter(wanted)
         powers: dict[str, float] = {}
         commands: dict[str, float] = {}
+        reacting: dict[str, float] = {}
+        efficiencies: dict[str, float] = {}
         for config in self.virtual:
             limits = replace(config, max_soc=100.0) if full[config.id] else config
-            efficiency = random_efficiency(config)
+            efficiencies[config.id] = random_efficiency(config)
             # What the battery is told (within its limits), and what it does
             # with it: at once, or with a simulated delay and ramp.
             commands[config.id], _ = limit_power(
-                limits, socs[config.id], wanted[config.id], hours, efficiency
+                limits,
+                socs[config.id],
+                wanted[config.id],
+                hours,
+                efficiencies[config.id],
             )
-            response = self._response(config.id)
-            reacting = response.apply(now, commands[config.id])
+            reacting[config.id] = self._response(config.id).apply(
+                now, commands[config.id]
+            )
+        if any(w > 0.5 for w in reacting.values()) and any(
+            w < -0.5 for w in reacting.values()
+        ):
+            # A battery still ramping out of the old direction: the others
+            # wait at 0 until it is there (never one charging while another
+            # discharges, also while they react).
+            direction = 1 if sum(commands.values()) >= 0 else -1
+            for i, w in reacting.items():
+                if w * direction > 0.5 and any(
+                    v * direction < -0.5 for v in reacting.values()
+                ):
+                    reacting[i] = 0.0
+                    self._response(i).hold(0.0, now)
+        for config in self.virtual:
+            limits = replace(config, max_soc=100.0) if full[config.id] else config
             power, soc = limit_power(
-                limits, socs[config.id], reacting, hours, efficiency
+                limits,
+                socs[config.id],
+                reacting[config.id],
+                hours,
+                efficiencies[config.id],
             )
-            if abs(power - reacting) > 0.5:
-                response.hold(power, now)  # full / empty: it stops there
+            if abs(power - reacting[config.id]) > 0.5:
+                self._response(config.id).hold(power, now)  # full / empty: stops
             powers[config.id] = power
             self._batteries.set_virtual(config.id, now, power, soc)
         # A round counts for the control quality when zero on the meter

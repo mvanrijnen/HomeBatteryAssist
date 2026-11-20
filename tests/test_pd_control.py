@@ -96,3 +96,13 @@ def test_pd_never_against_zero_on_the_meter() -> None:
     pd.step(2500.0, 500.0, 500.0)
     assert pd.step(0.0, 500.0, 500.0) == 0.0
     assert PdController(PdSettings()).step(-800.0, 300.0, 300.0) <= 0.0
+
+
+def test_response_hold_keeps_one_direction() -> None:
+    """A battery held at 0 while another still ramps the other way starts
+    from 0 afterwards (never both directions at once)."""
+    ramp = BatteryResponse(ramp_w_s=100)
+    ramp.apply(T0, 0.0)
+    assert ramp.apply(T0 + timedelta(seconds=5), -2000.0) == -500.0
+    ramp.hold(0.0, T0 + timedelta(seconds=5))
+    assert ramp.apply(T0 + timedelta(seconds=10), -2000.0) == -500.0
