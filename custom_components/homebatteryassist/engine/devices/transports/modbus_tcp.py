@@ -53,6 +53,7 @@ class ModbusTcpClient:
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
         self.reconnect_delay = reconnect_delay
+        self.allowed = False  # set by an enabled driver when it opens
         self._lock = asyncio.Lock()
         self._transaction = 0
         self._closed_at: float | None = None
@@ -64,6 +65,10 @@ class ModbusTcpClient:
 
     async def connect(self) -> None:
         """Open the connection (after ``reconnect_delay`` since a close)."""
+        if not self.allowed:
+            # Only a driver that was deliberately enabled and opened may
+            # connect (read-only phase: never a second client to a battery).
+            raise ModbusError("Modbus TCP client not opened by an enabled driver")
         if self._closed_at is not None and self.reconnect_delay:
             wait = (
                 self._closed_at

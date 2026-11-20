@@ -1697,7 +1697,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     }
     svg += `<g class="hover" style="display:none"><line class="cursor" y1="${T}" y2="${H - B}"/>
       ${series.map((s, i) => `<circle r="3.5" data-i="${i}" style="fill:${s.color}"/>`).join("")}</g>`;
-    this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt, yFmt, right };
+    this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt, yFmt, right, fill: !!(fill && fill.points.length > 1) };
     const chart = `<svg data-chart="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"${
       scroll ? ` style="width:${W}px;max-width:none"` : ""
     }>${svg}</svg>`;
@@ -2096,8 +2096,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
       // The batteries' total state of charge as an area on the background:
       // measured up to now, planned after.
       const fillBatteries = (h.soc?.batteries || []).filter((b) => b.planned !== false);
-      const fillCapacity =
-        h.battery_capacity_kwh || fillBatteries.reduce((sum, b) => sum + b.capacity_kwh, 0);
+      // Measured: the capacity of the batteries summed (also one that is
+      // offline now); planned: the plan's own percentage.
+      const fillCapacity = fillBatteries.reduce((sum, b) => sum + b.capacity_kwh, 0);
       let fillPoints = [];
       if (fillBatteries.length && fillCapacity > 0) {
         const sums = new Map();
@@ -2309,7 +2310,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       ["rgba(67,160,71,.6)", t.bandPv],
       ["rgba(142,36,170,.6)", t.bandGrid],
       ["rgba(30,136,229,.6)", t.bandDischarge],
-      ...(h.soc?.batteries?.length ? [["rgba(158,158,158,.35)", t.bandFill]] : []),
+      ...(this._charts.forecast?.fill ? [["rgba(158,158,158,.35)", t.bandFill]] : []),
     ].map(([color, label]) => `<span><i style="background:${color};border-radius:2px;width:10px;height:10px"></i>${esc(label)}</span>`).join("")}</div>`;
 
     const info = t.daysOfData.replace("{days}", Math.round(h.days_covered)) + (h.imported ? ` · ${t.imported}` : "");

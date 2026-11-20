@@ -85,6 +85,7 @@ def device():
 
 async def test_read_write(device: FakeDevice) -> None:
     client = ModbusTcpClient("192.0.2.1")
+    client.allowed = True  # opened by an enabled driver
     assert await client.read_holding(10, 3) == [100, 110, 120]
     assert await client.read_input(0, 2) == [0, 10]
     await client.write_register(5, -1)
@@ -105,3 +106,10 @@ def test_decode() -> None:
     assert decode([0x0001, 0x0002], "u32") == 0x00010002
     assert decode([0x0002, 0x0001], "u32", swap_words=True) == 0x00010002
     assert decode([0xFFFF, 0xFFFE], "s32") == -2
+
+
+async def test_refuses_without_an_enabled_driver(device: FakeDevice) -> None:
+    """Read-only phase: a client no enabled driver opened never connects."""
+    client = ModbusTcpClient("192.0.2.1")
+    with pytest.raises(ModbusError):
+        await client.read_holding(10, 3)

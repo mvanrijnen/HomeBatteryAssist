@@ -157,6 +157,7 @@ class ZendureHttpDriver(HttpBatteryDriver):
         """One request as JSON, retried once after 0.5 s on HTTP 431 or a
         dropped connection (the small server drops idle keep-alives; writes
         set absolute values, so a retry is safe)."""
+        self.require_enabled()
         session = async_get_clientsession(self.hass)
         for attempt in range(2):
             try:

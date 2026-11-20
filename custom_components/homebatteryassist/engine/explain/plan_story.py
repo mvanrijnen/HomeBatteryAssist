@@ -49,6 +49,7 @@ TEXT = {
         "next_grid_small": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use}, als stroom gemiddeld {use_price} kost. Na verlies en slijtage levert dat vrijwel niets op (ongeveer {gain}).",
         "next_grid_costs": "{when} laden we {energy} uit het net tegen {price}, om die te gebruiken {use}, als stroom gemiddeld {use_price} kost. Na verlies en slijtage kost dat in dit plan ongeveer {gain}.",
         "next_pv": "{when} laden we {energy} met zonnestroom, om die te gebruiken {use}.",
+        "use_later": "later",
         "no_charge": "In de komende {hours} uur is laden niet nodig of levert het niets op.",
         "later": "Daarna nog {parts} tot {end}{main}.",
         "later_charge_detail": "{n} keer laden ({detail})",
@@ -99,6 +100,7 @@ TEXT = {
         "next_grid_small": "{when} we charge {energy} from the grid at {price}, to use it {use}, when power costs {use_price} on average. After losses and wear that brings next to nothing (about {gain}).",
         "next_grid_costs": "{when} we charge {energy} from the grid at {price}, to use it {use}, when power costs {use_price} on average. After losses and wear that costs about {gain} in this plan.",
         "next_pv": "{when} we charge {energy} with solar power, to use it {use}.",
+        "use_later": "later",
         "no_charge": "In the next {hours} hours charging is not needed or brings nothing.",
         "later": "After that {parts} until {end}{main}.",
         "later_charge_detail": "{n} more charges ({detail})",
@@ -347,7 +349,11 @@ def plan_story(
             sentences.append(
                 t["now_discharge_export"].format(
                     until=until,
-                    price=per_kwh(current.export_price or price_now),
+                    price=per_kwh(
+                        current.export_price
+                        if current.export_price is not None
+                        else price_now
+                    ),
                 )
             )
         else:
@@ -529,7 +535,7 @@ def plan_story(
                 .format(
                     when=_when(block, now, lang),
                     energy=_kwh(block.energy_wh, lang),
-                    use=use_text or "later",
+                    use=use_text or t["use_later"],
                 )
                 .replace(" ,", ",")
             )

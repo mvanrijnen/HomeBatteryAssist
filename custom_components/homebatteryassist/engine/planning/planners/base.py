@@ -13,6 +13,7 @@ A planner only *advises*: HomeBatteryAssist never controls a battery.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -164,6 +165,31 @@ class Planner:
         """Requested battery power per slot of ``data.slots``, in W
         (+ charging / - discharging). Missing values count as 0 (idle)."""
         raise NotImplementedError
+
+
+def outlook_split(
+    data: PlannerInput, span_wh: float, eff: float, rate: float
+) -> tuple[float, float]:
+    """With an ``Outlook``: (``keep`` Wh, ``overflow`` per kWh). Energy left
+    at the end up to ``keep`` is worth ``rate`` per kWh; above it the next sun
+    fills the battery anyway, so it is only worth its export price
+    (``overflow``, at most ``rate``). Without an outlook: everything at
+    ``rate``. Used by arbitrage's terminal value and the costs of every plan
+    (``finalise``), so they value what is left the same way."""
+    outlook = data.outlook
+    if outlook is None or eff <= 0 or not data.slots:
+        return math.inf, rate
+    sunny = [s for s in data.slots if s.net_w < 0] or list(data.slots)
+    exports = [s.export_price if s.export_price is not None else s.price for s in sunny]
+    overflow = min(max(sum(exports) / len(exports) / eff, 0.0), rate)
+    keep = outlook.night_wh / eff + max(span_wh - outlook.surplus_wh * eff, 0.0)
+    return keep, overflow
+
+
+def stored_value(wh: float, keep: float, rate: float, overflow: float) -> float:
+    """What ``wh`` left in the battery is worth (``outlook_split``)."""
+    wh = max(wh, 0.0)
+    return (min(wh, keep) * rate + max(wh - keep, 0.0) * overflow) / 1000
 
 
 def may_discharge(rules: Any, price: float | None) -> bool:

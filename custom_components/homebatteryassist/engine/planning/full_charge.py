@@ -70,11 +70,16 @@ def schedule_full_charges(
     preferred_day: int | None = None,
     slot_price: Callable[[datetime, float, float], float] | None = None,
     together: str = "parallel",
+    max_charge_w: float = 0.0,
     fixed: Sequence[FullCharge] = (),
 ) -> list[FullCharge]:
     """Plan the full charges that are due within ``window_days``.
 
-    Full charges never overlap (one battery at a time).
+    Full charges never overlap (one battery at a time); ``step`` should be the
+    plan's slot length, so two blocks never share a plan slot either.
+    ``max_charge_w``: the system's max charge power (0 = none); with a
+    battery's ``charge_factor`` (warm: derated) it sizes the block, so the
+    plan can really charge it in that time.
     ``preferred_day``: weekday (0 = Monday) to prefer, if it fits in the period.
     ``slot_price(start, price, power)``: the effective price of charging in a
     slot, e.g. lower when there is solar surplus.
@@ -135,11 +140,12 @@ def schedule_full_charges(
         start_soc = min(state.soc, getattr(config, "min_soc", state.soc))
         missing_wh = max(100.0 - start_soc, 0.0) * config.capacity_kwh * 10
         eff = math.sqrt(config.efficiency)
-        hours = missing_wh / (config.max_charge_w * eff) if config.max_charge_w else 0
+        can_w = config.max_charge_w * getattr(state, "charge_factor", 1.0)
+        if max_charge_w > 0:
+            can_w = min(can_w, max_charge_w)
+        hours = missing_wh / (can_w * eff) if can_w > 0 else 0
         count = max(1, math.ceil(hours * 3600 / seconds))
-        power = round(
-            min(config.max_charge_w, missing_wh / eff / (count * seconds / 3600)), 1
-        )
+        power = round(min(can_w, missing_wh / eff / (count * seconds / 3600)), 1)
 
         def allowed(start: datetime, end: datetime) -> bool:
             """Never two full charges at the same time."""

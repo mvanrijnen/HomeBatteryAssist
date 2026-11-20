@@ -553,7 +553,11 @@ def websocket_status(
     if (entry := _loaded_entry(hass)) is None:
         connection.send_error(msg["id"], "not_loaded", f"{NAME} is not loaded")
         return
-    connection.send_result(msg["id"], status(hass, entry))
+    result = status(hass, entry)
+    if not connection.user.is_admin and isinstance(result.get("meter"), dict):
+        # The meter's address on the network is for admins only.
+        result["meter"] = {**result["meter"], "address": None}
+    connection.send_result(msg["id"], result)
 
 
 @websocket_api.websocket_command(

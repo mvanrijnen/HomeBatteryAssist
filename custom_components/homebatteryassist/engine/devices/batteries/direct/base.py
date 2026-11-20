@@ -77,10 +77,15 @@ class DirectBatteryDriver:
         self.address = address
         self.options = options
 
-    async def async_open(self) -> None:
-        """Open the connection (only when enabled)."""
+    def require_enabled(self) -> None:
+        """Every connection, read or write, goes through this: a driver that
+        is not enabled never talks to the device (read-only phase)."""
         if not self.enabled:
             raise RuntimeError(f"{self.name}: direct driver is not enabled")
+
+    async def async_open(self) -> None:
+        """Open the connection (only when enabled)."""
+        self.require_enabled()
 
     async def async_read(self) -> DirectReading:
         """Read the battery now."""

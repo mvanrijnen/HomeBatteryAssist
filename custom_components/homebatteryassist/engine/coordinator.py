@@ -812,7 +812,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             if f.start <= now < f.end
         ]
         full_charges = schedule_full_charges(
-            states,
+            [self._derated(s) for s in states],
             {
                 c.id: dt_util.parse_datetime(last)
                 if (last := self.full_charge_since(c.id))
@@ -830,6 +830,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             ),
             fixed=running,
             together=self.charge_order,
+            max_charge_w=self.rules.max_charge_w,
+            step=step,
         )
         forced = _forced_power(consumption, full_charges, now)
         forced_by = {
@@ -855,6 +857,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 and previous is not None
                 and (at := self._planned_at.get(mode)) is not None
                 and now - at < HEAVY_EVERY
+                # Still inside the window (it may have shrunk since).
+                and not window.is_empty
+                and previous.slots
+                and previous.slots[-1].end <= window.end
             ):
                 # A heavy mode that is not chosen is only there to compare
                 # with: computed once an hour, not every cycle.
@@ -1130,7 +1136,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         night = surplus = 0.0
         sun = False
         for (start, stop), (load, _method) in zip(slots, profile, strict=True):
-            hours = (stop - start).total_seconds() / 3600
+            # The first slot starts at the boundary before window.end: only
+            # the part after it (the rest is in the plan already).
+            hours = (stop - max(start, end)).total_seconds() / 3600
             pv, house = pv_w(start), load or 0.0
             if not sun:
                 if pv >= SUN_W and pv > house:

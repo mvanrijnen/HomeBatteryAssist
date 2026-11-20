@@ -17,6 +17,15 @@ from custom_components.homebatteryassist.engine.devices.batteries.huawei.sun2000
 )
 
 
+def _enable(driver):
+    """In a test the driver is enabled on purpose (never in the integration)."""
+    driver.enabled = True
+    client = getattr(driver, "client", None)
+    if client is not None:
+        client.allowed = True
+    return driver
+
+
 def u32(address: int, value: int) -> dict[int, int]:
     """A 32-bit value as two registers, high word first."""
     value &= 0xFFFFFFFF
@@ -47,9 +56,11 @@ class FakeClient:
 
 
 def driver_with(
-    hass: HomeAssistant, holding: dict[int, int] | None = None
+    hass: HomeAssistant, holding: dict[int, int] | None = None, enabled: bool = True
 ) -> tuple[HuaweiModbusDriver, FakeClient]:
     driver = HuaweiModbusDriver(hass, "192.0.2.20")
+    if enabled:
+        _enable(driver)
     client = FakeClient(holding or {})
     driver.client = client  # type: ignore[assignment]
     return driver, client
@@ -126,7 +137,7 @@ def test_blocks_never_cross_gaps() -> None:
 
 
 async def test_disabled_driver_does_not_connect(hass: HomeAssistant) -> None:
-    driver, client = driver_with(hass)
+    driver, client = driver_with(hass, enabled=False)
     with pytest.raises(RuntimeError, match="not enabled"):
         await driver.async_open()
     with pytest.raises(RuntimeError, match="not enabled"):

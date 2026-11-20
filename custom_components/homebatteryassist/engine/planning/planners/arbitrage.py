@@ -48,6 +48,8 @@ from .base import (
     discharge_room,
     grid_cost,
     may_discharge,
+    outlook_split,
+    stored_value,
 )
 from .zero_on_meter import follow
 
@@ -106,24 +108,13 @@ def _optimise(
     later = max(
         avg_price * eff - data.cycle_cost - rules.min_margin - MIN_GAIN_PER_KWH, 0.0
     )
-    terminal = [-(i * step) / 1000 * later for i in range(levels)]
-    outlook = data.outlook
-    if outlook is not None and step > 0 and eff > 0:
-        # The sun after the window fills the battery again: of what is left,
-        # the part above what the house uses before that sun plus the room
-        # the surplus cannot fill only pushes that surplus to the grid —
-        # worth its export price, not the import price. (So in summer the
-        # battery is used in the evening and night instead of the grid.)
-        sunny = [s for s in slots if s.net_w < 0] or slots
-        exports = [
-            s.export_price if s.export_price is not None else s.price for s in sunny
-        ]
-        overflow = min(max(sum(exports) / len(exports) / eff, 0.0), later)
-        keep = outlook.night_wh / eff + max(span - outlook.surplus_wh * eff, 0.0)
-        terminal = [
-            -(min(i * step, keep) * later + max(i * step - keep, 0.0) * overflow) / 1000
-            for i in range(levels)
-        ]
+    # The sun after the window fills the battery again (``Outlook``): of what
+    # is left, the part above what the house uses before that sun plus the
+    # room the surplus cannot fill only pushes that surplus to the grid —
+    # worth its export price, not the import price. (So in summer the battery
+    # is used in the evening and night instead of the grid.)
+    keep, overflow = outlook_split(data, span, eff, later)
+    terminal = [-stored_value(i * step, keep, later, overflow) for i in range(levels)]
 
     # Charge hysteresis: a charge may not *start* in the top band below the
     # maximum; the state remembers whether the previous slot was charging.

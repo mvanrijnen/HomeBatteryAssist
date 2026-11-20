@@ -71,6 +71,15 @@ class FakeSession:
         return reply if isinstance(reply, FakeResponse) else FakeResponse(reply)
 
 
+def _enable(driver):
+    """In a test the driver is enabled on purpose (never in the integration)."""
+    driver.enabled = True
+    client = getattr(driver, "client", None)
+    if client is not None:
+        client.allowed = True
+    return driver
+
+
 def session_for(module: Any, fake: FakeSession) -> Any:
     """Patch the module's session getter with ``fake``."""
     return patch.object(module, "async_get_clientsession", return_value=fake)
@@ -123,6 +132,7 @@ ZENDURE_REPORT = {
 def test_zendure_reading(hass: HomeAssistant) -> None:
     """Pack in - out = + charging; 0.1 K, 0.01 V, 0.1 %; 59940 dropped."""
     driver = zendure.ZendureHttpDriver(hass, "192.0.2.10")
+    _enable(driver)
     reading = driver.reading(ZENDURE_REPORT)
     assert reading.soc == 64
     assert reading.power_w == -420  # discharging
@@ -145,6 +155,7 @@ def test_zendure_reading(hass: HomeAssistant) -> None:
 
 def test_zendure_ac_power_unknown_when_negative(hass: HomeAssistant) -> None:
     driver = zendure.ZendureHttpDriver(hass, "192.0.2.10")
+    _enable(driver)
     report = {"properties": {"gridInputPower": -1, "outputHomePower": 0}}
     assert driver.reading(report).extra["ac_power_w"] is None
 
@@ -171,6 +182,7 @@ async def test_zendure_writes(hass: HomeAssistant) -> None:
     """One write per setpoint, with the serial and always smartMode 1; the
     serial is read first when unknown."""
     driver = zendure.ZendureHttpDriver(hass, "192.0.2.10")
+    _enable(driver)
     fake = FakeSession(ZENDURE_REPORT, {}, {}, {})
     with session_for(zendure, fake):
         await driver.async_set_power(500)
@@ -202,12 +214,14 @@ async def test_zendure_writes(hass: HomeAssistant) -> None:
 
 async def test_zendure_refuses_flash_write(hass: HomeAssistant) -> None:
     driver = zendure.ZendureHttpDriver(hass, "192.0.2.10")
+    _enable(driver)
     with pytest.raises(ValueError, match="smartMode"):
         await driver.async_write({"acMode": 1, "inputLimit": 100})
 
 
 async def test_zendure_retries_431(hass: HomeAssistant) -> None:
     driver = zendure.ZendureHttpDriver(hass, "192.0.2.10")
+    _enable(driver)
     fake = FakeSession(FakeResponse({}, 431), ZENDURE_REPORT)
     with session_for(zendure, fake), patch.object(zendure, "RETRY_DELAY", 0):
         reading = await driver.async_read()
@@ -235,6 +249,7 @@ SESSY_ENERGY = {"sessy_energy": {"import_wh": 123456, "export_wh": 100000}}
 def test_sessy_reading(hass: HomeAssistant) -> None:
     """Fraction → %, + discharging → + charging, mV → V, Wh → kWh."""
     driver = sessy.SessyHttpDriver(hass, "192.0.2.20")
+    _enable(driver)
     reading = driver.reading(SESSY_STATUS, SESSY_ENERGY)
     assert reading.soc == 53.7
     assert reading.power_w == 1200
@@ -253,6 +268,7 @@ async def test_sessy_read_uses_auth_and_fresh_connections(
     driver = sessy.SessyHttpDriver(
         hass, "192.0.2.20", username="ABCD1234", password="secret"
     )
+    _enable(driver)
     fake = FakeSession(SESSY_STATUS, SESSY_ENERGY)
     with session_for(sessy, fake):
         reading = await driver.async_read()
@@ -273,6 +289,7 @@ async def test_sessy_writes(hass: HomeAssistant) -> None:
     """Original strategy read once; API strategy then setpoint (+ discharge
     on the wire, clamped); release sets 0 and restores the strategy."""
     driver = sessy.SessyHttpDriver(hass, "192.0.2.20", username="u", password="p")
+    _enable(driver)
     fake = FakeSession({"strategy": "POWER_STRATEGY_NOM"}, b"", {}, {}, b"ok", {}, {})
     with session_for(sessy, fake):
         await driver.async_set_power(3000)  # charge, clamped to 2200
@@ -337,6 +354,7 @@ def test_indevolt_reading(hass: HomeAssistant) -> None:
     """+ discharging → + charging; bypass subtracted; 9999 dropped; missing
     points unknown; string enums parsed."""
     driver = indevolt.IndevoltHttpDriver(hass, "192.0.2.30")
+    _enable(driver)
     reading = driver.reading(INDEVOLT_DATA)
     assert reading.soc == 57
     assert reading.power_w == -850
@@ -365,6 +383,7 @@ async def test_indevolt_read_request(hass: HomeAssistant) -> None:
     """One GetData POST: points URL-encoded as compact JSON, no body, port
     8080, Connection: close; a non-finite number is refused."""
     driver = indevolt.IndevoltHttpDriver(hass, "192.0.2.30")
+    _enable(driver)
     fake = FakeSession(INDEVOLT_DATA, b'{"6002": NaN}')
     with session_for(indevolt, fake):
         assert (await driver.async_read()).soc == 57
@@ -385,6 +404,7 @@ async def test_indevolt_read_request(hass: HomeAssistant) -> None:
 async def test_indevolt_pacing(hass: HomeAssistant) -> None:
     """At least 1 s between request starts, whatever the option says."""
     driver = indevolt.IndevoltHttpDriver(hass, "192.0.2.30", spacing=0.2)
+    _enable(driver)
     assert driver.spacing == 1.0
     clock = [100.0]
     driver._now = lambda: clock[0]
@@ -402,6 +422,7 @@ async def test_indevolt_writes(hass: HomeAssistant) -> None:
     tuple with a rolling target; identical tuples are not resent; release
     is STOP."""
     driver = indevolt.IndevoltHttpDriver(hass, "192.0.2.30")
+    _enable(driver)
     driver._sleep = AsyncMock()
     control = {k: INDEVOLT_DATA[k] for k in map(str, indevolt.CONTROL_POINTS)}
     accepted = {"result": True}
@@ -441,6 +462,7 @@ async def test_indevolt_refuses_control(
     """Generation 1 / unknown models and a work mode other than realtime are
     refused before anything is written (the mode is never written)."""
     driver = indevolt.IndevoltHttpDriver(hass, "192.0.2.30")
+    _enable(driver)
     fake = FakeSession({**INDEVOLT_DATA, **changes})
     with session_for(indevolt, fake), pytest.raises(RuntimeError, match=message):
         await driver.async_set_power(500)

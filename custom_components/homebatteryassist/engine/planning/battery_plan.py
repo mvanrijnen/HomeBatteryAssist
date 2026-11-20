@@ -45,6 +45,8 @@ from .planners.base import (
     discharge_room,
     grid_cost,
     may_discharge,
+    outlook_split,
+    stored_value,
 )
 from .time_slots import Target
 
@@ -620,8 +622,18 @@ def finalise(
         return BatteryPlan(mode, strategy, out, None, None)
     avg_price = sum(s.price for s in data.slots) / len(data.slots)
     # Count the change in stored energy at its value, so "with" and "without"
-    # are comparable over the same window.
-    cost_with += (battery.stored_wh - stored) / 1000 * avg_price * eff
+    # are comparable over the same window; valued as arbitrage values what is
+    # left (``outlook_split``: what the next sun fills anyway at its export
+    # price), so a plan that empties the battery for that sun is not shown
+    # as costing more.
+    rate = avg_price * eff
+    keep, overflow = outlook_split(
+        data, max(battery.ceiling_wh - battery.floor_wh, 0.0), eff, rate
+    )
+    floor = battery.floor_wh
+    cost_with += stored_value(
+        battery.stored_wh - floor, keep, rate, overflow
+    ) - stored_value(stored - floor, keep, rate, overflow)
     return BatteryPlan(
         mode,
         strategy,

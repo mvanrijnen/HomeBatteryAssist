@@ -100,6 +100,7 @@ class SessyHttpDriver(HttpBatteryDriver):
     async def _request(self, method: str, path: str, body: Any = None) -> Any:
         """One request on a fresh connection, body read in full; retried once
         after 50 ms (all writes set absolute values)."""
+        self.require_enabled()
         session = async_get_clientsession(self.hass)
         async with self._lock:
             for attempt in range(ATTEMPTS):

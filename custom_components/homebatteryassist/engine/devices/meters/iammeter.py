@@ -25,8 +25,10 @@ class IammeterMeter(PollingMeter):
 
     async def _async_read(self) -> PhaseReading | None:
         session = async_get_clientsession(self.hass)
-        async with asyncio.timeout(3):
-            response = await session.get(f"http://{self.address}/monitorjson")
+        async with (
+            asyncio.timeout(3),
+            session.get(f"http://{self.address}/monitorjson") as response,
+        ):
             response.raise_for_status()
             return iammeter_reading(await response.json(content_type=None))
 

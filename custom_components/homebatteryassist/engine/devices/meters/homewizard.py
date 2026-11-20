@@ -43,8 +43,10 @@ class HomeWizardP1(PollingMeter):
 async def read_homewizard(hass: HomeAssistant, address: str) -> dict[str, Any]:
     """The current measurement of a HomeWizard meter (API v1)."""
     session = async_get_clientsession(hass)
-    async with asyncio.timeout(3):
-        response = await session.get(f"http://{address}/api/v1/data")
+    async with (
+        asyncio.timeout(3),
+        session.get(f"http://{address}/api/v1/data") as response,
+    ):
         response.raise_for_status()
         return await response.json(content_type=None)
 
@@ -52,11 +54,14 @@ async def read_homewizard(hass: HomeAssistant, address: str) -> dict[str, Any]:
 def homewizard_phases(data: dict[str, Any]) -> tuple[float, ...] | None:
     """Signed power per phase (+ import / - export) from API v1 data."""
     values = [data.get(f"active_power_l{n}_w") for n in (1, 2, 3)]
-    if values[0] is None:
-        return None
-    if values[1] is None or values[2] is None:
-        return (float(values[0]),)
-    return tuple(float(v) for v in values)
+    if all(v is not None for v in values):
+        return tuple(float(v) for v in values)
+    if values[0] is not None and values[1] is None and values[2] is None:
+        return (float(values[0]),)  # a single-phase meter
+    if values[0] is None and data.get("active_power_w") is not None:
+        # Some meters only send the total (DSMR 4.x without phase powers).
+        return (float(data["active_power_w"]),)
+    return None  # some phases missing: unknown, not a part counted as all
 
 
 def homewizard_reading(data: dict[str, Any]) -> PhaseReading | None:

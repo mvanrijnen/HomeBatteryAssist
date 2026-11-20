@@ -232,6 +232,7 @@ class IndevoltHttpDriver(HttpBatteryDriver):
     ) -> Any:
         """Call ``method``; parameters as compact JSON in ``config``. Fresh
         connection, one request at a time, paced."""
+        self.require_enabled()
         session = async_get_clientsession(self.hass)
         query = (
             {"config": json.dumps(params, separators=(",", ":"))} if params else None

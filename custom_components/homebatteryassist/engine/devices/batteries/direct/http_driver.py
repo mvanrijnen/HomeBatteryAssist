@@ -30,9 +30,12 @@ class HttpBatteryDriver(DirectBatteryDriver):
 
     async def async_get(self, path: str) -> Any:
         """GET ``path`` as JSON."""
+        self.require_enabled()
         session = async_get_clientsession(self.hass)
-        async with asyncio.timeout(self.timeout):
-            response = await session.get(self.url(path), auth=self.auth())
+        async with (
+            asyncio.timeout(self.timeout),
+            session.get(self.url(path), auth=self.auth()) as response,
+        ):
             response.raise_for_status()
             return await response.json(content_type=None)
 

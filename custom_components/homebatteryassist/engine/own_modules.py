@@ -43,7 +43,8 @@ def load_modules_from[T](folder: Path, base: type[T], kind: str) -> dict[str, T]
             module = importlib.util.module_from_spec(spec)
             sys.modules[name] = module
             spec.loader.exec_module(module)
-        except Exception:
+        except (Exception, SystemExit):  # an own file may do anything
+            sys.modules.pop(name, None)
             _LOGGER.exception("%s file %s could not be loaded", kind, path)
             continue
         for _, cls in inspect.getmembers(module, inspect.isclass):
@@ -60,7 +61,7 @@ def load_modules_from[T](folder: Path, base: type[T], kind: str) -> dict[str, T]
                 continue
             try:
                 found[key] = cls()
-            except Exception:
+            except (Exception, SystemExit):
                 _LOGGER.exception("%s %s in %s could not be created", kind, cls, path)
     return found
 

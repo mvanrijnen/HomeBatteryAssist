@@ -96,6 +96,7 @@ class ModbusBatteryDriver(DirectBatteryDriver):
     async def async_open(self) -> None:
         """Connect (only when enabled)."""
         await super().async_open()
+        self.client.allowed = True
         await self.client.connect()
 
     async def async_close(self) -> None:
@@ -104,6 +105,7 @@ class ModbusBatteryDriver(DirectBatteryDriver):
 
     async def async_read(self) -> DirectReading:
         """Read all points and map them onto a reading."""
+        self.require_enabled()
         raw: dict[tuple[int, int], int] = {}
         for function, start, count in blocks(self.points, self.max_block):
             read = (

@@ -23,6 +23,15 @@ RANGES = {
 }
 
 
+def _enable(driver):
+    """In a test the driver is enabled on purpose (never in the integration)."""
+    driver.enabled = True
+    client = getattr(driver, "client", None)
+    if client is not None:
+        client.allowed = True
+    return driver
+
+
 def s32(address: int, value: int) -> dict[int, int]:
     """A 32-bit value as two registers, high word first."""
     value &= 0xFFFFFFFF
@@ -59,9 +68,12 @@ def driver_with(
     hass: HomeAssistant,
     holding: dict[int, int] | None = None,
     inputs: dict[int, int] | None = None,
+    enabled: bool = True,
     **options,
 ) -> tuple[AnkerModbusDriver, FakeClient]:
     driver = AnkerModbusDriver(hass, "192.0.2.10", **options)
+    if enabled:
+        _enable(driver)
     client = FakeClient(holding or {}, inputs or {})
     driver.client = client  # type: ignore[assignment]
     return driver, client
@@ -137,7 +149,7 @@ def test_product_code() -> None:
 
 
 async def test_disabled_driver_does_not_connect(hass: HomeAssistant) -> None:
-    driver, client = driver_with(hass)
+    driver, client = driver_with(hass, enabled=False)
     with pytest.raises(RuntimeError, match="not enabled"):
         await driver.async_open()
     with pytest.raises(RuntimeError, match="not enabled"):

@@ -262,7 +262,10 @@ def shave_peak(
             result[key] = value - cut * value / total_charge
         need -= cut
     allowed = set(can_discharge)
-    open_ = [d for d in devices if d.id in result and d.id in allowed]
+    # A battery relieving an exporting phase is never turned to discharging.
+    open_ = [
+        d for d in devices if d.id in result and d.id in allowed and d.id not in kept
+    ]
     while open_ and need > 0.5:
         share = need / len(open_)
         still_open = []

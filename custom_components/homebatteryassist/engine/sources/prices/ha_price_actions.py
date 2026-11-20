@@ -34,6 +34,7 @@ from .price_points import PricePoint
 _LOGGER = logging.getLogger(__name__)
 
 REFRESH = timedelta(hours=1)
+MISSING_RETRY = timedelta(minutes=15)  # tomorrow still missing: ask again after
 
 
 def points_from(
@@ -96,6 +97,8 @@ class ActionDriver(PriceDriver):
                 complete or dt_util.as_local(now).hour < 13
             ):
                 return data
+            if now - fetched < MISSING_RETRY:
+                return data  # tomorrow still missing: not every cycle
         try:
             data = await self._async_fetch(hass, source, role)
         except (HomeAssistantError, KeyError, TypeError, ValueError) as err:
@@ -139,12 +142,19 @@ class NordPoolDriver(ActionDriver):
         currency = None
         for offset in (0, 1):
             day = (start + timedelta(days=offset)).date().isoformat()
-            response = await self._call(
-                hass,
-                "nordpool",
-                "get_prices_for_date",
-                {"config_entry": source, "date": day},
-            )
+            try:
+                response = await self._call(
+                    hass,
+                    "nordpool",
+                    "get_prices_for_date",
+                    {"config_entry": source, "date": day},
+                )
+            except HomeAssistantError as err:
+                if offset == 0:
+                    raise
+                # Tomorrow not published (or a hiccup): keep today's prices.
+                _LOGGER.debug("Nord Pool: no prices for %s: %s", day, err)
+                continue
             for area_prices in response.values():
                 items += [
                     (p.get("start"), p.get("end"), p.get("price")) for p in area_prices
