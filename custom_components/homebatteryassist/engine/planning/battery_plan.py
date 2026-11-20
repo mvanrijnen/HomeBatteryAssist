@@ -215,16 +215,29 @@ def _pack(
         """Wh over all batteries at ``soc`` (each within its own min/max)."""
         return sum(one(s, soc) for s in usable)
 
-    return _Pack(
-        capacity=capacity,
-        stored=sum(s.soc * s.config.capacity_kwh * 10 for s in usable),
-        floor=sum(
+    def floor_of(s: BatteryState) -> float:
+        return (
             min(max(s.config.min_soc, rules.reserve_soc), s.config.max_soc)
             * s.config.capacity_kwh
             * 10
-            for s in usable
-        ),
-        ceiling=sum(s.config.max_soc * s.config.capacity_kwh * 10 for s in usable),
+        )
+
+    def wh_of(s: BatteryState) -> float:
+        return s.soc * s.config.capacity_kwh * 10
+
+    def ceiling_of(s: BatteryState) -> float:
+        return s.config.max_soc * s.config.capacity_kwh * 10
+
+    # The pack as one battery, with the room of each battery: one above its
+    # maximum (after a full charge) or below its minimum does not hide the
+    # room of another; the final check keeps each within its own limits.
+    above = sum(max(wh_of(s) - ceiling_of(s), 0.0) for s in usable)
+    below = sum(max(floor_of(s) - wh_of(s), 0.0) for s in usable)
+    return _Pack(
+        capacity=capacity,
+        stored=sum(wh_of(s) for s in usable),
+        floor=max(sum(floor_of(s) for s in usable) - below, 0.0),
+        ceiling=sum(ceiling_of(s) for s in usable) + above,
         max_charge=max_charge,
         max_discharge=max_discharge,
         rules=rules,
@@ -598,7 +611,7 @@ def finalise(
             power = min(
                 requested,
                 slot.max_charge_w,
-                max(battery.ceiling_wh - stored, 0.0) / (hours * eff),
+                _charge_room(battery, member_wh, stored, hours, eff),
             )
             # A full charge up to 100 % (above the maximum state of charge).
             power = max(power, min(extra, slot.max_charge_w))
@@ -612,7 +625,9 @@ def finalise(
                 power = min(power, max(extra, -slot.net_w, 0.0))
         elif requested < 0 and (fixed or may_discharge(rules, slot.price)):
             power = -min(
-                -requested, slot.max_discharge_w, discharge_room(data, slot, stored)
+                -requested,
+                slot.max_discharge_w,
+                _discharge_room(data, slot, member_wh, stored),
             )
         power = max(power, 0.0) if requested > 0 else min(power, 0.0)
         if member_wh:
@@ -684,6 +699,38 @@ def finalise(
         keep_wh=keep,
         overflow_per_kwh=overflow,
     )
+
+
+def _charge_room(
+    battery: Any, member_wh: list[float], stored: float, hours: float, eff: float
+) -> float:
+    """The most the batteries can still charge (W): per battery up to its own
+    maximum (one battery above its maximum does not hide another's room)."""
+    if not member_wh:
+        return max(battery.ceiling_wh - stored, 0.0) / (hours * eff)
+    return sum(
+        max(m.ceiling_wh - wh, 0.0) / (hours * m.efficiency)
+        for m, wh in zip(battery.members, member_wh, strict=True)
+    )
+
+
+def _discharge_room(
+    data: PlannerInput, slot: Any, member_wh: list[float], stored: float
+) -> float:
+    """The most the batteries may discharge (W): per battery down to its own
+    floor and reserves (``discharge_room`` for one battery)."""
+    if not member_wh:
+        return discharge_room(data, slot, stored)
+    room = deep = 0.0
+    night = slot.reserve_wh > 0
+    for m, wh in zip(data.battery.members, member_wh, strict=True):
+        floor = max(m.floor_wh, m.night_floor_wh if night else 0.0)
+        normal = max(floor, m.peak_floor_wh) if data.peak_w > 0 else floor
+        room += max(wh - normal, 0.0) * m.efficiency / slot.hours
+        if normal > floor:
+            deep += max(min(wh, normal) - floor, 0.0) * m.efficiency / slot.hours
+    # Below the peak reserve: only for the import above the peak limit.
+    return room + min(deep, max(slot.net_w - data.peak_w - room, 0.0))
 
 
 def _cap(

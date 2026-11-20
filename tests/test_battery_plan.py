@@ -614,3 +614,18 @@ def test_share_keeps_each_phase_within_its_room() -> None:
     )
     assert power <= 3000.0 + 1e-6  # L1's room, not 5000
     assert new[0] - 2000.0 + new[1] - 2000.0 <= 3000.0 + 1e-6
+
+
+def test_room_per_battery() -> None:
+    """One battery above its maximum (after a full charge) does not hide
+    another battery's room: the solar surplus still goes into that one."""
+    full = _battery(soc=100.0)
+    full.config.max_soc = 80.0
+    full.config.id = "a"
+    room = _battery(soc=60.0)
+    room.config.max_soc = 80.0
+    room.config.id = "b"
+    slots = _slots([500.0, 500.0])
+    pv = {T0: 1500.0, T0 + H: 0.0}
+    plan = plan_batteries([full, room], slots, pv, _prices([0.2, 0.2]))
+    assert plan.slots[0].power_w > 900  # the surplus is stored (in b)
