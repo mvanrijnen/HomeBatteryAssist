@@ -13,9 +13,15 @@ on board for its recorder:
 
 Changing the choice moves the data along: every store remembers where it was
 kept last (``homebatteryassist.storage_backend`` in ``.storage``) and, when
-that differs, is loaded from there once and written to the new place. A
-database that cannot be reached at start: the JSON file is used for this run
-(and moved to the database on a later start).
+that differs, is loaded from there once and written to the new place (the
+same database with another password or options counts as the same place).
+
+Never from a stale copy: a database that cannot be read at start (the one in
+use, or the one to move from) makes the setup wait and try again
+(``ConfigEntryNotReady``) instead of carrying on with the JSON file, which is
+only the copy from when the data moved. A write that fails while running
+saves everything to the JSON file and marks it as the place in use; the next
+start moves it into the database again.
 
 ``HbaStore`` has the part of ``helpers.storage.Store`` the stores use:
 ``async_load``, ``async_save`` and ``async_delay_save``.
@@ -31,6 +37,7 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 
@@ -242,6 +249,23 @@ def _database(url: str) -> _Database:
     return _DATABASES[url]
 
 
+async def async_close_databases(hass: HomeAssistant) -> None:
+    """Close the open databases (unload: a changed URL opens anew)."""
+    databases = list(_DATABASES.values())
+    _DATABASES.clear()
+    for database in databases:
+        await hass.async_add_executor_job(database.close)
+
+
+def same_place(a: str | None, b: str | None) -> bool:
+    """The same database (password and URL options aside), or both JSON."""
+    a = None if a in (None, JSON) else a
+    b = None if b in (None, JSON) else b
+    if a is None or b is None:
+        return a is b
+    return describe(a) == describe(b) and a.split("://", 1)[0] == b.split("://", 1)[0]
+
+
 async def async_check_database(hass: HomeAssistant, url: str) -> bool:
     """Whether the database can be reached (and the table made)."""
     database = _Database(url)
@@ -305,7 +329,6 @@ class HbaStore:
         self._lock = asyncio.Lock()
         self._unsub: CALLBACK_TYPE | None = None
         self._pending: Callable[[], dict[str, Any]] | None = None
-        self._failing = False
 
     @property
     def where(self) -> str:
@@ -316,46 +339,46 @@ class HbaStore:
         """Load; moves the data here when it was kept elsewhere last."""
         markers = _markers(self.hass)
         previous = await markers.get(self.name)
-        here = self.url or JSON
-        if self.url is not None:
-            try:
-                if previous == here:
-                    rows = await self.hass.async_add_executor_job(
-                        _database(self.url).read, self.name
-                    )
-                    self._saved = rows
-                    return join(rows, self._layout) if rows else None
-                data = await self._load_from(previous)
-                rows = split(data or {}, self._layout)
-                await self.hass.async_add_executor_job(
-                    _database(self.url).write, self.name, rows, set(), True
-                )
-                self._saved = rows
-            except Exception as err:
-                _LOGGER.warning(
-                    "%s: database %s not reachable (%s); using the JSON file for now",
-                    self.name,
-                    self.where,
-                    err,
-                )
-                self.url = None
-                data = await self._load_from(previous)
-                await markers.set(self.name, JSON)
-                return data
-            _LOGGER.info("%s moved to %s", self.name, self.where)
-            await markers.set(self.name, here)
-            return data
-        if previous not in (None, JSON):
+        if self.url is None:
+            if previous in (None, JSON):
+                return await self._json.async_load()
             data = await self._load_from(previous)
             if data is not None:
                 await self._json.async_save(data)
             _LOGGER.info("%s moved back to its JSON file", self.name)
             await markers.set(self.name, JSON)
             return data
-        return await self._json.async_load()
+        if same_place(previous, self.url):
+            try:
+                rows = await self.hass.async_add_executor_job(
+                    _database(self.url).read, self.name
+                )
+            except Exception as err:
+                raise ConfigEntryNotReady(
+                    f"{self.name}: database {self.where} not reachable ({err})"
+                ) from err
+            self._saved = rows
+            await markers.set(self.name, self.url)  # e.g. a new password
+            return join(rows, self._layout) if rows else None
+        data = await self._load_from(previous)
+        rows = split(data or {}, self._layout)
+        try:
+            await self.hass.async_add_executor_job(
+                _database(self.url).write, self.name, rows, set(), True
+            )
+        except Exception as err:
+            raise ConfigEntryNotReady(
+                f"{self.name}: database {self.where} not reachable ({err})"
+            ) from err
+        self._saved = rows
+        _LOGGER.info("%s moved to %s", self.name, self.where)
+        await markers.set(self.name, self.url)
+        return data
 
     async def _load_from(self, where: str | None) -> dict[str, Any] | None:
-        """The data where it was kept last (the JSON file when unknown)."""
+        """The data where it was kept last (the JSON file when unknown); a
+        database that cannot be read: wait and try again (never a stale
+        copy)."""
         if where in (None, JSON):
             return await self._json.async_load()
         try:
@@ -363,13 +386,10 @@ class HbaStore:
                 _database(where).read, self.name
             )
         except Exception as err:
-            _LOGGER.warning(
-                "%s: previous database %s not reachable (%s); using the JSON file",
-                self.name,
-                describe(where),
-                err,
-            )
-            return await self._json.async_load()
+            raise ConfigEntryNotReady(
+                f"{self.name}: database {describe(where)} to move from is not "
+                f"reachable ({err})"
+            ) from err
         return join(rows, self._layout) if rows else None
 
     async def async_save(self, data: dict[str, Any]) -> None:
@@ -388,18 +408,19 @@ class HbaStore:
                     _database(self.url).write, self.name, upserts, deletes
                 )
             except Exception as err:
-                if not self._failing:
-                    _LOGGER.warning(
-                        "%s: writing to %s failed (%s); tried again on the next save",
-                        self.name,
-                        self.where,
-                        err,
-                    )
-                self._failing = True
+                # Nothing lost: everything to the JSON file, marked as the
+                # place in use; the next start moves it into the database.
+                _LOGGER.warning(
+                    "%s: writing to %s failed (%s); kept in the JSON file until "
+                    "the next start",
+                    self.name,
+                    self.where,
+                    err,
+                )
+                self.url = None
+                await self._json.async_save(data)
+                await _markers(self.hass).set(self.name, JSON)
                 return
-            if self._failing:
-                _LOGGER.info("%s: writing to %s works again", self.name, self.where)
-            self._failing = False
             self._saved = rows
 
     @callback
@@ -418,6 +439,6 @@ class HbaStore:
             self._unsub = None
             func, self._pending = self._pending, None
             if func is not None:
-                await self.async_save(func())
+                await self.async_save(func())  # to JSON when the database failed
 
         self._unsub = async_call_later(self.hass, delay, write)

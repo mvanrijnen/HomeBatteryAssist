@@ -3,9 +3,11 @@ the data when the choice changes."""
 
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.storage import Store
 
 from custom_components.homebatteryassist.engine.db_store import (
@@ -14,6 +16,7 @@ from custom_components.homebatteryassist.engine.db_store import (
     database_url,
     describe,
     join,
+    same_place,
     split,
 )
 
@@ -46,9 +49,13 @@ def test_rows_round_trip() -> None:
 
 
 def test_describe_hides_the_password() -> None:
-    """Logs and diagnostics never show the user or password."""
+    """Logs and diagnostics never show the user or password; another password
+    is the same database."""
     url = "mysql://hba:secret@core-mariadb/hba?charset=utf8mb4"
     assert describe(url) == "mysql (core-mariadb/hba)"
+    assert same_place(url, "mysql://hba:new@core-mariadb/hba")
+    assert not same_place(url, "mysql://hba:secret@other/hba")
+    assert not same_place(url, None)
     assert "secret" not in describe(url)
     assert describe(None) == "json"
 
@@ -96,17 +103,38 @@ async def test_delay_save_and_deletes(hass: HomeAssistant, tmp_path: Path) -> No
     assert "excluded_days" not in loaded
 
 
-async def test_unreachable_database_uses_json(hass: HomeAssistant) -> None:
-    """A database that cannot be reached: the JSON file for this run."""
+async def test_unreachable_database_waits(hass: HomeAssistant) -> None:
+    """A database that cannot be reached at start: the setup waits and tries
+    again (never a stale JSON copy in its place)."""
     json_store: Store = Store(hass, 1, "homebatteryassist.test3.consumption")
     await json_store.async_save(_history(2))
     store = HbaStore(hass, json_store, HISTORY, "sqlite:////nonexistent/dir/x/y.db")
-    store_url = store.url
-    assert store_url is not None
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr("os.makedirs", _fail)
-        assert await store.async_load() == _history(2)
+        with pytest.raises(ConfigEntryNotReady):
+            await store.async_load()
+
+
+async def test_failed_write_keeps_everything_in_json(
+    hass: HomeAssistant, tmp_path: Path
+) -> None:
+    """A write that fails while running: all data to the JSON file, which
+    moves into the database again at the next start."""
+    url = _url(hass, tmp_path)
+    json_store: Store = Store(hass, 1, "homebatteryassist.test4.consumption")
+    store = HbaStore(hass, json_store, HISTORY, url)
+    await store.async_load()
+    await store.async_save(_history(2))
+    with patch(
+        "custom_components.homebatteryassist.engine.db_store._Database.write",
+        side_effect=OSError("disk full"),
+    ):
+        await store.async_save(_history(5))
     assert store.url is None
+    assert await json_store.async_load() == _history(5)
+    again = HbaStore(hass, json_store, HISTORY, url)
+    assert await again.async_load() == _history(5)
+    assert same_place(url, url.replace("sqlite:///", "sqlite:///"))
 
 
 def _fail(*_args: Any, **_kwargs: Any) -> None:

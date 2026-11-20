@@ -1178,10 +1178,13 @@ SELECT_OPTIONS = (CONF_HISTORY_INTERVAL, CONF_FORECAST_INTERVAL, CONF_BALANCE_IN
 
 
 async def storage_errors(
-    hass: HomeAssistant, options: Mapping[str, Any]
+    hass: HomeAssistant,
+    options: Mapping[str, Any],
+    current: Mapping[str, Any] | None = None,
 ) -> dict[str, str]:
     """A database server needs a URL that can be reached (the data moves
-    there at the next start)."""
+    there at the next start). Only checked when the choice changes: a server
+    that is down never blocks other settings."""
     backend = options.get(CONF_STORAGE_BACKEND, BACKEND_JSON)
     if backend not in SERVER_BACKENDS:
         return {}
@@ -1189,9 +1192,14 @@ async def storage_errors(
     if not url:
         return {"base": "storage_url_required"}
     scheme = url.split("://", 1)[0].split("+", 1)[0]
-    wanted = "postgres" if backend == "postgresql" else backend
-    if not scheme.startswith(wanted):
+    wanted = ("postgresql",) if backend == "postgresql" else ("mysql", "mariadb")
+    if scheme not in wanted:
         return {"base": "storage_url_scheme"}
+    if current is not None and (
+        current.get(CONF_STORAGE_BACKEND) == backend
+        and current.get(CONF_STORAGE_URL) == url
+    ):
+        return {}
     if not await async_check_database(hass, database_url(hass, backend, url) or url):
         return {"base": "storage_unreachable"}
     return {}
@@ -1745,7 +1753,11 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             options = settings_from_input(user_input)
-            if not (errors := await storage_errors(self.hass, options)):
+            if not (
+                errors := await storage_errors(
+                    self.hass, options, self.config_entry.options
+                )
+            ):
                 return self.async_create_entry(data=options)
 
         current = self.config_entry.options

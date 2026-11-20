@@ -178,10 +178,13 @@ class ConsumptionHistory:
         self._grid_s = 0.0
         self._phase_s = 0.0
         self._unsub_timer: CALLBACK_TYPE | None = None
+        self._loaded = False
 
     async def async_start(self) -> None:
-        """Load stored records and close intervals at every boundary."""
-        await self.async_load()
+        """Load stored records (unless loaded already) and close intervals at
+        every boundary."""
+        if not self._loaded:
+            await self.async_load()
         minute: str | int = f"/{self.minutes}" if self.minutes < 60 else 0
         self._unsub_timer = async_track_utc_time_change(
             self.hass, self._async_boundary, minute=minute, second=0
@@ -211,6 +214,7 @@ class ConsumptionHistory:
 
     async def async_load(self) -> None:
         """Load stored records."""
+        self._loaded = True
         if (data := await self._store.async_load()) is not None:
             records = data.get("records", [])
             self.records = [r for r in records if _valid(r)]

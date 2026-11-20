@@ -75,7 +75,7 @@ from .engine.control.interceptors import (
     create_interceptor,
 )
 from .engine.coordinator import ForecastCoordinator
-from .engine.db_store import database_url
+from .engine.db_store import async_close_databases, database_url
 from .engine.devices.batteries.virtual import VirtualBatterySimulator
 from .engine.devices.inverters import get_driver as get_inverter_driver
 from .engine.evaluation.command_check import CommandMonitor
@@ -200,8 +200,10 @@ async def async_setup_entry(
         entry.options.get(CONF_HISTORY_INTERVAL, DEFAULT_HISTORY_INTERVAL),
         database,
     )
-    await history.async_load()
+    # Before loading: an interval that ended while Home Assistant was down is
+    # finished at load, as vacation when vacation mode is on.
     history.vacation = bool(entry.options.get(CONF_VACATION, False))
+    await history.async_load()
 
     batteries = BatteryInput(hass, entry, decisions)
     await batteries.async_start()
@@ -730,6 +732,7 @@ async def async_unload_entry(
         await data.forecast.accuracy.async_save()
         await data.forecast.async_save_price_log()
         await data.plan_check.async_save()
+        await async_close_databases(hass)  # a changed URL opens anew
     return unloaded
 
 
