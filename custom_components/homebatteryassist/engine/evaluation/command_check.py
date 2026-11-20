@@ -146,6 +146,7 @@ class CommandCheck:
             # The battery's power is unknown now: nothing tells it follows
             # again, so a problem stays as it is.
             self.event.seen = when
+            self._quiet = None
             return None
         failing = (
             command is not None

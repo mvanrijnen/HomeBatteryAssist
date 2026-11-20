@@ -31,7 +31,12 @@ def regular_peak_hours(
     peaks: dict[tuple[int, int], set] = defaultdict(set)
     for record in records:
         start = dt_util.parse_datetime(str(record["start"]))
-        if start is None or start < since or not record.get("coverage"):
+        if (
+            start is None
+            or start < since
+            or not record.get("coverage")
+            or record.get("vacation")  # vacation and excluded days
+        ):
             continue
         local = dt_util.as_local(start)
         key = (local.weekday(), local.hour)

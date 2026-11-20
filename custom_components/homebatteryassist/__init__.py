@@ -66,6 +66,7 @@ from .const import (
     DEFAULT_SPIKE_THRESHOLD,
     DOMAIN,
     PHASE_NONE,
+    PRICES_CHECKED,
     SUBENTRY_PV_SOURCE,
 )
 from .engine.control.control_test import ControlTest
@@ -144,7 +145,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 # A price threshold above this per kWh was entered in ct (prices are per kWh
 # in the main currency since 0.92).
 CENT_THRESHOLD = 3.0
-PRICES_CHECKED = "price_thresholds_checked"  # in entry.data: converted once
 
 
 def _convert_cent_thresholds(

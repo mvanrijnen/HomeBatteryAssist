@@ -80,7 +80,12 @@ async def test_three_phase_flow(hass: HomeAssistant) -> None:
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == NAME
-    assert result["data"] == {CONF_PHASES: 3, CONF_MAX_CURRENT: 35, **sensors}
+    assert result["data"] == {
+        "price_thresholds_checked": True,  # new entry: entered as meant
+        CONF_PHASES: 3,
+        CONF_MAX_CURRENT: 35,
+        **sensors,
+    }
     assert result["options"] == {
         CONF_HISTORY_INTERVAL: 5,
         CONF_PLANNING_HORIZON: 3,
@@ -256,6 +261,7 @@ async def test_single_phase_flow(hass: HomeAssistant) -> None:
         "full_charge_window_days": 3,
     }
     assert result["data"] == {
+        "price_thresholds_checked": True,  # new entry: entered as meant
         CONF_PHASES: 1,
         CONF_MAX_CURRENT: 35,
         "sensor_l1": "sensor.power_l1",
@@ -539,6 +545,7 @@ async def test_detected_meter_fills_in_sensors(hass: HomeAssistant) -> None:
         result["flow_id"], {CONF_HISTORY_INTERVAL: "15", CONF_PLANNING_HORIZON: 2}
     )
     assert result["data"] == {
+        "price_thresholds_checked": True,  # new entry: entered as meant
         CONF_PHASES: 3,
         CONF_MAX_CURRENT: 25,
         "sensor_l1": "sensor.hwe_p1_abc_power_l1",
@@ -641,6 +648,7 @@ async def _direct_meter_keeps_own_sensors(hass: HomeAssistant) -> None:
     )
     assert result["reason"] == "reconfigure_successful"
     assert entry.data == {
+        "price_thresholds_checked": True,  # kept by the grid steps
         **data,
         "meter_source": "speedwire",
         "meter_address": "192.0.2.199",
@@ -707,6 +715,7 @@ async def _direct_meter_by_address(hass: HomeAssistant) -> None:
         result["flow_id"], {CONF_HISTORY_INTERVAL: "15", CONF_PLANNING_HORIZON: 2}
     )
     assert result["data"] == {
+        "price_thresholds_checked": True,  # new entry: entered as meant
         CONF_PHASES: 3,
         CONF_MAX_CURRENT: 25,
         "meter_source": "iammeter",

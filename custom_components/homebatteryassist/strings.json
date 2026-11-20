@@ -2004,7 +2004,7 @@
     },
     "storage_previous_lost": {
       "title": "Storage: old database not reachable",
-      "description": "The data could not be moved from {database}: it was not reachable at three tries. HomeBatteryAssist goes on from its JSON copy, from when the data moved to that database; what was stored there since is not taken over. If the database comes back, you can choose it again under Settings → Storage."
+      "description": "The data could not be moved from {database}: it was not reachable for half an hour. HomeBatteryAssist goes on from its JSON copy, from when the data moved to that database; what was stored there since is not taken over. If the database comes back, you can choose it again under Settings → Storage."
     }
   }
 }

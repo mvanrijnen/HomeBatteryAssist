@@ -150,6 +150,8 @@ def _reason(
         if first.reason == "manual":
             return text["fixed_manual"]
         return text["fixed_slot"].format(name=first.reason)
+    if mode in FIXED_MODES and not first.reason:
+        mode = MODE_NOM  # outside its time slots the plan is zero on the meter
     prices = [s.price for s, _ in run if s.price is not None]
     price = sum(prices) / len(prices) if prices else None
     if kind == "discharge":

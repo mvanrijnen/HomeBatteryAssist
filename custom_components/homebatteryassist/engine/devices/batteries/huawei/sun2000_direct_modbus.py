@@ -140,6 +140,7 @@ class HuaweiModbusDriver(ModbusBatteryDriver):
 
     async def _async_connected(self) -> None:
         """Reconnect after a lost connection, with the same pause."""
+        self.require_enabled()
         if not self.client.connected:
             await self.client.connect()
             await asyncio.sleep(self.connect_delay)
@@ -153,6 +154,7 @@ class HuaweiModbusDriver(ModbusBatteryDriver):
         """The inverter's model name (e.g. ``SUN2000-8K-MAP0``); None when
         the unit id answers as something else (e.g. an EMMA, ``SmartHEMS``).
         A battery is present only when the state of charge reads valid."""
+        self.require_enabled()
         await self._async_connected()
         model = ascii_text(await self.client.read_holding(REG_INVERTER_MODEL, 15))
         return model if model.startswith("SUN2000") else None

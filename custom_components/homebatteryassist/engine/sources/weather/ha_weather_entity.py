@@ -31,6 +31,7 @@ from .base import (
 _LOGGER = logging.getLogger(__name__)
 
 CACHE = timedelta(minutes=30)
+RETRY = timedelta(minutes=5)  # after an empty answer
 KINDS = ("hourly", "daily", "twice_daily")
 STEP = {"hourly": 1, "twice_daily": 12, "daily": 24}  # hours one value covers
 MAX_HOURLY_GAP = 6  # an hourly item covers at most this many hours
@@ -174,5 +175,10 @@ class WeatherEntitySource(WeatherSource):
                 "twice_daily",
                 unit,
             )
+        if not hourly and not daily:
+            # Nothing now (the entity still starting, a hiccup): keep the last
+            # good forecast and ask again soon instead of after CACHE.
+            self._read_at = now - CACHE + RETRY
+            return self._cache
         self._cache = combine(hourly, daily)
         return self._cache

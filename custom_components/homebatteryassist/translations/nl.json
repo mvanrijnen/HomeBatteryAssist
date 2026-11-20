@@ -2004,7 +2004,7 @@
     },
     "storage_previous_lost": {
       "title": "Opslag: oude database niet bereikbaar",
-      "description": "De gegevens konden niet worden verhuisd uit {database}: die was na drie pogingen niet bereikbaar. HomeBatteryAssist gaat verder met de JSON-kopie van toen de gegevens naar die database gingen; wat er sindsdien is opgeslagen, wordt niet overgenomen. Komt de database terug, dan kun je hem weer kiezen onder Instellingen → Opslag."
+      "description": "De gegevens konden niet worden verhuisd uit {database}: die was een half uur niet bereikbaar. HomeBatteryAssist gaat verder met de JSON-kopie van toen de gegevens naar die database gingen; wat er sindsdien is opgeslagen, wordt niet overgenomen. Komt de database terug, dan kun je hem weer kiezen onder Instellingen → Opslag."
     }
   }
 }

@@ -413,6 +413,7 @@ def planner_input(
     outlook: Outlook | None = None,
 ) -> PlannerInput | None:
     """What a planner gets; None without batteries or slots."""
+    states = list(states)
     pack = _pack(states, rules)
     if pack is None or not consumption:
         return None
@@ -467,6 +468,23 @@ def planner_input(
     ]
     forced = dict(forced or {})
     forced_by = {k: dict(v) for k, v in (forced_by or {}).items()}
+    # A full charge only for a battery that is in the plan now (one whose
+    # state of charge is unknown is left out: its block is not given to
+    # another battery).
+    usable = {
+        getattr(s.config, "id", None)
+        for s in states
+        if s.soc is not None and s.config.capacity_kwh > 0
+    }
+    for start, by in list(forced_by.items()):
+        gone = sum(w for i, w in by.items() if i not in usable)
+        if gone <= 0:
+            continue
+        forced_by[start] = {i: w for i, w in by.items() if i in usable}
+        forced[start] = max(forced.get(start, 0.0) - gone, 0.0)
+        if not forced_by[start]:
+            forced_by.pop(start)
+            forced.pop(start, None)
     if peak_w > 0:
         # A full charge stays under the peak limit (live, peak shaving would
         # cut it): the planners plan with what can really happen.
@@ -553,7 +571,8 @@ def finalise(
                 sum(
                     min(
                         first[m.id],
-                        m.max_charge_w,
+                        # What _share can give it (its phase room too).
+                        _cap(m, data.member_limits.get(slot.start), 0),
                         max(m.capacity_wh - wh, 0.0) / (slot.hours * m.efficiency),
                     )
                     for m, wh in zip(battery.members, member_wh, strict=True)
@@ -882,13 +901,18 @@ def compare_modes(
         return []
     total = 0.0
     series = []
-    for slot, slot_b, cost_a, cost_b in zip(
-        a.slots,
-        b.slots,
-        slot_costs(a, export_factor, cycle_cost),
-        slot_costs(b, export_factor, cycle_cost),
-        strict=False,
+    # Paired by time (a plan reused from an earlier cycle may start a slot
+    # earlier): only the slots both plans have.
+    by_start = {
+        s.start: (s, c)
+        for s, c in zip(b.slots, slot_costs(b, export_factor, cycle_cost), strict=False)
+    }
+    for slot, cost_a in zip(
+        a.slots, slot_costs(a, export_factor, cycle_cost), strict=False
     ):
+        if slot.start not in by_start:
+            continue
+        slot_b, cost_b = by_start[slot.start]
         total += cost_b - cost_a
         stored = a.stored_value(slot.soc) - a.stored_value(slot_b.soc)
         series.append((slot.start, round(total + stored, 4)))

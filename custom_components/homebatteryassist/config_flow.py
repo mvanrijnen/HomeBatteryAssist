@@ -38,6 +38,7 @@ from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import (
     SOURCE_RECONFIGURE,
     ConfigEntry,
+    ConfigEntryState,
     ConfigFlow,
     ConfigFlowResult,
     ConfigSubentry,
@@ -241,6 +242,7 @@ from .const import (
     PHASE_OPTIONS,
     PRICE_EXTENSION_NONE,
     PRICE_SOURCE_SENSOR,
+    PRICES_CHECKED,
     PV_CORRECTION_BOTH,
     PV_CORRECTION_MODES,
     PV_DRIVER_SENSOR,
@@ -1233,6 +1235,21 @@ async def _flat_settings_schema(
 SELECT_OPTIONS = (CONF_HISTORY_INTERVAL, CONF_FORECAST_INTERVAL, CONF_BALANCE_INTERVAL)
 
 
+def _keep_flags(entry: ConfigEntry, data: dict[str, Any]) -> dict[str, Any]:
+    """The grid steps rebuild the data: keep what HomeBatteryAssist set in it
+    itself (the price thresholds check)."""
+    if entry.data.get(PRICES_CHECKED):
+        return {**data, PRICES_CHECKED: True}
+    return data
+
+
+def _reload_if_not_loaded(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """A loaded entry reloads through its update listener; one whose setup
+    failed has none, so the fix the user just saved is tried here."""
+    if entry.state not in (ConfigEntryState.LOADED, ConfigEntryState.SETUP_RETRY):
+        hass.config_entries.async_schedule_reload(entry.entry_id)
+
+
 async def storage_errors(
     hass: HomeAssistant,
     options: Mapping[str, Any],
@@ -1746,10 +1763,12 @@ class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
     async def _async_grid_done(self) -> ConfigFlowResult:
         """The grid connection is complete: save it (reconfigure) or continue."""
         if self.source == SOURCE_RECONFIGURE:
-            # The update listener reloads the entry.
-            return self.async_update_and_abort(
-                self._get_reconfigure_entry(), data=self._data
+            entry = self._get_reconfigure_entry()
+            result = self.async_update_and_abort(
+                entry, data=_keep_flags(entry, self._data)
             )
+            _reload_if_not_loaded(self.hass, entry)  # else the listener reloads
+            return result
         return await self.async_step_settings()
 
     async def async_step_settings(
@@ -1760,8 +1779,11 @@ class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             options = settings_from_input(user_input)
             if not (errors := await storage_errors(self.hass, options)):
+                # A new entry: thresholds entered now are meant as they are.
                 return self.async_create_entry(
-                    title=NAME, data=self._data, options=options
+                    title=NAME,
+                    data={**self._data, PRICES_CHECKED: True},
+                    options=options,
                 )
 
         # After an error: what was entered (also inside the sections).
@@ -1827,6 +1849,7 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
                     self.hass, options, self.config_entry.options
                 )
             ):
+                _reload_if_not_loaded(self.hass, self.config_entry)
                 return self.async_create_entry(data=options)
 
         current = self.config_entry.options
@@ -1866,8 +1889,12 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
 
     async def _async_grid_done(self) -> ConfigFlowResult:
         """Save the new grid connection; the entry reloads."""
-        self.hass.config_entries.async_update_entry(self.config_entry, data=self._data)
-        return self.async_create_entry(data=dict(self.config_entry.options))
+        entry = self.config_entry
+        self.hass.config_entries.async_update_entry(
+            entry, data=_keep_flags(entry, self._data)
+        )
+        _reload_if_not_loaded(self.hass, entry)
+        return self.async_create_entry(data=dict(entry.options))
 
 
 class _MeasuredDeviceSubentryFlow(ConfigSubentryFlow):

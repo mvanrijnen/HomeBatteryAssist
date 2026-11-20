@@ -39,14 +39,16 @@ class InverterDriver:
     limits: str = "power"
     points: tuple[Point, ...] = ()
 
-    def describe(self, address: str, limit_w: float) -> str:
-        """What it would send for this limit (for the attributes and *Why*)."""
+    def describe(self, address: str | None, limit_w: float) -> str:
+        """What it would send for this limit (for the attributes and *Why*;
+        ``address`` None leaves the network address out)."""
         parts = [
             ("" if p.unit is None else f"unit {p.unit} ")
             + f"{p.address}={p.value.format(limit_w=round(limit_w))}"
             for p in self.points
         ]
-        return f"{self.name} {address}: " + ", ".join(parts)
+        where = f"{self.name} {address}" if address else self.name
+        return f"{where}: " + ", ".join(parts)
 
     async def async_set_limit(
         self, hass: HomeAssistant, address: str, limit_w: float | None

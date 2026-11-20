@@ -260,6 +260,35 @@ class ForecastAccuracy:
 
     # -- recording ---------------------------------------------------------------
 
+    def forget_days(self, days: Iterable[str]) -> int:
+        """Drop what was settled on these local days (ISO dates) for the
+        consumption kinds: days the user left out of learning (a party, a
+        power cut) are not learned from by the correction either. Returns
+        the results dropped."""
+        wanted = set(days)
+        dropped = 0
+        for kind in self.kinds:
+            if not (
+                kind in ("consumption", HEATING_KIND)
+                or kind.startswith(FORECASTER_KIND)
+            ):
+                continue
+            kept = []
+            for result in self.results.get(kind, []):
+                start = dt_util.parse_datetime(str(result["start"]))
+                if (
+                    start is not None
+                    and dt_util.as_local(start).date().isoformat() in wanted
+                ):
+                    dropped += 1
+                else:
+                    kept.append(result)
+            self.results[kind] = kept
+        if dropped:
+            self.refresh_stats(dt_util.utcnow())
+            self._store.async_delay_save(self._data, 1)
+        return dropped
+
     def forget(self, kind: Kind, starts: Iterable[datetime]) -> None:
         """Drop pending predictions for these slots (e.g. the user adjusted
         them: what is measured then is intent, not a forecast error)."""

@@ -39,6 +39,7 @@ TEXT = {
         "now_idle_save_wait": "Tot {start} leveren de batterijen niet en komt de stroom van het net, omdat stroom nu niet duur genoeg is ({price}): ze bewaren hun energie voor {use}, als stroom {use_price} kost, en laden {when} bij tegen {charge_price}.",
         "now_charge_pv": "Van nu tot {until} laden de batterijen met zonnestroom die anders naar het net zou gaan.",
         "now_charge_grid": "Van nu tot {until} laden de batterijen uit het net, omdat stroom dan goedkoop is ({price}).",
+        "now_charge_grid_plain": "Van nu tot {until} laden de batterijen uit het net.",
         "now_discharge": "Van nu tot {until} leveren de batterijen stroom aan het huis, omdat stroom dan duur is ({price}).",
         "now_discharge_export": "Van nu tot {until} leveren de batterijen stroom aan het huis en terug aan het net, omdat teruglevering dan veel oplevert ({price}).",
         "now_discharge_nom": "Van nu tot {until} leveren de batterijen stroom aan het huis, zodat er geen stroom van het net nodig is.",
@@ -90,6 +91,7 @@ TEXT = {
         "now_idle_save_wait": "Until {start} the batteries do not discharge and the house runs on the grid, because power is not expensive enough now ({price}): they keep their energy for {use}, when power costs {use_price}, and charge {when} at {charge_price}.",
         "now_charge_pv": "From now until {until} the batteries charge with solar power that would otherwise go to the grid.",
         "now_charge_grid": "From now until {until} the batteries charge from the grid, because power is cheap then ({price}).",
+        "now_charge_grid_plain": "From now until {until} the batteries charge from the grid.",
         "now_discharge": "From now until {until} the batteries supply the house, because power is expensive then ({price}).",
         "now_discharge_export": "From now until {until} the batteries supply the house and the grid, because export pays well then ({price}).",
         "now_discharge_nom": "From now until {until} the batteries supply the house, so no power from the grid is needed.",
@@ -346,7 +348,9 @@ def plan_story(
         # rule of the charge blocks below, so both sentences agree).
         from_grid = min(current.power_w, max(current.grid_w, 0.0))
         key = "now_charge_grid" if from_grid >= current.power_w / 2 else "now_charge_pv"
-        sentences.append(t[key].format(until=until, price=per_kwh(price_now or 0)))
+        if key == "now_charge_grid" and price_now is None:
+            key = "now_charge_grid_plain"  # no price known: no price reason
+        sentences.append(t[key].format(until=until, price=per_kwh(price_now or 0.0)))
     elif current.power_w < -ACTIVE_W:
         if plan.strategy == "nom" or price_now is None:
             sentences.append(t["now_discharge_nom"].format(until=until))

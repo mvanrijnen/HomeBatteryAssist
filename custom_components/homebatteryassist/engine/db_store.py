@@ -21,8 +21,8 @@ use, or the one to move from) makes the setup wait and try again
 (``ConfigEntryNotReady``) instead of carrying on with the JSON file, which is
 only the copy from when the data moved. The way out when a database is gone
 for good: choose another storage; the database to move from is then tried
-``GIVE_UP_AFTER`` times, after which the JSON copy is used and a repair issue
-says so. A write that fails while running
+for ``GIVE_UP_AFTER`` (counted from its first failure), after which the JSON
+copy is used and a repair issue says so. A write that fails while running
 saves everything to the JSON file and marks it as the place in use; the next
 start moves it into the database again.
 
@@ -37,6 +37,7 @@ import json
 import logging
 import os
 from collections.abc import Callable, Mapping
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
@@ -44,6 +45,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
+from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN
 
@@ -65,7 +67,7 @@ SERVER_BACKENDS = (BACKEND_MYSQL, BACKEND_POSTGRESQL)
 SQLITE_FILE = "homebatteryassist/homebatteryassist.db"
 TABLE = "hba_store"
 SEP = "|"
-GIVE_UP_AFTER = 3  # tries of a database to move from, then the JSON copy
+GIVE_UP_AFTER = timedelta(minutes=30)  # a database to move from, then JSON
 ISSUE_LOST = "storage_previous_lost"
 JSON = "json"  # marker: kept in the JSON file
 MARKER_KEY = "homebatteryassist.storage_backend"
@@ -394,9 +396,9 @@ class HbaStore:
                 _database(where).read, self.name
             )
         except Exception as err:
-            tries = self.hass.data.setdefault(f"{MARKER_KEY}_tries", {})
-            tries[self.name] = tries.get(self.name, 0) + 1
-            if tries[self.name] < GIVE_UP_AFTER:
+            failing = self.hass.data.setdefault(f"{MARKER_KEY}_failing", {})
+            first = failing.setdefault((self.name, describe(where)), dt_util.utcnow())
+            if dt_util.utcnow() - first < GIVE_UP_AFTER:
                 raise ConfigEntryNotReady(
                     f"{self.name}: database {describe(where)} to move from is "
                     f"not reachable ({err})"
@@ -418,7 +420,12 @@ class HbaStore:
                 translation_key=ISSUE_LOST,
                 translation_placeholders={"database": describe(where)},
             )
+            failing.pop((self.name, describe(where)), None)
             return await self._json.async_load()
+        self.hass.data.get(f"{MARKER_KEY}_failing", {}).pop(
+            (self.name, describe(where)), None
+        )
+        ir.async_delete_issue(self.hass, DOMAIN, f"{ISSUE_LOST}_{self.name}")
         return join(rows, self._layout) if rows else None
 
     async def async_save(self, data: dict[str, Any]) -> None:

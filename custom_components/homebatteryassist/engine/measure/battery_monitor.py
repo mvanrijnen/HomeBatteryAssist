@@ -100,6 +100,13 @@ ACTIVITY_THRESHOLD_W = 50.0  # |power| above this counts as charging/discharging
 POWER_STALE = timedelta(seconds=90)
 BATTERY_STALE_W = 50.0
 FROZEN_CHECK = timedelta(seconds=15)
+# A sensor reported less often (a slow or cloud integration) gets longer:
+# frozen only after FROZEN_GAPS times its longest recent report interval.
+FROZEN_GAPS = 3
+# Not frozen in the first minutes after a start (integrations reconnecting).
+FROZEN_QUIET = timedelta(minutes=2)
+GAPS_KEY = f"{DOMAIN}_power_report_gaps"  # hass.data: entity -> seconds
+QUIET_KEY = f"{DOMAIN}_power_quiet_until"  # hass.data: datetime
 
 
 def activity_of(power_w: float) -> str:
@@ -386,8 +393,13 @@ def power_frozen(
     watts = state_to_watts(state)
     if watts is None or abs(watts) < BATTERY_STALE_W:
         return False
+    now = now or dt_util.utcnow()
+    if (quiet := hass.data.get(QUIET_KEY)) is not None and now < quiet:
+        return False
+    gap = hass.data.get(GAPS_KEY, {}).get(config.power_sensor, 0.0)
+    stale = max(POWER_STALE, timedelta(seconds=FROZEN_GAPS * gap))
     seen = getattr(state, "last_reported", None) or state.last_updated
-    return (now or dt_util.utcnow()) - seen > POWER_STALE
+    return now - seen > stale
 
 
 def read_battery(hass: HomeAssistant, config: BatteryConfig) -> BatteryState:
@@ -545,6 +557,7 @@ class BatteryInput:
         self._listeners: list[Callable[[], None]] = []
         self._unsub: CALLBACK_TYPE | None = None
         self._unsub_frozen: CALLBACK_TYPE | None = None
+        self._reported: dict[str, datetime] = {}  # power sensors' last report
         self._unsub_log: CALLBACK_TYPE | None = None
         # Price (per kWh) at a moment (default now), set by the setup (from
         # the price forecast).
@@ -582,6 +595,7 @@ class BatteryInput:
             self.hass, self._async_log_soc, minute="/15", second=0
         )
         # A frozen power sensor sends no event: look every FROZEN_CHECK.
+        self.hass.data[QUIET_KEY] = dt_util.utcnow() + FROZEN_QUIET
         self._unsub_frozen = async_track_time_interval(
             self.hass, self._async_check_frozen, FROZEN_CHECK
         )
@@ -821,12 +835,34 @@ class BatteryInput:
     @callback
     def _async_check_frozen(self, now: datetime) -> None:
         """A battery whose power sensor froze at a real power: unknown now
-        (``power_frozen``), so its counters stop and the checks see it."""
+        (``power_frozen``), so its counters stop and the checks see it; and
+        back as soon as it is reported again (also with the same value,
+        which fires no state change). Learns how often each sensor is
+        reported, so a slow integration is not taken for frozen."""
+        gaps: dict[str, float] = self.hass.data.setdefault(GAPS_KEY, {})
         for config in self.configs:
-            if (
-                not config.virtual
-                and self.states[config.id].power_w is not None
-                and power_frozen(self.hass, config, now)
+            if config.virtual or not config.power_sensor:
+                continue
+            state = self.hass.states.get(config.power_sensor)
+            reported = (
+                (getattr(state, "last_reported", None) or state.last_updated)
+                if state is not None
+                else None
+            )
+            previous = self._reported.get(config.id)
+            if reported is not None and previous is not None and reported > previous:
+                gap = (reported - previous).total_seconds()
+                gaps[config.power_sensor] = max(
+                    gap, gaps.get(config.power_sensor, 0) * 0.9
+                )
+            if reported is not None:
+                self._reported[config.id] = reported
+            known = self.states[config.id].power_w is not None
+            frozen = power_frozen(self.hass, config, now)
+            if (known and frozen) or (
+                not known
+                and not frozen
+                and battery_power(self.hass, config) is not None
             ):
                 self._update(config, now)
 
@@ -1188,6 +1224,8 @@ class BatteryInput:
     def _explain_availability(self, config: BatteryConfig, available: bool) -> None:
         """Explain losing / regaining a battery (not the first state at start-up)."""
         was = self._was_available.get(config.id)
+        if not available and power_frozen(self.hass, config):
+            return  # told by the measurement (battery_stale), not twice
         if was is not None and was != available:
             self._decisions.async_log(
                 "battery",
@@ -1208,9 +1246,7 @@ class BatteryInput:
             if power_frozen(self.hass, config, now):
                 # Frozen: stop counting its last power (counters, value) and
                 # tell everyone reading it (command check, plan) it is unknown.
-                self._last_power.pop(config.id, None)
-                state = self.states[config.id]
-                self.states[config.id] = replace(state, power_w=None)
+                self._update(config, now)
                 continue
             self._count_energy(config.id, now, self._last_power[config.id][1])
         self._store.async_delay_save(self._data, SAVE_DELAY)

@@ -163,6 +163,7 @@ class AnkerModbusDriver(ModbusBatteryDriver):
 
     async def _async_connected(self) -> None:
         """Reconnect after a lost connection, with the same pause."""
+        self.require_enabled()
         if not self.client.connected:
             await self.client.connect()
             await asyncio.sleep(self.connect_delay)
@@ -174,6 +175,7 @@ class AnkerModbusDriver(ModbusBatteryDriver):
 
     async def async_identify(self) -> str | None:
         """The product code from the model register, else the serial."""
+        self.require_enabled()
         await self._async_connected()
         model = ascii_text(await self.client.read_input(REG_MODEL, 5))
         if code := product_code(model):

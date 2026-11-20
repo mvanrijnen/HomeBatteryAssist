@@ -218,6 +218,7 @@ class MarstekVenusModbus(ModbusBatteryDriver):
     async def async_close(self) -> None:
         """Disconnect and remember when (the slot is freed with a delay)."""
         await self.client.close()
+        self.client.allowed = False
         self._closed_at = time.monotonic()
         self._control_enabled = False
 
@@ -308,6 +309,7 @@ class MarstekVenusModbus(ModbusBatteryDriver):
         while acknowledging writes; only a fresh connection (close, wait
         about 1 s, reconnect, enable RS485) recovers that.
         """
+        self.require_enabled()
         target = round(power_w)
         ceiling = round(self.ceiling_w())
         if target > 0:
@@ -339,6 +341,7 @@ class MarstekVenusModbus(ModbusBatteryDriver):
         "off" as a step before re-enabling control; re-enable with 0x55AA
         directly and write a standby.
         """
+        self.require_enabled()
         async with self._lock:
             if not await self._release_allowed():
                 _LOGGER.warning(
@@ -354,6 +357,7 @@ class MarstekVenusModbus(ModbusBatteryDriver):
 
     async def _release_allowed(self) -> bool:
         """Whether the backup function and backup-port load allow a release."""
+        self.require_enabled()
         off_grid = self.point("off_grid_power_w")
         try:
             (backup,) = await self.client.read_holding(BACKUP_FUNCTION, 1)

@@ -116,7 +116,9 @@ def find_meter_candidates(hass: HomeAssistant) -> list[MeterCandidate]:
                 )
         for device_id in sorted(markers):
             found = phases.get(device_id, {})
-            count = 3 if all(n in found for n in (1, 2, 3)) else 1 if 1 in found else 0
+            # Only complete: a 3-phase meter with a phase sensor missing
+            # (disabled) is not offered as a 1-phase one.
+            count = 3 if set(found) == {1, 2, 3} else 1 if set(found) == {1} else 0
             if not count:
                 continue
             device = devices.async_get(device_id)

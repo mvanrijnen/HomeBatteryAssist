@@ -887,11 +887,16 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 and not window.is_empty
                 and previous.slots
                 and previous.slots[-1].end <= window.end
-                and previous.slots[0].start >= window.start - step
+                # It holds the slot of now (made within the last hour).
+                and previous.slots[0].start <= window.start
+                and previous.slots[-1].end > now
             ):
                 # A heavy mode that is not chosen is only there to compare
                 # with: computed once an hour, not every cycle.
-                plans[mode] = previous
+                # Without the slots that ended since (as the other plans).
+                plans[mode] = replace(
+                    previous, slots=[s for s in previous.slots if s.end > now]
+                )
                 continue
             try:
                 plan = await self.hass.async_add_executor_job(

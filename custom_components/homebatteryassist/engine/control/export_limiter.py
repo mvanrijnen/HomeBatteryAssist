@@ -260,13 +260,15 @@ class ExportLimiter:
             else f"earns less than {limit}"
         )
 
-    def would_send(self) -> list[str]:
+    def would_send(self, addresses: bool = True) -> list[str]:
         """Per inverter: what its driver would send for the limit now (once
-        per device: PV sources behind one Home Manager share its command)."""
+        per device: PV sources behind one Home Manager share its command);
+        ``addresses`` False leaves the network addresses out (attributes
+        every user can see)."""
         targets = self.targets()
         return list(
             dict.fromkeys(
-                driver.describe(address, target)
+                driver.describe(address if addresses else None, target)
                 if driver is not None and target is not None
                 else f"{name}: -"
                 for (name, driver, address), target in zip(

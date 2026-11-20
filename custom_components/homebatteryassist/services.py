@@ -30,6 +30,7 @@ from homeassistant.core import (
 )
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.service import async_register_admin_service
 from homeassistant.util import dt as dt_util
 
 from .const import CONF_PLAN_MODE, DOMAIN, HISTORY_RETENTION
@@ -220,7 +221,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
         history = entry.runtime_data.history
         if history.excluded_days:
             history.exclude_days([date.fromisoformat(d) for d in history.excluded_days])
+            await history.async_save()  # with the excluded days marked
         entry.runtime_data.forecast.history_changed()  # learn from it at once
+        await entry.runtime_data.forecast.async_request_refresh()
         entry.runtime_data.decisions.async_log(
             "history",
             "history_imported",
@@ -301,7 +304,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
             entry, options={**entry.options, CONF_PLAN_MODE: mode}
         )
 
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_SET_PLAN_MODE,
         _set_plan_mode,
@@ -362,14 +366,16 @@ def async_setup_services(hass: HomeAssistant) -> None:
             )
         await forecast.async_refresh()
 
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_SET_CORRECTION,
         _set_correction,
         schema=SET_CORRECTION_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_RESET_ACCURACY,
         _reset_accuracy,
@@ -395,6 +401,9 @@ def async_setup_services(hass: HomeAssistant) -> None:
         changed = history.exclude_days(days, exclude=not include)
         await history.async_save()
         forecast = entry.runtime_data.forecast
+        if not include:
+            # Also what the correction already learned from those days.
+            forecast.accuracy.forget_days(d.isoformat() for d in days)
         forecast.history_changed()
         entry.runtime_data.decisions.async_log(
             "history",
@@ -409,7 +418,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
         }
         return result if call.return_response else None
 
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_EXCLUDE_DAYS,
         _exclude_days,
@@ -436,7 +446,8 @@ def async_setup_services(hass: HomeAssistant) -> None:
         _recalculate,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    async_register_admin_service(
+        hass,
         DOMAIN,
         SERVICE_IMPORT_HISTORY,
         _import_history,

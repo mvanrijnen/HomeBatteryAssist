@@ -100,8 +100,9 @@ class ModbusBatteryDriver(DirectBatteryDriver):
         await self.client.connect()
 
     async def async_close(self) -> None:
-        """Disconnect."""
+        """Disconnect (a new connection needs async_open again)."""
         await self.client.close()
+        self.client.allowed = False
 
     async def async_read(self) -> DirectReading:
         """Read all points and map them onto a reading."""

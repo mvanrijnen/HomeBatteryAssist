@@ -111,7 +111,9 @@ class PdController:
             and direction
             and last
             and direction != last
-            and abs(new) < s.hysteresis_w
+            # What zero on the meter wants the other way (not this round's
+            # step, else the dead band would be hysteresis / Kp).
+            and abs(ideal_w) < s.hysteresis_w
         ):
             new, direction = 0.0, 0  # no change of direction for a small power
         if direction:

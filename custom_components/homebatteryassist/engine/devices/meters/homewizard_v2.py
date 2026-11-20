@@ -53,7 +53,9 @@ def homewizard_v2_reading(data: dict[str, Any]) -> PhaseReading | None:
         if data.get("power_w") is None:
             return None
         values = [data["power_w"], None, None]
-    count = 3 if values[1] is not None and values[2] is not None else 1
+    if (values[1] is None) != (values[2] is None):
+        return None  # some phases missing: unknown, not a part counted as all
+    count = 3 if values[1] is not None else 1
     power = per_phase(values, count)
     if power is None:
         return None
