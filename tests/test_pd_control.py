@@ -45,16 +45,27 @@ def test_pd_direction_hysteresis() -> None:
 
 
 def test_response_delay_and_ramp() -> None:
-    """A new power is followed after the delay, then ramped."""
+    """A new power is followed from the delay after it was given (at that
+    moment, not at the next round), then ramped from there."""
     at_once = BatteryResponse()
     assert at_once.apply(T0, 800.0) == 800.0
     delayed = BatteryResponse(delay_s=10, ramp_w_s=100)
     assert delayed.apply(T0, 1000.0) == 0.0
     assert delayed.apply(T0 + timedelta(seconds=5), 1000.0) == 0.0  # not yet
-    assert delayed.apply(T0 + timedelta(seconds=10), 1000.0) == 500.0  # 5 s x 100
-    assert delayed.apply(T0 + timedelta(seconds=15), 1000.0) == 1000.0
+    assert delayed.apply(T0 + timedelta(seconds=10), 1000.0) == 0.0  # starts now
+    assert delayed.apply(T0 + timedelta(seconds=15), 1000.0) == 500.0  # 5 s x 100
+    assert delayed.apply(T0 + timedelta(seconds=20), 1000.0) == 1000.0
     delayed.hold(400.0, T0 + timedelta(seconds=20))  # e.g. it got full
     assert delayed.apply(T0 + timedelta(seconds=21), 1000.0) == 500.0
+    # A delay shorter than a round counts as it is (not as a whole round).
+    short = BatteryResponse(delay_s=2, ramp_w_s=0.0001)
+    short.apply(T0, 0.0)
+    short.apply(T0 + timedelta(seconds=5), 1000.0)
+    assert short.power_at(T0 + timedelta(seconds=7)) == pytest.approx(0.0, abs=0.01)
+    fast = BatteryResponse(delay_s=2, ramp_w_s=1000)
+    fast.apply(T0, 0.0)
+    fast.apply(T0 + timedelta(seconds=5), 1000.0)
+    assert fast.power_at(T0 + timedelta(seconds=8)) == 1000.0  # 7 s + 1 s ramp
 
 
 def _simulate(settings: PdSettings) -> dict:
@@ -73,8 +84,9 @@ def _simulate(settings: PdSettings) -> dict:
     when = T0
     for i in range(120):
         when = T0 + timedelta(seconds=5 * i)
+        actual = response.power_at(when)  # as the meter sees it now
         command = max(-2500.0, min(2500.0, pd.step(-house, actual, command)))
-        actual = response.apply(when, command)
+        response.apply(when, command)
         quality.add(when, house + actual, actual)
     return quality.summary(when)
 
@@ -103,6 +115,7 @@ def test_response_hold_keeps_one_direction() -> None:
     from 0 afterwards (never both directions at once)."""
     ramp = BatteryResponse(ramp_w_s=100)
     ramp.apply(T0, 0.0)
-    assert ramp.apply(T0 + timedelta(seconds=5), -2000.0) == -500.0
-    ramp.hold(0.0, T0 + timedelta(seconds=5))
+    ramp.apply(T0 + timedelta(seconds=5), -2000.0)
     assert ramp.apply(T0 + timedelta(seconds=10), -2000.0) == -500.0
+    ramp.hold(0.0, T0 + timedelta(seconds=10))
+    assert ramp.apply(T0 + timedelta(seconds=15), -2000.0) == -500.0

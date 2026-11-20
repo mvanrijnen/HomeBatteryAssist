@@ -170,4 +170,51 @@ def test_full_battery_block_does_not_charge_the_others() -> None:
         forced_by={k: {"a": w} for k, w in block.items()},
     )
     charged = sum(max(s.power_w, 0.0) for s in plan.slots)  # Wh (1 h slots)
-    assert charged <= 1000.0 + 1  # a's missing 20 % only
+    # What a gave for the house before and in its block (it refills that).
+    given = -sum(min(s.power_w, 0.0) for s in plan.slots[:4])
+    # a's missing 20 % and what it gave only (not b from the grid).
+    assert charged <= 1000.0 + given + 1
+
+
+def test_later_block_reaches_full() -> None:
+    """A full charge block later in the window (the battery discharges
+    before it) still charges the battery to 100 %, in every mode, with one
+    or two batteries."""
+    from custom_components.homebatteryassist.engine.forecast.consumption_forecast import (
+        ForecastSlot,
+    )
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        plan_batteries,
+    )
+
+    slots = [
+        ForecastSlot(NOW + k * H, NOW + (k + 1) * H, 500.0, 500.0, "x")
+        for k in range(10)
+    ]
+    block = {NOW + 6 * H: 2500.0, NOW + 7 * H: 2500.0}
+    for mode in ("nom", "arbitrage"):
+        for count in (1, 2):
+            batteries = [_battery(i, soc=90.0) for i in "ab"[:count]]
+            for battery in batteries:
+                battery.config.min_soc, battery.config.max_soc = 10.0, 100.0
+                battery.config.max_charge_w = battery.config.max_discharge_w = 2500.0
+                battery.config.efficiency = 0.81
+            plan = plan_batteries(
+                batteries,
+                slots,
+                {},
+                _prices([0.30] * 10),
+                mode=mode,
+                forced=block,
+                forced_by={k: {"a": w} for k, w in block.items()},
+            )
+            powers = [s.power_w for s in plan.slots]
+            if count == 1:
+                assert plan.slots[7].soc >= 99.9, (mode, powers)
+            else:  # a full: half the pack, plus b at least at its minimum
+                assert plan.slots[7].soc >= 50.0 + 0.5 * 10.0 - 0.1, (
+                    mode,
+                    powers,
+                )
+            if mode == "nom":  # it discharged before: the block charges fully
+                assert powers[6] >= 2400.0, (mode, count, powers)

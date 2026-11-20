@@ -1130,6 +1130,24 @@ class BatteryInput:
         stats = self.stats[battery_id]
         return when, stats["charged_kwh"], stats["discharged_kwh"]
 
+    def _idle_source(self, config: BatteryConfig) -> str:
+        """What the house runs on while this battery is idle: the grid,
+        exporting, the sun (grid about 0) — or none to name when another
+        battery is what keeps the grid about 0."""
+        grid = self.grid_now()
+        if grid is None:
+            return "none"
+        if grid > ACTIVITY_THRESHOLD_W:
+            return "grid"
+        if grid < -ACTIVITY_THRESHOLD_W:
+            return "export"
+        others = any(
+            abs(self.states[c.id].power_w or 0.0) >= ACTIVITY_THRESHOLD_W
+            for c in self.configs
+            if c.id != config.id and not c.virtual
+        )
+        return "none" if others else "pv"
+
     def _explain_now(self, config: BatteryConfig) -> None:
         """What a real battery is doing right now (once after start-up)."""
         activity = self._activity.get(config.id)
@@ -1138,15 +1156,7 @@ class BatteryInput:
         if activity != "idle":
             self._explain_start(config, activity, None)
             return
-        grid = self.grid_now()
-        if grid is None:
-            idle = "none"
-        elif grid > ACTIVITY_THRESHOLD_W:
-            idle = "grid"
-        elif grid < -ACTIVITY_THRESHOLD_W:
-            idle = "export"
-        else:
-            idle = "pv"
+        idle = self._idle_source(config)
         state = self.states[config.id]
         why = "none"
         if state.soc is not None and state.soc >= config.max_soc - 1:
@@ -1216,15 +1226,7 @@ class BatteryInput:
         elif state.soc is not None and state.soc <= config.min_soc + 1:
             why = "empty"
         # What the house runs on now that the battery is idle.
-        grid = self.grid_now()
-        if grid is None:
-            idle = "none"
-        elif grid > ACTIVITY_THRESHOLD_W:
-            idle = "grid"
-        elif grid < -ACTIVITY_THRESHOLD_W:
-            idle = "export"
-        else:
-            idle = "pv"
+        idle = self._idle_source(config)
         expected = self.expected_until(config.id, "idle")
         until, until_why = expected if expected else (None, "none")
         self._decisions.async_log(

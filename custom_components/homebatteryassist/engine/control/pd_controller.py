@@ -9,7 +9,7 @@ oscillates. A PD controller steers towards the target in steps instead:
 
     error = ideal - actual       (W: what zero on the meter wants minus what
                                   the batteries do now, as the meter sees it)
-    new   = previous command + Kp * error + Kd * (error - previous error)
+    new   = previous command + Kp * error - Kd * (actual - previous actual)
 
 Built on the previous *command*, as a real controller does: while a battery
 still ramps towards it, the meter shows the old shortage, so "direct"
@@ -18,8 +18,10 @@ that. Without a delay (actual = previous command) direct is exactly the ideal.
 
 - ``kp`` (proportional): how much of the error is closed per round (1 = all,
   as direct);
-- ``kd`` (derivative): reacts to how fast the error changes, damping an
-  overshoot;
+- ``kd`` (derivative): reacts to how fast the batteries' power changes,
+  damping an overshoot (on the measurement, not the error: a jump in what
+  the house asks gives no kick, and a battery held at a limit (full, empty,
+  max power) builds up nothing that kicks once it can follow again);
 - ``max_step_w``: the most the power changes in one round (0 = no limit);
 - ``hysteresis_w``: a change of direction (charge <-> discharge) only when
   the new power is at least this much; below it the batteries stop (the
@@ -68,13 +70,13 @@ class PdController:
     def __init__(self, settings: PdSettings) -> None:
         """Initialize."""
         self.settings = settings
-        self._previous_error: float | None = None
+        self._previous_actual: float | None = None
         self._direction = 0  # last direction: 1 charging, -1 discharging
 
     def reset(self) -> None:
-        """Forget the previous error and direction (another mode ran in
+        """Forget the previous power and direction (another mode ran in
         between, or the meter was gone)."""
-        self._previous_error = None
+        self._previous_actual = None
         self._direction = 0
 
     def step(
@@ -92,8 +94,11 @@ class PdController:
         scale = max(0.0, min(scale, 1.0))
         current_w = actual_w if command_w is None else command_w
         error = ideal_w - actual_w
-        change = 0.0 if self._previous_error is None else error - self._previous_error
-        self._previous_error = error
+        # Derivative on the measurement (see the module docstring).
+        change = (
+            0.0 if self._previous_actual is None else self._previous_actual - actual_w
+        )
+        self._previous_actual = actual_w
         delta = scale * (s.kp * error + s.kd * change)
         if s.max_step_w > 0:
             most = s.max_step_w * scale

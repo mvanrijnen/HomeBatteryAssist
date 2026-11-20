@@ -1091,8 +1091,13 @@ class VirtualBatterySimulator:
             if flow is not None:
                 # As a real controller: from the previous command and what the
                 # batteries (these, not the ones charging fully) do now.
+                # What they do now, as the meter sees it when it looks (with a
+                # simulated delay / ramp: the power at this moment).
                 actual = sum(
-                    self._batteries.states[c.id].power_w or 0.0 for c in virtual
+                    self._response(c.id).power_at(now)
+                    if self._response(c.id).active
+                    else self._batteries.states[c.id].power_w or 0.0
+                    for c in virtual
                 )
                 commanded = (
                     sum(self._commands[c.id] for c in virtual)

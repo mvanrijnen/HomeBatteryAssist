@@ -535,16 +535,10 @@ def planner_input(
                         i: w * room / want for i, w in forced_by[s.start].items()
                     }
     if forced_by:
-        # Each block only what its battery can still take up to 100 %, its
-        # power and its phase room (it gets the full charge first, so how
-        # full it gets is known): once full, the rest of its block is no
-        # forced charge, for no planner (it would charge the others).
+        # Each block at most its battery's power and phase room. (How full it
+        # is when the block runs depends on the plan before it: once it is
+        # full, finalise drops the rest of its block, per slot.)
         by_id = {getattr(s.config, "id", None): s for s in states}
-        wh = {
-            i: st.soc * st.config.capacity_kwh * 10
-            for i, st in by_id.items()
-            if st.soc is not None
-        }
         for s in slots:
             by = forced_by.get(s.start)
             if not by:
@@ -553,16 +547,12 @@ def planner_input(
             given: dict[str, float] = {}
             for i, w in by.items():
                 st = by_id.get(i)
-                if st is None or i not in wh:
+                if st is None or st.soc is None:
                     continue
-                config = st.config
-                eff = math.sqrt(config.efficiency)
-                most = config.max_charge_w * getattr(st, "charge_factor", 1.0)
+                most = st.config.max_charge_w * getattr(st, "charge_factor", 1.0)
                 if i in limits:
                     most = min(most, max(limits[i][0], 0.0))
-                room = max(config.capacity_kwh * 1000 - wh[i], 0.0) / (s.hours * eff)
-                given[i] = max(min(w, most, room), 0.0)
-                wh[i] += given[i] * s.hours * eff
+                given[i] = max(min(w, most), 0.0)
             total = sum(given.values())
             if total > 0.5:
                 forced_by[s.start] = given
@@ -635,6 +625,7 @@ def finalise(
         # price rules; a planner's own reason never does.
         fixed = data.target is not None and data.target(slot.start) is not None
         extra = data.forced.get(slot.start, 0.0)
+        asked = extra  # the full charge the planner was given
         first = data.forced_by.get(slot.start)
         if extra > 0 and member_wh and first:
             # Only what the batteries charging fully can still take (up to
@@ -660,6 +651,11 @@ def finalise(
         if extra > 0 and data.peak_w > 0:
             # Not above the peak limit (live, peak shaving would cut it).
             extra = min(extra, max(data.peak_w - slot.net_w, 0.0))
+        if asked - extra > 0.5 and requested >= asked - 1.0:
+            # The planner charged at least the full charge it was given, but
+            # its battery takes less now (full): not that part, it would go
+            # to the other batteries (from the grid).
+            requested = max(requested - (asked - extra), extra)
         if extra > 0:
             # A periodic full charge must happen: when the plan charges
             # anyway, the battery that charges fully is part of that power

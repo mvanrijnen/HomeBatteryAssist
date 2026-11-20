@@ -160,7 +160,7 @@ Hoe vaak de batterijen de netmeter volgen (nul op de meter, fasebeveiliging). Op
 | **Grote sprong: minstens** | Standaard 1000 W. |
 | **Regeling nul op de meter** | Direct: elke ronde worden de batterijen gezet op wat het net vraagt. PD: in stappen ernaartoe (proportioneel-differentieel), zoals een echte batterij met vertraging nodig heeft om niet door te schieten. Nu voor de virtuele batterijen; dezelfde regeling is bedoeld voor echte aansturing later. Zie de sensor regelkwaliteit. |
 | **Proportionele versterking (Kp)** | PD: hoeveel van het verschil per ronde wordt gedicht (1 = alles, zoals direct). Lager = rustiger, trager. |
-| **Differentiële versterking (Kd)** | PD: reageert op hoe snel het verschil verandert en dempt doorschieten. 0 = alleen proportioneel. |
+| **Differentiële versterking (Kd)** | PD: reageert op hoe snel het vermogen van de batterijen verandert en dempt doorschieten (een sprong in wat het huis vraagt geeft geen schok). 0 = alleen proportioneel. |
 | **Max. vermogenswijziging per ronde** | PD: hoeveel het vermogen van de batterijen per ronde hoogstens verandert (0 = geen grens). |
 | **Richtingshysterese** | PD: wisselen tussen laden en ontladen pas vanaf dit vermogen; daaronder stoppen de batterijen. |
 | **Gesimuleerde vertraging batterij** | Virtuele batterijen: hoe lang een batterij erover doet voor ze een nieuw vermogen volgt (0 = meteen). Een echte batterij doet vaak een paar seconden. |

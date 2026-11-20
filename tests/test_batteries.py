@@ -637,3 +637,28 @@ async def test_battery_sensor_unavailable_keeps_the_grid_sensors(
     await hass.async_block_till_done()
     assert hass.states.get(house).state == "unavailable"
     assert float(hass.states.get(grid).state) == 600.0
+
+
+def test_idle_reason_names_the_sun_only_without_another_battery() -> None:
+    """Grid about 0 because another battery supplies the house: the idle
+    battery is not told the sun covers it."""
+    from types import SimpleNamespace
+
+    from custom_components.homebatteryassist.engine.measure.battery_monitor import (
+        BatteryInput,
+    )
+
+    batteries = object.__new__(BatteryInput)
+    a, b = (
+        SimpleNamespace(id="a", virtual=False),
+        SimpleNamespace(id="b", virtual=False),
+    )
+    batteries.configs = [a, b]
+    batteries.states = {
+        "a": SimpleNamespace(power_w=0.0),
+        "b": SimpleNamespace(power_w=-600.0),
+    }
+    batteries.grid_now = lambda: 5.0
+    assert batteries._idle_source(a) == "none"
+    batteries.states["b"] = SimpleNamespace(power_w=0.0)
+    assert batteries._idle_source(a) == "pv"
