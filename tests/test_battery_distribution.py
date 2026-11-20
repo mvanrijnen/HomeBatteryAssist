@@ -63,3 +63,49 @@ def test_system_limited() -> None:
     out = system_limited({"a": -2000.0, "b": -2000.0}, rules)
     assert out == {"a": -1000.0, "b": -1000.0}
     assert system_limited({"a": 3000.0}, rules) == {"a": 3000.0}
+
+
+def test_a_rounding_rest_does_not_keep_an_empty_battery_in() -> None:
+    """A battery a hair above its minimum (a rounding rest) counts as empty:
+    the other battery gives the whole demand; the simulated battery reaches
+    its minimum instead of stopping just above it."""
+    import random
+    from types import SimpleNamespace
+
+    from custom_components.homebatteryassist.engine.devices.batteries.virtual import (
+        limit_power,
+    )
+    from custom_components.homebatteryassist.engine.planning.battery_distribution import (
+        Candidate,
+        distribute,
+    )
+
+    out = distribute(
+        -1500.0,
+        [
+            Candidate("b0", 52.0, 10.0, 90.0, 2500.0, 2500.0),
+            Candidate("b1", 10.0000006, 10.0, 90.0, 1200.0, 1200.0),
+        ],
+        0.0,
+    )
+    assert out == {"b0": -1500.0, "b1": 0.0}
+    config = SimpleNamespace(
+        capacity_kwh=2.5,
+        min_soc=10.0,
+        max_soc=90.0,
+        max_charge_w=1200.0,
+        max_discharge_w=1200.0,
+        efficiency=0.81,
+    )
+    rng = random.Random(1)
+    for _ in range(50):
+        soc = 10.0 + rng.uniform(0, 3)
+        for _ in range(400):
+            command, _ = limit_power(config, soc, -750.0, 5 / 3600, 0.81)
+            _, soc = limit_power(config, soc, command, 5 / 3600, 0.81)
+        assert soc == 10.0
+        soc = 90.0 - rng.uniform(0, 3)
+        for _ in range(400):
+            command, _ = limit_power(config, soc, 750.0, 5 / 3600, 0.81)
+            _, soc = limit_power(config, soc, command, 5 / 3600, 0.81)
+        assert soc == 90.0

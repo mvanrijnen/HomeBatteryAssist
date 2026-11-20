@@ -273,6 +273,10 @@ class MeasurementInput:
 
         self.power: float | None = None
         self.flow: PowerFlow | None = None
+        # The flows as the meter sees them (grid, phases, PV), also while a
+        # battery or excluded device is unknown (the house is then): for the
+        # grid connection's sensors. None while the grid is unknown.
+        self.meter_flow: PowerFlow | None = None
         self.missing: list[str] = []  # grid sensors without a valid value
         self._was_available: bool | None = None
         # Sensors of other integrations are often still starting in the first
@@ -511,6 +515,7 @@ class MeasurementInput:
         self.stale = self._stale_grid(dt_util.utcnow())
         missing += [e for e in self.stale if e not in missing]
         if missing:
+            self.meter_flow = None
             return None, missing
         if not self.direct:
             phase_a = self._per_phase(self.current_sensors, len(phase_w)) or ()
@@ -566,8 +571,6 @@ class MeasurementInput:
             for m, _ in self.pv_meters
             if not m.available and producing(f"{m.label} {m.address}")
         ]
-        if unknown:
-            return None, unknown
         excluded = round(self._sum_abs(self.excluded_sensors), 1)
         battery = round(sum(p or 0.0 for p in powers), 1)
         house = max(round(grid + pv - excluded - battery, 1), 0.0)
@@ -612,7 +615,7 @@ class MeasurementInput:
                 add(phase_house, part, -value)
         for b in self.batteries:
             add(phase_house, b.phase, -(battery_power(self.hass, b) or 0.0))
-        return PowerFlow(
+        flow = PowerFlow(
             grid,
             pv,
             excluded,
@@ -633,7 +636,11 @@ class MeasurementInput:
             phase_v,
             phase_pf,
             self._pv_possible(pv),
-        ), []
+        )
+        self.meter_flow = flow
+        # A battery, an excluded device or producing PV unknown: the house
+        # (and everything from it) is unknown; the meter's side stays.
+        return (None, unknown) if unknown else (flow, [])
 
     def _pv_possible(self, pv: float) -> float | None:
         """PV as it could be now: the measured PV plus, per source with a

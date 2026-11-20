@@ -97,6 +97,9 @@ LIMIT_CLEAR_AFTER = timedelta(minutes=5)  # no phase limit this long: log it
 INTERCEPT_HORIZON = timedelta(hours=8)  # coming slots an interceptor sees
 RELIEF_END_AFTER = timedelta(minutes=1)  # phase back under the limit this long
 REACT_INTERVAL = timedelta(seconds=2)  # fastest extra step on an overload
+# Closer to its minimum / maximum (%) is at it: a rest too small to give or
+# take in a round would keep the battery counted as usable forever.
+SOC_SNAP = 0.001
 
 
 def limit_power(
@@ -116,12 +119,16 @@ def limit_power(
         room = max(config.max_soc - soc, 0.0) * wh_per_pct
         power = min(target_w, config.max_charge_w, room / (hours * eff) if hours else 0)
         soc += power * hours * eff / wh_per_pct
+        if config.max_soc - SOC_SNAP < soc < config.max_soc:
+            soc = config.max_soc  # full: no rest too small to ever charge
     elif target_w < 0:
         available = max(soc - config.min_soc, 0.0) * wh_per_pct
         power = -min(
             -target_w, config.max_discharge_w, available * eff / hours if hours else 0
         )
         soc += power * hours / eff / wh_per_pct
+        if config.min_soc < soc < config.min_soc + SOC_SNAP:
+            soc = config.min_soc  # empty: no rest too small to ever give
     else:
         power = 0.0
     # The state of charge unrounded: rounded every 5 s round it would drift

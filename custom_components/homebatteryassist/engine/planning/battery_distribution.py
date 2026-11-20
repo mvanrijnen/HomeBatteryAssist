@@ -38,6 +38,11 @@ class Candidate:
     max_discharge_w: float
 
 
+# A battery this close to its minimum / maximum (%) counts as empty / full:
+# it cannot give or take its share (a rounding rest would keep it in).
+SOC_EPS = 0.01
+
+
 def distribute(
     target_w: float,
     batteries: Sequence[Candidate],
@@ -57,11 +62,11 @@ def distribute(
     charging = target_w > 0
     if charging:
         usable = sorted(
-            (b for b in batteries if b.soc < b.max_soc), key=lambda b: b.soc
+            (b for b in batteries if b.soc < b.max_soc - SOC_EPS), key=lambda b: b.soc
         )
     else:
         usable = sorted(
-            (b for b in batteries if b.soc > b.min_soc), key=lambda b: -b.soc
+            (b for b in batteries if b.soc > b.min_soc + SOC_EPS), key=lambda b: -b.soc
         )
     if not usable:
         return result

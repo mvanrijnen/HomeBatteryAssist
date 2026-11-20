@@ -344,15 +344,26 @@ class FlowSensor(HomeBatteryAssistEntity, SensorEntity):
     def _updated(self, when: datetime, power: float | None) -> None:
         self.async_write_ha_state()
 
+    def _flow(self) -> PowerFlow | None:
+        """Grid and phase loads as the meter sees them (also while a battery
+        sensor drops out); PV too while it is known; the rest needs all."""
+        m = self._measurements
+        key = self.entity_description.key
+        if key in GRID_KEYS or key.startswith("phase_l"):
+            return m.meter_flow
+        if key == "pv_power" and m.pv_known:
+            return m.meter_flow
+        return m.flow
+
     @property
     def available(self) -> bool:
-        """Unavailable while a grid phase measurement is unknown."""
-        return self._measurements.flow is not None
+        """Unavailable while a measurement it needs is unknown (the grid)."""
+        return self._flow() is not None
 
     @property
     def native_value(self) -> float | None:
         """Return the value."""
-        if (flow := self._measurements.flow) is None:
+        if (flow := self._flow()) is None:
             return None
         value = self.entity_description.value_fn(flow)
         if self.entity_description.native_unit_of_measurement == PERCENTAGE:
@@ -362,7 +373,7 @@ class FlowSensor(HomeBatteryAssistEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return extra attributes, if any."""
-        flow = self._measurements.flow
+        flow = self._flow()
         if self.entity_description.attrs_fn is None or flow is None:
             return None
         return self.entity_description.attrs_fn(flow, self._measurements)

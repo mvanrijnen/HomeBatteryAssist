@@ -616,3 +616,24 @@ async def test_battery_meter(hass: HomeAssistant) -> None:
         await hass.async_block_till_done()
     # Without the meter the power sensor counts again.
     assert battery_power(hass, config) == 100.0
+
+
+async def test_battery_sensor_unavailable_keeps_the_grid_sensors(
+    hass: HomeAssistant,
+) -> None:
+    """The battery's power sensor unavailable: the house consumption is
+    unknown, the grid sensors (from the meter) keep their value."""
+    hass.states.async_set("sensor.grid", "500", {"unit_of_measurement": "W"})
+    hass.states.async_set("sensor.marstek_soc", "50", {"unit_of_measurement": "%"})
+    hass.states.async_set("sensor.marstek_power", "800", {"unit_of_measurement": "W"})
+    entry = await _entry(hass)
+    grid = er.async_get(hass).async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_grid_power"
+    )
+    assert grid is not None
+    house = "sensor.homebatteryassist_house_consumption"
+    hass.states.async_set("sensor.marstek_power", "unavailable", {})
+    hass.states.async_set("sensor.grid", "600", {"unit_of_measurement": "W"})
+    await hass.async_block_till_done()
+    assert hass.states.get(house).state == "unavailable"
+    assert float(hass.states.get(grid).state) == 600.0
