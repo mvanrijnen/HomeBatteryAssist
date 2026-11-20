@@ -684,6 +684,10 @@ class VirtualBatterySimulator:
             c.id: "full_charge" if full[c.id] else "zero_on_meter" if nom else "plan"
             for c in self.virtual
         }
+        # A full charge sets the direction before the protections, so they
+        # work from what the batteries will do (a discharge the full charge
+        # would stop afterwards does not relieve a phase or the peak).
+        wanted = one_direction(wanted, [i for i in wanted if full.get(i)])
         before = dict(wanted)
         wanted = self._phase_relief(wanted, socs, full, now, hours)
         reasons.update(
@@ -692,8 +696,14 @@ class VirtualBatterySimulator:
         self._relief_ids = {i for i, r in reasons.items() if r == "phase_relief"}
         before = dict(wanted)
         wanted = self._peak_shaving(wanted, socs, full, now, hours)
+        # Protecting the peak: the batteries it made discharge. One it only
+        # let charge less protects nothing (it does not set the direction).
         reasons.update(
-            {i: "peak_shaving" for i in wanted if abs(wanted[i] - before[i]) > 1.0}
+            {
+                i: "peak_shaving"
+                for i in wanted
+                if abs(wanted[i] - before[i]) > 1.0 and wanted[i] < -0.5
+            }
         )
         # The user's last say (interceptor module), then HomeBatteryAssist's
         # own final check (phase limits here, power and state of charge in

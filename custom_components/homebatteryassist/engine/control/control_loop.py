@@ -283,12 +283,22 @@ Activating (later, deliberately, with the project owner)
 #             for controller in self.controllers.values():
 #                 await controller.async_command(None, now)
 #             return
+#         # A full charge at the battery's full power (up to 100 %), given
+#         # to the steps below so the protections see it: it sets the
+#         # direction first (as virtual.step), then phase relief and peak
+#         # shaving work from that (a charge they only cut is no protection).
+#         fixed = {
+#             c.id: c.max_charge_w if socs[c.id] is not None and socs[c.id] < 100.0 else 0.0
+#             for c in configs
+#             if full[c.id]
+#         }
 #         # Steps 2-4: the same as the virtual batteries, on the load without
 #         # the real batteries (targets.load_without(flow, configs, states)).
 #         wanted, reasons = battery_targets(
-#             [c for c in configs if not full[c.id]],
+#             configs,
 #             socs,
 #             now,
+#             fixed=fixed,  # one_direction(fixed first) before the protections
 #             forecast=self._forecast,
 #             measurements=self._measurements,
 #             batteries=self._batteries,
@@ -305,14 +315,6 @@ Activating (later, deliberately, with the project owner)
 #         for i, reason in reasons.items():
 #             if reason in ("phase_relief", "peak_shaving"):
 #                 wanted[i] = proposed[i]
-#         # A full charge at the battery's full power (up to 100 %), in
-#         # ``wanted`` so it counts in the next check.
-#         for config in configs:
-#             if full[config.id]:
-#                 soc = socs[config.id]
-#                 wanted[config.id] = (
-#                     config.max_charge_w if soc is not None and soc < 100.0 else 0.0
-#                 )
 #         # Never one battery charging while another discharges: protection,
 #         # then a full charge sets the direction; else the net stands.
 #         wanted = one_direction(

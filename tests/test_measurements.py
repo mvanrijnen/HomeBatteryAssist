@@ -177,3 +177,29 @@ async def test_pv_per_phase_and_single_phase(hass: HomeAssistant) -> None:
     flow = entry.runtime_data.measurements.flow
     assert flow.pv_w == 1900.0  # totals of both sources
     assert flow.phase_pv_w == (1000.0, 700.0, 200.0)
+
+
+async def test_pv_known_with_one_source_asleep(hass: HomeAssistant) -> None:
+    """Two PV sources, one asleep (unavailable, not producing just before):
+    its 0 W counts, so the PV is known (recorded in the history), as the
+    house consumption counts it."""
+    _set(hass, "sensor.grid", "-500")
+    _set(hass, "sensor.pv1", "2000")
+    hass.states.async_set("sensor.pv2", "unavailable", {})
+    entry = await _setup(
+        hass,
+        {CONF_PHASES: 1, "sensor_l1": "sensor.grid"},
+        [
+            _subentry(SUBENTRY_PV_SOURCE, "East", "sensor.pv1"),
+            _subentry(SUBENTRY_PV_SOURCE, "West", "sensor.pv2"),
+        ],
+    )
+    measurements = entry.runtime_data.measurements
+    assert measurements.power == 1500.0
+    assert measurements.pv_known
+    # Producing just before and now gone: unknown, not 0 W.
+    _set(hass, "sensor.pv2", "1000")
+    await hass.async_block_till_done()
+    hass.states.async_set("sensor.pv2", "unavailable", {})
+    await hass.async_block_till_done()
+    assert not measurements.pv_known

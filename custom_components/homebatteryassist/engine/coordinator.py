@@ -466,6 +466,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self._phase_rooms: dict = {}
         self._story_band: int | None = None
         self._adjusted_starts: set[datetime] = set()
+        # Today's intervals the user adjusted, also once the adjustment has
+        # ended (pruned): intent, not a deviation the intraday step follows.
+        self._adjusted_today: set[datetime] = set()
         self.full_charge_solar: bool = opts.get(CONF_FULL_CHARGE_SOLAR, True)
         self.charge_order: str = opts.get(CONF_CHARGE_ORDER, CHARGE_SEQUENTIAL)
         self.temperature = {
@@ -1014,6 +1017,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             now,
         )
         self._adjusted_starts = adjusted
+        midnight = dt_util.as_utc(dt_util.start_of_local_day(dt_util.as_local(now)))
+        self._adjusted_today = {s for s in self._adjusted_today if s >= midnight} | {
+            s for s in adjusted if s >= midnight
+        }
         lap("record")
         self._record_forecasters(window, step, now)
         self._record_heating(window, step, now)
@@ -1271,8 +1278,13 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 for start, _end, value, _method in raw
             }
             self._intraday_key = key
+        # Intervals the user adjusted are left out on both sides: what was
+        # announced and happened is no forecast error.
         result = intraday_correction(
-            measured, self._intraday_predicted, step.total_seconds() / 3600, now
+            {s: w for s, w in measured.items() if s not in self._adjusted_today},
+            self._intraday_predicted,
+            step.total_seconds() / 3600,
+            now,
         )
         if result is not None and abs(result.factor - 1) >= INTRADAY_TELL:
             # Told once a day per direction.

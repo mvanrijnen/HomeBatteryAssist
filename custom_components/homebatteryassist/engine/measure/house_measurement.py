@@ -553,10 +553,7 @@ class MeasurementInput:
             if m.available and m.phase_w and abs(sum(m.phase_w)) >= PV_SEEN_W:
                 self._pv_seen[f"{m.label} {m.address}"] = now
 
-        def producing(key: str) -> bool:
-            seen = self._pv_seen.get(key)
-            return seen is not None and now - seen <= PV_GONE and is_up(self.hass)
-
+        producing = self._pv_producing
         unknown += [
             e
             for e in self.pv_sensors
@@ -700,11 +697,27 @@ class MeasurementInput:
         """PV is measured (sensors or meters read directly)."""
         return bool(self.pv_sensors or self.pv_meters)
 
+    def _pv_producing(self, key: str) -> bool:
+        """A PV source gave power in the last PV_GONE (without a value now it
+        is unknown, not 0 W)."""
+        seen = self._pv_seen.get(key)
+        return (
+            seen is not None and dt_util.utcnow() - seen <= PV_GONE and is_up(self.hass)
+        )
+
     @property
     def pv_known(self) -> bool:
-        """Every PV source has a value now (unknown PV is not 0 W measured)."""
-        return all(self._watts(e) is not None for e in self.pv_sensors) and all(
-            meter.available for meter, _ in self.pv_meters
+        """The PV is known now, as the house consumption counts it: a source
+        without a value is 0 W (asleep, at night) unless it was producing
+        just before (unknown PV is not 0 W measured)."""
+        return all(
+            self._watts(e) is not None
+            or self.hass.states.get(e) is None
+            or not self._pv_producing(e)
+            for e in self.pv_sensors
+        ) and all(
+            meter.available or not self._pv_producing(f"{meter.label} {meter.address}")
+            for meter, _ in self.pv_meters
         )
 
     def _sum_abs(self, entity_ids: list[str]) -> float:

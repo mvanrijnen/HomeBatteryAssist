@@ -215,3 +215,33 @@ def test_control_quality_states() -> None:
     quality = ControlQuality()
     quality.add(start, 300.0, 0.0)
     assert quality.summary(start + timedelta(minutes=11))["rounds"] == 0
+
+
+def test_intraday_leaves_out_adjusted_intervals() -> None:
+    """Energy the user announced (an adjustment) that really happened is no
+    forecast error: those intervals are left out, also after the adjustment
+    was pruned."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from custom_components.homebatteryassist.engine import coordinator as mod
+
+    now = _local(12)
+    midnight = dt_util.as_utc(dt_util.start_of_local_day(now))
+    q = timedelta(minutes=15)
+    starts = [midnight + i * q for i in range(48)]
+    adjusted = {s for s in starts if 32 <= starts.index(s) < 40}  # 08:00-10:00
+    measured = {s: 2000.0 if s in adjusted else 500.0 for s in starts}
+    coord = object.__new__(mod.ForecastCoordinator)
+    coord.intraday_on = True
+    coord.history = SimpleNamespace(vacation=False)
+    coord.forecast_records = list
+    coord.forecaster_key = "profile"
+    coord._intraday_key = (midnight, max(measured), len(measured), "profile")
+    coord._intraday_predicted = dict.fromkeys(starts, 500.0)
+    coord._intraday_logged = None
+    coord._decisions = SimpleNamespace(async_log=lambda *a, **k: None)
+    coord._adjusted_today = adjusted
+    with patch.object(mod, "measured_today", return_value=measured):
+        result = coord._intraday_correction(None, q, dt_util.as_utc(now))
+    assert result is not None and result.factor == pytest.approx(1.0)
