@@ -109,6 +109,15 @@ async def async_get_config_entry_diagnostics(
             # How long the last forecast cycle took per step (ms).
             "cycle_timings_ms": data.forecast.timings,
             # Today so far vs forecast: the shift for the rest of today.
+            # After the window: what values the energy left at the end.
+            "outlook": (
+                {
+                    "night_kwh": round(data.forecast.outlook.night_wh / 1000, 2),
+                    "surplus_kwh": round(data.forecast.outlook.surplus_wh / 1000, 2),
+                }
+                if data.forecast.outlook
+                else None
+            ),
             "intraday_correction": (
                 data.forecast.intraday.as_dict() if data.forecast.intraday else None
             ),

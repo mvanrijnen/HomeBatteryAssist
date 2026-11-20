@@ -39,7 +39,13 @@ from .planners import (
     PlannerResult,
 )
 from .planners import PlannerSlot as _InSlot
-from .planners.base import PackMember, discharge_room, grid_cost, may_discharge
+from .planners.base import (
+    Outlook,
+    PackMember,
+    discharge_room,
+    grid_cost,
+    may_discharge,
+)
 from .time_slots import Target
 
 # Without an export price: the import price x this (no net metering; the
@@ -330,6 +336,7 @@ def plan_batteries(
     forced_by: Mapping[datetime, Mapping[str, float]] | None = None,
     member_limits: Mapping[datetime, Mapping[str, tuple[float, float]]] | None = None,
     phase_rooms: Mapping[datetime, Any] | None = None,
+    outlook: Outlook | None = None,
 ) -> BatteryPlan | None:
     """Plan the batteries with ``planner`` (default: the built-in planner of
     ``mode``) over the consumption slots, checked by ``finalise``; None
@@ -358,6 +365,7 @@ def plan_batteries(
         forced_by=forced_by,
         member_limits=member_limits,
         phase_rooms=phase_rooms,
+        outlook=outlook,
     )
     if data is None:
         return None
@@ -384,6 +392,7 @@ def planner_input(
     forced_by: Mapping[datetime, Mapping[str, float]] | None = None,
     member_limits: Mapping[datetime, Mapping[str, tuple[float, float]]] | None = None,
     phase_rooms: Mapping[datetime, Any] | None = None,
+    outlook: Outlook | None = None,
 ) -> PlannerInput | None:
     """What a planner gets; None without batteries or slots."""
     pack = _pack(states, rules)
@@ -475,6 +484,7 @@ def planner_input(
         forced_by,
         dict(member_limits or {}),
         dict(phase_rooms or {}),
+        outlook,
     )
 
 

@@ -202,3 +202,30 @@ def test_planner_reasons_do_not_break_price_rules() -> None:
         rules=PlanRules(min_discharge_price=0.40, max_charge_price=0.25),
     )
     assert [s.power_w for s in plan.slots] == [0.0, 0.0]
+
+
+def test_arbitrage_uses_battery_when_the_sun_refills_it() -> None:
+    """Energy left at the end that the next sun fills anyway is worth its
+    export price, not the import price: with that outlook arbitrage also
+    covers the cheaper hours from the battery instead of the grid."""
+    from custom_components.homebatteryassist.engine.planning.planners.base import (
+        Outlook,
+    )
+
+    battery = _battery(soc=100.0, capacity=5.0, power=2500.0)
+    args = (
+        [battery],
+        _slots([1000.0] * 8),
+        {},
+        _prices([0.40] * 4 + [0.20] * 4),
+    )
+
+    def cheap(**kwargs) -> float:
+        plan = plan_batteries(*args, mode="arbitrage", cycle_cost=0.02, **kwargs)
+        return sum(s.power_w for s in plan.slots[4:])
+
+    assert cheap() == 0  # the rest kept: worth the average price later
+    sunny = Outlook(night_wh=0.0, surplus_wh=10000.0)
+    assert cheap(outlook=sunny) < 0  # the sun refills it: used now
+    cloudy = Outlook(night_wh=0.0, surplus_wh=0.0)
+    assert cheap(outlook=cloudy) == 0

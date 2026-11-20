@@ -13,7 +13,7 @@ Every plan mode is a [planner module](modules.md); all are calculated every cycl
 - **Less consumption than forecast**: a planned discharge goes no further than the house needs now, so battery energy never goes into the grid unless the plan chose that export.
 - **More or less sun than forecast**: in every mode the batteries follow the solar surplus that is really there — an unexpected surplus is stored on top of the plan, missing sun is not taken from the grid. See [When the sun differs from the forecast](#when-the-sun-differs-from-the-forecast).
 - **Zero on the meter (NOM)**: charge with surplus solar power, supply the house on shortage — not excluded devices (e.g. an EV charger) and, when switched on, not random [short peaks](measuring.md#short-peaks).
-- **Arbitrage** (own use): charge when power is cheap, supply the house when it is expensive.
+- **Arbitrage** (own use): charge when power is cheap, supply the house when it is expensive. Energy still in the battery at the end of the window is valued at what it saves later (the average price); but when the PV forecast reaches further than the prices and the next sun has a surplus that fills the battery anyway, the part it fills is only worth that surplus's export price. So in summer the battery also covers the evening and night instead of the grid, as long as the price minus wear (*cost per cycle*) and the *minimum arbitrage margin* make it worthwhile. Diagnostics: `outlook`.
 - **Full arbitrage**: like arbitrage, but may also discharge to the grid when the export price makes that worthwhile.
 - **Time slots**: your own slots (days, times, charge/discharge/idle, power, until a state of charge), zero on the meter outside them.
 - **Manual**: a fixed charge or discharge power.

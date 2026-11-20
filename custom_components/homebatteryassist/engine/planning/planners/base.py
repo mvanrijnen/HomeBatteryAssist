@@ -83,6 +83,19 @@ class PlannerBattery:
 
 
 @dataclass(frozen=True, slots=True)
+class Outlook:
+    """What comes after the window, from the PV forecast (which often reaches
+    further than the prices): the house's use before the sun has a surplus
+    again (``night_wh``) and the solar surplus of that next sun period
+    (``surplus_wh``, PV - house where positive). Only to value the energy
+    left at the end of a plan: what the next sun fills anyway is worth what
+    that surplus earns otherwise (export), not the import price."""
+
+    night_wh: float
+    surplus_wh: float
+
+
+@dataclass(frozen=True, slots=True)
 class PlannerInput:
     """Everything a planner gets.
 
@@ -114,6 +127,7 @@ class PlannerInput:
     # phase, discharge room W per phase): the batteries of a phase together
     # stay within it.
     phase_rooms: Mapping[datetime, Any] = field(default_factory=dict)
+    outlook: Outlook | None = None  # after the window (value of what is left)
     priced: bool = field(init=False)
 
     def __post_init__(self) -> None:

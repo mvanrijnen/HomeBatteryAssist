@@ -182,6 +182,7 @@ from .planning.battery_plan import (
     MODE_NOM,
     MODE_TIME_SLOTS,
     PLAN_MODES,
+    SUN_W,
     BatteryPlan,
     PlanRules,
     PlanSlot,
@@ -197,6 +198,7 @@ from .planning.phase_limit import (
     phase_limit_w,
 )
 from .planning.planners import BUILTIN, Planner
+from .planning.planners.base import Outlook
 from .planning.time_slots import WEEKDAYS, Target, TimeSlot, slot_target
 from .sources.prices import (
     ROLE_EXPORT,
@@ -384,6 +386,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self._intraday_key: tuple | None = None
         self._intraday_predicted: dict[datetime, float] = {}
         self._intraday_logged: tuple | None = None
+        self.outlook: Outlook | None = None  # after the window (diagnostics)
         self._failed_forecasters: set[str] = set()
         # Tariff: what a kWh really costs and earns.
         self.tariffs: dict[str, Tariff] = dict(tariffs or {})
@@ -715,6 +718,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.price_surprises.remember(
             (p.start, p.end, p.price) for p in prices if p.estimated
         )
+        raw_pv = pv_wh  # also after the window (Outlook)
         pv_wh = self._correct_pv(
             {
                 start: wh
@@ -841,6 +845,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         plans: dict[str, BatteryPlan] = {}
         derated = [self._derated(s) for s in states]
         lap("phases_full_charge")
+        outlook = self._outlook(raw_pv, window, step, now)
+        self.outlook = outlook
         for mode in (*PLAN_MODES, *self.planners):
             planner = self.planners.get(mode) or BUILTIN.get(mode)
             lap(None)
@@ -869,6 +875,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                         limits=limits,
                         member_limits=self._member_limits,
                         phase_rooms=self._phase_rooms,
+                        outlook=outlook,
                         export_prices=export_prices,
                         max_cycles_per_day=self.max_cycles,
                         peak_w=self.peak_w,
@@ -1095,6 +1102,48 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         """Name of a PV correction for the user."""
         corrector = self.pv_correctors.get(key) or PV_CORRECTORS.get(key)
         return (corrector.name if corrector else "") or key
+
+    def _outlook(
+        self,
+        raw_pv: Mapping[datetime, float],
+        window: PlanningWindow,
+        step: timedelta,
+        now: datetime,
+    ) -> Outlook | None:
+        """After the window (``planners.base.Outlook``): the house's use until
+        the sun has a surplus again and that sun period's surplus, from the PV
+        forecast past the window and the learned profile — only to value what
+        is left at the end of a plan, never planned. None without a next sun
+        in the PV forecast (then the plan values it at the import price)."""
+        if window.is_empty:
+            return None
+        end = window.end
+        ahead = PlanningWindow(end, end + OUTLOOK_SPAN, HorizonLimit.SETTING)
+        factor = 1 - self.pv_margin / 100
+
+        def pv_w(start: datetime) -> float:
+            hour = start.replace(minute=0, second=0, microsecond=0)
+            return max(raw_pv.get(hour, 0.0), 0.0) * factor
+
+        slots = ahead.slots(step)
+        if not any(pv_w(start) >= SUN_W for start, _ in slots):
+            return None
+        profile = consumption_profile_for(self.forecast_records(), ahead, step, now)
+        night = surplus = 0.0
+        sun = False
+        for (start, stop), (load, _method) in zip(slots, profile, strict=True):
+            hours = (stop - start).total_seconds() / 3600
+            pv, house = pv_w(start), load or 0.0
+            if not sun:
+                if pv >= SUN_W and pv > house:
+                    sun = True
+                else:
+                    night += max(house - pv, 0.0) * hours
+                    continue
+            if pv < SUN_W:
+                break  # the sun is down again
+            surplus += max(pv - house, 0.0) * hours
+        return Outlook(round(night), round(surplus)) if sun else None
 
     def history_changed(self) -> None:
         """The history was changed by hand (days excluded or taken back):
@@ -1922,6 +1971,8 @@ def _periods(
 HEAVY_MODES = (MODE_ARBITRAGE, MODE_ARBITRAGE_FULL)
 HEAVY_EVERY = timedelta(hours=1)
 
+
+OUTLOOK_SPAN = timedelta(hours=36)  # how far past the window to look for sun
 
 INTRADAY_TELL = 0.10  # a shift of 10 % or more is explained (Why)
 
