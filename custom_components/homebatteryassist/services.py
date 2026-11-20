@@ -220,7 +220,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
         history = entry.runtime_data.history
         if history.excluded_days:
             history.exclude_days([date.fromisoformat(d) for d in history.excluded_days])
-            entry.runtime_data.forecast.history_changed()
+        entry.runtime_data.forecast.history_changed()  # learn from it at once
         entry.runtime_data.decisions.async_log(
             "history",
             "history_imported",

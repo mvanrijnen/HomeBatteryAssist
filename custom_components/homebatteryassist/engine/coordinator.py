@@ -857,6 +857,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             together=self.charge_order,
             max_charge_w=self.rules.max_charge_w,
             step=step,
+            window_end=window.end,
         )
         forced = _forced_power(consumption, full_charges, now)
         forced_by = {
@@ -886,6 +887,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 and not window.is_empty
                 and previous.slots
                 and previous.slots[-1].end <= window.end
+                and previous.slots[0].start >= window.start - step
             ):
                 # A heavy mode that is not chosen is only there to compare
                 # with: computed once an hour, not every cycle.

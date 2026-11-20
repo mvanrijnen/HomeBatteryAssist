@@ -144,6 +144,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 # A price threshold above this per kWh was entered in ct (prices are per kWh
 # in the main currency since 0.92).
 CENT_THRESHOLD = 3.0
+PRICES_CHECKED = "price_thresholds_checked"  # in entry.data: converted once
 
 
 def _convert_cent_thresholds(
@@ -152,8 +153,14 @@ def _convert_cent_thresholds(
     """Price thresholds that were clearly entered in ct (above
     ``CENT_THRESHOLD`` per kWh) are converted to euro. Only for the euro: in
     other currencies (CZK, SEK, JPY, ...) such a price is normal. Once
-    converted a value is below the threshold, so it is not converted again
-    (the settings allow at most 5 per kWh)."""
+    converted a value is below the threshold, so it is not converted again.
+    Done once per entry (``PRICES_CHECKED`` in its data): a price above the
+    threshold set later is meant as it is."""
+    if entry.data.get(PRICES_CHECKED):
+        return
+    hass.config_entries.async_update_entry(
+        entry, data={**entry.data, PRICES_CHECKED: True}
+    )
     if (hass.config.currency or "EUR").upper() != "EUR":
         return
     options = dict(entry.options)
@@ -371,6 +378,7 @@ async def async_setup_entry(
                 except Exception:  # the recorder may be unavailable
                     _LOGGER.exception("Filling in past temperatures failed")
                 if filled:
+                    forecast.history_changed()  # fit the temperature effect anew
                     await forecast.async_request_refresh()
 
             entry.async_create_background_task(

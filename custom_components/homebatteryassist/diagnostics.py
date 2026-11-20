@@ -245,7 +245,10 @@ def _weather(source: Any) -> str | None:
     (``weather_location`` is redacted)."""
     if source is None:
         return None
-    text = source.describe()
+    try:
+        text = source.describe()
+    except Exception:  # an own weather module may fail in any way
+        return getattr(source, "key", type(source).__name__)
     settings = getattr(source, "settings", None)
     location = getattr(settings, "location", None)
     return text.replace(str(location), REDACTED) if location else text

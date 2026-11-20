@@ -245,7 +245,7 @@ def _vs_none(forecast: Any) -> list[list[float]]:
     series = []
     for slot in plan.slots:
         total += slot_saving(slot, forecast.export_factor, forecast.cycle_cost) or 0.0
-        stored = (slot.soc - start_soc) / 100 * plan.capacity_kwh * plan.value_per_kwh
+        stored = plan.stored_value(slot.soc) - plan.stored_value(start_soc)
         series.append([int(slot.start.timestamp() * 1000), round(total + stored, 4)])
     return series
 

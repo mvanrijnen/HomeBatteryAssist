@@ -19,7 +19,10 @@ same database with another password or options counts as the same place).
 Never from a stale copy: a database that cannot be read at start (the one in
 use, or the one to move from) makes the setup wait and try again
 (``ConfigEntryNotReady``) instead of carrying on with the JSON file, which is
-only the copy from when the data moved. A write that fails while running
+only the copy from when the data moved. The way out when a database is gone
+for good: choose another storage; the database to move from is then tried
+``GIVE_UP_AFTER`` times, after which the JSON copy is used and a repair issue
+says so. A write that fails while running
 saves everything to the JSON file and marks it as the place in use; the next
 start moves it into the database again.
 
@@ -38,8 +41,11 @@ from typing import Any
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
+
+from ..const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -59,6 +65,8 @@ SERVER_BACKENDS = (BACKEND_MYSQL, BACKEND_POSTGRESQL)
 SQLITE_FILE = "homebatteryassist/homebatteryassist.db"
 TABLE = "hba_store"
 SEP = "|"
+GIVE_UP_AFTER = 3  # tries of a database to move from, then the JSON copy
+ISSUE_LOST = "storage_previous_lost"
 JSON = "json"  # marker: kept in the JSON file
 MARKER_KEY = "homebatteryassist.storage_backend"
 
@@ -386,10 +394,31 @@ class HbaStore:
                 _database(where).read, self.name
             )
         except Exception as err:
-            raise ConfigEntryNotReady(
-                f"{self.name}: database {describe(where)} to move from is not "
-                f"reachable ({err})"
-            ) from err
+            tries = self.hass.data.setdefault(f"{MARKER_KEY}_tries", {})
+            tries[self.name] = tries.get(self.name, 0) + 1
+            if tries[self.name] < GIVE_UP_AFTER:
+                raise ConfigEntryNotReady(
+                    f"{self.name}: database {describe(where)} to move from is "
+                    f"not reachable ({err})"
+                ) from err
+            # Gone for good (the user chose another storage): the JSON copy,
+            # from when the data moved there; a repair issue says so.
+            _LOGGER.warning(
+                "%s: database %s still not reachable (%s); going on from the JSON copy",
+                self.name,
+                describe(where),
+                err,
+            )
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                f"{ISSUE_LOST}_{self.name}",
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key=ISSUE_LOST,
+                translation_placeholders={"database": describe(where)},
+            )
+            return await self._json.async_load()
         return join(rows, self._layout) if rows else None
 
     async def async_save(self, data: dict[str, Any]) -> None:

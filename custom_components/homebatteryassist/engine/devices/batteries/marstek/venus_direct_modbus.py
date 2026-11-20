@@ -200,6 +200,7 @@ class MarstekVenusModbus(ModbusBatteryDriver):
         previous close, and after connecting before the first request.
         """
         await DirectBatteryDriver.async_open(self)  # refuses when disabled
+        self.client.allowed = True
         if self._closed_at is not None:
             remaining = self._closed_at + REOPEN_GAP - time.monotonic()
             if remaining > 0:
@@ -222,6 +223,7 @@ class MarstekVenusModbus(ModbusBatteryDriver):
 
     async def async_read(self) -> DirectReading:
         """Read all points (adjacent registers together) into a reading."""
+        self.require_enabled()
         raw: dict[int, int] = {}
         async with self._lock:
             for _function, start, count in blocks(self.points, self.max_block):

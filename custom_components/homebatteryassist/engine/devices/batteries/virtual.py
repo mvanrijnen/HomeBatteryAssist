@@ -265,7 +265,11 @@ class VirtualBatterySimulator:
             if getattr(forecast, "nom_control", CONTROL_DIRECT) == CONTROL_PD
             else PdSettings(kp=1.0, kd=0.0, max_step_w=0, hysteresis_w=0)
         )
-        self._command_total: float | None = None  # last NOM command (W)
+        # Last NOM command per battery (W), and whether this round's total
+        # could be placed as zero on the meter wanted (control quality).
+        self._commands: dict[str, float] = {}
+        self._nom_free = False
+        self._nom_total = 0.0
         self._responses: dict[str, BatteryResponse] = {}
 
     def _flow(self) -> Any:
@@ -632,7 +636,15 @@ class VirtualBatterySimulator:
             soc = self._batteries.states[config.id].soc
             if full[config.id] and (soc if soc is not None else 0.0) >= 100.0 - 0.01:
                 full[config.id] = None
-        self._full_w = sum(c.max_charge_w for c in self.virtual if full[c.id])
+        # What the batteries charging fully take of the surplus: their power
+        # now when they react with a delay, else at once their max power.
+        self._full_w = sum(
+            max(self._batteries.states[c.id].power_w or 0.0, 0.0)
+            if self._response(c.id).active
+            else c.max_charge_w
+            for c in self.virtual
+            if full[c.id]
+        )
         targets = self._targets(now, hours, [c for c in self.virtual if not full[c.id]])
         socs: dict[str, float] = {}
         wanted: dict[str, float] = {}
@@ -720,13 +732,21 @@ class VirtualBatterySimulator:
             self._batteries.set_virtual(config.id, now, power, soc)
         # A round counts for the control quality when zero on the meter
         # could do what it asked (no protection, limit or full battery).
-        free = nom and all(
-            reasons[i] == "zero_on_meter" and abs(commands[i] - asked[i]) <= 1.0
-            for i in powers
+        placed = sum(asked[c.id] for c in self.virtual if not full[c.id])
+        free = (
+            nom
+            and self._nom_free
+            and abs(placed - self._nom_total) <= 1.0
+            and all(
+                reasons[i] == "zero_on_meter" and abs(commands[i] - asked[i]) <= 1.0
+                for i in powers
+            )
         )
         self._quality_round = sum(powers.values()) if free else None
-        self._command_total = (
-            sum(commands[c.id] for c in self.virtual if not full[c.id]) if nom else None
+        self._commands = (
+            {c.id: commands[c.id] for c in self.virtual if not full[c.id]}
+            if nom
+            else {}
         )
         # A new round: the grid now (for jumps), and start the average anew.
         flow = self._flow()
@@ -940,6 +960,7 @@ class VirtualBatterySimulator:
         """
         data = self._forecast.data
         plan = data.selected_plan if data is not None else None
+        blocked, unlimited = False, None  # zero on the meter: see below
         if data is not None and not self._follows_nom(data) and plan and plan.slots:
             # Arbitrage: the virtual batteries' share of the planned power (the
             # plan without full charges: those are run per battery).
@@ -989,7 +1010,8 @@ class VirtualBatterySimulator:
             if flow is not None and slot is not None:
                 total = planned_discharge(total, flow, slot.grid_w)
             self._pd.reset()  # zero on the meter starts anew later
-            self._command_total = None
+            self._commands = {}
+            self._nom_free = False
         else:
             # NOM: the real surplus (+) / shortage (-) on the grid right now,
             # around the target grid power; a shortage never for excluded
@@ -1009,12 +1031,13 @@ class VirtualBatterySimulator:
                 # (the measured grid does not contain virtual power).
                 total = max(total - self._full_w, 0.0)
             price = self._batteries.price_now()
-            if (
+            blocked = (
                 total < 0
                 and rules.min_discharge_price is not None
                 and price is not None
                 and price < rules.min_discharge_price
-            ):
+            )
+            if blocked:
                 total = 0.0  # discharging only at a high enough price
             if flow is not None:
                 # As a real controller: from the previous command and what the
@@ -1022,12 +1045,31 @@ class VirtualBatterySimulator:
                 actual = sum(
                     self._batteries.states[c.id].power_w or 0.0 for c in virtual
                 )
-                total = self._pd.step(total, actual, self._command_total)
+                commanded = (
+                    sum(self._commands[c.id] for c in virtual)
+                    if virtual and all(c.id in self._commands for c in virtual)
+                    else None  # another set of batteries: from what they do
+                )
+                interval = getattr(self._forecast, "react_interval", None) or STEP
+                total = self._pd.step(
+                    total,
+                    actual,
+                    commanded,
+                    hours * 3600 / interval.total_seconds(),
+                )
+            else:
+                self._pd.reset()  # no meter: start anew when it is back
+            unlimited = total
         rules = self._forecast.rules
         if total > 0 and rules.max_charge_w > 0:
             total = min(total, rules.max_charge_w)
         if total < 0 and rules.max_discharge_w > 0:
             total = max(total, -rules.max_discharge_w)
+        if unlimited is not None:
+            # A round counts for the control quality only when zero on the
+            # meter could have its way (no rule or limit held it back).
+            self._nom_free = flow is not None and not blocked and total == unlimited
+            self._nom_total = total
 
         candidates = []
         hysteresis = self._forecast.rules.charge_hysteresis

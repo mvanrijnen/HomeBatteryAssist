@@ -228,9 +228,19 @@ def _optimise(
                         grid_cost(net - need, hours, price, export)
                         + need * hours / 1000 * data.cycle_cost
                         + need * hours / 1000 * extra
+                        + (
+                            max(net - need - data.peak_w, 0.0)
+                            * hours
+                            / 1000
+                            * PEAK_PENALTY
+                            if data.peak_w > 0
+                            else 0.0
+                        )
                         + (1 - frac) * future[0][low]
                         + frac * future[0][min(low + 1, levels - 1)]
                     )
+                    if slot.reserve_due and target < reserve:
+                        cost += (reserve - target) * step / 1000 * RESERVE_PENALTY
                     if cost < best:
                         best, best_j, best_kind = cost, target, "cover"
                 # Storing the solar surplus exactly: charge just that, also
@@ -255,6 +265,8 @@ def _optimise(
                         + (1 - frac) * future[charged_flag][low]
                         + frac * future[charged_flag][min(low + 1, levels - 1)]
                     )
+                    if slot.reserve_due and target < reserve:
+                        cost += (reserve - target) * step / 1000 * RESERVE_PENALTY
                     if cost < best:
                         best, best_j, best_kind = cost, target, "surplus"
                 # Charging at the slot's full power (also from the grid),

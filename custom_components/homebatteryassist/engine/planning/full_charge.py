@@ -32,6 +32,20 @@ from ..sources.prices.price_points import PricePoint
 DEFAULT_WINDOW_DAYS = 3
 
 
+def _price_over(
+    prices: Sequence[PricePoint], start: datetime, end: datetime
+) -> float | None:
+    """The time-weighted price over a slot (quarter prices in an hour slot);
+    None when no price covers it."""
+    total = seconds = 0.0
+    for point in prices:
+        overlap = (min(point.end, end) - max(point.start, start)).total_seconds()
+        if overlap > 0:
+            total += point.price * overlap
+            seconds += overlap
+    return total / seconds if seconds else None
+
+
 @dataclass(frozen=True, slots=True)
 class FullCharge:
     """A planned full charge of one battery."""
@@ -71,6 +85,7 @@ def schedule_full_charges(
     slot_price: Callable[[datetime, float, float], float] | None = None,
     together: str = "parallel",
     max_charge_w: float = 0.0,
+    window_end: datetime | None = None,
     fixed: Sequence[FullCharge] = (),
 ) -> list[FullCharge]:
     """Plan the full charges that are due within ``window_days``.
@@ -87,6 +102,8 @@ def schedule_full_charges(
     if not prices:
         return list(fixed)  # running blocks stay
     horizon_end = max(p.end for p in prices)
+    if window_end is not None:
+        horizon_end = min(horizon_end, window_end)  # never past the window
     window = timedelta(days=window_days)
 
     due: list[tuple[datetime, BatteryState]] = []
@@ -112,7 +129,7 @@ def schedule_full_charges(
     slots: list[tuple[datetime, float]] = []
     when = first
     while when + step <= horizon_end:
-        price = next((p.price for p in prices if p.start <= when < p.end), None)
+        price = _price_over(prices, when, when + step)
         if price is not None:
             slots.append((when, price))
         when += step

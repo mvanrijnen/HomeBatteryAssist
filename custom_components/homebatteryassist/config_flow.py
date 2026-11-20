@@ -1746,7 +1746,8 @@ class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
     async def _async_grid_done(self) -> ConfigFlowResult:
         """The grid connection is complete: save it (reconfigure) or continue."""
         if self.source == SOURCE_RECONFIGURE:
-            return self.async_update_reload_and_abort(
+            # The update listener reloads the entry.
+            return self.async_update_and_abort(
                 self._get_reconfigure_entry(), data=self._data
             )
         return await self.async_step_settings()
@@ -1763,7 +1764,8 @@ class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
                     title=NAME, data=self._data, options=options
                 )
 
-        values = await settings_form_values(self.hass, {})
+        # After an error: what was entered (also inside the sections).
+        values = user_input or await settings_form_values(self.hass, {})
         schema = await settings_schema(self.hass, None, values)
         return self.async_show_form(
             step_id="settings",
@@ -1828,7 +1830,8 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
                 return self.async_create_entry(data=options)
 
         current = self.config_entry.options
-        values = await settings_form_values(self.hass, current)
+        # After an error: what was entered (also inside the sections).
+        values = user_input or await settings_form_values(self.hass, current)
         schema = await settings_schema(self.hass, current, values)
         return self.async_show_form(
             step_id="settings",

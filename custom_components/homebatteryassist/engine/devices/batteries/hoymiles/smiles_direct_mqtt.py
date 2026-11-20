@@ -124,6 +124,7 @@ class HoymilesMqttDriver(MqttBatteryDriver):
         """EMS mode ``mqtt_ctrl``, then the setpoint (+ discharging on the
         wire). NEVER called while HomeBatteryAssist is read-only; a real
         controller must also repeat it about every 30 s."""
+        self.require_enabled()
         from homeassistant.components import mqtt
 
         setpoint = round(-power_w)
@@ -145,6 +146,7 @@ class HoymilesMqttDriver(MqttBatteryDriver):
     async def async_release(self) -> None:
         """Setpoint 0, then EMS mode ``general`` (the battery's own control).
         NEVER called yet."""
+        self.require_enabled()
         from homeassistant.components import mqtt
 
         await self.async_set_power(0.0)

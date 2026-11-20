@@ -161,15 +161,18 @@ class ZendureHttpDriver(HttpBatteryDriver):
         session = async_get_clientsession(self.hass)
         for attempt in range(2):
             try:
-                async with asyncio.timeout(self.timeout):
-                    response = await session.request(
+                async with (
+                    asyncio.timeout(self.timeout),
+                    session.request(
                         method, self.url(path), json=body, auth=self.auth()
-                    )
-                    if response.status == 431 and attempt == 0:
-                        await asyncio.sleep(RETRY_DELAY)
-                        continue
-                    response.raise_for_status()
-                    return await response.json(content_type=None)
+                    ) as response,
+                ):
+                    retry = response.status == 431 and attempt == 0
+                    if not retry:
+                        response.raise_for_status()
+                        return await response.json(content_type=None)
+                await asyncio.sleep(RETRY_DELAY)  # the response is released
+                continue
             except (aiohttp.ClientConnectionError, OSError):
                 if attempt:
                     raise

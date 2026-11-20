@@ -740,7 +740,13 @@ class MeasurementInput:
             elif self.stale:
                 self._decisions.async_log(
                     "measurement",
-                    "grid_stale",
+                    # A battery's power sensor, or the grid's.
+                    "battery_stale"
+                    if all(
+                        e in {b.power_sensor for b in self.batteries}
+                        for e in self.stale
+                    )
+                    else "grid_stale",
                     sensors=", ".join(self.stale),
                     seconds=round(GRID_STALE.total_seconds()),
                 )

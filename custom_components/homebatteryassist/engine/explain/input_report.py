@@ -139,7 +139,7 @@ def input_report(
     lines: list[str] = [f"### {t['grid']}", ""]
     direct = m.direct
     source = (
-        f"{source_name}, {t['direct']} ({direct.address})"
+        f"{source_name}, {t['direct']}"  # no address: every user sees it
         if direct is not None
         else t["sensors"]
     )

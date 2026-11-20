@@ -71,9 +71,12 @@ def no_wait(monkeypatch: pytest.MonkeyPatch) -> list[float]:
     return waits
 
 
-def driver_with(cls: type, hass: HomeAssistant, registers: dict[int, int]):
+def driver_with(
+    cls: type, hass: HomeAssistant, registers: dict[int, int], enabled: bool = True
+):
     driver = cls(hass, "192.0.2.10")
     driver.client = FakeClient(registers)
+    driver.enabled = enabled  # in a test on purpose (never in the integration)
     return driver
 
 
@@ -121,7 +124,7 @@ def test_drivers_disabled_and_unverified() -> None:
 
 async def test_disabled_driver_refuses_open(hass: HomeAssistant) -> None:
     for cls in DRIVERS:
-        driver = driver_with(cls, hass, {})
+        driver = driver_with(cls, hass, {}, enabled=False)
         with pytest.raises(RuntimeError, match="not enabled"):
             await driver.async_open()
         assert driver.client.reads == []

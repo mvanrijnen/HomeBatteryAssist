@@ -184,6 +184,7 @@ class SpeedwireMeter(DirectMeter):
     async def async_stop(self) -> None:
         """Leave the multicast group."""
         self._stopped = True
+        self.cancel_stale()
         if self._retry is not None:
             self._retry()
             self._retry = None

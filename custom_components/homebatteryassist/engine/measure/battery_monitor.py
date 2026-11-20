@@ -29,6 +29,7 @@ from homeassistant.core import (
 from homeassistant.helpers.event import (
     async_call_later,
     async_track_state_change_event,
+    async_track_time_interval,
     async_track_utc_time_change,
 )
 from homeassistant.helpers.storage import Store
@@ -98,6 +99,7 @@ ACTIVITY_THRESHOLD_W = 50.0  # |power| above this counts as charging/discharging
 # may not be reported anew).
 POWER_STALE = timedelta(seconds=90)
 BATTERY_STALE_W = 50.0
+FROZEN_CHECK = timedelta(seconds=15)
 
 
 def activity_of(power_w: float) -> str:
@@ -359,6 +361,8 @@ def battery_power(hass: HomeAssistant, config: BatteryConfig) -> float | None:
     meter = battery_meter(hass, config)
     if meter is not None and meter.available and meter.phase_w:
         return round(sum(meter.phase_w), 1)
+    if power_frozen(hass, config):
+        return None  # frozen at a real power: unknown, not counted on
     watts = state_to_watts(hass.states.get(config.power_sensor))
     if watts is None:
         return None
@@ -540,6 +544,7 @@ class BatteryInput:
         self._was_available: dict[str, bool] = {}
         self._listeners: list[Callable[[], None]] = []
         self._unsub: CALLBACK_TYPE | None = None
+        self._unsub_frozen: CALLBACK_TYPE | None = None
         self._unsub_log: CALLBACK_TYPE | None = None
         # Price (per kWh) at a moment (default now), set by the setup (from
         # the price forecast).
@@ -575,6 +580,10 @@ class BatteryInput:
         }
         self._unsub_log = async_track_utc_time_change(
             self.hass, self._async_log_soc, minute="/15", second=0
+        )
+        # A frozen power sensor sends no event: look every FROZEN_CHECK.
+        self._unsub_frozen = async_track_time_interval(
+            self.hass, self._async_check_frozen, FROZEN_CHECK
         )
         for config in self.configs:
             self.stats[config.id] = BatteryStats(
@@ -717,6 +726,9 @@ class BatteryInput:
         if self._unsub_log is not None:
             self._unsub_log()
             self._unsub_log = None
+        if self._unsub_frozen is not None:
+            self._unsub_frozen()
+            self._unsub_frozen = None
         for _activity, _began, cancel in self._pending.values():
             cancel()
         self._pending.clear()
@@ -805,6 +817,18 @@ class BatteryInput:
         config = next(c for c in self.configs if c.id == battery_id)
         self.stats[battery_id]["virtual_soc"] = soc
         self._update(config, when, BatteryState(config, soc, power_w))
+
+    @callback
+    def _async_check_frozen(self, now: datetime) -> None:
+        """A battery whose power sensor froze at a real power: unknown now
+        (``power_frozen``), so its counters stop and the checks see it."""
+        for config in self.configs:
+            if (
+                not config.virtual
+                and self.states[config.id].power_w is not None
+                and power_frozen(self.hass, config, now)
+            ):
+                self._update(config, now)
 
     def _update(
         self, config: BatteryConfig, when: datetime, state: BatteryState | None = None

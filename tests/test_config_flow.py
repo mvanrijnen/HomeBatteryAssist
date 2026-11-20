@@ -479,6 +479,7 @@ async def test_reconfigure_grid_connection(hass: HomeAssistant) -> None:
         "sensor_l1": "sensor.power_l1",
         "sensor_l2": "sensor.power_l2",
         "sensor_l3": "sensor.power_l3",
+        "price_thresholds_checked": True,  # set once at the first start
     }
     assert entry.options == {CONF_HISTORY_INTERVAL: 15}  # settings untouched
 

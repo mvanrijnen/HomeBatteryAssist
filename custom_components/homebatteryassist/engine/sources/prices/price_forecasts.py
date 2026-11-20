@@ -35,6 +35,7 @@ from .sensor_attributes import SensorAttributeDriver
 _LOGGER = logging.getLogger(__name__)
 
 REFRESH = timedelta(hours=1)
+RETRY = timedelta(minutes=15)  # after a failed request
 
 
 class ApiForecastDriver(PriceDriver):
@@ -46,6 +47,7 @@ class ApiForecastDriver(PriceDriver):
     def __init__(self) -> None:
         """Initialize the cache: country -> (fetched at, data)."""
         self._cache: dict[str, tuple[datetime, PriceData]] = {}
+        self._failed: dict[str, datetime] = {}  # last failed request
 
     def find(self, hass: HomeAssistant) -> list[PriceSource]:
         """One source for the country Home Assistant is set to, if supported."""
@@ -75,14 +77,20 @@ class ApiForecastDriver(PriceDriver):
         cached = self._cache.get(source)
         if cached and now - cached[0] < REFRESH:
             return cached[1]
+        if (failed := self._failed.get(source)) and now - failed < RETRY:
+            return cached[1] if cached else PriceData([])  # not every cycle
         try:
-            async with asyncio.timeout(20):
-                response = await async_get_clientsession(hass).get(self.url(source))
+            async with (
+                asyncio.timeout(20),
+                async_get_clientsession(hass).get(self.url(source)) as response,
+            ):
                 response.raise_for_status()
                 data = self.parse(await response.json(content_type=None))
         except (TimeoutError, ClientError, KeyError, TypeError, ValueError) as err:
             _LOGGER.debug("%s: no forecast: %s", self.name, err)
+            self._failed[source] = now
             return cached[1] if cached else PriceData([])
+        self._failed.pop(source, None)
         self._cache[source] = (now, data)
         return data
 

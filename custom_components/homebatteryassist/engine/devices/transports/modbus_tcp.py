@@ -150,6 +150,8 @@ class ModbusTcpClient:
                         self._reader.readexactly(1), self.timeout
                     )
                 else:
+                    if length < 2:
+                        raise asyncio.IncompleteReadError(first, length)
                     response = first + await asyncio.wait_for(
                         self._reader.readexactly(length - 2), self.timeout
                     )

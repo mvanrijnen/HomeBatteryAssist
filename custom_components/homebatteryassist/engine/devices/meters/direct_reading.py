@@ -190,6 +190,7 @@ class PollingMeter(DirectMeter):
         if self._unsub is not None:
             self._unsub()
             self._unsub = None
+        self.cancel_stale()
 
     async def _async_poll(self, _now: datetime | None) -> None:
         if self._busy:

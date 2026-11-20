@@ -87,3 +87,12 @@ def test_direct_overshoots_a_slow_battery_pd_does_not() -> None:
     pd = _simulate(PdSettings())
     assert pd["state"] == "stable"
     assert pd["mean_error_w"] < 100
+
+
+def test_pd_never_against_zero_on_the_meter() -> None:
+    """When zero on the meter wants nothing (e.g. discharging is blocked by
+    the price), the derivative never turns the batteries the other way."""
+    pd = PdController(PdSettings())
+    pd.step(2500.0, 500.0, 500.0)
+    assert pd.step(0.0, 500.0, 500.0) == 0.0
+    assert PdController(PdSettings()).step(-800.0, 300.0, 300.0) <= 0.0

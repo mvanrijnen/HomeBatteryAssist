@@ -107,6 +107,22 @@ class BatteryPlan:
     capacity_kwh: float = 0.0  # behind the state of charge in the slots
     value_per_kwh: float = 0.0  # value of stored energy (avg price x efficiency)
     start_soc: float | None = None  # % now (slot SoCs are at their end)
+    # How finalise valued what is left (``outlook_split``): above ``keep_wh``
+    # (over ``floor_wh``) only ``overflow_per_kwh``.
+    floor_wh: float = 0.0
+    keep_wh: float = math.inf
+    overflow_per_kwh: float | None = None
+
+    def stored_value(self, soc: float) -> float:
+        """What the energy at ``soc`` % is worth, as the plan's costs count it
+        (comparisons over time add up to the saving)."""
+        wh = soc / 100 * self.capacity_kwh * 1000 - self.floor_wh
+        overflow = (
+            self.value_per_kwh
+            if self.overflow_per_kwh is None
+            else self.overflow_per_kwh
+        )
+        return stored_value(wh, self.keep_wh, self.value_per_kwh, overflow)
 
     @property
     def saving(self) -> float | None:
@@ -645,6 +661,9 @@ def finalise(
         round(battery.stored_wh / battery.capacity_wh * 100, 2)
         if battery.capacity_wh
         else None,
+        floor_wh=floor,
+        keep_wh=keep,
+        overflow_per_kwh=overflow,
     )
 
 
@@ -871,6 +890,6 @@ def compare_modes(
         strict=False,
     ):
         total += cost_b - cost_a
-        stored = (slot.soc - slot_b.soc) / 100 * a.capacity_kwh * a.value_per_kwh
+        stored = a.stored_value(slot.soc) - a.stored_value(slot_b.soc)
         series.append((slot.start, round(total + stored, 4)))
     return series

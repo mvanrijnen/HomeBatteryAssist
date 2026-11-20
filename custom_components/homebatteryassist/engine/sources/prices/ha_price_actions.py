@@ -70,6 +70,7 @@ class ActionDriver(PriceDriver):
     def __init__(self) -> None:
         """Initialize the cache: (source, role) -> (fetched at, data)."""
         self._cache: dict[tuple[str, str], tuple[datetime, PriceData]] = {}
+        self._failed: dict[tuple[str, str], datetime] = {}  # last failed fetch
 
     def find(self, hass: HomeAssistant) -> list[PriceSource]:
         """One source per loaded config entry of the integration."""
@@ -99,11 +100,17 @@ class ActionDriver(PriceDriver):
                 return data
             if now - fetched < MISSING_RETRY:
                 return data  # tomorrow still missing: not every cycle
+        if (
+            failed := self._failed.get((source, role))
+        ) and now - failed < MISSING_RETRY:
+            return cached[1] if cached else PriceData([])  # not every cycle
         try:
             data = await self._async_fetch(hass, source, role)
-        except (HomeAssistantError, KeyError, TypeError, ValueError) as err:
+        except Exception as err:  # a supplier's library may raise anything
             _LOGGER.debug("%s: no prices for %s: %s", self.name, source, err)
+            self._failed[(source, role)] = now
             return cached[1] if cached else PriceData([])
+        self._failed.pop((source, role), None)
         self._cache[(source, role)] = (now, data)
         return data
 

@@ -2001,6 +2001,10 @@
     "recorder_excluded_sensors": {
       "title": "Sensoren niet bewaard door de recorder",
       "description": "HomeBatteryAssist gebruikt deze sensoren, maar de recorder van Home Assistant slaat ze over: {sensors}. Hun geschiedenis kan niet worden geïmporteerd of gebruikt om het verleden aan te vullen (verbruiksgeschiedenis, temperaturen). Haal ze uit `recorder: exclude:` in configuration.yaml (of neem ze op) en herstart; daarna verdwijnt deze melding."
+    },
+    "storage_previous_lost": {
+      "title": "Opslag: oude database niet bereikbaar",
+      "description": "De gegevens konden niet worden verhuisd uit {database}: die was na drie pogingen niet bereikbaar. HomeBatteryAssist gaat verder met de JSON-kopie van toen de gegevens naar die database gingen; wat er sindsdien is opgeslagen, wordt niet overgenomen. Komt de database terug, dan kun je hem weer kiezen onder Instellingen → Opslag."
     }
   }
 }

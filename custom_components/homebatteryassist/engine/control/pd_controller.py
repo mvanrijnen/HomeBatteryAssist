@@ -22,7 +22,14 @@ that. Without a delay (actual = previous command) direct is exactly the ideal.
   overshoot;
 - ``max_step_w``: the most the power changes in one round (0 = no limit);
 - ``hysteresis_w``: a change of direction (charge <-> discharge) only when
-  the new power is at least this much; below it the batteries stop.
+  the new power is at least this much; below it the batteries stop (the
+  direction is remembered, so it does not flap at low power).
+
+Never against what zero on the meter wants: when it wants no discharge (a
+surplus, or a rule such as the discharge price) the output does not
+discharge, and the other way round. An extra round (a jump, an overload)
+counts as part of a round (``scale``), so the gains stay per reaction
+interval.
 
 The round is the reaction interval (``react_interval_s``). Used by the
 virtual batteries now (option ``nom_control`` = ``pd``), and the same class is
@@ -62,26 +69,51 @@ class PdController:
         """Initialize."""
         self.settings = settings
         self._previous_error: float | None = None
+        self._direction = 0  # last direction: 1 charging, -1 discharging
 
     def reset(self) -> None:
-        """Forget the previous error (another mode ran in between)."""
+        """Forget the previous error and direction (another mode ran in
+        between, or the meter was gone)."""
         self._previous_error = None
+        self._direction = 0
 
     def step(
-        self, ideal_w: float, actual_w: float, command_w: float | None = None
+        self,
+        ideal_w: float,
+        actual_w: float,
+        command_w: float | None = None,
+        scale: float = 1.0,
     ) -> float:
         """The new total command from what zero on the meter wants
         (``ideal_w``), what the batteries do now (``actual_w``) and the
-        previous command (``command_w``; None: the actual power)."""
+        previous command (``command_w``; None: the actual power). ``scale``:
+        the part of a reaction interval since the previous step (0..1)."""
         s = self.settings
+        scale = max(0.0, min(scale, 1.0))
         current_w = actual_w if command_w is None else command_w
         error = ideal_w - actual_w
         change = 0.0 if self._previous_error is None else error - self._previous_error
         self._previous_error = error
-        delta = s.kp * error + s.kd * change
+        delta = scale * (s.kp * error + s.kd * change)
         if s.max_step_w > 0:
-            delta = max(-s.max_step_w, min(s.max_step_w, delta))
+            most = s.max_step_w * scale
+            delta = max(-most, min(most, delta))
         new = current_w + delta
-        if s.hysteresis_w > 0 and new * current_w < 0 and abs(new) < s.hysteresis_w:
-            new = 0.0  # no change of direction for a small power
+        # Never against what zero on the meter wants.
+        if ideal_w >= 0:
+            new = max(new, 0.0)
+        if ideal_w <= 0:
+            new = min(new, 0.0)
+        direction = (new > 0) - (new < 0)
+        last = self._direction or (current_w > 0) - (current_w < 0)
+        if (
+            s.hysteresis_w > 0
+            and direction
+            and last
+            and direction != last
+            and abs(new) < s.hysteresis_w
+        ):
+            new, direction = 0.0, 0  # no change of direction for a small power
+        if direction:
+            self._direction = direction
         return new

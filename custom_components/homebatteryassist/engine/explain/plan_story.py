@@ -238,6 +238,11 @@ def _merge(charges: list[_Block], discharges: list[_Block]) -> list[_Block]:
     return merged
 
 
+def _lower_first(text: str) -> str:
+    """Only the first letter lower case ("On Mon 03:00" -> "on Mon 03:00")."""
+    return text[:1].lower() + text[1:]
+
+
 def _when(block: _Block, now: datetime, lang: str) -> str:
     t = TEXT[lang]
     start, end = dt_util.as_local(block.start), dt_util.as_local(block.end)
@@ -388,7 +393,7 @@ def plan_story(
                     price=per_kwh(price_now),
                     use=use,
                     use_price=per_kwh(saving.price),
-                    when=_when(charge, now, lang).split(" (")[0].lower(),
+                    when=_lower_first(_when(charge, now, lang).split(" (")[0]),
                     charge_price=per_kwh(charge.price),
                 )
             )
@@ -413,7 +418,7 @@ def plan_story(
             t["now_idle_wait"].format(
                 until=until,
                 price=per_kwh(charges[0].price),
-                when=_when(charges[0], now, lang).split(" (")[0].lower(),
+                when=_lower_first(_when(charges[0], now, lang).split(" (")[0]),
             )
         )
     elif min_soc_reached and importing:
