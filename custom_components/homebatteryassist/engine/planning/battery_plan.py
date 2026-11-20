@@ -181,14 +181,27 @@ class _Pack:
     night_floor: float = 0.0  # Wh at the night reserve (0 = off)
     peak_floor: float = 0.0  # Wh at the peak reserve (0 = off)
     members: tuple[PackMember, ...] = ()
+    held: bool = False  # charge hysteresis holds now (was full, still in band)
 
 
 def _pack(
-    states: Iterable[BatteryState], rules: PlanRules = PlanRules()
+    states: Iterable[BatteryState],
+    rules: PlanRules = PlanRules(),
+    held: Iterable[str] = (),
 ) -> _Pack | None:
     usable = [s for s in states if s.soc is not None and s.config.capacity_kwh > 0]
     if not usable:
         return None
+    # Charge hysteresis now: the batteries in their band that were full and
+    # have not dropped below it since (live state), so the plan starts as the
+    # batteries do. Held when every battery in its band is held.
+    band = rules.charge_hysteresis
+    in_band = [s for s in usable if band > 0 and s.soc >= s.config.max_soc - band]
+    held_ids = set(held)
+    is_held = bool(in_band) and all(
+        getattr(s.config, "id", None) in held_ids or s.soc >= s.config.max_soc - 0.05
+        for s in in_band
+    )
     capacity = sum(s.config.capacity_kwh for s in usable) * 1000
     max_charge = sum(
         s.config.max_charge_w * getattr(s, "charge_factor", 1.0) for s in usable
@@ -266,6 +279,7 @@ def _pack(
         )
         if len(usable) > 1
         else (),
+        held=is_held,
     )
 
 
@@ -368,6 +382,7 @@ def plan_batteries(
     member_limits: Mapping[datetime, Mapping[str, tuple[float, float]]] | None = None,
     phase_rooms: Mapping[datetime, Any] | None = None,
     outlook: Outlook | None = None,
+    held: Iterable[str] = (),
 ) -> BatteryPlan | None:
     """Plan the batteries with ``planner`` (default: the built-in planner of
     ``mode``) over the consumption slots, checked by ``finalise``; None
@@ -397,6 +412,7 @@ def plan_batteries(
         member_limits=member_limits,
         phase_rooms=phase_rooms,
         outlook=outlook,
+        held=held,
     )
     if data is None:
         return None
@@ -424,10 +440,11 @@ def planner_input(
     member_limits: Mapping[datetime, Mapping[str, tuple[float, float]]] | None = None,
     phase_rooms: Mapping[datetime, Any] | None = None,
     outlook: Outlook | None = None,
+    held: Iterable[str] = (),
 ) -> PlannerInput | None:
     """What a planner gets; None without batteries or slots."""
     states = list(states)
-    pack = _pack(states, rules)
+    pack = _pack(states, rules, held)
     if pack is None or not consumption:
         return None
     night = night_starts(consumption, pv_wh) if pack.night_floor > 0 else set()
@@ -523,6 +540,7 @@ def planner_input(
             pack.max_discharge,
             pack.peak_floor,
             pack.members,
+            pack.held,
         ),
         rules,
         cycle_cost,

@@ -1245,6 +1245,28 @@ class BatteryInput:
         if available or was is not None:
             self._was_available[config.id] = available
 
+    def hysteresis_held(self, band: float) -> set[str]:
+        """Real batteries the charge hysteresis holds now: full more recently
+        than below the band (``band`` % under the maximum), from their state
+        of charge log and their state now."""
+        held: set[str] = set()
+        if band <= 0:
+            return held
+        for config in self.configs:
+            if config.virtual:
+                continue
+            now = self.states[config.id].soc
+            socs = [soc for _when, soc in self.soc_log.get(config.id, [])]
+            if now is not None:
+                socs.append(now)
+            for soc in reversed(socs):
+                if soc >= config.max_soc - 0.05:
+                    held.add(config.id)
+                    break
+                if soc < config.max_soc - band:
+                    break
+        return held
+
     def count_up_to(self, now: datetime) -> None:
         """Count the real batteries' energy up to ``now`` at their last power
         (their sensors may not have changed since): the plan check reads

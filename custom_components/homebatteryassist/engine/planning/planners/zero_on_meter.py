@@ -37,7 +37,7 @@ def follow(data: PlannerInput, fixed_actions: bool) -> PlannerResult:
     reasons: list[str | None] = []
     # Charge hysteresis: once full, charge again only after dropping this much.
     hysteresis = rules.charge_hysteresis * battery.capacity_wh / 100
-    full = hysteresis > 0 and stored >= battery.ceiling_wh - 1
+    full = hysteresis > 0 and (stored >= battery.ceiling_wh - 1 or battery.held)
     for slot in data.slots:
         hours = slot.hours
         power = 0.0

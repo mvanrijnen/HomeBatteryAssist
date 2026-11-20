@@ -338,7 +338,7 @@ def _optimise(
     # the choice).
     stored = battery.stored_wh
     # Held when it is (nearly) full now; else free to charge.
-    flag = 0 if band <= 0 or stored >= battery.ceiling_wh - 1.0 else 1
+    flag = 0 if band <= 0 or stored >= battery.ceiling_wh - 1.0 or battery.held else 1
     powers = []
     for t, slot in enumerate(slots):
         i = min(max(round((stored - battery.floor_wh) / step), 0), levels - 1)

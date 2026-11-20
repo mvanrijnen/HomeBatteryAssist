@@ -81,6 +81,9 @@ class PlannerBattery:
     peak_floor_wh: float = 0.0
     # The batteries apart (empty with one battery).
     members: tuple[PackMember, ...] = ()
+    # The charge hysteresis holds now: the battery was full and has not
+    # dropped below the band since (no charging until it has).
+    held: bool = False
 
 
 @dataclass(frozen=True, slots=True)

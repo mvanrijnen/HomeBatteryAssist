@@ -403,6 +403,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self._intraday_predicted: dict[datetime, float] = {}
         self._intraday_logged: tuple | None = None
         self.outlook: Outlook | None = None  # after the window (diagnostics)
+        # Batteries the charge hysteresis holds now (set by the setup).
+        self.held_batteries: Callable[[], set[str]] | None = None
         self._failed_forecasters: set[str] = set()
         # Tariff: what a kWh really costs and earns.
         self.tariffs: dict[str, Tariff] = dict(tariffs or {})
@@ -888,6 +890,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         lap("phases_full_charge")
         outlook = self._outlook(raw_pv, window, step, now)
         self.outlook = outlook
+        try:
+            held = self.held_batteries() if self.held_batteries else set()
+        except Exception:  # only a starting point for the plans
+            held = set()
         for mode in (*PLAN_MODES, *self.planners):
             planner = self.planners.get(mode) or BUILTIN.get(mode)
             lap(None)
@@ -931,6 +937,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                         max_cycles_per_day=self.max_cycles,
                         peak_w=self.peak_w,
                         target=self._target(m),
+                        held=held,
                         rules=self.rules,
                         planner=p,
                         now=now,

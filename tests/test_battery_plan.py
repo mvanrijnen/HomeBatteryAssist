@@ -629,3 +629,25 @@ def test_room_per_battery() -> None:
     pv = {T0: 1500.0, T0 + H: 0.0}
     plan = plan_batteries([full, room], slots, pv, _prices([0.2, 0.2]))
     assert plan.slots[0].power_w > 900  # the surplus is stored (in b)
+
+
+def test_hysteresis_held_now() -> None:
+    """A battery the hysteresis holds now (it was full, still in its band)
+    starts the plan held: no top-up, in arbitrage and zero on the meter."""
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        PlanRules,
+    )
+
+    rules = PlanRules(charge_hysteresis=10.0)
+    battery = _battery(soc=96.0)
+    battery.config.id = "x"
+    slots = _slots([0.0] * 3)
+    prices = _prices([0.10, 0.10, 0.60])
+    held = plan_batteries(
+        [battery], slots, {}, prices, mode=MODE_ARBITRAGE, rules=rules, held={"x"}
+    )
+    assert held.slots[0].power_w == 0.0 and held.slots[1].power_w == 0.0
+    free = plan_batteries(
+        [battery], slots, {}, prices, mode=MODE_ARBITRAGE, rules=rules, held=set()
+    )
+    assert max(s.soc for s in free.slots) > 99

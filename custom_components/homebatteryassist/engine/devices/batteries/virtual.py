@@ -600,6 +600,12 @@ class VirtualBatterySimulator:
             )
         return self._responses[battery_id]
 
+    @property
+    def held(self) -> set[str]:
+        """Virtual batteries the charge hysteresis holds now (were full,
+        not yet below the band)."""
+        return set(self._full)
+
     @staticmethod
     def _follows_nom(data: Any) -> bool:
         """Zero on the meter live: the NOM mode, or a plan that fell back to

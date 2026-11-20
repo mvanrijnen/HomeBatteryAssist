@@ -206,10 +206,17 @@ def schedule_full_charges(
                 continue  # gap in the prices
             if not allowed(start, end):
                 continue  # another battery charges fully then
-            cost = sum(
-                slot_price(when, price, power) if slot_price else price
-                for when, price in block
-            )
+            # What the energy charged costs: per slot the price of the energy
+            # charged in it (a slot the limits squeeze counts for less).
+            block_w = power if room is None else can_w
+            cost = left = 0.0
+            left = missing_wh
+            for when, price in block:
+                w = block_w if room is None else min(block_w, max(room(when), 0.0))
+                energy = min(w * eff * seconds / 3600, left)
+                left -= energy
+                rate = slot_price(when, price, w) if slot_price else price
+                cost += rate * energy / 1000
             rank = cost
             if (
                 preferred_day is not None
@@ -234,7 +241,8 @@ def schedule_full_charges(
                 deadline,
                 last_full.get(config.id),
                 best[4],
-                round(best[2] / best[3], 5),
+                # The average price of the energy charged.
+                round(best[2] / (missing_wh / 1000), 5) if missing_wh > 0 else None,
                 round(sum(candidates) / len(candidates), 5) if candidates else None,
             )
         )

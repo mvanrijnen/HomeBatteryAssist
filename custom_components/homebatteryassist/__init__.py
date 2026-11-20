@@ -498,6 +498,11 @@ async def async_setup_entry(
         )
         simulator.async_start()
         entry.async_on_unload(simulator.async_stop)
+        # The plans start from the charge hysteresis as the batteries have it:
+        # the virtual ones from the simulator, the real ones from their log.
+        forecast.held_batteries = lambda: (
+            simulator.held | batteries.hysteresis_held(forecast.rules.charge_hysteresis)
+        )
 
         # Why: an unexpected solar surplus or shortage, measured against the
         # forecast now.
