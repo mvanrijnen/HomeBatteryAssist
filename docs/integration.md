@@ -4,7 +4,7 @@ description: "HomeBatteryAssist next to Omnibattery, Marstek, Victron and price 
 
 # Working with other integrations
 
-In this phase of development HomeBatteryAssist controls nothing, so it can run next to any battery or energy integration (e.g. Omnibattery) without interfering.
+HomeBatteryAssist is built to control batteries itself. In this phase of development it controls nothing yet, for safety and so it can run next to any battery or energy integration (e.g. Omnibattery) without interfering.
 
 ## Sensors
 

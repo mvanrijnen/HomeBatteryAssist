@@ -4,7 +4,7 @@ description: "HomeBatteryAssist naast Omnibattery, Marstek, Victron en integrati
 
 # Samenwerken met andere integraties {#working-with-other-integrations}
 
-In deze fase van de ontwikkeling stuurt HomeBatteryAssist niets aan, dus het kan naast elke batterij- of energie-integratie draaien (bijvoorbeeld Omnibattery) zonder die in de weg te zitten.
+HomeBatteryAssist is gebouwd om batterijen zelf aan te sturen. In deze fase van de ontwikkeling stuurt het nog niets aan, uit veiligheid en zodat het kan naast elke batterij- of energie-integratie draaien (bijvoorbeeld Omnibattery) zonder die in de weg te zitten.
 
 ## Sensoren {#sensors}
 

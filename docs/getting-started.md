@@ -17,7 +17,7 @@ You need:
 
 Useful, but optional (you can add them later):
 
-- [ ] **Your battery's own integration**, e.g. **Omnibattery** or **Marstek Modbus**. HomeBatteryAssist only reads the battery; that integration keeps controlling it. No battery yet? Add a *virtual battery* to see what one would bring.
+- [ ] **Your battery's own integration**, e.g. **Omnibattery** or **Marstek Modbus**. HomeBatteryAssist is built to control the battery itself in the end; during development it only reads it, for safety and so it does not disturb that integration, which keeps controlling the battery for now. No battery yet? Add a *virtual battery* to see what one would bring.
 - [ ] **A price integration with dynamic prices**, e.g. **DynTarNL** (recommended in the Netherlands), Nord Pool, EnergyZero or easyEnergy. Needed for arbitrage and for the costs.
 - [ ] **A solar forecast** in the Energy dashboard (e.g. Solcast or Forecast.Solar), if you have solar panels.
 - [ ] **A weather source** (a weather entity, the KNMI integration, Weerlive or Open-Meteo), if you heat or cool electrically.

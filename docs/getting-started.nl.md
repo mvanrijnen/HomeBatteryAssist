@@ -17,7 +17,7 @@ Je hebt nodig:
 
 Handig, maar niet verplicht (kun je later toevoegen):
 
-- [ ] **De eigen integratie van je batterij**, bijv. **Omnibattery** of **Marstek Modbus**. HomeBatteryAssist leest de batterij alleen uit; die integratie blijft hem aansturen. Nog geen batterij? Voeg een *virtuele batterij* toe om te zien wat er een zou opleveren.
+- [ ] **De eigen integratie van je batterij**, bijv. **Omnibattery** of **Marstek Modbus**. Uiteindelijk gaat HomeBatteryAssist de batterij zelf aansturen; tijdens de ontwikkeling leest het hem alleen uit, uit veiligheid en om die integratie niet te verstoren, zodat die hem voorlopig blijft aansturen. Nog geen batterij? Voeg een *virtuele batterij* toe om te zien wat er een zou opleveren.
 - [ ] **Een prijsintegratie met dynamische prijzen**, bijv. **DynTarNL** (aanbevolen in Nederland), Nord Pool, EnergyZero of easyEnergy. Nodig voor arbitrage en voor de kosten.
 - [ ] **Een zonvoorspelling** in het Energie-dashboard (bijv. Solcast of Forecast.Solar), als je zonnepanelen hebt.
 - [ ] **Een weerbron** (een weer-entiteit, de KNMI-integratie, Weerlive of Open-Meteo), als je elektrisch verwarmt of koelt.
