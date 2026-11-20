@@ -83,6 +83,45 @@ async def _entry(
     return entry
 
 
+@pytest.mark.frozen_grid
+async def test_frozen_battery_power_counts_as_unknown(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """A battery power sensor frozen at a real power makes the house
+    consumption unknown; frozen near 0 W (idle) it is left alone."""
+    house = "sensor.homebatteryassist_house_consumption"
+    entry = await _entry(hass)
+    measurements = entry.runtime_data.measurements
+
+    def report(battery: str | None) -> None:
+        hass.states.async_set("sensor.grid", "500", {"unit_of_measurement": "W"})
+        if battery is not None:
+            hass.states.async_set(
+                "sensor.marstek_power", battery, {"unit_of_measurement": "W"}
+            )
+
+    report("800")  # discharging
+    hass.states.async_set("sensor.marstek_soc", "50", {"unit_of_measurement": "%"})
+    freezer.tick(timedelta(minutes=3))  # past the start-up quiet time
+    report("800")
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert float(hass.states.get(house).state) == 1300.0
+    freezer.tick(timedelta(seconds=100))
+    report(None)  # the grid keeps reporting, the battery does not
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert hass.states.get(house).state == "unavailable"
+    assert measurements.stale == ["sensor.marstek_power"]
+    report("0")  # idle now
+    freezer.tick(timedelta(seconds=100))
+    report(None)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert measurements.stale == []
+    assert float(hass.states.get(house).state) == 500.0
+
+
 def _entity(hass: HomeAssistant, entry: MockConfigEntry, key: str) -> str:
     (battery_id,) = entry.subentries
     entity_id = er.async_get(hass).async_get_entity_id(
@@ -484,7 +523,9 @@ async def test_activity_explained(
     assert decisions.latest == before
 
     # Lasting discharging (from 13:09), while the plan said idle.
-    _set(hass, "sensor.marstek_power", "500", "W")
+    _set(
+        hass, "sensor.marstek_power", "460", "W"
+    )  # 0.46-0.51 kWh: one rounding either way
     await hass.async_block_till_done()
     await later(6)
     assert decisions.latest["key"] == "battery_discharging"
@@ -505,7 +546,7 @@ async def test_activity_explained(
     await later(6)
     assert decisions.latest["key"] == "battery_stopped_discharging"
     assert decisions.latest["message"] == (
-        "Venus supplied power from 13:09 to 14:09: 0.6 kWh — it is empty "
+        "Venus supplied power from 13:09 to 14:09: 0.5 kWh — it is empty "
         "(set lower limit). Now it is idle and the house runs on the grid, "
         "expected until about 17-11 09:00, when it charges again. That matches "
         "the plan."

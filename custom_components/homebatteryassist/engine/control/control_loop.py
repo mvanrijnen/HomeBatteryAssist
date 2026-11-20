@@ -70,7 +70,9 @@ the dashboard simulates is what would be sent:
    ``cap_powers`` (the virtual batteries are not in the measurement, so
    they use it as it is). **Grid unknown** (meter gone for 10 s, a grid
    sensor unknown, or a grid sensor frozen: not reported anew for
-   ``GRID_STALE`` = 90 s, ``MeasurementInput.stale``, *Why* ``grid_stale``):
+   ``GRID_STALE`` = 90 s, ``MeasurementInput.stale``, *Why* ``grid_stale``;
+   also a battery power sensor frozen at >= ``BATTERY_STALE_W``, since the
+   load without the batteries would then be wrong):
    no control; every battery is released to its own control until the grid
    is measured again (``meter_lost_hold``).
 7. Per battery ``controller.async_command(power)`` (a released battery:

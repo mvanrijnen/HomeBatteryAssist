@@ -96,6 +96,10 @@ ENTITY_INTERVAL = timedelta(seconds=10)  # entities with a direct meter
 # nothing acts on an old phase load. Checked every STALE_CHECK.
 GRID_STALE = timedelta(seconds=90)
 STALE_CHECK = timedelta(seconds=15)
+# A battery power sensor frozen at a real power (its integration hangs while
+# the battery charged or discharged) counts as unknown too after GRID_STALE;
+# frozen near 0 W is left alone (an idle battery may not be reported anew).
+BATTERY_STALE_W = 50.0
 
 
 # Current and voltage sensors in another unit than A / V.
@@ -310,7 +314,7 @@ class MeasurementInput:
             for b in self.batteries
             if (meter := battery_meter(self.hass, b)) is not None
         ]
-        if self.grid_phases:
+        if self.grid_phases or any(b.power_sensor for b in self.batteries):
             self._unsub_stale = async_track_time_interval(
                 self.hass, self._async_check_stale, STALE_CHECK
             )
@@ -326,7 +330,9 @@ class MeasurementInput:
 
     def _stale_grid(self, now: datetime) -> list[str]:
         """The grid sensors of each phase whose newest report is older than
-        GRID_STALE (not in the first minutes after a start)."""
+        GRID_STALE, and the battery power sensors frozen at a real power
+        (``BATTERY_STALE_W``; not when read by an external meter). Not in the
+        first minutes after a start."""
         if now < self._quiet_until:
             return []
         frozen: list[str] = []
@@ -335,6 +341,21 @@ class MeasurementInput:
             seen = [t for e in sensors if (t := self._reported(e)) is not None]
             if seen and now - max(seen) > GRID_STALE:
                 frozen += sensors
+        for b in self.batteries:
+            if not b.power_sensor:
+                continue  # virtual
+            meter = battery_meter(self.hass, b)
+            if meter is not None and meter.available and meter.phase_w:
+                continue
+            watts = self._watts(b.power_sensor)
+            seen = self._reported(b.power_sensor)
+            if (
+                watts is not None
+                and abs(watts) >= BATTERY_STALE_W
+                and seen is not None
+                and now - seen > GRID_STALE
+            ):
+                frozen.append(b.power_sensor)
         return frozen
 
     def _reported(self, entity_id: str) -> datetime | None:
@@ -442,8 +463,10 @@ class MeasurementInput:
     def calculate(self) -> tuple[PowerFlow | None, list[str]]:
         """Compute all power flows and the grid sensors without a value.
 
-        Unknown if any grid measurement is unknown; unknown PV sources,
-        excluded loads and batteries count as 0 W.
+        Unknown if any grid measurement is unknown or frozen, a battery's
+        power is unknown or frozen at a real power, an excluded device has no
+        value, or PV drops out while it was producing; sensors that do not
+        exist at all count as 0 W.
         """
         phase_w: list[float] = []
         phase_a: tuple[float, ...] = ()
