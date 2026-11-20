@@ -631,6 +631,33 @@ def test_room_per_battery() -> None:
     assert plan.slots[0].power_w > 900  # the surplus is stored (in b)
 
 
+def test_single_battery_outside_limits_keeps_them() -> None:
+    """One battery below its reserve or above its maximum: the plan never
+    takes it further out (no other battery whose room it could hide)."""
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        PlanRules,
+    )
+
+    low = _battery(soc=20.0)
+    slots = _slots([0.0, 0.0, 2000.0, 2000.0, 2000.0])
+    pv = {T0: 3500.0, T0 + H: 3500.0}
+    plan = plan_batteries(
+        [low],
+        slots,
+        pv,
+        _prices([0.2] * 5),
+        mode=MODE_NOM,
+        rules=PlanRules(reserve_soc=30.0),
+    )
+    assert min(s.soc for s in plan.slots[1:]) >= 30.0 - 0.01
+    high = _battery(soc=100.0)
+    high.config.max_soc = 80.0
+    slots = _slots([1000.0, 0.0, 0.0])
+    pv = {T0 + H: 3500.0, T0 + 2 * H: 3500.0}
+    plan = plan_batteries([high], slots, pv, _prices([0.2] * 3), mode=MODE_NOM)
+    assert max(s.soc for s in plan.slots[1:]) <= 80.0 + 0.01
+
+
 def test_hysteresis_held_now() -> None:
     """A battery the hysteresis holds now (it was full, still in its band)
     starts the plan held: no top-up, in arbitrage and zero on the meter."""

@@ -358,6 +358,10 @@ class HbaStore:
             _LOGGER.info("%s moved back to its JSON file", self.name)
             await markers.set(self.name, JSON)
             return data
+        if previous is None and await self._has_rows():
+            # Kept here already, its marker lost (e.g. a partial restore):
+            # the database, never overwritten by an older JSON copy.
+            previous = self.url
         if same_place(previous, self.url):
             try:
                 rows = await self.hass.async_add_executor_job(
@@ -388,6 +392,19 @@ class HbaStore:
         _LOGGER.info("%s moved to %s", self.name, self.where)
         await markers.set(self.name, self.url)
         return data
+
+    async def _has_rows(self) -> bool:
+        """Whether the database in use holds rows of this store (not
+        reachable: wait and try again)."""
+        try:
+            rows = await self.hass.async_add_executor_job(
+                _database(self.url).read, self.name
+            )
+        except Exception as err:
+            raise ConfigEntryNotReady(
+                f"{self.name}: database {self.where} not reachable ({err})"
+            ) from err
+        return bool(rows)
 
     async def _load_from(self, where: str | None) -> dict[str, Any] | None:
         """The data where it was kept last (the JSON file when unknown); a
@@ -433,7 +450,12 @@ class HbaStore:
         return join(rows, self._layout) if rows else None
 
     async def async_save(self, data: dict[str, Any]) -> None:
-        """Write now (in the database: only the rows that changed)."""
+        """Write now (in the database: only the rows that changed); a delayed
+        write still waiting is dropped (this one is newer)."""
+        if self._unsub is not None:
+            self._unsub()
+            self._unsub = None
+        self._pending = None
         if self.url is None:
             await self._json.async_save(data)
             return

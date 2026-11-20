@@ -248,8 +248,11 @@ def _pack(
     # The pack as one battery, with the room of each battery: one above its
     # maximum (after a full charge) or below its minimum does not hide the
     # room of another; the final check keeps each within its own limits.
-    above = sum(max(wh_of(s) - ceiling_of(s), 0.0) for s in usable)
-    below = sum(max(floor_of(s) - wh_of(s), 0.0) for s in usable)
+    # One battery has no others and no per-battery check: its own limits.
+    above = below = 0.0
+    if len(usable) > 1:
+        above = sum(max(wh_of(s) - ceiling_of(s), 0.0) for s in usable)
+        below = sum(max(floor_of(s) - wh_of(s), 0.0) for s in usable)
     return _Pack(
         capacity=capacity,
         stored=sum(wh_of(s) for s in usable),

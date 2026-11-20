@@ -103,6 +103,39 @@ async def test_delay_save_and_deletes(hass: HomeAssistant, tmp_path: Path) -> No
     assert "excluded_days" not in loaded
 
 
+async def test_lost_marker_keeps_the_database(
+    hass: HomeAssistant, tmp_path: Path
+) -> None:
+    """The marker lost (partial restore), the database still there: its rows
+    are used, never overwritten by an older JSON copy."""
+    url = _url(hass, tmp_path)
+    json_store: Store = Store(hass, 1, "homebatteryassist.test5.consumption")
+    await json_store.async_save(_history(2))
+    store = HbaStore(hass, json_store, HISTORY, url)
+    await store.async_load()
+    await store.async_save(_history(5))
+    with patch(
+        "custom_components.homebatteryassist.engine.db_store._Markers.get",
+        return_value=None,
+    ):
+        again = HbaStore(hass, json_store, HISTORY, url)
+        assert await again.async_load() == _history(5)
+
+
+async def test_save_drops_a_waiting_delayed_write(
+    hass: HomeAssistant, tmp_path: Path
+) -> None:
+    """A save now drops a delayed write still waiting (it would write older
+    data later, e.g. after a reload)."""
+    url = _url(hass, tmp_path)
+    json_store: Store = Store(hass, 1, "homebatteryassist.test6.consumption")
+    store = HbaStore(hass, json_store, HISTORY, url)
+    await store.async_load()
+    store.async_delay_save(lambda: _history(1), 60)
+    await store.async_save(_history(3))
+    assert store._unsub is None and store._pending is None
+
+
 async def test_unreachable_database_waits(hass: HomeAssistant) -> None:
     """A database that cannot be reached at start: the setup waits and tries
     again (never a stale JSON copy in its place)."""
