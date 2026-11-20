@@ -3,7 +3,8 @@
 On top of the factor per lead time (``lead_time.py``) it learns two typical
 deviations of PV forecasts:
 
-- **per hour of the day** (local): shade in the morning, a roof facing west,
+- **per hour of the day** (local standard time, as the sun: no shift at a
+  summer/winter time change): shade in the morning, a roof facing west,
   a forecast that is early or late — one factor per lead time averages that
   away;
 - **per level**: how much the forecast promises at that hour compared with
@@ -28,6 +29,7 @@ from typing import Any
 
 from homeassistant.util import dt as dt_util
 
+from ...units import sun_hour
 from .base import PvCorrectionInput, PvCorrector
 
 HALF_LIFE = timedelta(days=14)
@@ -66,24 +68,25 @@ class HourAndLevelCorrector(PvCorrector):
         }
 
     def correct(self, data: PvCorrectionInput) -> Sequence[float | None]:
-        # The most forecast per local hour: about a clear sky at that hour.
+        # The most forecast per hour (standard time): about a clear sky then.
         reference: dict[int, float] = defaultdict(float)
         rows = []  # (local hour, weight, actual, [(raw, lead-corrected)], day)
         for result in data.results:
             local = dt_util.as_local(result.start)
+            hour = sun_hour(result.start)
             preds = [
                 (p, p * data.bucket_factors.get(b, 1.0))
                 for b, p in result.predictions.items()
             ]
             for raw, _ in preds:
-                reference[local.hour] = max(reference[local.hour], raw)
+                reference[hour] = max(reference[hour], raw)
             if result.actual < MIN_WH and all(p < MIN_WH for p, _ in preds):
                 continue
             age = max((data.now - result.start).total_seconds(), 0.0)
             weight = math.pow(0.5, age / HALF_LIFE.total_seconds())
-            rows.append((local.hour, weight, result.actual, preds, local.date()))
+            rows.append((hour, weight, result.actual, preds, local.date()))
         for start, wh in data.slots:
-            hour = dt_util.as_local(start).hour
+            hour = sun_hour(start)
             reference[hour] = max(reference[hour], wh)
 
         # Per hour of the day.
@@ -118,7 +121,7 @@ class HourAndLevelCorrector(PvCorrector):
         low, high = FACTOR_RANGE
         out: list[float | None] = []
         for start, wh in data.slots:
-            hour = dt_util.as_local(start).hour
+            hour = sun_hour(start)
             factor = self.hours.get(hour, 1.0) * level_factor.get(
                 _level(wh, reference[hour]), 1.0
             )

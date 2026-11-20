@@ -558,9 +558,10 @@ def test_share_reserves_per_battery() -> None:
     # More asked, but no import above the peak: not below the peak reserve.
     power, new = _share([a, b], [4000.0, 3500.0], -2000.0, 1.0, peak=True)
     assert power == -1500.0
-    # 500 W import above the peak: that part from below the peak reserve.
+    # 2000 W import above the peak, 1500 W of it from the normal room: the
+    # last 500 W from below the peak reserve.
     power, new = _share(
-        [a, b], [4000.0, 3500.0], -2000.0, 1.0, peak=True, peak_excess=500.0
+        [a, b], [4000.0, 3500.0], -2000.0, 1.0, peak=True, peak_excess=2000.0
     )
     assert power == -2000.0
     assert min(new) < 3000.0
@@ -656,6 +657,31 @@ def test_single_battery_outside_limits_keeps_them() -> None:
     pv = {T0 + H: 3500.0, T0 + 2 * H: 3500.0}
     plan = plan_batteries([high], slots, pv, _prices([0.2] * 3), mode=MODE_NOM)
     assert max(s.soc for s in plan.slots[1:]) <= 80.0 + 0.01
+
+
+def test_peak_reserve_kept_per_battery_below_the_peak() -> None:
+    """Several batteries with a peak limit: one is not drained into its peak
+    reserve while the normal discharge already keeps the import under the
+    peak (the big one is limited by its power)."""
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        PlanRules,
+    )
+
+    big = _battery(soc=70.0, capacity=10.0, power=800.0)
+    big.config.id, big.config.min_soc = "big", 0.0
+    small = _battery(soc=75.0, capacity=2.0, power=5000.0)
+    small.config.id, small.config.min_soc = "small", 0.0
+    plan = plan_batteries(
+        [big, small],
+        _slots([3000.0]),
+        {},
+        [],
+        mode=MODE_NOM,
+        peak_w=2500.0,
+        rules=PlanRules(peak_reserve_soc=50.0),
+    )
+    assert plan.slots[0].power_w == pytest.approx(-1250.0, abs=1)
+    assert plan.slots[0].grid_w <= 2500.0
 
 
 def test_hysteresis_held_now() -> None:

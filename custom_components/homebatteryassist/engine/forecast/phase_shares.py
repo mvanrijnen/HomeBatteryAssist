@@ -9,7 +9,7 @@ to the share over all hours, and to an even split without history.
 
     load_p = consumption x house share_p(hour) - PV x PV share_p(hour)
 
-The PV share is per local hour too: roofs facing east and west, or an
+The PV share is per hour too, in local standard time (the sun keeps to it): roofs facing east and west, or an
 inverter per roof on another phase, give the morning to other phases than
 the afternoon.
 
@@ -38,6 +38,7 @@ from datetime import datetime
 from homeassistant.util import dt as dt_util
 
 from ..history.consumption_history import ConsumptionRecord
+from ..units import sun_hour
 from .consumption_forecast import ForecastSlot
 
 MIN_SAMPLES = 4  # records with measured current (an hour of 15 minutes)
@@ -68,6 +69,7 @@ class PhaseProfile:
             weight = record["minutes"] * record["coverage"]
             start = dt_util.parse_datetime(record["start"])
             hour = dt_util.as_local(start).hour if start else 0
+            sun = sun_hour(start) if start else 0  # PV keeps to the sun
             if (house := record.get("phase_house_w")) and len(house) == phases:
                 acc = house_hour.setdefault(hour, [0.0] * phases)
                 for i, value in enumerate(house):
@@ -75,7 +77,7 @@ class PhaseProfile:
                     house_all[i] += max(value, 0.0) * weight
                 self.samples += 1
             if (pv := record.get("phase_pv_w")) and len(pv) == phases:
-                acc = pv_hour.setdefault(hour, [0.0] * phases)
+                acc = pv_hour.setdefault(sun, [0.0] * phases)
                 for i, value in enumerate(pv):
                     acc[i] += max(value, 0.0) * weight
                     pv_all[i] += max(value, 0.0) * weight
@@ -97,7 +99,7 @@ class PhaseProfile:
 
     def pv_share(self, when: datetime) -> list[float]:
         """Share of the PV production per phase at ``when``."""
-        return self.pv_hour.get(dt_util.as_local(when).hour, self.pv)
+        return self.pv_hour.get(sun_hour(when), self.pv)
 
     def loads(
         self, consumption: Sequence[ForecastSlot], pv_wh: Mapping[datetime, float]

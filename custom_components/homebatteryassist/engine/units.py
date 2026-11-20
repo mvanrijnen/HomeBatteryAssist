@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.const import (
@@ -63,6 +63,14 @@ def parse_time(value: Any) -> datetime | None:
         if parsed is not None and parsed.tzinfo is not None:
             return dt_util.as_utc(parsed)
     return None
+
+
+def sun_hour(when: datetime) -> int:
+    """The hour of ``when`` in local standard time (no summer time): the sun
+    keeps to it, so a PV pattern learned per hour does not shift an hour
+    at a summer/winter time change."""
+    local = dt_util.as_local(when)
+    return (local - (local.dst() or timedelta(0))).hour
 
 
 def parse_float(value: Any) -> float | None:

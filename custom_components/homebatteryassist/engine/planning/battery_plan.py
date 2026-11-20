@@ -748,12 +748,19 @@ def _discharge_room(
         return discharge_room(data, slot, stored)
     room = deep = 0.0
     night = slot.reserve_wh > 0
+    limits = data.member_limits.get(slot.start)
     for m, wh in zip(data.battery.members, member_wh, strict=True):
         floor = max(m.floor_wh, m.night_floor_wh if night else 0.0)
         normal = max(floor, m.peak_floor_wh) if data.peak_w > 0 else floor
-        room += max(wh - normal, 0.0) * m.efficiency / slot.hours
+        # Each at most what it can give (its power, its phase room).
+        cap = _cap(m, limits, 1)
+        own = min(cap, max(wh - normal, 0.0) * m.efficiency / slot.hours)
+        room += own
         if normal > floor:
-            deep += max(min(wh, normal) - floor, 0.0) * m.efficiency / slot.hours
+            deep += min(
+                cap - own,
+                max(min(wh, normal) - floor, 0.0) * m.efficiency / slot.hours,
+            )
     # Below the peak reserve: only for the import above the peak limit.
     return room + min(deep, max(slot.net_w - data.peak_w - room, 0.0))
 
@@ -822,7 +829,10 @@ def _share(
             deep = [max(d, 0.0) for d in deep]
             room_deep = sum(deep)
             if room_deep > 0:
-                use = min(room_deep, peak_excess, -power - sum(caps))
+                # The import above the peak the normal room leaves.
+                use = min(
+                    room_deep, max(peak_excess - sum(caps), 0.0), -power - sum(caps)
+                )
                 caps = [
                     c + d * use / room_deep for c, d in zip(caps, deep, strict=True)
                 ]

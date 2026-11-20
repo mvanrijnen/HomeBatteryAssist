@@ -163,3 +163,55 @@ async def test_reset_forgets_the_comparison_too(hass: HomeAssistant) -> None:
         ]
     accuracy.reset("pv")
     assert accuracy.results["pv"] == [] and accuracy.results[kind] == []
+
+
+async def test_hour_factor_keeps_to_the_sun_across_dst(hass) -> None:
+    """Shade learned at an hour before the autumn time change stays on the
+    same sun hour after it (standard time, not the clock)."""
+    import zoneinfo
+    from datetime import UTC, datetime, timedelta
+
+    from homeassistant.util import dt as dt_util
+
+    from custom_components.homebatteryassist.engine.evaluation.pv_corrections.base import (
+        PvCorrectionInput,
+        PvResult,
+    )
+    from custom_components.homebatteryassist.engine.evaluation.pv_corrections.hour_and_level import (
+        HourAndLevelCorrector,
+    )
+
+    def shape(h: int) -> float:
+        return {
+            7: 200,
+            8: 600,
+            9: 1000,
+            10: 1300,
+            11: 1400,
+            12: 1400,
+            13: 1300,
+            14: 1000,
+            15: 600,
+            16: 200,
+        }.get(h, 0)
+
+    dt_util.set_default_time_zone(zoneinfo.ZoneInfo("Europe/Amsterdam"))
+    switch = datetime(2026, 10, 25, 1, tzinfo=UTC)
+    results = [
+        PvResult(
+            (switch - timedelta(days=d)).replace(hour=h),
+            shape(h) * (0.3 if h == 8 else 1.0),
+            {"1-6h": shape(h)},
+        )
+        for d in range(21, 0, -1)
+        for h in range(24)
+        if shape(h)
+    ]
+    now = datetime(2026, 10, 26, 0, tzinfo=UTC)
+    slots = [(now.replace(hour=h), float(shape(h))) for h in range(24) if shape(h)]
+    out = HourAndLevelCorrector().correct(
+        PvCorrectionInput(now, slots, results, lambda s: 1.0, {"1-6h": 1.0})
+    )
+    by_hour = {s.hour: o for (s, _), o in zip(slots, out, strict=True)}
+    assert by_hour[8] < 300  # the shade stays at 08 UTC
+    assert by_hour[9] > 900 and by_hour[15] > 540  # no shade moved onto these
