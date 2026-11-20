@@ -1698,11 +1698,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
     svg += `<g class="hover" style="display:none"><line class="cursor" y1="${T}" y2="${H - B}"/>
       ${series.map((s, i) => `<circle r="3.5" data-i="${i}" style="fill:${s.color}"/>`).join("")}</g>`;
     this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt, yFmt, right };
-    const out = `<svg data-chart="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"${
+    const chart = `<svg data-chart="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"${
       scroll ? ` style="width:${W}px;max-width:none"` : ""
-    }>${svg}</svg>
+    }>${svg}</svg>`;
+    // The tooltip stays outside the scrolling box (never clipped or squeezed).
+    return `${scroll ? `<div class="xscroll" data-scroll="${id}">${chart}</div>` : chart}
       <div class="tip" data-tip="${id}" hidden></div>`;
-    return scroll ? `<div class="xscroll" data-scroll="${id}">${out}</div>` : out;
   }
 
   _money(value, h) {
@@ -1916,13 +1917,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
     tip.innerHTML = `<div class="t">${esc(c.xFmt(anchor[0]))}</div>${rows}${extra}`;
     tip.hidden = false;
     const box = svg.getBoundingClientRect();
-    const holder = svg.parentElement;
-    const parent = holder.getBoundingClientRect();
-    const shift = holder.classList.contains("xscroll") ? holder.scrollLeft : 0;
-    const px = box.left - parent.left + shift + (sx(anchor[0]) / c.W) * box.width;
+    const parent = tip.parentElement.getBoundingClientRect();
+    const px = box.left - parent.left + (sx(anchor[0]) / c.W) * box.width;
     const width = tip.offsetWidth;
-    const right = shift + parent.width;
-    tip.style.left = `${px + 12 + width > right ? Math.max(shift, px - width - 12) : px + 12}px`;
+    tip.style.left = `${px + 12 + width > parent.width ? Math.max(0, px - width - 12) : px + 12}px`;
     // Small charts: under the chart, so it never covers the lines; wide
     // charts have room beside the cursor.
     const small = box.width < 700;
