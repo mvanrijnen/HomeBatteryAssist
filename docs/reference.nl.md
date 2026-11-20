@@ -14,9 +14,9 @@ Deze netmeters zijn gevonden. Een meter die rechtstreeks wordt uitgelezen geeft 
 
 ### Meter rechtstreeks uitlezen {#setup-direct}
 
-Kies het type meter en vul het IP-adres in. HomeBatteryAssist leest hem ongeveer elke seconde uit, alleen lezen; er verandert niets aan de meter. Vul bij een SMA Home Manager / Energy Meter het adres in waarvandaan hij uitzendt.
+Kies het type meter en vul het IP-adres in. HomeBatteryAssist leest hem ongeveer elke seconde uit, alleen lezen; er verandert niets aan de meter. Vul bij een SMA Home Manager / Energy Meter het serienummer in (op het label, of in Sunny Portal): dat staat in elk bericht dat de meter uitzendt, dus een nieuw IP-adres maakt niet uit.
 
-**Type meter**, **IP-adres**
+**Type meter**, **IP-adres (SMA: serienummer)**
 
 ### Netaansluiting {#setup-user}
 
@@ -255,7 +255,7 @@ Een meting van zonne-opwek (PV), bijvoorbeeld een omvormer. De opwek wordt bij d
 | **Vermogen L2 (optioneel, 3-fase)** |  |
 | **Vermogen L3 (optioneel, 3-fase)** |  |
 | **Gemeten door** | Een sensor van een andere integratie, of een meter die rechtstreeks wordt uitgelezen (ongeveer elke seconde, alleen lezen), bijv. een HomeWizard kWh-meter op de groep van de omvormer. |
-| **IP-adres meter** | Alleen bij een rechtstreeks uitgelezen meter. |
+| **IP-adres meter (SMA: serienummer)** | Alleen bij een rechtstreeks uitgelezen meter. |
 | **Omvormer-driver (begrenzing teruglevering)** | Hoe deze omvormer begrensd zou kunnen worden voor de begrenzing van de teruglevering. Met een Sunny Home Manager 2.0 kies je de Home Manager voor elke SMA-omvormer erachter (de begrenzing gaat dan via de Home Manager). In deze fase wordt niets verstuurd: alleen getoond wat hij zou sturen. |
 | **Adres voor de driver** | Waar de gekozen driver naartoe zou sturen: het IP-adres van het apparaat waarmee hij praat, eventueel met poort en unit-id (host:poort/unit). Bij de driver Sunny Home Manager: het IP-adres van de Home Manager (hetzelfde voor elke PV-bron erachter), niet dat van de omvormer. Bij SMA Modbus of SunSpec: het IP-adres van de omvormer (SunSpec op een SMA: bijv. 192.168.1.20:502/126). Zonder driver: leeg laten. |
 | **Mogelijk vermogen (optioneel)** | Wat deze PV-bron nu zou kunnen leveren (W), bijv. een register van een SMA-omvormer, ingelezen met de Modbus-integratie van Home Assistant. Waar het hoger is dan het gemeten vermogen, werd PV tegengehouden (begrensd): HomeBatteryAssist leert dan van wat de zon gaf, en toont wat er tegengehouden wordt. |

@@ -1452,9 +1452,14 @@ def _direct_options(
         if candidate.phases is None and candidate.address in phases_of:
             candidate = replace(candidate, phases=phases_of[candidate.address])
         options[_direct_key(candidate.source, candidate.address)] = candidate
-    for address in sorted(speedwire):
-        options[_direct_key(SOURCE_SPEEDWIRE, address)] = DirectCandidate(
-            SOURCE_SPEEDWIRE, address, SOURCE_NAMES[SOURCE_SPEEDWIRE], None
+    for address, serial in sorted(speedwire.items()):
+        # Known by its serial number (in every telegram): a new IP address
+        # (DHCP) changes nothing.
+        options[_direct_key(SOURCE_SPEEDWIRE, str(serial))] = DirectCandidate(
+            SOURCE_SPEEDWIRE,
+            str(serial),
+            f"{SOURCE_NAMES[SOURCE_SPEEDWIRE]} ({address})",
+            None,
         )
     return options
 

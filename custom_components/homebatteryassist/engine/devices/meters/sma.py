@@ -148,17 +148,33 @@ def _multicast_socket() -> socket.socket:
 
 
 class SpeedwireMeter(DirectMeter):
-    """Receives the multicast telegrams of one SMA Home Manager / Energy Meter."""
+    """Receives the multicast telegrams of one SMA Home Manager / Energy Meter.
+
+    The meter is known by its **serial number** (``address`` = the serial):
+    every telegram carries it, so a new IP address (DHCP) changes nothing.
+    An older setting with an IP address still works: the serial is learned
+    from the first telegram from that address and handed to ``on_serial``
+    (which stores it in the setting instead).
+    """
 
     label = SOURCE_SPEEDWIRE
 
     def __init__(self, hass: HomeAssistant, address: str) -> None:
-        """Initialize; ``address`` is the meter's IP address."""
+        """Initialize; ``address`` is the meter's serial (or an IP address)."""
         super().__init__(hass, address)
         self._transport: asyncio.DatagramTransport | None = None
         self._retry: Callable[[], None] | None = None
         self._stopped = False
-        self._serial: int | None = None  # learned from its first telegram
+        text = str(address).strip()
+        self._serial: int | None = int(text) if text.isdigit() else None
+        self.host: str | None = None if text.isdigit() else text
+        # Called once with the serial learned for an IP address setting.
+        self.on_serial: Callable[[int], None] | None = None
+
+    @property
+    def serial(self) -> int | None:
+        """The meter's serial number (None until known)."""
+        return self._serial
 
     async def async_start(self) -> None:
         """Join the multicast group (receive only); retried every minute when
@@ -194,20 +210,29 @@ class SpeedwireMeter(DirectMeter):
 
     @callback
     def _received(self, data: bytes, host: str) -> None:
-        telegram = decode(data) if host == self.address or self._serial else None
+        if self._serial is None and host != self.host:
+            return  # set up by IP address: until its serial is known
+        telegram = decode(data)
         if telegram is None:
             return
-        if host != self.address:
-            # The meter got another address (DHCP): known by its serial.
-            if telegram.serial != self._serial:
-                return
-            _LOGGER.info("SMA meter %s now at %s", self._serial, host)
-            self.address = host
-        self._serial = telegram.serial
-        if telegram is not None:
-            self.phase_v = telegram.phase_v
-            self.phase_pf = telegram.phase_pf
-            self._set(telegram.phase_w, telegram.phase_a)
+        if self._serial is None:
+            self._serial = telegram.serial
+            _LOGGER.info("SMA meter at %s has serial %s", host, telegram.serial)
+            if self.on_serial is not None:
+                self.on_serial(telegram.serial)
+        elif telegram.serial != self._serial:
+            return  # another meter
+        if host != self.host:
+            if self.host is not None:
+                _LOGGER.info("SMA meter %s now at %s", self._serial, host)
+            self.host = host
+        self.phase_v = telegram.phase_v
+        self.phase_pf = telegram.phase_pf
+        self._set(telegram.phase_w, telegram.phase_a)
+
+    def diagnostics(self) -> dict[str, Any]:
+        """State for the diagnostics download (with the serial)."""
+        return {**super().diagnostics(), "serial": self._serial}
 
 
 async def discover_speedwire(

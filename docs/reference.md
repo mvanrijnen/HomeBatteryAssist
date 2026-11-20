@@ -14,9 +14,9 @@ These grid meters were found. A meter read directly gives a value about every se
 
 ### Meter read directly {#setup-direct}
 
-Choose the type of meter and enter its IP address. HomeBatteryAssist reads it about every second, read-only; nothing on the meter changes. For an SMA Home Manager / Energy Meter enter the address it sends from.
+Choose the type of meter and enter its IP address. HomeBatteryAssist reads it about every second, read-only; nothing on the meter changes. For an SMA Home Manager / Energy Meter enter its serial number (on the label, or in Sunny Portal): it is in every message the meter sends, so a new IP address does not matter.
 
-**Type of meter**, **IP address**
+**Type of meter**, **IP address (SMA: serial number)**
 
 ### Grid connection {#setup-user}
 
@@ -255,7 +255,7 @@ A measurement of solar (PV) production, e.g. an inverter. Its production is adde
 | **Power L2 (optional, 3-phase)** |  |
 | **Power L3 (optional, 3-phase)** |  |
 | **Measured by** | A sensor of another integration, or a meter read directly (about every second, read-only), e.g. a HomeWizard kWh meter on the inverter's line. |
-| **Meter IP address** | Only for a meter read directly. |
+| **Meter IP address (SMA: serial number)** | Only for a meter read directly. |
 | **Inverter driver (export limit)** | How this inverter could be limited for the export limit. With a Sunny Home Manager 2.0 choose the Home Manager for every SMA inverter behind it (the limit then goes through the Home Manager). In this phase nothing is sent: only shown what it would send. |
 | **Address for the driver** | Where the chosen driver would send to: the IP address of the device it talks to, optionally with port and unit id (host:port/unit). With the Sunny Home Manager driver: the Home Manager's IP address (the same for every PV source behind it), not the inverter's. With SMA Modbus or SunSpec: the inverter's IP address (SunSpec on an SMA: e.g. 192.168.1.20:502/126). Without a driver: leave empty. |
 | **Possible power (optional)** | What this PV source could produce now (W), e.g. an SMA inverter's register read with Home Assistant's Modbus integration. Where it is higher than the measured power, the PV was held back (curtailed): HomeBatteryAssist then learns from what the sun gave, and shows what is held back. |

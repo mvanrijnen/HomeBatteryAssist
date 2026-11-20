@@ -10,10 +10,10 @@
       },
       "direct": {
         "title": "Meter read directly",
-        "description": "Choose the type of meter and enter its IP address. HomeBatteryAssist reads it about every second, read-only; nothing on the meter changes. For an SMA Home Manager / Energy Meter enter the address it sends from.",
+        "description": "Choose the type of meter and enter its IP address. HomeBatteryAssist reads it about every second, read-only; nothing on the meter changes. For an SMA Home Manager / Energy Meter enter its serial number (on the label, or in Sunny Portal): it is in every message the meter sends, so a new IP address does not matter.",
         "data": {
           "meter_source": "Type of meter",
-          "meter_address": "IP address"
+          "meter_address": "IP address (SMA: serial number)"
         }
       },
       "user": {
@@ -906,10 +906,10 @@
       },
       "direct": {
         "title": "Meter read directly",
-        "description": "Choose the type of meter and enter its IP address. HomeBatteryAssist reads it about every second, read-only; nothing on the meter changes. For an SMA Home Manager / Energy Meter enter the address it sends from.",
+        "description": "Choose the type of meter and enter its IP address. HomeBatteryAssist reads it about every second, read-only; nothing on the meter changes. For an SMA Home Manager / Energy Meter enter its serial number (on the label, or in Sunny Portal): it is in every message the meter sends, so a new IP address does not matter.",
         "data": {
           "meter_source": "Type of meter",
-          "meter_address": "IP address"
+          "meter_address": "IP address (SMA: serial number)"
         }
       },
       "user": {
@@ -979,7 +979,7 @@
             "phase_sensor_l2": "Power L2 (optional, 3-phase)",
             "phase_sensor_l3": "Power L3 (optional, 3-phase)",
             "pv_driver": "Measured by",
-            "pv_address": "Meter IP address",
+            "pv_address": "Meter IP address (SMA: serial number)",
             "inverter_driver": "Inverter driver (export limit)",
             "inverter_address": "Address for the driver",
             "possible_sensor": "Possible power (optional)",
@@ -1008,7 +1008,7 @@
             "phase_sensor_l2": "Power L2 (optional, 3-phase)",
             "phase_sensor_l3": "Power L3 (optional, 3-phase)",
             "pv_driver": "Measured by",
-            "pv_address": "Meter IP address",
+            "pv_address": "Meter IP address (SMA: serial number)",
             "inverter_driver": "Inverter driver (export limit)",
             "inverter_address": "Address for the driver",
             "possible_sensor": "Possible power (optional)",

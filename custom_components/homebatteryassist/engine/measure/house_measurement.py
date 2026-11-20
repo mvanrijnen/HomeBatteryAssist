@@ -28,6 +28,7 @@ import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import (
@@ -72,9 +73,11 @@ from ..devices.meters import get_driver as get_meter_driver
 from ..devices.meters.discovery import (
     DIRECT_SOURCES,
     SOURCE_SENSORS,
+    SOURCE_SPEEDWIRE,
     DirectMeter,
     create_meter,
 )
+from ..devices.meters.sma import SpeedwireMeter
 from ..explain import DecisionLog
 from ..units import state_to_watts
 from .battery_monitor import (
@@ -230,6 +233,7 @@ class MeasurementInput:
         for driver_key, address, phase in _pv_meters(entry):
             if (driver := get_meter_driver(driver_key)) is not None:
                 self.pv_meters.append((driver.create(hass, address), phase))
+        self._store_serials(hass, entry)
         self.pv_sensors = [sensor for sensor, _, _ in self.pv_sources]
         # Per PV source (subentry order): its sensor, or the index of its
         # directly read meter.
@@ -283,6 +287,28 @@ class MeasurementInput:
         self.spike_filter: SpikeFilter | None = None
         self.spike = SpikeState()
         self.spike_wh_pending = 0.0
+
+    def _store_serials(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """SMA meters set up by IP address (before serials): their serial,
+        once seen, replaces the address in the setting (reconfigurable)."""
+        if isinstance(self.direct, SpeedwireMeter) and self.direct.serial is None:
+            self.direct.on_serial = _serial_setter(hass, entry, CONF_METER_ADDRESS)
+        for subentry in entry.subentries.values():
+            if (
+                subentry.subentry_type != SUBENTRY_PV_SOURCE
+                or subentry.data.get(CONF_PV_DRIVER) != SOURCE_SPEEDWIRE
+            ):
+                continue
+            address = str(subentry.data.get(CONF_PV_ADDRESS) or "")
+            for meter, _phase in self.pv_meters:
+                if (
+                    isinstance(meter, SpeedwireMeter)
+                    and meter.serial is None
+                    and meter.address == address
+                ):
+                    meter.on_serial = _serial_setter(
+                        hass, entry, CONF_PV_ADDRESS, subentry
+                    )
 
     @property
     def source_entity_ids(self) -> list[str]:
@@ -769,6 +795,25 @@ def _subentry_devices(
         for device, driver, _ in _subentry_devices_all(entry, subentry_type)
         if driver == PV_DRIVER_SENSOR
     ]
+
+
+def _serial_setter(
+    hass: HomeAssistant, entry: ConfigEntry, key: str, subentry: Any = None
+) -> Callable[[int], None]:
+    """Store a learned SMA serial in place of the IP address setting."""
+
+    @callback
+    def store(serial: int) -> None:
+        if subentry is not None:
+            hass.config_entries.async_update_subentry(
+                entry, subentry, data={**subentry.data, key: str(serial)}
+            )
+        else:
+            hass.config_entries.async_update_entry(
+                entry, data={**entry.data, key: str(serial)}
+            )
+
+    return store
 
 
 def _pv_meters(entry: ConfigEntry) -> list[tuple[str, str, str]]:

@@ -10,10 +10,10 @@
       },
       "direct": {
         "title": "Meter rechtstreeks uitlezen",
-        "description": "Kies het type meter en vul het IP-adres in. HomeBatteryAssist leest hem ongeveer elke seconde uit, alleen lezen; er verandert niets aan de meter. Vul bij een SMA Home Manager / Energy Meter het adres in waarvandaan hij uitzendt.",
+        "description": "Kies het type meter en vul het IP-adres in. HomeBatteryAssist leest hem ongeveer elke seconde uit, alleen lezen; er verandert niets aan de meter. Vul bij een SMA Home Manager / Energy Meter het serienummer in (op het label, of in Sunny Portal): dat staat in elk bericht dat de meter uitzendt, dus een nieuw IP-adres maakt niet uit.",
         "data": {
           "meter_source": "Type meter",
-          "meter_address": "IP-adres"
+          "meter_address": "IP-adres (SMA: serienummer)"
         }
       },
       "user": {
@@ -906,10 +906,10 @@
       },
       "direct": {
         "title": "Meter rechtstreeks uitlezen",
-        "description": "Kies het type meter en vul het IP-adres in. HomeBatteryAssist leest hem ongeveer elke seconde uit, alleen lezen; er verandert niets aan de meter. Vul bij een SMA Home Manager / Energy Meter het adres in waarvandaan hij uitzendt.",
+        "description": "Kies het type meter en vul het IP-adres in. HomeBatteryAssist leest hem ongeveer elke seconde uit, alleen lezen; er verandert niets aan de meter. Vul bij een SMA Home Manager / Energy Meter het serienummer in (op het label, of in Sunny Portal): dat staat in elk bericht dat de meter uitzendt, dus een nieuw IP-adres maakt niet uit.",
         "data": {
           "meter_source": "Type meter",
-          "meter_address": "IP-adres"
+          "meter_address": "IP-adres (SMA: serienummer)"
         }
       },
       "user": {
@@ -979,7 +979,7 @@
             "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
             "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)",
             "pv_driver": "Gemeten door",
-            "pv_address": "IP-adres meter",
+            "pv_address": "IP-adres meter (SMA: serienummer)",
             "inverter_driver": "Omvormer-driver (begrenzing teruglevering)",
             "inverter_address": "Adres voor de driver",
             "possible_sensor": "Mogelijk vermogen (optioneel)",
@@ -1008,7 +1008,7 @@
             "phase_sensor_l2": "Vermogen L2 (optioneel, 3-fase)",
             "phase_sensor_l3": "Vermogen L3 (optioneel, 3-fase)",
             "pv_driver": "Gemeten door",
-            "pv_address": "IP-adres meter",
+            "pv_address": "IP-adres meter (SMA: serienummer)",
             "inverter_driver": "Omvormer-driver (begrenzing teruglevering)",
             "inverter_address": "Adres voor de driver",
             "possible_sensor": "Mogelijk vermogen (optioneel)",

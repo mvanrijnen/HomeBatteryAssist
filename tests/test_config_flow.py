@@ -637,7 +637,7 @@ async def _direct_meter_keeps_own_sensors(hass: HomeAssistant) -> None:
     result = await entry.start_reconfigure_flow(hass)
     assert result["step_id"] == "meter"
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {"source": "direct:speedwire:192.0.2.199"}
+        result["flow_id"], {"source": "direct:speedwire:1900000001"}
     )
     assert result["step_id"] == "user"
     result = await hass.config_entries.flow.async_configure(
@@ -651,13 +651,13 @@ async def _direct_meter_keeps_own_sensors(hass: HomeAssistant) -> None:
         "price_thresholds_checked": True,  # kept by the grid steps
         **data,
         "meter_source": "speedwire",
-        "meter_address": "192.0.2.199",
+        "meter_address": "1900000001",  # SMA: known by its serial
     }
 
     result = await entry.start_reconfigure_flow(hass)
     assert result["step_id"] == "meter"
     key = next(k for k in result["data_schema"].schema if str(k) == "source")
-    assert key.default() == "direct:speedwire:192.0.2.199"
+    assert key.default() == "direct:speedwire:1900000001"
     result = await hass.config_entries.flow.async_configure(
         result["flow_id"], {"source": "manual"}
     )

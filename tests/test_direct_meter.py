@@ -484,3 +484,35 @@ def test_plan_room_with_reactive_part() -> None:
     expected = (5175.0**2 - 2500.0**2) ** 0.5 + 50.0
     assert abs(room - expected) < 1.0
     assert room < 5000.0
+
+
+async def test_speedwire_meter_known_by_serial(hass: HomeAssistant) -> None:
+    """An SMA meter set up by serial follows it to any IP address (DHCP);
+    one set up by IP address learns its serial and hands it on."""
+    from custom_components.homebatteryassist.engine.devices.meters.sma import (
+        SpeedwireMeter,
+    )
+
+    values = {1: 12000, 2: 0, 21: 12000, 22: 0, 41: 0, 42: 0, 61: 0, 62: 0}
+    telegram = _telegram(1900000001, values)
+    other = _telegram(1900000002, values)
+    meter = SpeedwireMeter(hass, "1900000001")
+    meter._received(other, "192.0.2.5")
+    assert meter.count == 0  # another meter
+    meter._received(telegram, "192.0.2.10")
+    meter._received(telegram, "192.0.2.77")  # a new address
+    assert meter.count == 2
+    assert meter.host == "192.0.2.77"
+    assert meter.phase_w[0] == 1200.0
+
+    learned: list[int] = []
+    old = SpeedwireMeter(hass, "192.0.2.10")
+    old.on_serial = learned.append
+    old._received(telegram, "192.0.2.99")
+    assert old.count == 0  # not its address, serial unknown yet
+    old._received(telegram, "192.0.2.10")
+    assert learned == [1900000001]
+    old._received(telegram, "192.0.2.99")
+    assert old.count == 2  # known by its serial from now on
+    meter.cancel_stale()
+    old.cancel_stale()
