@@ -165,6 +165,8 @@ from .const import (
     CONF_SPIKE_FILTER,
     CONF_SPIKE_HISTORY,
     CONF_SPIKE_THRESHOLD,
+    CONF_STORAGE_BACKEND,
+    CONF_STORAGE_URL,
     CONF_SYSTEM_MAX_CHARGE,
     CONF_SYSTEM_MAX_DISCHARGE,
     CONF_TARIFF,
@@ -252,6 +254,13 @@ from .engine.control.interceptors import BUILTIN as INTERCEPTORS
 from .engine.control.interceptors import (
     DEFAULT_INTERCEPTOR,
     async_load_user_interceptors,
+)
+from .engine.db_store import (
+    BACKEND_JSON,
+    BACKENDS,
+    SERVER_BACKENDS,
+    async_check_database,
+    database_url,
 )
 from .engine.devices.batteries.recognition import (
     BatteryCandidate,
@@ -521,6 +530,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "weather_location",
         "outdoor_temperature_sensor",
     ),
+    "storage": ("storage_backend", "storage_url"),
     "temperature": (
         "temperature_limit",
         "temperature_band",
@@ -600,6 +610,8 @@ def _section_values(fields: Mapping[Any, Any]) -> dict[str, Any]:
 
 # Kept when going back to the defaults: where the inputs come from.
 KEEP_ON_RESET = (
+    CONF_STORAGE_BACKEND,
+    CONF_STORAGE_URL,
     CONF_NOTIFY_TARGETS,
     CONF_NOTIFY_KINDS,
     CONF_PRICE_SOURCE,
@@ -850,6 +862,20 @@ async def _flat_settings_schema(
         vol.Required(
             CONF_INTRADAY, default=current.get(CONF_INTRADAY, True)
         ): BooleanSelector(),
+        vol.Required(
+            CONF_STORAGE_BACKEND,
+            default=current.get(CONF_STORAGE_BACKEND, BACKEND_JSON),
+        ): SelectSelector(
+            SelectSelectorConfig(
+                options=list(BACKENDS),
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_STORAGE_BACKEND,
+            )
+        ),
+        vol.Optional(
+            CONF_STORAGE_URL,
+            description={"suggested_value": current.get(CONF_STORAGE_URL)},
+        ): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
         vol.Required(
             CONF_INTERCEPTOR,
             default=current.get(CONF_INTERCEPTOR, DEFAULT_INTERCEPTOR),
@@ -1151,6 +1177,26 @@ async def _flat_settings_schema(
 SELECT_OPTIONS = (CONF_HISTORY_INTERVAL, CONF_FORECAST_INTERVAL, CONF_BALANCE_INTERVAL)
 
 
+async def storage_errors(
+    hass: HomeAssistant, options: Mapping[str, Any]
+) -> dict[str, str]:
+    """A database server needs a URL that can be reached (the data moves
+    there at the next start)."""
+    backend = options.get(CONF_STORAGE_BACKEND, BACKEND_JSON)
+    if backend not in SERVER_BACKENDS:
+        return {}
+    url = options.get(CONF_STORAGE_URL)
+    if not url:
+        return {"base": "storage_url_required"}
+    scheme = url.split("://", 1)[0].split("+", 1)[0]
+    wanted = "postgres" if backend == "postgresql" else backend
+    if not scheme.startswith(wanted):
+        return {"base": "storage_url_scheme"}
+    if not await async_check_database(hass, database_url(hass, backend, url) or url):
+        return {"base": "storage_unreachable"}
+    return {}
+
+
 def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     """Convert the settings form input to stored options."""
     user_input = flatten_settings(user_input)
@@ -1217,6 +1263,11 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     options[CONF_CHARGE_HYSTERESIS] = int(user_input.get(CONF_CHARGE_HYSTERESIS, 0))
     options[CONF_VACATION] = bool(user_input.get(CONF_VACATION, False))
     options[CONF_INTRADAY] = bool(user_input.get(CONF_INTRADAY, True))
+    options[CONF_STORAGE_BACKEND] = user_input.get(CONF_STORAGE_BACKEND, BACKEND_JSON)
+    if (url := (user_input.get(CONF_STORAGE_URL) or "").strip()) and options[
+        CONF_STORAGE_BACKEND
+    ] in SERVER_BACKENDS:
+        options[CONF_STORAGE_URL] = url
     options[CONF_INTERCEPTOR] = user_input.get(CONF_INTERCEPTOR, DEFAULT_INTERCEPTOR)
     options[CONF_FULL_CHARGE_DAY] = user_input.get(CONF_FULL_CHARGE_DAY, "none")
     options[CONF_FULL_CHARGE_SOLAR] = bool(user_input.get(CONF_FULL_CHARGE_SOLAR, True))
@@ -1629,16 +1680,22 @@ class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Step 4: history interval, planning horizon and forecast inputs."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(
-                title=NAME, data=self._data, options=settings_from_input(user_input)
-            )
+            options = settings_from_input(user_input)
+            if not (errors := await storage_errors(self.hass, options)):
+                return self.async_create_entry(
+                    title=NAME, data=self._data, options=options
+                )
 
         values = await settings_form_values(self.hass, {})
         schema = await settings_schema(self.hass, None, values)
         return self.async_show_form(
             step_id="settings",
-            data_schema=self.add_suggested_values_to_schema(schema, values),
+            data_schema=self.add_suggested_values_to_schema(
+                schema, user_input or values
+            ),
+            errors=errors,
         )
 
     @classmethod
@@ -1685,15 +1742,21 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Change interval, planning horizon, forecast inputs and battery settings."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(data=settings_from_input(user_input))
+            options = settings_from_input(user_input)
+            if not (errors := await storage_errors(self.hass, options)):
+                return self.async_create_entry(data=options)
 
         current = self.config_entry.options
         values = await settings_form_values(self.hass, current)
         schema = await settings_schema(self.hass, current, values)
         return self.async_show_form(
             step_id="settings",
-            data_schema=self.add_suggested_values_to_schema(schema, values),
+            data_schema=self.add_suggested_values_to_schema(
+                schema, user_input or values
+            ),
+            errors=errors,
         )
 
     async def async_step_defaults(

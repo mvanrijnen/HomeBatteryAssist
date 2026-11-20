@@ -308,6 +308,18 @@
               "export_limit_price": "Export only when the export price (after the tariff, minus the export costs) is above this, per kWh. Default 0: only when exporting earns money; at a negative price never.",
               "export_limit_max_w": "E.g. a limit of the grid operator. 0 = none."
             }
+          },
+          "storage": {
+            "name": "Storage",
+            "description": "Where the consumption history and the forecast accuracy are kept.",
+            "data": {
+              "storage_backend": "Storage",
+              "storage_url": "Database URL"
+            },
+            "data_description": {
+              "storage_backend": "JSON files in .storage (default), or a database: only what changed is written (less wear on an SD card). Changing it moves the data at the next start.",
+              "storage_url": "Only for MySQL / MariaDB or PostgreSQL, e.g. mysql://user:password@core-mariadb/homebatteryassist?charset=utf8mb4 or postgresql://user:password@host/homebatteryassist. The database must exist."
+            }
           }
         }
       }
@@ -315,7 +327,10 @@
     "error": {
       "duplicate_sensor": "Each phase needs its own sensor.",
       "sensor_in_use": "This sensor is already used by a PV source, excluded device, heating or battery.",
-      "address_required": "Enter the meter's IP address."
+      "address_required": "Enter the meter's IP address.",
+      "storage_url_required": "Enter the database URL.",
+      "storage_url_scheme": "The URL does not fit the chosen database (mysql://… or postgresql://…).",
+      "storage_unreachable": "The database cannot be reached with this URL."
     },
     "abort": {
       "single_instance_allowed": "HomeBatteryAssist is already configured. Only one instance is allowed.",
@@ -555,6 +570,14 @@
       "options": {
         "parallel": "Parallel (at the same time)",
         "sequential": "One after the other (emptiest first)"
+      }
+    },
+    "storage_backend": {
+      "options": {
+        "json": "JSON files (default)",
+        "sqlite": "SQLite (own file in /config/homebatteryassist)",
+        "mysql": "MySQL / MariaDB (not tested)",
+        "postgresql": "PostgreSQL (not tested)"
       }
     }
   },
@@ -825,6 +848,18 @@
               "export_limit_price": "Export only when the export price (after the tariff, minus the export costs) is above this, per kWh. Default 0: only when exporting earns money; at a negative price never.",
               "export_limit_max_w": "E.g. a limit of the grid operator. 0 = none."
             }
+          },
+          "storage": {
+            "name": "Storage",
+            "description": "Where the consumption history and the forecast accuracy are kept.",
+            "data": {
+              "storage_backend": "Storage",
+              "storage_url": "Database URL"
+            },
+            "data_description": {
+              "storage_backend": "JSON files in .storage (default), or a database: only what changed is written (less wear on an SD card). Changing it moves the data at the next start.",
+              "storage_url": "Only for MySQL / MariaDB or PostgreSQL, e.g. mysql://user:password@core-mariadb/homebatteryassist?charset=utf8mb4 or postgresql://user:password@host/homebatteryassist. The database must exist."
+            }
           }
         }
       },
@@ -886,7 +921,10 @@
     "error": {
       "duplicate_sensor": "Each phase needs its own sensor.",
       "sensor_in_use": "This sensor is already used by a PV source, excluded device, heating or battery.",
-      "address_required": "Enter the meter's IP address."
+      "address_required": "Enter the meter's IP address.",
+      "storage_url_required": "Enter the database URL.",
+      "storage_url_scheme": "The URL does not fit the chosen database (mysql://… or postgresql://…).",
+      "storage_unreachable": "The database cannot be reached with this URL."
     }
   },
   "config_subentries": {

@@ -14,6 +14,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from ...const import DOMAIN, HISTORY_RETENTION, NOMINAL_VOLTAGE
+from ..db_store import HbaStore
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -118,11 +119,20 @@ class ConsumptionHistory:
     older than ``HISTORY_RETENTION`` are pruned.
     """
 
-    def __init__(self, hass: HomeAssistant, entry_id: str, minutes: int) -> None:
-        """Initialize."""
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry_id: str,
+        minutes: int,
+        database: str | None = None,
+    ) -> None:
+        """Initialize (``database``: SQLAlchemy URL, None = JSON file)."""
         self.hass = hass
-        self._store: Store[dict[str, Any]] = Store(
-            hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.consumption"
+        self._store = HbaStore(
+            hass,
+            Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.consumption"),
+            {"records": "list"},
+            database,
         )
         self.minutes = minutes
         self.vacation = False  # mark new records as vacation (not learned)
@@ -244,6 +254,11 @@ class ConsumptionHistory:
     async def async_save(self) -> None:
         """Write records to disk now."""
         await self._store.async_save(self._data())
+
+    @property
+    def storage(self) -> str:
+        """Where the history is kept (JSON file or database, no password)."""
+        return self._store.where
 
     def interval_start(self, when: datetime) -> datetime:
         """Return the start of the interval containing ``when`` (UTC aligned)."""

@@ -222,6 +222,15 @@ Hoeveel er nu maximaal teruggeleverd mag worden, als de sensor Max. terugleverin
 | **Grensprijs (netto)** | Alleen terugleveren als de terugleverprijs (na het tarief, min de terugleverkosten) hierboven ligt, per kWh. Standaard 0: alleen als terugleveren geld oplevert; bij een negatieve prijs nooit. |
 | **Vaste maximale teruglevering** | Bijv. een grens van de netbeheerder. 0 = geen. |
 
+### Opslag {#settings-storage}
+
+Waar de verbruiksgeschiedenis en de voorspelnauwkeurigheid worden bewaard.
+
+| Veld | Uitleg |
+|---|---|
+| **Opslag** | JSON-bestanden in .storage (standaard), of een database: alleen wat veranderd is wordt geschreven (minder slijtage van een SD-kaart). Bij wisselen verhuizen de gegevens bij de volgende start. |
+| **Database-URL** | Alleen voor MySQL / MariaDB of PostgreSQL, bijv. mysql://gebruiker:wachtwoord@core-mariadb/homebatteryassist?charset=utf8mb4 of postgresql://gebruiker:wachtwoord@host/homebatteryassist. De database moet bestaan. |
+
 ## Apparaten en tijdvakken {#devices}
 
 Toe te voegen onder de integratie (**+ … toevoegen**) en te wijzigen met het tandwiel ernaast.

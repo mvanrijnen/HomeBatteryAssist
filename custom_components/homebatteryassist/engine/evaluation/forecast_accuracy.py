@@ -46,6 +46,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from ...const import DOMAIN
+from ..db_store import HbaStore
 from ..history.consumption_history import ConsumptionRecord
 from .pv_corrections.base import PvResult
 
@@ -134,11 +135,16 @@ class BucketStats:
 class ForecastAccuracy:
     """Keeps predictions per slot and lead bucket; compares and corrects."""
 
-    def __init__(self, hass: HomeAssistant, entry_id: str) -> None:
-        """Initialize."""
+    def __init__(
+        self, hass: HomeAssistant, entry_id: str, database: str | None = None
+    ) -> None:
+        """Initialize (``database``: SQLAlchemy URL, None = JSON file)."""
         self._saved_at: datetime | None = None  # last hourly save
-        self._store: Store[dict[str, Any]] = Store(
-            hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.accuracy"
+        self._store = HbaStore(
+            hass,
+            Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.accuracy"),
+            {"predictions": "map_map", "results": "map_list"},
+            database,
         )
         # kind -> slot start ISO -> {"end": ISO, bucket: raw prediction}
         self.predictions: dict[str, dict[str, dict[str, Any]]] = {k: {} for k in KINDS}

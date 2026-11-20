@@ -50,3 +50,16 @@ The sensors have a fixed meaning and can be used by other integrations and add-o
 Choose in the settings which decisions you want to be told about — the plan changes, new prices or a changed forecast reach, phase protection / limits / peak shaving, full charges, a lost or restored measurement, an unexpected solar surplus or shortage, a battery that [does not follow its command](measuring.md#does-the-battery-follow-its-command) — and send them to notify services (e.g. the companion app) and/or as a notification in Home Assistant.
 
 **Virtual batteries** always say so in their name (e.g. *Marstek Venus 1 (virtueel)*): HomeBatteryAssist adds it when the name does not.
+
+## Storage
+
+HomeBatteryAssist keeps its data in Home Assistant's `.storage` folder. The two big parts, the consumption history (28 days) and the forecast accuracy, are written whole each time as JSON files of roughly 0.7 MB. Under **Settings → Storage** you can keep them in a database instead; then only what changed is written, which wears an SD card far less:
+
+| Storage | |
+|---|---|
+| **JSON files** (default) | As before. |
+| **SQLite** | An own file, `/config/homebatteryassist/homebatteryassist.db`. Nothing to set up. |
+| **MySQL / MariaDB** (not tested) | A server, by URL, e.g. `mysql://user:password@core-mariadb/homebatteryassist?charset=utf8mb4` (the MariaDB add-on). Create the database first. |
+| **PostgreSQL** (not tested) | A server, by URL, e.g. `postgresql://user:password@host/homebatteryassist`. Create the database first. |
+
+The data moves along when you change the choice, at the next start: from the JSON files to the database and back, or from one database to another. A server is checked when you save the setting. If the database cannot be reached at a start, the JSON file is used for that run and moved to the database later. The URL is left out of the diagnostics download.

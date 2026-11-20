@@ -50,3 +50,16 @@ De sensoren hebben een vaste betekenis en kunnen door andere integraties en add-
 Kies in de instellingen over welke beslissingen je een melding wilt krijgen — wijzigingen in het plan, nieuwe prijzen of een gewijzigd bereik van de voorspelling, fasebeveiliging / limieten / piekafvlakking, volledige oplaadbeurten, een weggevallen of herstelde meting, een onverwacht zonne-overschot of -tekort, een batterij die [haar opdracht niet volgt](measuring.md#does-the-battery-follow-its-command) — en stuur ze naar notify-diensten (bijvoorbeeld de companion-app) en/of als melding in Home Assistant.
 
 **Virtuele batterijen** zeggen dat altijd in hun naam (bijvoorbeeld *Marstek Venus 1 (virtueel)*): HomeBatteryAssist voegt het toe als de naam het niet al doet.
+
+## Opslag {#storage}
+
+HomeBatteryAssist bewaart zijn gegevens in de map `.storage` van Home Assistant. De twee grote delen, de verbruiksgeschiedenis (28 dagen) en de voorspelnauwkeurigheid, worden elke keer helemaal geschreven als JSON-bestanden van ongeveer 0,7 MB. Onder **Instellingen → Opslag** kun je ze in plaats daarvan in een database bewaren; dan wordt alleen geschreven wat veranderd is, wat een SD-kaart veel minder laat slijten:
+
+| Opslag | |
+|---|---|
+| **JSON-bestanden** (standaard) | Zoals het altijd was. |
+| **SQLite** | Een eigen bestand, `/config/homebatteryassist/homebatteryassist.db`. Niets in te stellen. |
+| **MySQL / MariaDB** (niet getest) | Een server, via een URL, bijv. `mysql://gebruiker:wachtwoord@core-mariadb/homebatteryassist?charset=utf8mb4` (de MariaDB-add-on). Maak de database eerst aan. |
+| **PostgreSQL** (niet getest) | Een server, via een URL, bijv. `postgresql://gebruiker:wachtwoord@host/homebatteryassist`. Maak de database eerst aan. |
+
+Als je de keuze wijzigt, verhuizen de gegevens bij de volgende start mee: van de JSON-bestanden naar de database en terug, of van de ene database naar de andere. Een server wordt gecontroleerd als je de instelling opslaat. Is de database bij een start niet bereikbaar, dan wordt voor die keer het JSON-bestand gebruikt en later alsnog naar de database verhuisd. De URL staat niet in de diagnostiek-download.

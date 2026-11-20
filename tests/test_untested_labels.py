@@ -14,6 +14,7 @@ from custom_components.homebatteryassist.config_flow import _own_label, untested
 from custom_components.homebatteryassist.engine.control.interceptors import (
     BUILTIN as INTERCEPTORS,
 )
+from custom_components.homebatteryassist.engine.db_store import VERIFIED as STORAGE
 from custom_components.homebatteryassist.engine.devices.inverters import (
     DRIVERS as INVERTERS,
 )
@@ -63,6 +64,9 @@ SELECTORS = {
     "weather_source": _registry(WEATHER),
     "inverter_driver": _registry(INVERTERS),
     "meter_source": _registry(METERS),
+    "storage_backend": {
+        key: SimpleNamespace(verified=verified) for key, verified in STORAGE.items()
+    },
 }
 
 

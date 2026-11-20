@@ -50,6 +50,8 @@ from .const import (
     CONF_SPIKE_DURATION,
     CONF_SPIKE_FILTER,
     CONF_SPIKE_THRESHOLD,
+    CONF_STORAGE_BACKEND,
+    CONF_STORAGE_URL,
     CONF_VACATION,
     DEFAULT_COMMAND_CHECK_MINUTES,
     DEFAULT_COMMAND_CHECK_W,
@@ -73,6 +75,7 @@ from .engine.control.interceptors import (
     create_interceptor,
 )
 from .engine.coordinator import ForecastCoordinator
+from .engine.db_store import database_url
 from .engine.devices.batteries.virtual import VirtualBatterySimulator
 from .engine.devices.inverters import get_driver as get_inverter_driver
 from .engine.evaluation.command_check import CommandMonitor
@@ -182,13 +185,19 @@ async def async_setup_entry(
     )
     adjustments = AdjustmentStore(hass, entry.entry_id)
     await adjustments.async_load()
-    accuracy = ForecastAccuracy(hass, entry.entry_id)
+    database = database_url(
+        hass,
+        entry.options.get(CONF_STORAGE_BACKEND),
+        entry.options.get(CONF_STORAGE_URL),
+    )
+    accuracy = ForecastAccuracy(hass, entry.entry_id, database)
     await accuracy.async_load()
 
     history = ConsumptionHistory(
         hass,
         entry.entry_id,
         entry.options.get(CONF_HISTORY_INTERVAL, DEFAULT_HISTORY_INTERVAL),
+        database,
     )
     await history.async_load()
     history.vacation = bool(entry.options.get(CONF_VACATION, False))

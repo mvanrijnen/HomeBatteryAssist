@@ -155,6 +155,8 @@ CONF_CHARGE_HYSTERESIS: Final = "charge_hysteresis"  # % below max before rechar
 CONF_VACATION: Final = "vacation"  # do not learn the house consumption
 # Today clearly more/less than forecast so far: the rest of today follows.
 CONF_INTRADAY: Final = "intraday_correction"
+CONF_STORAGE_BACKEND: Final = "storage_backend"  # json / sqlite / mysql / postgresql
+CONF_STORAGE_URL: Final = "storage_url"  # mysql / postgresql
 CONF_NOTIFY_TARGETS: Final = "notify_targets"  # notify services / persistent
 CONF_NOTIFY_KINDS: Final = "notify_kinds"  # which decisions
 CONF_FULL_CHARGE_DAY: Final = "full_charge_day"  # "none" or mon..sun

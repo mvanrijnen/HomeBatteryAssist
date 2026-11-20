@@ -21,6 +21,7 @@ TO_REDACT = {
     "inverter_address",
     "battery_meter_address",
     "notify_targets",
+    "storage_url",
 }
 RECENT_DECISIONS = 25
 
@@ -83,6 +84,7 @@ async def async_get_config_entry_diagnostics(
             for state in data.batteries.states.values()
         ],
         "history": {
+            "storage": data.history.storage,
             "interval_minutes": data.history.minutes,
             "records": len(data.history.records),
             "recent": data.history.records[-RECENT_RECORDS:],

@@ -725,6 +725,7 @@ const STYLE = `
   .chart .now { stroke: var(--secondary-text-color); stroke-width: 1; stroke-dasharray: 2 3; }
   .chart.wide { grid-column: 1 / -1; }
   .chart { position: relative; }
+  .chart .xscroll { position: relative; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
   .chart svg { touch-action: pan-y; cursor: crosshair; }
   .chart .cursor { stroke: var(--secondary-text-color); stroke-width: 1; }
   .tip { position: absolute; top: 28px; pointer-events: none; z-index: 2; min-width: 120px;
@@ -758,6 +759,8 @@ const VERSION = (() => {
     return "";
   }
 })();
+
+const FLOW_SCROLL_HOURS = 36; // flow chart: wider than the card past this (hours per card width)
 
 class HomeBatteryAssistPanel extends HTMLElement {
   constructor() {
@@ -1618,7 +1621,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const wide = id === "forecast" || id === "soc" || id === "temperature";
     const rightSeries = series.filter((s) => s.axis === "right");
     const hasLeft = series.some((s) => s.axis !== "right");
-    const W = wide ? 1232 : 600, H = id === "forecast" ? 300 : 190, L = 58, R = rightSeries.length ? 58 : 8, T = 8, B = 24;
+    // The flow chart over more than FLOW_SCROLL_HOURS: wider than the card (a
+    // horizontal scrollbar) at that scale, so it stays readable.
+    const hours = (xMax - xMin) / 3600e3;
+    const scroll = id === "forecast" && hours > FLOW_SCROLL_HOURS;
+    const W = scroll ? Math.round((1232 * hours) / FLOW_SCROLL_HOURS) : wide ? 1232 : 600,
+      H = id === "forecast" ? 300 : 190, L = 58, R = rightSeries.length ? 58 : 8, T = 8, B = 24;
     const all = series.filter((s) => s.axis !== "right").flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
     const yMax = this._niceMax(Math.max(...all, 0));
     const low = Math.min(...all, 0);
@@ -1678,8 +1686,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
     svg += `<g class="hover" style="display:none"><line class="cursor" y1="${T}" y2="${H - B}"/>
       ${series.map((s, i) => `<circle r="3.5" data-i="${i}" style="fill:${s.color}"/>`).join("")}</g>`;
     this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt, yFmt, right };
-    return `<svg data-chart="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${svg}</svg>
+    const out = `<svg data-chart="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"${
+      scroll ? ` style="width:${W}px;max-width:none"` : ""
+    }>${svg}</svg>
       <div class="tip" data-tip="${id}" hidden></div>`;
+    return scroll ? `<div class="xscroll" data-scroll="${id}">${out}</div>` : out;
   }
 
   _money(value, h) {
@@ -1797,6 +1808,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       (event) => {
         const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.shiftKey ? event.deltaY : 0;
         if (!delta) return; // plain vertical scroll keeps scrolling the page
+        if (svg.closest(".xscroll")) return; // its scrollbar moves it
         event.preventDefault();
         this._flowShift("wheel", (delta / 600) * this._flowSpan * 3600e3);
       },
@@ -1805,6 +1817,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
   }
 
   _bindCharts() {
+    this._scrolls = this._scrolls || {};
+    for (const box of this.shadowRoot.querySelectorAll(".xscroll[data-scroll]")) {
+      const id = box.dataset.scroll;
+      box.scrollLeft = this._scrolls[id] || 0;
+      box.addEventListener("scroll", () => {
+        this._scrolls[id] = box.scrollLeft;
+      });
+    }
     for (const svg of this.shadowRoot.querySelectorAll("svg[data-chart]")) {
       const id = svg.dataset.chart;
       const move = (event) => {
@@ -1884,10 +1904,13 @@ class HomeBatteryAssistPanel extends HTMLElement {
     tip.innerHTML = `<div class="t">${esc(c.xFmt(anchor[0]))}</div>${rows}${extra}`;
     tip.hidden = false;
     const box = svg.getBoundingClientRect();
-    const parent = svg.parentElement.getBoundingClientRect();
-    const px = box.left - parent.left + (sx(anchor[0]) / c.W) * box.width;
+    const holder = svg.parentElement;
+    const parent = holder.getBoundingClientRect();
+    const shift = holder.classList.contains("xscroll") ? holder.scrollLeft : 0;
+    const px = box.left - parent.left + shift + (sx(anchor[0]) / c.W) * box.width;
     const width = tip.offsetWidth;
-    tip.style.left = `${px + 12 + width > parent.width ? Math.max(0, px - width - 12) : px + 12}px`;
+    const right = shift + parent.width;
+    tip.style.left = `${px + 12 + width > right ? Math.max(shift, px - width - 12) : px + 12}px`;
     // Small charts: under the chart, so it never covers the lines; wide
     // charts have room beside the cursor.
     const small = box.width < 700;

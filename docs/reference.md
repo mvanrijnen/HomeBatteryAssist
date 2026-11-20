@@ -222,6 +222,15 @@ The most that may be exported now, as the sensor Max export on the grid connecti
 | **Limit price (net)** | Export only when the export price (after the tariff, minus the export costs) is above this, per kWh. Default 0: only when exporting earns money; at a negative price never. |
 | **Fixed maximum export** | E.g. a limit of the grid operator. 0 = none. |
 
+### Storage {#settings-storage}
+
+Where the consumption history and the forecast accuracy are kept.
+
+| Field | Explanation |
+|---|---|
+| **Storage** | JSON files in .storage (default), or a database: only what changed is written (less wear on an SD card). Changing it moves the data at the next start. |
+| **Database URL** | Only for MySQL / MariaDB or PostgreSQL, e.g. mysql://user:password@core-mariadb/homebatteryassist?charset=utf8mb4 or postgresql://user:password@host/homebatteryassist. The database must exist. |
+
 ## Devices and time slots {#devices}
 
 Added under the integration (**+ Add …**) and changed with the gear icon next to each one.

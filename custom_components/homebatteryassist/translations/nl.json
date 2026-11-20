@@ -308,6 +308,18 @@
               "export_limit_price": "Alleen terugleveren als de terugleverprijs (na het tarief, min de terugleverkosten) hierboven ligt, per kWh. Standaard 0: alleen als terugleveren geld oplevert; bij een negatieve prijs nooit.",
               "export_limit_max_w": "Bijv. een grens van de netbeheerder. 0 = geen."
             }
+          },
+          "storage": {
+            "name": "Opslag",
+            "description": "Waar de verbruiksgeschiedenis en de voorspelnauwkeurigheid worden bewaard.",
+            "data": {
+              "storage_backend": "Opslag",
+              "storage_url": "Database-URL"
+            },
+            "data_description": {
+              "storage_backend": "JSON-bestanden in .storage (standaard), of een database: alleen wat veranderd is wordt geschreven (minder slijtage van een SD-kaart). Bij wisselen verhuizen de gegevens bij de volgende start.",
+              "storage_url": "Alleen voor MySQL / MariaDB of PostgreSQL, bijv. mysql://gebruiker:wachtwoord@core-mariadb/homebatteryassist?charset=utf8mb4 of postgresql://gebruiker:wachtwoord@host/homebatteryassist. De database moet bestaan."
+            }
           }
         }
       }
@@ -315,7 +327,10 @@
     "error": {
       "duplicate_sensor": "Elke fase heeft een eigen sensor nodig.",
       "sensor_in_use": "Deze sensor wordt al gebruikt door een PV-bron, uitgesloten apparaat, verwarming of batterij.",
-      "address_required": "Vul het IP-adres van de meter in."
+      "address_required": "Vul het IP-adres van de meter in.",
+      "storage_url_required": "Vul de database-URL in.",
+      "storage_url_scheme": "De URL past niet bij de gekozen database (mysql://… of postgresql://…).",
+      "storage_unreachable": "De database is met deze URL niet bereikbaar."
     },
     "abort": {
       "single_instance_allowed": "HomeBatteryAssist is al geconfigureerd. Er is maar één instantie toegestaan.",
@@ -555,6 +570,14 @@
       "options": {
         "parallel": "Parallel (tegelijk)",
         "sequential": "Na elkaar (leegste eerst)"
+      }
+    },
+    "storage_backend": {
+      "options": {
+        "json": "JSON-bestanden (standaard)",
+        "sqlite": "SQLite (eigen bestand in /config/homebatteryassist)",
+        "mysql": "MySQL / MariaDB (niet getest)",
+        "postgresql": "PostgreSQL (niet getest)"
       }
     }
   },
@@ -825,6 +848,18 @@
               "export_limit_price": "Alleen terugleveren als de terugleverprijs (na het tarief, min de terugleverkosten) hierboven ligt, per kWh. Standaard 0: alleen als terugleveren geld oplevert; bij een negatieve prijs nooit.",
               "export_limit_max_w": "Bijv. een grens van de netbeheerder. 0 = geen."
             }
+          },
+          "storage": {
+            "name": "Opslag",
+            "description": "Waar de verbruiksgeschiedenis en de voorspelnauwkeurigheid worden bewaard.",
+            "data": {
+              "storage_backend": "Opslag",
+              "storage_url": "Database-URL"
+            },
+            "data_description": {
+              "storage_backend": "JSON-bestanden in .storage (standaard), of een database: alleen wat veranderd is wordt geschreven (minder slijtage van een SD-kaart). Bij wisselen verhuizen de gegevens bij de volgende start.",
+              "storage_url": "Alleen voor MySQL / MariaDB of PostgreSQL, bijv. mysql://gebruiker:wachtwoord@core-mariadb/homebatteryassist?charset=utf8mb4 of postgresql://gebruiker:wachtwoord@host/homebatteryassist. De database moet bestaan."
+            }
           }
         }
       },
@@ -886,7 +921,10 @@
     "error": {
       "duplicate_sensor": "Elke fase heeft een eigen sensor nodig.",
       "sensor_in_use": "Deze sensor wordt al gebruikt door een PV-bron, uitgesloten apparaat, verwarming of batterij.",
-      "address_required": "Vul het IP-adres van de meter in."
+      "address_required": "Vul het IP-adres van de meter in.",
+      "storage_url_required": "Vul de database-URL in.",
+      "storage_url_scheme": "De URL past niet bij de gekozen database (mysql://… of postgresql://…).",
+      "storage_unreachable": "De database is met deze URL niet bereikbaar."
     }
   },
   "config_subentries": {
