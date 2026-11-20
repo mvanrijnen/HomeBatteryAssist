@@ -103,6 +103,7 @@ FROZEN_CHECK = timedelta(seconds=15)
 # A sensor reported less often (a slow or cloud integration) gets longer:
 # frozen only after FROZEN_GAPS times its longest recent report interval.
 FROZEN_GAPS = 3
+MAX_GAP_S = 600.0  # the longest report interval learned (s)
 # Not frozen in the first minutes after a start (integrations reconnecting).
 FROZEN_QUIET = timedelta(minutes=2)
 GAPS_KEY = f"{DOMAIN}_power_report_gaps"  # hass.data: entity -> seconds
@@ -850,8 +851,17 @@ class BatteryInput:
                 else None
             )
             previous = self._reported.get(config.id)
-            if reported is not None and previous is not None and reported > previous:
-                gap = (reported - previous).total_seconds()
+            watts = state_to_watts(state)
+            if (
+                reported is not None
+                and previous is not None
+                and reported > previous
+                # Only while it shows a real power (an idle sensor reporting
+                # only on change would learn hours), at most MAX_GAP.
+                and watts is not None
+                and abs(watts) >= BATTERY_STALE_W
+            ):
+                gap = min((reported - previous).total_seconds(), MAX_GAP_S)
                 gaps[config.power_sensor] = max(
                     gap, gaps.get(config.power_sensor, 0) * 0.9
                 )

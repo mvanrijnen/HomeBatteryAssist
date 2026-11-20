@@ -1875,6 +1875,7 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
                 for key, value in self.config_entry.options.items()
                 if key in KEEP_ON_RESET
             }
+            _reload_if_not_loaded(self.hass, self.config_entry)
             return self.async_create_entry(
                 data=settings_from_input({**defaults, **kept})
             )

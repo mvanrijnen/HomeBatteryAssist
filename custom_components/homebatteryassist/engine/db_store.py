@@ -369,6 +369,10 @@ class HbaStore:
                 ) from err
             self._saved = rows
             await markers.set(self.name, self.url)  # e.g. a new password
+            # Back on it: an earlier failure to move away no longer counts.
+            self.hass.data.get(f"{MARKER_KEY}_failing", {}).pop(
+                (self.name, describe(self.url)), None
+            )
             return join(rows, self._layout) if rows else None
         data = await self._load_from(previous)
         rows = split(data or {}, self._layout)
