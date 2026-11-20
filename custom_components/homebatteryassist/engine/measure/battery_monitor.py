@@ -559,6 +559,9 @@ class BatteryInput:
         self._unsub: CALLBACK_TYPE | None = None
         self._unsub_frozen: CALLBACK_TYPE | None = None
         self._reported: dict[str, datetime] = {}  # power sensors' last report
+        # Per battery: the lowest state of charge since it was last full
+        # (charge hysteresis; seen at every update, not only per quarter).
+        self._since_full: dict[str, float] = {}
         self._unsub_log: CALLBACK_TYPE | None = None
         # Price (per kWh) at a moment (default now), set by the setup (from
         # the price forecast).
@@ -882,6 +885,13 @@ class BatteryInput:
         previous = self.states[config.id]
         state = state or read_battery(self.hass, config)
         self.states[config.id] = state
+        if state.soc is not None:
+            if state.soc >= config.max_soc - 0.05:
+                self._since_full[config.id] = state.soc
+            elif config.id in self._since_full:
+                self._since_full[config.id] = min(
+                    self._since_full[config.id], state.soc
+                )
 
         self._count_energy(config.id, when, state.power_w)
         if (
@@ -1255,6 +1265,12 @@ class BatteryInput:
         for config in self.configs:
             if config.virtual:
                 continue
+            if config.id in self._since_full:
+                # Seen full since the start: held while it stayed in the band.
+                if self._since_full[config.id] >= config.max_soc - band:
+                    held.add(config.id)
+                continue
+            # Not full since the start: from the log (before a restart).
             now = self.states[config.id].soc
             socs = [soc for _when, soc in self.soc_log.get(config.id, [])]
             if now is not None:

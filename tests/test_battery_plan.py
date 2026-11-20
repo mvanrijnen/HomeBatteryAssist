@@ -651,3 +651,23 @@ def test_hysteresis_held_now() -> None:
         [battery], slots, {}, prices, mode=MODE_ARBITRAGE, rules=rules, held=set()
     )
     assert max(s.soc for s in free.slots) > 99
+
+
+def test_hysteresis_pack_held_only_when_all_are() -> None:
+    """Several batteries: one below its band may still charge, so the pack is
+    not held because another one is."""
+    from custom_components.homebatteryassist.engine.planning.battery_plan import (
+        PlanRules,
+    )
+
+    rules = PlanRules(charge_hysteresis=5.0)
+    full = _battery(soc=100.0)
+    full.config.id = "a"
+    low = _battery(soc=92.0, capacity=1.0)
+    low.config.id = "b"
+    slots = _slots([0.0] * 3)
+    prices = _prices([0.10, 0.10, 0.60])
+    plan = plan_batteries(
+        [full, low], slots, {}, prices, mode=MODE_ARBITRAGE, rules=rules, held={"a"}
+    )
+    assert max(s.power_w for s in plan.slots) > 0  # b tops up

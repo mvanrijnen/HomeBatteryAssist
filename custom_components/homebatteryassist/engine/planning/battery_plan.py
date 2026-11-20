@@ -192,15 +192,19 @@ def _pack(
     usable = [s for s in states if s.soc is not None and s.config.capacity_kwh > 0]
     if not usable:
         return None
-    # Charge hysteresis now: the batteries in their band that were full and
-    # have not dropped below it since (live state), so the plan starts as the
-    # batteries do. Held when every battery in its band is held.
+    # Charge hysteresis now: a battery that was full and has not dropped
+    # below its band since (live state), so the plan starts as the batteries
+    # do. The pack (one battery to the planners) is held only when every
+    # battery is: one below its band or never full may still charge.
     band = rules.charge_hysteresis
-    in_band = [s for s in usable if band > 0 and s.soc >= s.config.max_soc - band]
     held_ids = set(held)
-    is_held = bool(in_band) and all(
-        getattr(s.config, "id", None) in held_ids or s.soc >= s.config.max_soc - 0.05
-        for s in in_band
+    is_held = band > 0 and all(
+        s.soc >= s.config.max_soc - band
+        and (
+            getattr(s.config, "id", None) in held_ids
+            or s.soc >= s.config.max_soc - 0.05
+        )
+        for s in usable
     )
     capacity = sum(s.config.capacity_kwh for s in usable) * 1000
     max_charge = sum(
