@@ -559,10 +559,26 @@ class VirtualBatterySimulator:
         flow = self._round_flow(now)
         if flow is None:
             return
-        error = (
-            flow.grid_w - flow.excluded_w + power - self._forecast.rules.nom_target_w
-        )
+        # The simulated grid's distance to the target, as zero on the meter
+        # sees it (``nom_balance``): a surplus is all to charge, a shortage
+        # never counts the excluded devices or an ignored peak.
+        error = flow.grid_w + power - self._forecast.rules.nom_target_w
+        if error > 0:
+            ignore = self._forecast.spike_ignore_w(
+                self._measurements.spike.ignore_w, now
+            )
+            error = max(error - flow.excluded_w - max(ignore, 0.0), 0.0)
         self.quality.add(now, error, power)
+
+    @staticmethod
+    def _follows_nom(data: Any) -> bool:
+        """Zero on the meter live: the NOM mode, or a plan that fell back to
+        it (an own planner failed, arbitrage without prices)."""
+        if data is None:
+            return True
+        plan = data.selected_plan
+        strategy = plan.strategy if plan is not None else data.plan_mode
+        return data.plan_mode == MODE_NOM or strategy == MODE_NOM
 
     def _limit_w(self) -> float:
         return phase_limit_w(
@@ -619,7 +635,7 @@ class VirtualBatterySimulator:
                 for i in rest:
                     wanted[i] *= max(cap - full_sum, 0.0) / rest_sum
         asked = dict(wanted)  # before protections and limits
-        nom = data is None or data.plan_mode == MODE_NOM
+        nom = self._follows_nom(data)
         reasons = {
             c.id: "full_charge" if full[c.id] else "zero_on_meter" if nom else "plan"
             for c in self.virtual
@@ -888,7 +904,7 @@ class VirtualBatterySimulator:
         """
         data = self._forecast.data
         plan = data.selected_plan if data is not None else None
-        if data is not None and data.plan_mode != MODE_NOM and plan and plan.slots:
+        if data is not None and not self._follows_nom(data) and plan and plan.slots:
             # Arbitrage: the virtual batteries' share of the planned power (the
             # plan without full charges: those are run per battery).
             slot = next((s for s in plan.slots if s.start <= now < s.end), None)

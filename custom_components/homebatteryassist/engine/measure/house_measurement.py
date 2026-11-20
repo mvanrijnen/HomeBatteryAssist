@@ -77,7 +77,12 @@ from ..devices.meters.discovery import (
 )
 from ..explain import DecisionLog
 from ..units import state_to_watts
-from .battery_monitor import battery_configs, battery_meter, battery_power
+from .battery_monitor import (
+    battery_configs,
+    battery_meter,
+    battery_power,
+    power_frozen,
+)
 from .spike_filters import SpikeFilter, SpikeState, checked
 
 _LOGGER = logging.getLogger(__name__)
@@ -96,10 +101,6 @@ ENTITY_INTERVAL = timedelta(seconds=10)  # entities with a direct meter
 # nothing acts on an old phase load. Checked every STALE_CHECK.
 GRID_STALE = timedelta(seconds=90)
 STALE_CHECK = timedelta(seconds=15)
-# A battery power sensor frozen at a real power (its integration hangs while
-# the battery charged or discharged) counts as unknown too after GRID_STALE;
-# frozen near 0 W is left alone (an idle battery may not be reported anew).
-BATTERY_STALE_W = 50.0
 
 
 # Current and voltage sensors in another unit than A / V.
@@ -341,21 +342,9 @@ class MeasurementInput:
             seen = [t for e in sensors if (t := self._reported(e)) is not None]
             if seen and now - max(seen) > GRID_STALE:
                 frozen += sensors
-        for b in self.batteries:
-            if not b.power_sensor:
-                continue  # virtual
-            meter = battery_meter(self.hass, b)
-            if meter is not None and meter.available and meter.phase_w:
-                continue
-            watts = self._watts(b.power_sensor)
-            seen = self._reported(b.power_sensor)
-            if (
-                watts is not None
-                and abs(watts) >= BATTERY_STALE_W
-                and seen is not None
-                and now - seen > GRID_STALE
-            ):
-                frozen.append(b.power_sensor)
+        frozen += [
+            b.power_sensor for b in self.batteries if power_frozen(self.hass, b, now)
+        ]
         return frozen
 
     def _reported(self, entity_id: str) -> datetime | None:

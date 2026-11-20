@@ -92,6 +92,12 @@ SAVE_DELAY = 60  # seconds
 ACTIVITY_SETTLE = timedelta(minutes=5)
 STARTUP_DELAY = timedelta(minutes=1)  # then tell what each battery is doing
 ACTIVITY_THRESHOLD_W = 50.0  # |power| above this counts as charging/discharging
+# A battery power sensor not reported anew for POWER_STALE while it shows at
+# least BATTERY_STALE_W is frozen (its integration hangs): unknown, not a
+# power that keeps being counted. Near 0 W it is left alone (an idle battery
+# may not be reported anew).
+POWER_STALE = timedelta(seconds=90)
+BATTERY_STALE_W = 50.0
 
 
 def activity_of(power_w: float) -> str:
@@ -357,6 +363,27 @@ def battery_power(hass: HomeAssistant, config: BatteryConfig) -> float | None:
     if watts is None:
         return None
     return -watts if config.power_sign == SIGN_DISCHARGING_POSITIVE else watts
+
+
+def power_frozen(
+    hass: HomeAssistant, config: BatteryConfig, now: datetime | None = None
+) -> bool:
+    """The battery's power sensor is frozen at a real power (see
+    ``POWER_STALE``); never with a working external meter or for a virtual
+    battery."""
+    if config.virtual or not config.power_sensor:
+        return False
+    meter = battery_meter(hass, config)
+    if meter is not None and meter.available and meter.phase_w:
+        return False
+    state = hass.states.get(config.power_sensor)
+    if state is None:
+        return False
+    watts = state_to_watts(state)
+    if watts is None or abs(watts) < BATTERY_STALE_W:
+        return False
+    seen = getattr(state, "last_reported", None) or state.last_updated
+    return (now or dt_util.utcnow()) - seen > POWER_STALE
 
 
 def read_battery(hass: HomeAssistant, config: BatteryConfig) -> BatteryState:
@@ -1152,8 +1179,16 @@ class BatteryInput:
         counters that are up to date, not one update behind. Virtual
         batteries are counted every round by their simulator."""
         for config in self.configs:
-            if not config.virtual and config.id in self._last_power:
-                self._count_energy(config.id, now, self._last_power[config.id][1])
+            if config.virtual or config.id not in self._last_power:
+                continue
+            if power_frozen(self.hass, config, now):
+                # Frozen: stop counting its last power (counters, value) and
+                # tell everyone reading it (command check, plan) it is unknown.
+                self._last_power.pop(config.id, None)
+                state = self.states[config.id]
+                self.states[config.id] = replace(state, power_w=None)
+                continue
+            self._count_energy(config.id, now, self._last_power[config.id][1])
         self._store.async_delay_save(self._data, SAVE_DELAY)
 
     @callback

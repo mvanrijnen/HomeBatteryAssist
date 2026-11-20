@@ -142,6 +142,11 @@ class CommandCheck:
             max_w = (
                 config.max_charge_w if command.power_w > 0 else config.max_discharge_w
             )
+        if command is not None and actual_w is None and self.event is not None:
+            # The battery's power is unknown now: nothing tells it follows
+            # again, so a problem stays as it is.
+            self.event.seen = when
+            return None
         failing = (
             command is not None
             and actual_w is not None

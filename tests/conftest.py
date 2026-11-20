@@ -32,8 +32,14 @@ def grid_not_frozen(request):
     if request.node.get_closest_marker("frozen_grid"):
         yield
         return
-    with patch(
-        "custom_components.homebatteryassist.engine.measure.house_measurement.GRID_STALE",
-        timedelta(days=3650),
+    with (
+        patch(
+            "custom_components.homebatteryassist.engine.measure.house_measurement.GRID_STALE",
+            timedelta(days=3650),
+        ),
+        patch(
+            "custom_components.homebatteryassist.engine.measure.battery_monitor.POWER_STALE",
+            timedelta(days=3650),
+        ),
     ):
         yield

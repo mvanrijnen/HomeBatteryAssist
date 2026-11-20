@@ -71,7 +71,7 @@ the dashboard simulates is what would be sent:
    they use it as it is). **Grid unknown** (meter gone for 10 s, a grid
    sensor unknown, or a grid sensor frozen: not reported anew for
    ``GRID_STALE`` = 90 s, ``MeasurementInput.stale``, *Why* ``grid_stale``;
-   also a battery power sensor frozen at >= ``BATTERY_STALE_W``, since the
+   also a battery power sensor frozen at >= ``BATTERY_STALE_W`` (``power_frozen``), since the
    load without the batteries would then be wrong):
    no control; every battery is released to its own control until the grid
    is measured again (``meter_lost_hold``).
