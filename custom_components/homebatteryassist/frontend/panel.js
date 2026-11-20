@@ -193,6 +193,7 @@ const TEXT = {
     priceExportFc: "Export earns (forecast)",
     priceInfo: "Solid: published prices; dashed: forecast (estimated). The price is what one kWh from the grid costs (all-in); export is what one kWh to the grid earns.",
     socTotal: "Total",
+    bandFill: "Battery fill (background)",
     socPlan: "Total (plan)",
     realized: "Realised return",
     notYet: "no charging or discharging yet",
@@ -477,6 +478,7 @@ const TEXT = {
     priceExportFc: "Teruglevering (voorspeld)",
     priceInfo: "Doorgetrokken: gepubliceerde prijzen; gestippeld: voorspelling (geschat). De prijs is wat een kWh van het net kost (all-in); teruglevering is wat een kWh naar het net oplevert.",
     socTotal: "Totaal",
+    bandFill: "Batterijvulling (achtergrond)",
     socPlan: "Totaal (plan)",
     realized: "Gerealiseerd rendement",
     notYet: "nog niet geladen of ontladen",
@@ -708,6 +710,7 @@ const STYLE = `
   .chart h3 { margin: 0 0 6px; font-size: 14px; font-weight: 500; }
   .chart svg { width: 100%; height: auto; display: block; }
   .chart .grid { stroke: var(--divider-color); stroke-width: 1; }
+  .chart .fill-area { fill: var(--secondary-text-color); fill-opacity: .1; stroke: var(--secondary-text-color); stroke-opacity: .25; stroke-width: .8; }
   .chart .axis { fill: var(--secondary-text-color); font-size: 11px; }
   .chart .line { fill: none; stroke-width: 1.4; stroke-linejoin: round; }
   .chart .line.dashed { stroke-dasharray: 4 3; stroke-width: 1.2; }
@@ -1615,7 +1618,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return 10 * step;
   }
 
-  _chart(id, series, xMin, xMax, ticks, gapLimit, markers = [], xFmt = (v) => this._time(new Date(v).toISOString()), yFmt = null, bands = []) {
+  _chart(id, series, xMin, xMax, ticks, gapLimit, markers = [], xFmt = (v) => this._time(new Date(v).toISOString()), yFmt = null, bands = [], fill = null) {
     // Full-width charts get a wider canvas so they are as high as the others.
     // The full-width flow chart gets a wider and higher canvas.
     const wide = id === "forecast" || id === "soc" || id === "temperature";
@@ -1652,6 +1655,15 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const x1 = Math.max(x(from), L);
       const x2 = Math.min(x(to), W - R);
       if (x2 > x1) svg += `<rect class="band" x="${x1.toFixed(1)}" y="${T}" width="${(x2 - x1).toFixed(1)}" height="${H - T - B}" fill="${color}"/>`;
+    }
+    // A filled area over the whole height (0-100 %, e.g. the batteries'
+    // total state of charge), on the background.
+    if (fill && fill.points.length > 1) {
+      const fy = (pct) => T + (1 - Math.max(0, Math.min(100, pct)) / 100) * (H - T - B);
+      const pts = fill.points.map(([ts, pct]) => `${x(ts).toFixed(1)},${fy(pct).toFixed(1)}`);
+      const first = x(fill.points[0][0]).toFixed(1);
+      const last = x(fill.points[fill.points.length - 1][0]).toFixed(1);
+      svg += `<path class="fill-area" clip-path="url(#clip-${id})" d="M${first},${H - B} L${pts.join(" L")} L${last},${H - B} Z"/>`;
     }
     const steps = 4;
     for (let i = 0; i <= steps; i++) {
@@ -2083,6 +2095,26 @@ class HomeBatteryAssistPanel extends HTMLElement {
         if (last && last[2] === bandColors[kind] && Math.abs(last[1] - from) < 1000) last[1] = to;
         else bands.push([from, to, bandColors[kind]]);
       }
+      // The batteries' total state of charge as an area on the background:
+      // measured up to now, planned after.
+      const fillBatteries = (h.soc?.batteries || []).filter((b) => b.planned !== false);
+      const fillCapacity =
+        h.battery_capacity_kwh || fillBatteries.reduce((sum, b) => sum + b.capacity_kwh, 0);
+      let fillPoints = [];
+      if (fillBatteries.length && fillCapacity > 0) {
+        const sums = new Map();
+        for (const b of fillBatteries) {
+          for (const [ts, kwh] of b.points) sums.set(ts, (sums.get(ts) || 0) + kwh);
+        }
+        const measured = [...sums.entries()]
+          .filter(([ts]) => ts <= now && fillBatteries.every((b) => b.points.some(([bts]) => bts === ts)))
+          .sort((a, b) => a[0] - b[0])
+          .map(([ts, kwh]) => [ts, (kwh / fillCapacity) * 100]);
+        const ahead = (h.battery_forecast || [])
+          .filter(([ts, , soc]) => ts > now && soc != null)
+          .map(([ts, , soc]) => [ts, soc]);
+        fillPoints = inView([...measured, ...ahead]);
+      }
       forecastChart = this._chart(
         "forecast",
         [
@@ -2143,6 +2175,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
           }),
         null,
         bands.filter(([from, to]) => to >= fMin && from <= fMax),
+        fillPoints.length > 1 ? { points: fillPoints } : null,
       );
       this._charts.forecast.gapLimit = slot;
 
@@ -2278,6 +2311,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       ["rgba(67,160,71,.6)", t.bandPv],
       ["rgba(142,36,170,.6)", t.bandGrid],
       ["rgba(30,136,229,.6)", t.bandDischarge],
+      ...(h.soc?.batteries?.length ? [["rgba(158,158,158,.35)", t.bandFill]] : []),
     ].map(([color, label]) => `<span><i style="background:${color};border-radius:2px;width:10px;height:10px"></i>${esc(label)}</span>`).join("")}</div>`;
 
     const info = t.daysOfData.replace("{days}", Math.round(h.days_covered)) + (h.imported ? ` · ${t.imported}` : "");
