@@ -50,6 +50,7 @@ from ..const import (
     CONF_FULL_CHARGE_DAY,
     CONF_FULL_CHARGE_SOLAR,
     CONF_FULL_CHARGE_WINDOW,
+    CONF_INTRADAY,
     CONF_MANUAL_POWER,
     CONF_MAX_CHARGE_PRICE,
     CONF_MAX_CURRENT,
@@ -154,6 +155,12 @@ from .forecast.consumption_forecast import (
 )
 from .forecast.forecasters import BUILTIN as FORECASTERS
 from .forecast.forecasters import DEFAULT_FORECASTER, Forecaster
+from .forecast.intraday import (
+    IntradayCorrection,
+    intraday_correction,
+    measured_today,
+    weight_at,
+)
 from .forecast.phase_shares import PhaseProfile
 from .forecast.planning_window import HorizonLimit, PlanningWindow, planning_horizon
 from .forecast.temperature_effect import (
@@ -371,6 +378,12 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             CONF_CONSUMPTION_FORECASTER, DEFAULT_FORECASTER
         )
         self.forecaster_fallback = False
+        # Correction within the day (today so far vs forecast).
+        self.intraday_on: bool = bool(entry.options.get(CONF_INTRADAY, True))
+        self.intraday: IntradayCorrection | None = None
+        self._intraday_key: tuple | None = None
+        self._intraday_predicted: dict[datetime, float] = {}
+        self._intraday_logged: tuple | None = None
         self._failed_forecasters: set[str] = set()
         # Tariff: what a kWh really costs and earns.
         self.tariffs: dict[str, Tariff] = dict(tariffs or {})
@@ -738,6 +751,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         chosen = self.forecasters.get(self.forecaster_key) or FORECASTERS.get(
             self.forecaster_key
         )
+        self.intraday = self._intraday_correction(chosen, step, now)
+        today = self.intraday
+
+        def correct(value: float, start: datetime) -> float:
+            value = accuracy.correct("consumption", value, start, now)
+            if today is not None and today.applies(start):
+                value *= today.factor
+            return value
+
         try:
             consumption = forecast_consumption(
                 self.forecast_records(),
@@ -745,7 +767,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 step,
                 self.adjustments.items,
                 now,
-                lambda value, start: accuracy.correct("consumption", value, start, now),
+                correct,
                 chosen,
                 self.temperatures,
                 self.temperature_model,
@@ -761,7 +783,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 step,
                 self.adjustments.items,
                 now,
-                lambda value, start: accuracy.correct("consumption", value, start, now),
+                correct,
                 temperatures=self.temperatures,
                 temperature=self.temperature_model,
             )
@@ -1073,6 +1095,88 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         """Name of a PV correction for the user."""
         corrector = self.pv_correctors.get(key) or PV_CORRECTORS.get(key)
         return (corrector.name if corrector else "") or key
+
+    def history_changed(self) -> None:
+        """The history was changed by hand (days excluded or taken back):
+        learn the temperature effect and today's comparison again."""
+        self._temperature_key = None
+        self._intraday_key = None
+
+    def _intraday_correction(
+        self, chosen: Forecaster | None, step: timedelta, now: datetime
+    ) -> IntradayCorrection | None:
+        """Today so far measured vs forecast (``forecast/intraday.py``): the
+        shift for the rest of today, or None (off, vacation, too early, too
+        little measured). The forecast of today's past intervals is made
+        again only when a new interval was measured."""
+        if not self.intraday_on or self.history.vacation:
+            return None
+        local = dt_util.as_local(now)
+        if weight_at(local) <= 0:
+            return None
+        midnight = dt_util.as_utc(dt_util.start_of_local_day(local))
+        records = self.forecast_records()
+        measured = measured_today(records, midnight, now)
+        if not measured:
+            return None
+        key = (midnight, max(measured), len(measured), self.forecaster_key)
+        if key != self._intraday_key:
+            before, temps = [], {}
+            for record in records:
+                start = dt_util.parse_datetime(str(record.get("start", "")))
+                if start is None:
+                    continue
+                if start < midnight:
+                    before.append(record)
+                elif record.get("temp_c") is not None:
+                    temps[start] = record["temp_c"]
+            past = PlanningWindow(midnight, max(measured) + step, HorizonLimit.SETTING)
+            temperatures = [temps.get(start) for start, _ in past.slots(step)]
+            try:
+                raw = raw_forecast(
+                    chosen,
+                    before,
+                    past,
+                    step,
+                    midnight,
+                    None,
+                    temperatures,
+                    self.temperature_model,
+                )
+            except Exception:  # an own forecaster: the built-in profile
+                _LOGGER.debug("Intraday: forecaster failed, profile used")
+                raw = raw_forecast(
+                    None,
+                    before,
+                    past,
+                    step,
+                    midnight,
+                    None,
+                    temperatures,
+                    self.temperature_model,
+                )
+            accuracy = self.accuracy
+            # As forecast just before (shortest lead time).
+            self._intraday_predicted = {
+                start: accuracy.correct("consumption", value, start, start)
+                for start, _end, value, _method in raw
+            }
+            self._intraday_key = key
+        result = intraday_correction(
+            measured, self._intraday_predicted, step.total_seconds() / 3600, now
+        )
+        if result is not None and abs(result.factor - 1) >= INTRADAY_TELL:
+            # Told once a day per direction.
+            told = (result.day, result.factor > 1)
+            if told != self._intraday_logged:
+                self._intraday_logged = told
+                self._decisions.async_log(
+                    "forecast",
+                    "intraday_higher" if result.factor > 1 else "intraday_lower",
+                    pct=round(abs(result.ratio - 1) * 100),
+                    shift=round(abs(result.factor - 1) * 100),
+                )
+        return result
 
     def _forecaster_failed(self, key: str) -> None:
         if key in self._failed_forecasters:
@@ -1817,6 +1921,9 @@ def _periods(
 # are only compared with on the dashboard).
 HEAVY_MODES = (MODE_ARBITRAGE, MODE_ARBITRAGE_FULL)
 HEAVY_EVERY = timedelta(hours=1)
+
+
+INTRADAY_TELL = 0.10  # a shift of 10 % or more is explained (Why)
 
 
 class _Laps:

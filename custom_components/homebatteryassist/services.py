@@ -8,13 +8,15 @@
   other integrations influence the consumption forecast for a period.
 - ``set_forecast_correction`` / ``reset_forecast_accuracy``: control how the
   consumption, PV and price forecasts are corrected from their running accuracy.
+- ``exclude_consumption_days``: leave unusual days (a party, a power cut) out
+  of what the consumption forecast learns, or take them back.
 
 Both only touch HomeBatteryAssist's own data; no device is ever controlled.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 import voluptuous as vol
@@ -56,6 +58,9 @@ ATTR_ID = "id"
 SERVICE_SET_PLAN_MODE = "set_plan_mode"
 SERVICE_SET_CORRECTION = "set_forecast_correction"
 SERVICE_RESET_ACCURACY = "reset_forecast_accuracy"
+SERVICE_EXCLUDE_DAYS = "exclude_consumption_days"
+ATTR_DATES = "dates"
+ATTR_INCLUDE = "include"
 ATTR_KIND = "kind"
 ATTR_MODE = "mode"
 ATTR_VALUE = "value"
@@ -73,6 +78,12 @@ SET_CORRECTION_SCHEMA = vol.Schema(
             vol.In([ALL_BUCKETS, *BUCKET_KEYS]),
         ),
         vol.Optional(ATTR_DURATION): cv.positive_time_period,
+    }
+)
+EXCLUDE_DAYS_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_DATES): vol.All(cv.ensure_list, [cv.date], vol.Length(min=1)),
+        vol.Optional(ATTR_INCLUDE, default=False): cv.boolean,
     }
 )
 RESET_ACCURACY_SCHEMA = vol.Schema(
@@ -205,6 +216,11 @@ def async_setup_services(hass: HomeAssistant) -> None:
             battery_power_history=call.data[ATTR_BATTERY_POWER_HISTORY],
             replace=call.data[ATTR_REPLACE],
         )
+        # Days the user left out stay left out (also in imported records).
+        history = entry.runtime_data.history
+        if history.excluded_days:
+            history.exclude_days([date.fromisoformat(d) for d in history.excluded_days])
+            entry.runtime_data.forecast.history_changed()
         entry.runtime_data.decisions.async_log(
             "history",
             "history_imported",
@@ -358,6 +374,47 @@ def async_setup_services(hass: HomeAssistant) -> None:
         SERVICE_RESET_ACCURACY,
         _reset_accuracy,
         schema=RESET_ACCURACY_SCHEMA,
+    )
+
+    async def _exclude_days(call: ServiceCall) -> ServiceResponse:
+        entry = _loaded_entries(hass)[0]
+        days: list[date] = sorted(set(call.data[ATTR_DATES]))
+        today = dt_util.now().date()
+        oldest = today - timedelta(days=HISTORY_RETENTION.days)
+        if any(d > today or d < oldest for d in days):
+            raise ServiceValidationError(
+                translation_domain=DOMAIN,
+                translation_key="days_out_of_range",
+                translation_placeholders={
+                    "first": oldest.isoformat(),
+                    "last": today.isoformat(),
+                },
+            )
+        include = call.data[ATTR_INCLUDE]
+        history = entry.runtime_data.history
+        changed = history.exclude_days(days, exclude=not include)
+        await history.async_save()
+        forecast = entry.runtime_data.forecast
+        forecast.history_changed()
+        entry.runtime_data.decisions.async_log(
+            "history",
+            "days_included" if include else "days_excluded",
+            days=", ".join(d.isoformat() for d in days),
+            count=changed,
+        )
+        await forecast.async_request_refresh()
+        result = {
+            "changed": changed,
+            "excluded_days": sorted(history.excluded_days),
+        }
+        return result if call.return_response else None
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_EXCLUDE_DAYS,
+        _exclude_days,
+        schema=EXCLUDE_DAYS_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(
         DOMAIN,

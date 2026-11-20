@@ -138,7 +138,8 @@
               "manual_power_w": "Handmatig vermogen",
               "charge_hysteresis": "Laadhysterese",
               "vacation": "Vakantiemodus",
-              "interceptor": "Onderschepper (interceptor)"
+              "interceptor": "Onderschepper (interceptor)",
+              "intraday_correction": "Bijsturen binnen de dag"
             },
             "data_description": {
               "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
@@ -150,7 +151,8 @@
               "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
               "charge_hysteresis": "Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit.",
               "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken).",
-              "interceptor": "Jouw laatste woord per batterij voordat een opdracht uitgaat: goedkeuren, beperken (minder, zelfde richting), tegenhouden of vrijgeven. De eigen controle van HomeBatteryAssist komt erna en gaat altijd voor. Standaard geen; eigen onderscheppers uit /config/homebatteryassist/interceptors staan hier ook (na herladen). Voorlopig werkt hij op de virtuele batterijen."
+              "interceptor": "Jouw laatste woord per batterij voordat een opdracht uitgaat: goedkeuren, beperken (minder, zelfde richting), tegenhouden of vrijgeven. De eigen controle van HomeBatteryAssist komt erna en gaat altijd voor. Standaard geen; eigen onderscheppers uit /config/homebatteryassist/interceptors staan hier ook (na herladen). Voorlopig werkt hij op de virtuele batterijen.",
+              "intraday_correction": "Gebruikte het huis vandaag tot nu toe duidelijk meer of minder dan voorspeld, dan rekent de rest van vandaag daar ook mee: geleidelijk vanaf 03:00, volledig vanaf 12:00, hooguit 30 %. Morgen begint weer bij de gewone voorspelling."
             }
           },
           "limits": {
@@ -653,7 +655,8 @@
               "manual_power_w": "Handmatig vermogen",
               "charge_hysteresis": "Laadhysterese",
               "vacation": "Vakantiemodus",
-              "interceptor": "Onderschepper (interceptor)"
+              "interceptor": "Onderschepper (interceptor)",
+              "intraday_correction": "Bijsturen binnen de dag"
             },
             "data_description": {
               "cycle_cost": "Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst.",
@@ -665,7 +668,8 @@
               "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
               "charge_hysteresis": "Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit.",
               "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken).",
-              "interceptor": "Jouw laatste woord per batterij voordat een opdracht uitgaat: goedkeuren, beperken (minder, zelfde richting), tegenhouden of vrijgeven. De eigen controle van HomeBatteryAssist komt erna en gaat altijd voor. Standaard geen; eigen onderscheppers uit /config/homebatteryassist/interceptors staan hier ook (na herladen). Voorlopig werkt hij op de virtuele batterijen."
+              "interceptor": "Jouw laatste woord per batterij voordat een opdracht uitgaat: goedkeuren, beperken (minder, zelfde richting), tegenhouden of vrijgeven. De eigen controle van HomeBatteryAssist komt erna en gaat altijd voor. Standaard geen; eigen onderscheppers uit /config/homebatteryassist/interceptors staan hier ook (na herladen). Voorlopig werkt hij op de virtuele batterijen.",
+              "intraday_correction": "Gebruikte het huis vandaag tot nu toe duidelijk meer of minder dan voorspeld, dan rekent de rest van vandaag daar ook mee: geleidelijk vanaf 03:00, volledig vanaf 12:00, hooguit 30 %. Morgen begint weer bij de gewone voorspelling."
             }
           },
           "limits": {
@@ -1698,6 +1702,15 @@
             "name": "Opwekgrens (omvormers)"
           }
         }
+      },
+      "control_quality": {
+        "name": "Regelkwaliteit",
+        "state": {
+          "stable": "Stabiel",
+          "oscillating": "Slingert",
+          "sluggish": "Traag",
+          "idle": "Rust"
+        }
       }
     },
     "button": {
@@ -1862,6 +1875,20 @@
           "description": "nom of arbitrage."
         }
       }
+    },
+    "exclude_consumption_days": {
+      "name": "Verbruiksdagen uitsluiten",
+      "description": "Laat ongewone dagen (een feest, logés, een stroomstoring) buiten wat de verbruiksvoorspelling leert, of neemt ze terug. Zoals de vakantiemodus, alleen voor deze dagen.",
+      "fields": {
+        "dates": {
+          "name": "Dagen",
+          "description": "De datums, binnen de laatste 28 dagen (vandaag meegeteld)."
+        },
+        "include": {
+          "name": "Terugnemen",
+          "description": "Aan: van deze dagen wordt weer geleerd."
+        }
+      }
     }
   },
   "exceptions": {
@@ -1888,6 +1915,9 @@
     },
     "pv_factor_range": {
       "message": "De PV-correctie is een factor tussen 0,5 en 1,5."
+    },
+    "days_out_of_range": {
+      "message": "Dagen moeten tussen {first} en {last} liggen."
     }
   },
   "device": {

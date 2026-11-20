@@ -18,7 +18,9 @@ The house consumption per slot is predicted by a **consumption forecaster** [mod
 - **Same time in the last weeks**: the same weekday and time in the last two weeks (every record in the slot counts). The temperature step compares the forecast with the weather of those very weeks.
 - **Your own forecaster**, see [Modules](modules.md).
 
-All forecasters run every cycle; the *Accuracy* tab compares them, so you can choose the one that fits your house. Consumption during a **vacation** (setting) is not learned from. You can **adjust** the forecast for a period (e.g. a party) with the action `adjust_forecast`.
+All forecasters run every cycle; the *Accuracy* tab compares them, so you can choose the one that fits your house. Consumption during a **vacation** (setting) is not learned from. An unusual day afterwards (a party, guests, a power cut) can be left out of learning with the action `exclude_consumption_days` (dates within the last 28 days; `include: true` takes them back). You can **adjust** the forecast for a period (e.g. a party) with the action `adjust_forecast`.
+
+**Correct within the day** (setting, on by default): when the house used clearly more or less today than forecast so far, the rest of today counts on that too. Today's finished intervals are compared with what the forecast (from the history before today, corrected as usual) would have said for them; the difference moves the rest of today gradually — nothing before 03:00, fully from 12:00 — and never by more than 30 %. Tomorrow starts from the normal forecast again, and the accuracy keeps learning from the forecast without this shift. A shift of 10 % or more is told in *Why*; diagnostics show it under `intraday_correction`.
 
 **Occasional consumption** (dashboard: button *Occasional consumption* in the top bar; also the action `adjust_forecast` with `energy_kwh`): tell the forecast about consumption it cannot know from the history, per day: an amount of energy (kWh), optionally within a time window (without one: spread over the whole day; a window that ends before it starts runs past midnight). Choose:
 

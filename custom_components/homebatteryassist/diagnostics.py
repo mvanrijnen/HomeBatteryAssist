@@ -6,6 +6,7 @@ from typing import Any
 
 from homeassistant.components.diagnostics import REDACTED, async_redact_data
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
 from .engine.evaluation.pv_corrections import BUILTIN as PV_CORRECTORS
 from .models import HomeBatteryAssistConfigEntry
@@ -107,6 +108,10 @@ async def async_get_config_entry_diagnostics(
             "planner_fallback": data.forecast.plan_fallback,
             # How long the last forecast cycle took per step (ms).
             "cycle_timings_ms": data.forecast.timings,
+            # Today so far vs forecast: the shift for the rest of today.
+            "intraday_correction": (
+                data.forecast.intraday.as_dict() if data.forecast.intraday else None
+            ),
             "consumption_forecaster": data.forecast.forecaster_key,
             "forecaster_fallback": data.forecast.forecaster_fallback,
             "weather_source": data.forecast.weather_key,
@@ -155,6 +160,7 @@ async def async_get_config_entry_diagnostics(
                 data.forecast.interceptor.key if data.forecast.interceptor else None
             ),
             "interceptor_changes": data.simulator.intercepted,
+            "control_quality": data.simulator.quality.summary(dt_util.utcnow()),
             "pv_corrector": data.forecast.pv_corrector_key,
             "pv_corrector_fallback": data.forecast.pv_corrector_fallback,
             "pv_corrector_learned": _pv_details(data.forecast),

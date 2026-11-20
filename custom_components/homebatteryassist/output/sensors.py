@@ -23,6 +23,9 @@ from homeassistant.util import dt as dt_util
 
 from ..const import DOMAIN, NAME
 from ..engine.coordinator import ForecastCoordinator
+from ..engine.devices.batteries.control_quality import (
+    STATES as CONTROL_QUALITY_STATES,
+)
 from ..engine.devices.meters import SOURCE_NAMES
 from ..engine.explain.plan_phases import KINDS as PHASE_KINDS
 from ..engine.explain.plan_phases import current_and_next, phase_attributes
@@ -65,6 +68,8 @@ async def async_setup_entry(
         LastDecisionSensor(entry),
     ]
     batteries = entry.runtime_data.batteries
+    if any(c.virtual for c in batteries.configs):
+        main.append(ControlQualitySensor(entry))
     if batteries.configs:
         main.append(BatteryForecastSensor(entry))
         # The plan as phases: discharging, charging (grid / solar), grid only.
@@ -361,6 +366,39 @@ class FlowSensor(HomeBatteryAssistEntity, SensorEntity):
         if self.entity_description.attrs_fn is None or flow is None:
             return None
         return self.entity_description.attrs_fn(flow, self._measurements)
+
+
+class ControlQualitySensor(HomeBatteryAssistEntity, SensorEntity):
+    """How well zero on the meter of the virtual batteries holds the grid
+    at its target: stable, oscillating, sluggish or idle (last 10 min)."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_should_poll = True  # the simulator steps every few seconds
+
+    def __init__(self, entry: HomeBatteryAssistConfigEntry) -> None:
+        """Initialize."""
+        super().__init__(entry, "control_quality")
+        self._entry = entry
+        self._attr_options = list(CONTROL_QUALITY_STATES)
+
+    def _summary(self) -> dict[str, Any] | None:
+        simulator = self._entry.runtime_data.simulator
+        if simulator is None:
+            return None
+        return simulator.quality.summary(dt_util.utcnow())
+
+    @property
+    def native_value(self) -> str | None:
+        """The state."""
+        summary = self._summary()
+        return str(summary["state"]) if summary else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The figures behind it."""
+        summary = self._summary() or {}
+        return {k: v for k, v in summary.items() if k != "state"}
 
 
 class PlanningHorizonSensor(

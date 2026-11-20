@@ -116,6 +116,7 @@ How the plans weigh costs and prices, and the fixed modes.
 | **Charge hysteresis** | Once full, the batteries only charge again after their state of charge dropped this much below the maximum (fewer small top-ups). 0 = off. |
 | **Vacation mode** | While on, the measured house consumption is not used to learn the usual consumption (the forecast keeps using the normal days). |
 | **Interceptor** | Your last say per battery before a command goes out: approve, limit (less, same direction), hold back or release. HomeBatteryAssist's own check comes after it and always wins. None by default; own interceptors from /config/homebatteryassist/interceptors appear here too (after a reload). For now it acts on the virtual batteries. |
+| **Correct within the day** | When the house used clearly more or less today than forecast so far, the rest of today counts on that too: gradually from 03:00, fully from 12:00, at most 30 %. Tomorrow starts from the normal forecast again. |
 
 ### Limits and reserve {#settings-limits}
 
@@ -375,6 +376,7 @@ What HomeBatteryAssist creates (names as shown in Home Assistant).
 | Value today | Sensor |
 | Difference with the real battery today | Sensor |
 | Max export | Sensor |
+| Control quality | Sensor |
 | Recalculate | Button |
 | Test: charge | Button |
 | Test: discharge | Button |
@@ -456,6 +458,15 @@ Callable from automations and scripts (see [Working with other integrations](int
 | Field | Explanation |
 |---|---|
 | **Mode** | nom or arbitrage. |
+
+### Exclude consumption days {#action-exclude-consumption-days}
+
+`homebatteryassist.exclude_consumption_days` — Leaves unusual days (a party, guests, a power cut) out of what the consumption forecast learns, or takes them back. Like vacation mode, only for these days.
+
+| Field | Explanation |
+|---|---|
+| **Days** | The local dates, within the last 28 days (today included). |
+| **Take back** | On: the days are learned from again. |
 
 ---
 

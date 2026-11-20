@@ -122,6 +122,18 @@ set_forecast_correction:
       selector:
         duration:
 
+exclude_consumption_days:
+  fields:
+    dates:
+      required: true
+      example: '["2026-11-14"]'
+      selector:
+        date:
+    include:
+      default: false
+      selector:
+        boolean:
+
 reset_forecast_accuracy:
   fields:
     kind:

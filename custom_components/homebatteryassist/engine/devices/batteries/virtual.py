@@ -79,6 +79,7 @@ from ...planning.phase_limit import (
     shave_peak,
 )
 from ...units import state_to_celsius
+from .control_quality import ControlQuality
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -245,6 +246,9 @@ class VirtualBatterySimulator:
         self.intercepted: list[tuple[str, str, float, str]] = []
         self._intercept_gist = ""
         self._intercept_failed = False
+        # How well zero on the meter holds the grid (sensor control_quality).
+        self.quality = ControlQuality()
+        self._quality_round: float | None = None  # power of a free round
 
     def _flow(self) -> Any:
         """The grid as the virtual batteries see it: measured, without the
@@ -546,6 +550,20 @@ class VirtualBatterySimulator:
         else:
             self._decisions.async_log("battery", "interceptor_cleared", name=name)
 
+    def _observe_quality(self, now: datetime) -> None:
+        """The round that ends now, if the batteries could follow in it: the
+        grid as it would have been with them, against the target."""
+        power, self._quality_round = self._quality_round, None
+        if power is None:
+            return
+        flow = self._round_flow(now)
+        if flow is None:
+            return
+        error = (
+            flow.grid_w - flow.excluded_w + power - self._forecast.rules.nom_target_w
+        )
+        self.quality.add(now, error, power)
+
     def _limit_w(self) -> float:
         return phase_limit_w(
             self._measurements.max_current, self._forecast.phase_margin
@@ -560,6 +578,7 @@ class VirtualBatterySimulator:
         hours = elapsed.total_seconds() / 3600
         if hours <= 0:
             return
+        self._observe_quality(now)
         data = self._forecast.data
         full = {
             c.id: data.full_charge_now(c.id, now) if data else None
@@ -599,6 +618,7 @@ class VirtualBatterySimulator:
             if rest_sum > cap - full_sum:
                 for i in rest:
                     wanted[i] *= max(cap - full_sum, 0.0) / rest_sum
+        asked = dict(wanted)  # before protections and limits
         nom = data is None or data.plan_mode == MODE_NOM
         reasons = {
             c.id: "full_charge" if full[c.id] else "zero_on_meter" if nom else "plan"
@@ -637,6 +657,7 @@ class VirtualBatterySimulator:
         # protection (phase relief, peak shaving) — the owner's decision.
         wanted = system_limited(wanted, self._forecast.rules)
         wanted = self._hold_without_meter(wanted)
+        powers: dict[str, float] = {}
         for config in self.virtual:
             limits = replace(config, max_soc=100.0) if full[config.id] else config
             power, soc = limit_power(
@@ -646,7 +667,15 @@ class VirtualBatterySimulator:
                 hours,
                 random_efficiency(config),
             )
+            powers[config.id] = power
             self._batteries.set_virtual(config.id, now, power, soc)
+        # A round counts for the control quality when zero on the meter
+        # could do what it asked (no protection, limit or full battery).
+        free = nom and all(
+            reasons[i] == "zero_on_meter" and abs(powers[i] - asked[i]) <= 1.0
+            for i in powers
+        )
+        self._quality_round = sum(powers.values()) if free else None
         # A new round: the grid now (for jumps), and start the average anew.
         flow = self._flow()
         self._step_grid = flow.grid_w if flow is not None else None

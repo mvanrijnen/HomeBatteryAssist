@@ -19,3 +19,21 @@ def no_speedwire_discovery():
         AsyncMock(return_value={}),
     ) as mock:
         yield mock
+
+
+@pytest.fixture(autouse=True)
+def grid_not_frozen(request):
+    """Tests set a grid sensor once and jump ahead in time: a real sensor is
+    reported anew all the time, so the frozen check stays out of the way
+    (tests marked ``frozen_grid`` keep it)."""
+    from datetime import timedelta
+    from unittest.mock import patch
+
+    if request.node.get_closest_marker("frozen_grid"):
+        yield
+        return
+    with patch(
+        "custom_components.homebatteryassist.engine.measure.house_measurement.GRID_STALE",
+        timedelta(days=3650),
+    ):
+        yield

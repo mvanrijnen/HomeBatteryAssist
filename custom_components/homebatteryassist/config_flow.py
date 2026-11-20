@@ -102,6 +102,7 @@ from .const import (
     CONF_INDOOR_TEMPERATURE,
     CONF_INITIAL_SOC,
     CONF_INTERCEPTOR,
+    CONF_INTRADAY,
     CONF_INVERTER_ADDRESS,
     CONF_INVERTER_DRIVER,
     CONF_INVERTER_MAX_CURRENT,
@@ -479,6 +480,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "manual_power_w",
         "charge_hysteresis",
         "vacation",
+        "intraday_correction",
         "interceptor",
     ),
     "limits": (
@@ -846,6 +848,9 @@ async def _flat_settings_schema(
             CONF_VACATION, default=current.get(CONF_VACATION, False)
         ): BooleanSelector(),
         vol.Required(
+            CONF_INTRADAY, default=current.get(CONF_INTRADAY, True)
+        ): BooleanSelector(),
+        vol.Required(
             CONF_INTERCEPTOR,
             default=current.get(CONF_INTERCEPTOR, DEFAULT_INTERCEPTOR),
         ): SelectSelector(
@@ -1211,6 +1216,7 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     options[CONF_MIN_MARGIN] = float(user_input.get(CONF_MIN_MARGIN, 0))
     options[CONF_CHARGE_HYSTERESIS] = int(user_input.get(CONF_CHARGE_HYSTERESIS, 0))
     options[CONF_VACATION] = bool(user_input.get(CONF_VACATION, False))
+    options[CONF_INTRADAY] = bool(user_input.get(CONF_INTRADAY, True))
     options[CONF_INTERCEPTOR] = user_input.get(CONF_INTERCEPTOR, DEFAULT_INTERCEPTOR)
     options[CONF_FULL_CHARGE_DAY] = user_input.get(CONF_FULL_CHARGE_DAY, "none")
     options[CONF_FULL_CHARGE_SOLAR] = bool(user_input.get(CONF_FULL_CHARGE_SOLAR, True))

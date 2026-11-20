@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 import math
-from collections.abc import Mapping
-from datetime import datetime, timedelta
+from collections.abc import Iterable, Mapping
+from datetime import date, datetime, timedelta
 from typing import Any, NotRequired, TypedDict
 
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
@@ -43,6 +43,8 @@ class ConsumptionRecord(TypedDict):
     # the interval is no reactive power)
     phase_q: NotRequired[list[float]]
     vacation: NotRequired[bool]  # measured in vacation mode: not learned from
+    # set with vacation by the action exclude_consumption_days (undone by it)
+    excluded_day: NotRequired[bool]
     heating_w: NotRequired[float]  # average power of heating/cooling (part of house)
     temp_c: NotRequired[float]  # average outdoor temperature (°C)
     # per heating/cooling zone (subentry id): average power "w" and, when
@@ -124,6 +126,8 @@ class ConsumptionHistory:
         )
         self.minutes = minutes
         self.vacation = False  # mark new records as vacation (not learned)
+        # Local days (ISO dates) left out of learning by the user.
+        self.excluded_days: set[str] = set()
         self._interval = timedelta(minutes=minutes)
         self.records: list[ConsumptionRecord] = []
 
@@ -200,6 +204,9 @@ class ConsumptionHistory:
         if (data := await self._store.async_load()) is not None:
             records = data.get("records", [])
             self.records = [r for r in records if _valid(r)]
+            self.excluded_days = {
+                d for d in data.get("excluded_days", []) if isinstance(d, str)
+            }
             running = data.get("running") or {}
             start = dt_util.parse_datetime(running.get("start") or "")
             current = self.interval_start(dt_util.utcnow())
@@ -343,6 +350,12 @@ class ConsumptionHistory:
                 record["battery_w"] = round(self._battery_ws / self._battery_s, 1)
             if self.vacation:
                 record["vacation"] = True
+            elif (
+                dt_util.as_local(self._interval_start).date().isoformat()
+                in self.excluded_days
+            ):
+                record["vacation"] = True
+                record["excluded_day"] = True
             if self._heating_s > 0:
                 record["heating_w"] = round(self._heating_ws / self._heating_s, 1)
             if self._temp_s > 0:
@@ -658,11 +671,42 @@ class ConsumptionHistory:
 
     def prune(self, now: datetime) -> None:
         """Drop records older than the retention period."""
-        cutoff = (dt_util.as_utc(now) - HISTORY_RETENTION).isoformat()
-        self.records = [r for r in self.records if r["start"] >= cutoff]
+        cutoff = dt_util.as_utc(now) - HISTORY_RETENTION
+        self.records = [r for r in self.records if r["start"] >= cutoff.isoformat()]
+        first = (dt_util.as_local(cutoff).date() - timedelta(days=1)).isoformat()
+        self.excluded_days = {d for d in self.excluded_days if d >= first}
+
+    def exclude_days(self, days: Iterable[date], exclude: bool = True) -> int:
+        """Leave these local days out of learning (as vacation: the forecasts
+        and the accuracy do not learn from them), or take them back
+        (``exclude`` False; only what this action left out). Also counts for
+        intervals still to come on such a day. Returns the records changed."""
+        wanted = {d.isoformat() for d in days}
+        if exclude:
+            self.excluded_days |= wanted
+        else:
+            self.excluded_days -= wanted
+        changed = 0
+        for record in self.records:
+            start = dt_util.parse_datetime(str(record["start"]))
+            if (
+                start is None
+                or dt_util.as_local(start).date().isoformat() not in wanted
+            ):
+                continue
+            if exclude and not record.get("vacation"):
+                record["vacation"] = True
+                record["excluded_day"] = True
+                changed += 1
+            elif not exclude and record.pop("excluded_day", False):
+                record.pop("vacation", None)
+                changed += 1
+        return changed
 
     def _data(self, running: bool = False) -> dict[str, Any]:
         data: dict[str, Any] = {"records": self.records}
+        if self.excluded_days:
+            data["excluded_days"] = sorted(self.excluded_days)
         if running and self._interval_start is not None and self._measured_s > 0:
             data["running"] = {
                 "start": self._interval_start.isoformat(),

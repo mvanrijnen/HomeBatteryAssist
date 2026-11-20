@@ -69,11 +69,21 @@ the dashboard simulates is what would be sent:
    phase; a battery without a phase spread evenly) before ``relieve`` /
    ``cap_powers`` (the virtual batteries are not in the measurement, so
    they use it as it is). **Grid unknown** (meter gone for 10 s, a grid
-   sensor unknown): no control; every battery is released to its own
-   control until the grid is measured again (``meter_lost_hold``).
+   sensor unknown, or a grid sensor frozen: not reported anew for
+   ``GRID_STALE`` = 90 s, ``MeasurementInput.stale``, *Why* ``grid_stale``):
+   no control; every battery is released to its own control until the grid
+   is measured again (``meter_lost_hold``).
 7. Per battery ``controller.async_command(power)`` (a released battery:
    ``controller.async_command(None)``, which releases it); the controller
    decides whether and when it is really sent.
+8. Per round the loop feeds ``ControlQuality`` (``devices/batteries/
+   control_quality.py``, as the virtual batteries do in ``_observe_quality``)
+   with the grid error after the batteries' reaction — for real batteries
+   the measured grid itself (they are in it) minus the target, only in
+   rounds where zero on the meter could do what it asked. *Oscillating*
+   points to a too fast reaction (raise the deadband or the round time),
+   *sluggish* to a battery that follows slowly; the sensor
+   ``control_quality`` then shows the real control instead of the virtual.
 
 **Does the battery follow?** ``CommandMonitor``
 (``engine/evaluation/command_check.py``, already active) reads every real

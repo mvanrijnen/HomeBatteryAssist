@@ -40,6 +40,7 @@ from homeassistant.core import (
 from homeassistant.helpers.event import (
     async_call_later,
     async_track_state_change_event,
+    async_track_time_interval,
 )
 from homeassistant.helpers.sun import is_up
 from homeassistant.util import dt as dt_util
@@ -90,6 +91,11 @@ PV_GONE = timedelta(minutes=30)
 type MeasurementListener = Callable[[datetime, float | None], None]
 
 ENTITY_INTERVAL = timedelta(seconds=10)  # entities with a direct meter
+# A grid sensor that keeps its value but is not reported anew (its
+# integration hangs) is frozen: after GRID_STALE it counts as unknown, so
+# nothing acts on an old phase load. Checked every STALE_CHECK.
+GRID_STALE = timedelta(seconds=90)
+STALE_CHECK = timedelta(seconds=15)
 
 
 # Current and voltage sensors in another unit than A / V.
@@ -210,6 +216,8 @@ class MeasurementInput:
             entry.data.get(k) or None for k in CONF_PHASE_VOLTAGE_SENSORS[:phases]
         ]
         self._unsub_direct: CALLBACK_TYPE | None = None
+        self._unsub_stale: CALLBACK_TYPE | None = None
+        self.stale: list[str] = []  # grid sensors frozen now
         self.pv_sources = _subentry_devices(entry, SUBENTRY_PV_SOURCE)
         self.excluded_loads = _subentry_devices(entry, SUBENTRY_EXCLUDED_LOAD)
         # PV sources read directly by a meter driver (e.g. a kWh meter)
@@ -302,7 +310,38 @@ class MeasurementInput:
             for b in self.batteries
             if (meter := battery_meter(self.hass, b)) is not None
         ]
+        if self.grid_phases:
+            self._unsub_stale = async_track_time_interval(
+                self.hass, self._async_check_stale, STALE_CHECK
+            )
         self._update(dt_util.utcnow())
+
+    @callback
+    def _async_check_stale(self, now: datetime) -> None:
+        """A frozen grid sensor sends no event: recalculate when one froze,
+        or when it is reported again with the same value."""
+        frozen = bool(self._stale_grid(now))
+        if frozen != bool(self.stale) or (frozen and self.flow is not None):
+            self._update(now)
+
+    def _stale_grid(self, now: datetime) -> list[str]:
+        """The grid sensors of each phase whose newest report is older than
+        GRID_STALE (not in the first minutes after a start)."""
+        if now < self._quiet_until:
+            return []
+        frozen: list[str] = []
+        for pair in self.grid_phases:
+            sensors = [e for e in pair if e is not None]
+            seen = [t for e in sensors if (t := self._reported(e)) is not None]
+            if seen and now - max(seen) > GRID_STALE:
+                frozen += sensors
+        return frozen
+
+    def _reported(self, entity_id: str) -> datetime | None:
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            return None
+        return getattr(state, "last_reported", None) or state.last_updated
 
     async def async_start_meter(self) -> None:
         """Start reading the direct meters (grid and PV, if any)."""
@@ -320,6 +359,9 @@ class MeasurementInput:
         if self._unsub_direct is not None:
             self._unsub_direct()
             self._unsub_direct = None
+        if self._unsub_stale is not None:
+            self._unsub_stale()
+            self._unsub_stale = None
         for unsub in getattr(self, "_unsub_pv", []):
             unsub()
         self._unsub_pv = []
@@ -428,6 +470,8 @@ class MeasurementInput:
                 missing.append(ret)  # type: ignore[arg-type]
             if value is not None and returned is not None:
                 phase_w.append(round(value - abs(returned), 1))
+        self.stale = self._stale_grid(dt_util.utcnow())
+        missing += [e for e in self.stale if e not in missing]
         if missing:
             return None, missing
         if not self.direct:
@@ -681,6 +725,13 @@ class MeasurementInput:
         if self._was_available is not None and available != self._was_available:
             if available:
                 self._decisions.async_log("measurement", "consumption_restored")
+            elif self.stale:
+                self._decisions.async_log(
+                    "measurement",
+                    "grid_stale",
+                    sensors=", ".join(self.stale),
+                    seconds=round(GRID_STALE.total_seconds()),
+                )
             else:
                 self._decisions.async_log(
                     "measurement",

@@ -138,7 +138,8 @@
               "manual_power_w": "Manual power",
               "charge_hysteresis": "Charge hysteresis",
               "vacation": "Vacation mode",
-              "interceptor": "Interceptor"
+              "interceptor": "Interceptor",
+              "intraday_correction": "Correct within the day"
             },
             "data_description": {
               "cycle_cost": "Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains.",
@@ -150,7 +151,8 @@
               "manual_power_w": "Used in the plan mode “Manual”: the batteries always charge (positive) or discharge (negative) at this power, within their limits.",
               "charge_hysteresis": "Once full, the batteries only charge again after their state of charge dropped this much below the maximum (fewer small top-ups). 0 = off.",
               "vacation": "While on, the measured house consumption is not used to learn the usual consumption (the forecast keeps using the normal days).",
-              "interceptor": "Your last say per battery before a command goes out: approve, limit (less, same direction), hold back or release. HomeBatteryAssist's own check comes after it and always wins. None by default; own interceptors from /config/homebatteryassist/interceptors appear here too (after a reload). For now it acts on the virtual batteries."
+              "interceptor": "Your last say per battery before a command goes out: approve, limit (less, same direction), hold back or release. HomeBatteryAssist's own check comes after it and always wins. None by default; own interceptors from /config/homebatteryassist/interceptors appear here too (after a reload). For now it acts on the virtual batteries.",
+              "intraday_correction": "When the house used clearly more or less today than forecast so far, the rest of today counts on that too: gradually from 03:00, fully from 12:00, at most 30 %. Tomorrow starts from the normal forecast again."
             }
           },
           "limits": {
@@ -653,7 +655,8 @@
               "manual_power_w": "Manual power",
               "charge_hysteresis": "Charge hysteresis",
               "vacation": "Vacation mode",
-              "interceptor": "Interceptor"
+              "interceptor": "Interceptor",
+              "intraday_correction": "Correct within the day"
             },
             "data_description": {
               "cycle_cost": "Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains.",
@@ -665,7 +668,8 @@
               "manual_power_w": "Used in the plan mode “Manual”: the batteries always charge (positive) or discharge (negative) at this power, within their limits.",
               "charge_hysteresis": "Once full, the batteries only charge again after their state of charge dropped this much below the maximum (fewer small top-ups). 0 = off.",
               "vacation": "While on, the measured house consumption is not used to learn the usual consumption (the forecast keeps using the normal days).",
-              "interceptor": "Your last say per battery before a command goes out: approve, limit (less, same direction), hold back or release. HomeBatteryAssist's own check comes after it and always wins. None by default; own interceptors from /config/homebatteryassist/interceptors appear here too (after a reload). For now it acts on the virtual batteries."
+              "interceptor": "Your last say per battery before a command goes out: approve, limit (less, same direction), hold back or release. HomeBatteryAssist's own check comes after it and always wins. None by default; own interceptors from /config/homebatteryassist/interceptors appear here too (after a reload). For now it acts on the virtual batteries.",
+              "intraday_correction": "When the house used clearly more or less today than forecast so far, the rest of today counts on that too: gradually from 03:00, fully from 12:00, at most 30 %. Tomorrow starts from the normal forecast again."
             }
           },
           "limits": {
@@ -1698,6 +1702,15 @@
             "name": "Production limit (inverters)"
           }
         }
+      },
+      "control_quality": {
+        "name": "Control quality",
+        "state": {
+          "stable": "Stable",
+          "oscillating": "Oscillating",
+          "sluggish": "Sluggish",
+          "idle": "Idle"
+        }
       }
     },
     "button": {
@@ -1862,6 +1875,20 @@
           "description": "nom or arbitrage."
         }
       }
+    },
+    "exclude_consumption_days": {
+      "name": "Exclude consumption days",
+      "description": "Leaves unusual days (a party, guests, a power cut) out of what the consumption forecast learns, or takes them back. Like vacation mode, only for these days.",
+      "fields": {
+        "dates": {
+          "name": "Days",
+          "description": "The local dates, within the last 28 days (today included)."
+        },
+        "include": {
+          "name": "Take back",
+          "description": "On: the days are learned from again."
+        }
+      }
     }
   },
   "exceptions": {
@@ -1888,6 +1915,9 @@
     },
     "pv_factor_range": {
       "message": "The PV correction is a factor between 0.5 and 1.5."
+    },
+    "days_out_of_range": {
+      "message": "Days must lie between {first} and {last}."
     }
   },
   "device": {

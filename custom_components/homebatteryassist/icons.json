@@ -31,6 +31,9 @@
       "planning_horizon": {
         "default": "mdi:calendar-clock"
       },
+      "control_quality": {
+        "default": "mdi:sine-wave"
+      },
       "last_decision": {
         "default": "mdi:head-lightbulb-outline"
       },
@@ -191,6 +194,9 @@
     },
     "reset_forecast_accuracy": {
       "service": "mdi:restore"
+    },
+    "exclude_consumption_days": {
+      "service": "mdi:calendar-remove"
     },
     "set_plan_mode": {
       "service": "mdi:battery-sync-outline"

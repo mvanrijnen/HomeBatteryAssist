@@ -116,6 +116,7 @@ Hoe de plannen kosten en prijzen afwegen, en de vaste standen.
 | **Laadhysterese** | Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit. |
 | **Vakantiemodus** | Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken). |
 | **Onderschepper (interceptor)** | Jouw laatste woord per batterij voordat een opdracht uitgaat: goedkeuren, beperken (minder, zelfde richting), tegenhouden of vrijgeven. De eigen controle van HomeBatteryAssist komt erna en gaat altijd voor. Standaard geen; eigen onderscheppers uit /config/homebatteryassist/interceptors staan hier ook (na herladen). Voorlopig werkt hij op de virtuele batterijen. |
+| **Bijsturen binnen de dag** | Gebruikte het huis vandaag tot nu toe duidelijk meer of minder dan voorspeld, dan rekent de rest van vandaag daar ook mee: geleidelijk vanaf 03:00, volledig vanaf 12:00, hooguit 30 %. Morgen begint weer bij de gewone voorspelling. |
 
 ### Grenzen en reserve {#settings-limits}
 
@@ -375,6 +376,7 @@ Wat HomeBatteryAssist aanmaakt (namen zoals in Home Assistant).
 | Opbrengst vandaag | Sensor |
 | Verschil met echte batterij vandaag | Sensor |
 | Max. teruglevering | Sensor |
+| Regelkwaliteit | Sensor |
 | Herbereken | Knop |
 | Test: laden | Knop |
 | Test: ontladen | Knop |
@@ -456,6 +458,15 @@ Aan te roepen vanuit automatiseringen en scripts (zie [Werken met andere integra
 | Veld | Uitleg |
 |---|---|
 | **Modus** | nom of arbitrage. |
+
+### Verbruiksdagen uitsluiten {#action-exclude-consumption-days}
+
+`homebatteryassist.exclude_consumption_days` — Laat ongewone dagen (een feest, logés, een stroomstoring) buiten wat de verbruiksvoorspelling leert, of neemt ze terug. Zoals de vakantiemodus, alleen voor deze dagen.
+
+| Veld | Uitleg |
+|---|---|
+| **Dagen** | De datums, binnen de laatste 28 dagen (vandaag meegeteld). |
+| **Terugnemen** | Aan: van deze dagen wordt weer geleerd. |
 
 ---
 
