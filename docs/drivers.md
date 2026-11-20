@@ -1,5 +1,5 @@
 ---
-description: "Devices in HomeBatteryAssist: home batteries through their own integration (Marstek Venus, Victron) and grid meters read directly (HomeWizard P1, SMA, Shelly, IAMMETER)."
+description: "Devices in HomeBatteryAssist: home batteries through their own integration (Marstek Venus) and grid meters read directly (HomeWizard P1, SMA, Shelly, IAMMETER)."
 ---
 
 # Drivers: connecting a device

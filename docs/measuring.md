@@ -1,5 +1,5 @@
 ---
-description: "How HomeBatteryAssist measures the grid per phase (HomeWizard P1, SMA Home Manager, Shelly), home batteries (Marstek, Victron), solar and house consumption in Home Assistant."
+description: "How HomeBatteryAssist measures the grid per phase (HomeWizard P1, SMA Home Manager, Shelly), home batteries (Marstek), solar and house consumption in Home Assistant."
 ---
 
 # Measuring
@@ -12,7 +12,7 @@ The grid connection is its own device, *Grid connection* (model: the meter read 
 - **Grid meter**, chosen during setup:
   - **read directly**, about once a second, read-only (nothing on the meter is changed, and the meter's own integration keeps working):
     - HomeWizard P1 meter and kWh meters (1- and 3-phase), local API;
-    - SMA Sunny Home Manager 2.0 / Energy Meter, Speedwire (only received: the meter sends its data on the network anyway);
+    - SMA Sunny Home Manager 2.0 / Energy Meter, Speedwire (only received: the meter sends its data on the network anyway; known by its serial number, so a new IP address changes nothing);
     - Shelly Pro 3EM / 3EM and Shelly EM / Pro EM, local API *(not yet verified on a device)*;
     - Iammeter WEM3080 / WEM3080T, local API *(not yet verified on a device)*;
 

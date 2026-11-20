@@ -1,5 +1,5 @@
 ---
-description: "HomeBatteryAssist naast Omnibattery, Marstek, Victron en integraties voor prijzen en zonnevoorspellingen in Home Assistant."
+description: "HomeBatteryAssist naast Omnibattery, Marstek en integraties voor prijzen en zonnevoorspellingen in Home Assistant."
 ---
 
 # Samenwerken met andere integraties {#working-with-other-integrations}
@@ -25,6 +25,13 @@ De sensoren hebben een vaste betekenis en kunnen door andere integraties en add-
 | `homebatteryassist.adjust_forecast` / `clear_forecast_adjustments` | Pas de verbruiksvoorspelling aan voor een periode (bijvoorbeeld een feest of een vakantie). |
 | `homebatteryassist.set_forecast_correction` / `reset_forecast_accuracy` | Beheer de geleerde correcties op de voorspellingen. |
 | `homebatteryassist.set_plan_mode` | Kies de planmodus: een ingebouwde of een eigen planner (`custom_<key>`). |
+| `homebatteryassist.exclude_consumption_days` | Laat ongewone dagen buiten wat de voorspellingen leren, of neem ze terug. |
+
+`import_history`, `set_forecast_correction`, `reset_forecast_accuracy`, `set_plan_mode` en `exclude_consumption_days` wijzigen instellingen of de geschiedenis: alleen een beheerder kan ze aanroepen. De voorspelling aanpassen en herberekenen kan iedere gebruiker (ook vanuit het dashboard).
+
+## Reparaties {#repairs}
+
+Onder **Instellingen → Reparaties** meldt HomeBatteryAssist: sensoren die het gebruikt maar die de recorder van Home Assistant overslaat (`recorder: exclude:`), omdat hun geschiedenis niet kan worden geïmporteerd of gebruikt om het verleden aan te vullen; en een oude opslagdatabase die bij het verhuizen een half uur niet bereikbaar was (zie [Opslag](#storage)). De melding verdwijnt zodra het is opgelost.
 
 ## Gebeurtenissen (events) {#events}
 

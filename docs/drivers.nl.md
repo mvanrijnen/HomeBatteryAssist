@@ -1,5 +1,5 @@
 ---
-description: "Apparaten in HomeBatteryAssist: thuisbatterijen via hun eigen integratie (Marstek Venus, Victron) en rechtstreeks gelezen meters (HomeWizard P1, SMA, Shelly, IAMMETER)."
+description: "Apparaten in HomeBatteryAssist: thuisbatterijen via hun eigen integratie (Marstek Venus) en rechtstreeks gelezen meters (HomeWizard P1, SMA, Shelly, IAMMETER)."
 ---
 
 # Drivers: een apparaat aansluiten {#drivers-connecting-a-device}

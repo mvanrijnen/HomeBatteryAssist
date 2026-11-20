@@ -1,5 +1,5 @@
 ---
-description: "Hoe HomeBatteryAssist het net per fase meet (HomeWizard P1, SMA Home Manager, Shelly), thuisbatterijen (Marstek, Victron), zonnepanelen en het huisverbruik in Home Assistant."
+description: "Hoe HomeBatteryAssist het net per fase meet (HomeWizard P1, SMA Home Manager, Shelly), thuisbatterijen (Marstek), zonnepanelen en het huisverbruik in Home Assistant."
 ---
 
 # Meten {#measuring}
@@ -12,7 +12,7 @@ De netaansluiting is een eigen apparaat, *Netaansluiting* (model: de rechtstreek
 - **Netmeter**, gekozen tijdens de installatie:
   - **rechtstreeks uitgelezen**, ongeveer eens per seconde, alleen lezen (er wordt niets aan de meter veranderd, en de eigen integratie van de meter blijft gewoon werken):
     - HomeWizard P1-meter en kWh-meters (1- en 3-fase), lokale API;
-    - SMA Sunny Home Manager 2.0 / Energy Meter, Speedwire (alleen ontvangen: de meter stuurt zijn gegevens toch al over het netwerk);
+    - SMA Sunny Home Manager 2.0 / Energy Meter, Speedwire (alleen ontvangen: de meter stuurt zijn gegevens toch al over het netwerk; herkend aan het serienummer, dus een nieuw IP-adres verandert niets);
     - Shelly Pro 3EM / 3EM en Shelly EM / Pro EM, lokale API *(nog niet op een apparaat gecontroleerd)*;
     - Iammeter WEM3080 / WEM3080T, lokale API *(nog niet op een apparaat gecontroleerd)*;
 

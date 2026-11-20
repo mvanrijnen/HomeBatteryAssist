@@ -1,5 +1,5 @@
 ---
-description: "HomeBatteryAssist next to Omnibattery, Marstek, Victron and price or solar forecast integrations in Home Assistant."
+description: "HomeBatteryAssist next to Omnibattery, Marstek and price or solar forecast integrations in Home Assistant."
 ---
 
 # Working with other integrations
@@ -25,6 +25,13 @@ The sensors have a fixed meaning and can be used by other integrations and add-o
 | `homebatteryassist.adjust_forecast` / `clear_forecast_adjustments` | Adjust the consumption forecast for a period (e.g. a party or a holiday). |
 | `homebatteryassist.set_forecast_correction` / `reset_forecast_accuracy` | Control the learned forecast corrections. |
 | `homebatteryassist.set_plan_mode` | Choose the plan mode: a built-in one or an own planner (`custom_<key>`). |
+| `homebatteryassist.exclude_consumption_days` | Leave unusual days out of what the forecasts learn, or take them back. |
+
+`import_history`, `set_forecast_correction`, `reset_forecast_accuracy`, `set_plan_mode` and `exclude_consumption_days` change settings or the history: only an administrator can call them. Adjusting the forecast and recalculating are open to every user (also from the dashboard).
+
+## Repairs
+
+Under **Settings → Repairs** HomeBatteryAssist reports: sensors it uses that Home Assistant's recorder leaves out (`recorder: exclude:`), because their history cannot be imported or used to fill in the past; and an old storage database that could not be reached for half an hour when moving away from it (see [Storage](#storage)). The message goes away once it is solved.
 
 ## Events
 
