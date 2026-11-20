@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import time
 from bisect import bisect_right
 from collections import Counter
@@ -836,6 +837,19 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             for f in (self.data.full_charges if self.data else [])
             if f.start <= now < f.end
         ]
+        by_start = {s.start: s for s in consumption}
+
+        def charge_room(start: datetime) -> float:
+            """The most the batteries can charge in the slot: the phase
+            limits, and the peak limit with the expected house and PV."""
+            most = limits.get(start, (math.inf, 0.0))[0]
+            slot = by_start.get(start)
+            if self.peak_w > 0 and slot is not None:
+                hour = start.replace(minute=0, second=0, microsecond=0)
+                net = slot.power_w - pv_plan.get(hour, 0.0)
+                most = min(most, max(self.peak_w - net, 0.0))
+            return most
+
         full_charges = schedule_full_charges(
             [self._derated(s) for s in states],
             {
@@ -858,6 +872,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             max_charge_w=self.rules.max_charge_w,
             step=step,
             window_end=window.end,
+            room=charge_room,
         )
         forced = _forced_power(consumption, full_charges, now)
         forced_by = {

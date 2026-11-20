@@ -86,10 +86,14 @@ def schedule_full_charges(
     together: str = "parallel",
     max_charge_w: float = 0.0,
     window_end: datetime | None = None,
+    room: Callable[[datetime], float] | None = None,
     fixed: Sequence[FullCharge] = (),
 ) -> list[FullCharge]:
     """Plan the full charges that are due within ``window_days``.
 
+    ``room(start)``: the most a battery can charge in that slot (W) within the
+    phase limits and the peak limit; a block is made as long as it takes to
+    really reach 100 % with it (else it would end short and be planned again).
     Full charges never overlap (one battery at a time); ``step`` should be the
     plan's slot length, so two blocks never share a plan slot either.
     ``max_charge_w``: the system's max charge power (0 = none); with a
@@ -168,13 +172,37 @@ def schedule_full_charges(
             """Never two full charges at the same time."""
             return not any(start < p.end and end > p.start for p in planned)
 
-        best: tuple[float, int, float] | None = None  # (rank, index, cost)
+        def length(
+            i: int,
+            count: int = count,
+            missing_wh: float = missing_wh,
+            can_w: float = can_w,
+            eff: float = eff,
+        ) -> int | None:
+            """Slots from ``i`` needed to charge ``missing_wh`` within the
+            room per slot (None: not within the prices)."""
+            if room is None:
+                return count
+            energy, n = 0.0, 0
+            while energy < missing_wh - 1e-6:
+                if i + n >= len(slots) or n > 4 * count + 96:
+                    return None
+                w = min(can_w, max(room(slots[i + n][0]), 0.0))
+                energy += w * eff * seconds / 3600
+                n += 1
+            return max(n, count)
+
+        # (rank, index, cost, slots, power)
+        best: tuple[float, int, float, int, float] | None = None
         for i in range(len(slots) - count + 1):
-            block = slots[i : i + count]
+            n = length(i)
+            if n is None:
+                break
+            block = slots[i : i + n]
             start, end = block[0][0], block[-1][0] + step
             if end > latest_end:
                 break
-            if block[-1][0] - start != step * (count - 1):
+            if block[-1][0] - start != step * (n - 1):
                 continue  # gap in the prices
             if not allowed(start, end):
                 continue  # another battery charges fully then
@@ -189,11 +217,12 @@ def schedule_full_charges(
             ):
                 rank += 1000  # only when the preferred day is not possible
             if best is None or rank < best[0]:
-                best = (rank, i, cost)
+                # Longer than at full power (limits): at the most it can.
+                best = (rank, i, cost, n, power if n == count else round(can_w, 1))
         if best is None:
             continue
         start = slots[best[1]][0]
-        end = start + step * count
+        end = start + step * best[3]
         candidates = [price for when, price in slots if when + step <= latest_end]
         planned.append(
             FullCharge(
@@ -203,8 +232,8 @@ def schedule_full_charges(
                 end,
                 deadline,
                 last_full.get(config.id),
-                power,
-                round(best[2] / count, 5),
+                best[4],
+                round(best[2] / best[3], 5),
                 round(sum(candidates) / len(candidates), 5) if candidates else None,
             )
         )

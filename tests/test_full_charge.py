@@ -110,3 +110,15 @@ def test_one_after_the_other_emptiest_first() -> None:
         batteries, {}, prices, 3, NOW, together="sequential"
     )
     assert first.battery_id == "b"  # the emptiest first
+
+
+def test_block_long_enough_within_the_limits() -> None:
+    """With little room (a peak limit), the block is made longer so the
+    battery really reaches 100 %, at the cheapest moment that allows it."""
+    prices = _prices([0.30, 0.05, 0.10, 0.30, 0.30, 0.30])
+    (fast,) = schedule_full_charges([_battery("a")], {}, prices, 3, NOW)
+    (slow,) = schedule_full_charges(
+        [_battery("a")], {}, prices, 3, NOW, room=lambda when: 500.0
+    )
+    assert slow.end - slow.start > fast.end - fast.start
+    assert slow.power_w >= 500.0

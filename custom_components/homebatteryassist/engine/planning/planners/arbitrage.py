@@ -116,8 +116,10 @@ def _optimise(
     keep, overflow = outlook_split(data, span, eff, later)
     terminal = [-stored_value(i * step, keep, later, overflow) for i in range(levels)]
 
-    # Charge hysteresis: a charge may not *start* in the top band below the
-    # maximum; the state remembers whether the previous slot was charging.
+    # Charge hysteresis (as zero on the meter and the virtual batteries): once
+    # the battery was full, it does not charge again until it has dropped
+    # below the band under its maximum. The state per level: 1 = free to
+    # charge, 0 = held (it was full and is still in the band).
     band = rules.charge_hysteresis * battery.capacity_wh / 100
     top = (
         levels
@@ -125,6 +127,17 @@ def _optimise(
         else max(int((battery.ceiling_wh - band - battery.floor_wh) / step), 0)
     )
     flags = (0, 1) if band > 0 else (0,)
+
+    def after(flag: int, level: float) -> int:
+        """The state after reaching ``level`` from state ``flag``."""
+        if band <= 0:
+            return 0
+        if level >= levels - 1 - 1e-9:
+            return 0  # full: held until it drops below the band
+        if level <= top:
+            return 1  # below the band: free again
+        return flag
+
     # Next level per slot, flag and level; a fraction means "cover the house
     # load, using part of a level" (see below).
     best_next: list[list[list[float]]] = [
@@ -199,7 +212,7 @@ def _optimise(
                             if data.peak_w > 0
                             else 0.0
                         )
-                        + future[1 if (j > i and band > 0) else 0][j]
+                        + future[after(flag, j)][j]
                     )
                     if slot.reserve_due and j < reserve:
                         cost += (reserve - j) * step / 1000 * RESERVE_PENALTY
@@ -236,8 +249,11 @@ def _optimise(
                             if data.peak_w > 0
                             else 0.0
                         )
-                        + (1 - frac) * future[0][low]
-                        + frac * future[0][min(low + 1, levels - 1)]
+                        + (1 - frac) * future[after(flag, low)][low]
+                        + frac
+                        * future[after(flag, min(low + 1, levels - 1))][
+                            min(low + 1, levels - 1)
+                        ]
                     )
                     if slot.reserve_due and target < reserve:
                         cost += (reserve - target) * step / 1000 * RESERVE_PENALTY
@@ -249,7 +265,6 @@ def _optimise(
                 surplus = min(max(-net, 0.0), slot.max_charge_w)
                 part = surplus * hours * eff / step if surplus > 0 else 0.0
                 target = i + part
-                charged_flag = 1 if band > 0 else 0
                 if (
                     part > 0
                     and part != int(part)
@@ -262,8 +277,11 @@ def _optimise(
                     cost = (
                         grid_cost(net + surplus, hours, price, export)
                         + surplus * hours / 1000 * data.cycle_cost
-                        + (1 - frac) * future[charged_flag][low]
-                        + frac * future[charged_flag][min(low + 1, levels - 1)]
+                        + (1 - frac) * future[after(flag, low)][low]
+                        + frac
+                        * future[after(flag, min(low + 1, levels - 1))][
+                            min(low + 1, levels - 1)
+                        ]
                     )
                     if slot.reserve_due and target < reserve:
                         cost += (reserve - target) * step / 1000 * RESERVE_PENALTY
@@ -301,8 +319,11 @@ def _optimise(
                             if data.peak_w > 0
                             else 0.0
                         )
-                        + (1 - frac) * future[charged_flag][low]
-                        + frac * future[charged_flag][min(low + 1, levels - 1)]
+                        + (1 - frac) * future[after(flag, low)][low]
+                        + frac
+                        * future[after(flag, min(low + 1, levels - 1))][
+                            min(low + 1, levels - 1)
+                        ]
                     )
                     if slot.reserve_due and target < reserve:
                         cost += (reserve - target) * step / 1000 * RESERVE_PENALTY
@@ -316,7 +337,8 @@ def _optimise(
     # Forward pass, following the real stored energy (the nearest level picks
     # the choice).
     stored = battery.stored_wh
-    flag = 0
+    # Held when it is (nearly) full now; else free to charge.
+    flag = 0 if band <= 0 or stored >= battery.ceiling_wh - 1.0 else 1
     powers = []
     for t, slot in enumerate(slots):
         i = min(max(round((stored - battery.floor_wh) / step), 0), levels - 1)
@@ -326,18 +348,14 @@ def _optimise(
             # Charge at the slot's full power.
             room = max(battery.ceiling_wh - stored, 0.0) / (slot.hours * eff)
             power = min(slot.max_charge_w, room)
-            flag = 1 if band > 0 else 0
         elif kind == "surplus" or (j != int(j) and j > i):
             # Store the solar surplus with part of a level.
             room = max(battery.ceiling_wh - stored, 0.0) / (slot.hours * eff)
             power = min(max(-slot.net_w, 0.0), room)
-            flag = 1 if band > 0 else 0
         elif kind == "cover" or j != int(j):
             # Cover the house load with part of a level.
             power = -min(max(slot.net_w, 0.0), discharge_room(data, slot, stored))
-            flag = 0
         else:
-            flag = 1 if (j > i and band > 0) else 0
             target = battery.floor_wh + int(j) * step
             delta = target - stored if j != i else 0.0
             power = (
@@ -347,6 +365,7 @@ def _optimise(
         if not allow_export and power < 0:
             power = max(power, -max(slot.net_w, 0.0))  # own use: no export
         stored += power * slot.hours * eff if power >= 0 else power * slot.hours / eff
+        flag = after(flag, (stored - battery.floor_wh) / step)
         powers.append(power)
     return powers
 
