@@ -1042,7 +1042,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
   // energy of today per node (kWh, from the history).
   _flowDiagram(s, t) {
     const days = this._history?.energy_days || [];
-    if (this._fdDay != null && days[this._fdDay]) return this._flowDay(s, t, days, this._fdDay);
+    // The day chosen may be gone (fewer days after a refresh): back to live.
+    if (this._fdDay != null && !days[this._fdDay]) this._fdDay = null;
+    if (this._fdDay != null) return this._flowDay(s, t, days, this._fdDay);
     const e = s.entities;
     const num = (id) => this._num(id);
     const house = num(e.house_consumption);
@@ -1055,8 +1057,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
       name: d.name,
       w: d.sensors.reduce((a, id) => a + Math.abs(this._watts(id) || 0), 0),
     }));
-    const battery = s.batteries.length ? num(e.batteries_power) : null;  // + charging
-    const soc = s.batteries.length ? num(e.batteries_soc) : null;
+    // + charging; only virtual batteries: added up here (no total sensors).
+    const { power: battery, soc } = this._batteryTotals(s);
     const zones = (s.zones || []).map((z) => ({ name: z.name, w: Math.abs(this._watts(z.sensor) || 0), wh: s.today?.zones?.[z.id] }));
     // Who supplies whom: solar first to the house, then the excluded devices,
     // the battery and the grid; then the battery; the grid the rest.
@@ -1172,6 +1174,24 @@ class HomeBatteryAssistPanel extends HTMLElement {
       : "";
     return `<div class="card"><div class="head"><h2>${esc(t.fdTitle)}</h2>${this._fdNav(t, days)}</div><div class="fd"><svg viewBox="0 0 520 460" preserveAspectRatio="xMidYMid meet">${svg}</svg>${nodes.join("")}</div>
       ${totals ? `<div class="muted small fd-totals">${esc(t.fdTodayTotal)}: ${esc(totals)}</div>` : ""}</div>`;
+  }
+
+  // The batteries together: the total sensors, else (only virtual
+  // batteries, which have no totals) added up from each battery.
+  _batteryTotals(s) {
+    const e = s.entities;
+    if (!s.batteries.length) return { power: null, soc: null, summed: false };
+    const power = this._num(e.batteries_power);
+    const soc = this._num(e.batteries_soc);
+    if (power !== null || soc !== null) return { power, soc, summed: false };
+    let cap = 0, stored = 0, sum = 0, known = false;
+    for (const b of s.batteries) {
+      const p = this._num(b.entities.battery_power);
+      const c = this._num(b.entities.battery_soc);
+      if (p !== null) { sum += p; known = true; }
+      if (c !== null) { stored += (c * b.capacity_kwh) / 100; cap += b.capacity_kwh; }
+    }
+    return { power: known ? sum : null, soc: cap ? (stored / cap) * 100 : null, summed: true };
   }
 
   // Day navigation of the flow diagram: today (live) or an earlier day.
@@ -1308,22 +1328,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
       parts.push(this._flow("pv", "mdi:solar-power", t.pv, value, sub));
     }
     if (s.batteries.length) {
-      let power = this._num(e.batteries_power);
-      let soc = this._num(e.batteries_soc);
+      const { power, soc, summed } = this._batteryTotals(s);
       let label = t.batteries;
-      if (power === null && soc === null) {
-        // Only virtual batteries: add them up here.
-        let cap = 0, stored = 0, sum = 0, known = false;
-        for (const b of s.batteries) {
-          const p = this._num(b.entities.battery_power);
-          const c = this._num(b.entities.battery_soc);
-          if (p !== null) { sum += p; known = true; }
-          if (c !== null) { stored += (c * b.capacity_kwh) / 100; cap += b.capacity_kwh; }
-        }
-        power = known ? sum : null;
-        soc = cap ? (stored / cap) * 100 : null;
-        if (s.batteries.every((b) => b.virtual)) label = `${t.batteries} (${t.virtual})`;
-      }
+      if (summed && s.batteries.every((b) => b.virtual)) label = `${t.batteries} (${t.virtual})`;
       const mode = power === null ? "" : power > 20 ? t.charging : power < -20 ? t.discharging : t.idle;
       parts.push(
         this._flow("battery", "mdi:home-battery", label, this._power(power === null ? null : Math.abs(power)),
@@ -1965,7 +1972,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const shown = this._dayWeek === null ? null : weeks[this._dayWeek];
     // Monday first; 1 January 2024 was a Monday.
     const dayNames = [0, 1, 2, 3, 4, 5, 6].map((i) =>
-      new Date(2024, 0, 1 + i).toLocaleDateString(lang, { timeZone: this._tz, weekday: "short" }),
+      // Noon UTC, named in UTC: the same day in every time zone.
+      new Date(Date.UTC(2024, 0, 1 + i, 12)).toLocaleDateString(lang, { timeZone: "UTC", weekday: "short" }),
     );
     const dayColors = ["#1e88e5", "#43a047", "#8e24aa", "#00acc1", "#fdd835", "#fb8c00", "#e53935"];
     const profile = shown || h.profile || {};

@@ -45,7 +45,8 @@ def parse_weerlive(payload: object) -> tuple[float | None, dict[datetime, float]
     if not isinstance(payload, dict):
         return None, {}
     live = payload.get("liveweer") or [{}]
-    now = valid_temperature(live[0].get("temp")) if isinstance(live[0], dict) else None
+    first = live[0] if isinstance(live, list) and live else live
+    now = valid_temperature(first.get("temp")) if isinstance(first, dict) else None
     hourly: dict[datetime, float] = {}
     for item in payload.get("uur_verw") or []:
         if not isinstance(item, dict):
@@ -76,8 +77,9 @@ def weerlive_error(payload: object) -> str | None:
     """Weerlive's own error text (``liveweer[0].fout``), e.g. a wrong key."""
     if isinstance(payload, dict):
         live = payload.get("liveweer") or [{}]
-        if isinstance(live[0], dict) and live[0].get("fout"):
-            return str(live[0]["fout"])[:200]
+        first = live[0] if isinstance(live, list) and live else live
+        if isinstance(first, dict) and first.get("fout"):
+            return str(first["fout"])[:200]
     return None
 
 

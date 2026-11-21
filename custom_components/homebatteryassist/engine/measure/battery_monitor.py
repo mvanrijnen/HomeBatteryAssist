@@ -80,6 +80,13 @@ from ..units import parse_float, state_to_watts
 
 _LOGGER = logging.getLogger(__name__)
 
+# After a full charge, a new one only once the state of charge was this far
+# (%) below full (an integer SoC flapping 100/99 is not a new full charge).
+FULL_REARM_PCT = 2.0
+# Stored energy that moved without being counted (share of the capacity)
+# from which the measured efficiency starts anew.
+UNCOUNTED_SHARE = 0.02
+
 STORAGE_VERSION = 1
 SOC_LOG_RETENTION = timedelta(days=7)
 # Measured round-trip efficiency: from the counters over (at most) this many
@@ -483,8 +490,20 @@ def measured_efficiency(
     """
     if stored_kwh is None or capacity_kwh <= 0:
         return None
+    # Only day starts after the last stretch the counters missed (the state
+    # of charge moved while the power was not counted: a restart, the power
+    # sensor gone): energy they never saw would skew the round trip.
+    gap = stats.get("uncounted")
+    gap_day = (
+        dt_util.as_local(datetime.fromisoformat(gap)).date().isoformat() if gap else ""
+    )
     start = next(
-        (d for d in stats.get("days") or [] if d.get("stored") is not None), None
+        (
+            d
+            for d in stats.get("days") or []
+            if d.get("stored") is not None and d["date"] > gap_day
+        ),
+        None,
     )
     if start is None:
         return None
@@ -562,6 +581,9 @@ class BatteryInput:
         # Per battery: the lowest state of charge since it was last full
         # (charge hysteresis; seen at every update, not only per quarter).
         self._since_full: dict[str, float] = {}
+        # Whether a rise to full counts as a full charge (armed by a lower
+        # state of charge; after one, only below FULL_REARM_PCT under it).
+        self._armed: dict[str, bool] = {}
         self._unsub_log: CALLBACK_TYPE | None = None
         # Price (per kWh) at a moment (default now), set by the setup (from
         # the price forecast).
@@ -715,10 +737,12 @@ class BatteryInput:
             return None
         twinned = twinned_ids(self.configs)
         for config in self.configs:
-            power = self.states[config.id].power_w or 0.0
+            power = self.states[config.id].power_w
             if config.virtual:
-                grid += power
+                grid += power or 0.0
             elif config.id in twinned:
+                if power is None:
+                    return None  # the grid without it is not known now
                 grid -= power
         return grid
 
@@ -894,7 +918,6 @@ class BatteryInput:
     def _update(
         self, config: BatteryConfig, when: datetime, state: BatteryState | None = None
     ) -> None:
-        previous = self.states[config.id]
         state = state or read_battery(self.hass, config)
         self.states[config.id] = state
         if state.soc is not None:
@@ -906,14 +929,7 @@ class BatteryInput:
                 )
 
         self._count_energy(config.id, when, state.power_w)
-        if (
-            state.soc is not None
-            and state.soc >= FULL_CHARGE_SOC
-            # Only a rise to full counts: not the first value after start-up
-            # or after the sensor was unavailable.
-            and previous.soc is not None
-            and previous.soc < FULL_CHARGE_SOC
-        ):
+        if state.soc is not None and self._full_reached(config.id, state.soc):
             self.stats[config.id]["last_full_charge"] = when.isoformat()
             self._decisions.async_log(
                 "battery", "battery_full_charge", name=config.name
@@ -925,6 +941,29 @@ class BatteryInput:
         self._store.async_delay_save(self._data, SAVE_DELAY)
         for listener in list(self._listeners):
             listener()
+
+    def _full_reached(self, battery_id: str, soc: float) -> bool:
+        """A rise to full: from the last known state of charge (also from
+        before a gap or a restart, kept in the counters), so a battery that
+        filled up while it was not read still counts; not the first value
+        ever, and after a full charge only once it went ``FULL_REARM_PCT``
+        below full (an integer SoC flapping 100/99 is not a new one)."""
+        stats = self.stats[battery_id]
+        armed = self._armed.get(battery_id)
+        if armed is None:
+            last = stats.get("last_soc")
+            armed = last is not None and last < FULL_CHARGE_SOC
+        rearm = FULL_CHARGE_SOC - (
+            FULL_REARM_PCT if stats.get("last_full_charge") else 0.0
+        )
+        if soc < rearm:
+            armed = True
+        reached = armed and soc >= FULL_CHARGE_SOC
+        if reached:
+            armed = False
+        self._armed[battery_id] = armed
+        stats["last_soc"] = soc
+        return reached
 
     def _roll_day(self, battery_id: str, when: datetime) -> None:
         """Remember the counters at the start of a new local day."""
@@ -967,6 +1006,20 @@ class BatteryInput:
         last = self._last_power.get(battery_id)
         if last is not None and when < last[0]:
             return  # a late, older event: counted already
+        state = self.states[battery_id]
+        stored = state.stored_kwh
+        stats_now = self.stats[battery_id]
+        if last is None and power is not None and stored is not None:
+            # Counting starts again: did the battery move while it was not
+            # counted? Then the measured efficiency starts anew after it.
+            before = stats_now.get("counted_stored")
+            if before is not None and abs(stored - before) > (
+                UNCOUNTED_SHARE * state.config.capacity_kwh
+            ):
+                stats_now["uncounted"] = when.isoformat()
+        if stored is not None and (power is not None or last is not None):
+            # Counted up to now (also the last stretch before a gap).
+            stats_now["counted_stored"] = round(stored, 3)
         if (last := self._last_power.pop(battery_id, None)) is not None:
             since, last_power = last
             kwh = last_power * max((when - since).total_seconds(), 0.0) / 3_600_000
@@ -1078,7 +1131,10 @@ class BatteryInput:
         for config in self.configs:
             if not config.virtual:
                 if config.id in twinned:
-                    grid -= self.states[config.id].power_w or 0.0
+                    real = self.states[config.id].power_w
+                    if real is None:
+                        return None  # the grid without it is not known now
+                    grid -= real
                 continue
             if config.id == battery_id:
                 grid += last_power

@@ -358,6 +358,8 @@ class VirtualBatterySimulator:
         twinned = twinned_ids(self._batteries.configs)
         if not twinned:
             return flow
+        if any(self._batteries.states[i].power_w is None for i in twinned):
+            return None  # the grid without the real battery is not known now
         phases = max(len(flow.phase_w), 1)
         return without_batteries(
             flow,
@@ -1148,12 +1150,18 @@ class VirtualBatterySimulator:
                 # power): the plan's part for them is not spread again over
                 # the virtual batteries (a battery already full has none).
                 full_soc = {s.config.id: s.soc for s in states if s.soc is not None}
-                forced = sum(
-                    w
+                charging_fully = {
+                    i: w
                     for i, w in data.forced_by.get(slot.start, {}).items()
                     if full_soc.get(i, 0.0) < 100.0 - 0.01
+                }
+                planned = max(planned - sum(charging_fully.values()), 0.0)
+                # The rest is the share of the batteries not charging fully.
+                rest = [s for s in states if s.config.id not in charging_fully]
+                capacity = sum(s.config.capacity_kwh for s in rest)
+                virtual_capacity = sum(
+                    s.config.capacity_kwh for s in rest if s.config.virtual
                 )
-                planned = max(planned - forced, 0.0)
             total = planned * virtual_capacity / capacity if slot and capacity else 0.0
             # The real solar surplus instead of the forecast one: more is
             # stored on top of the plan, less is not taken from the grid.

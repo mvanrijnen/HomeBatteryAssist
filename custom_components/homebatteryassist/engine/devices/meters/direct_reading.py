@@ -177,16 +177,21 @@ class PollingMeter(DirectMeter):
         self._unsub: CALLBACK_TYPE | None = None
         self._busy = False
         self._failed = False
+        self._stopped = False
 
     async def async_start(self) -> None:
         """Poll every ``POLL_INTERVAL``."""
+        self._stopped = False
         await self._async_poll(None)
+        if self._stopped:
+            return  # stopped while the first poll ran
         self._unsub = async_track_time_interval(
             self.hass, self._async_poll, POLL_INTERVAL
         )
 
     async def async_stop(self) -> None:
-        """Stop polling."""
+        """Stop polling (a poll still running sets nothing after it)."""
+        self._stopped = True
         if self._unsub is not None:
             self._unsub()
             self._unsub = None
@@ -207,6 +212,8 @@ class PollingMeter(DirectMeter):
             return
         finally:
             self._busy = False
+        if self._stopped:
+            return  # stopped (unload) while it ran: no new values, no timer
         if self._failed:
             _LOGGER.info("Reading %s again", self.address)
         self._failed = False

@@ -86,7 +86,15 @@ class ApiForecastDriver(PriceDriver):
             ):
                 response.raise_for_status()
                 data = self.parse(await response.json(content_type=None))
-        except (TimeoutError, ClientError, KeyError, TypeError, ValueError) as err:
+        except (
+            TimeoutError,
+            ClientError,
+            KeyError,
+            TypeError,
+            ValueError,
+            AttributeError,  # an answer in another shape
+            IndexError,
+        ) as err:
             _LOGGER.debug("%s: no forecast: %s", self.name, err)
             self._failed[source] = now
             return cached[1] if cached else PriceData([])
@@ -143,7 +151,19 @@ class StroomprijsprognoseDriver(ApiForecastDriver):
     def parse(self, data: dict) -> PriceData:
         """``series.price``: ``[{"start", "end", "value", "unit"}]``."""
         series = data["series"]["price"]
-        points = points_from((p["start"], p.get("end"), p["value"]) for p in series)
+        # The unit it sends (EUR/kWh as documented; ct or per MWh converted,
+        # the calibration could not correct a factor 100 or 1000).
+        factor = {"eur/kwh": 1.0, "ct/kwh": 0.01, "eur/mwh": 0.001}
+        points = points_from(
+            (
+                p["start"],
+                p.get("end"),
+                p["value"] * factor.get(str(p.get("unit") or "EUR/kWh").lower(), 1.0)
+                if isinstance(p["value"], int | float)
+                else p["value"],
+            )
+            for p in series
+        )
         return PriceData(points, "EUR/kWh")
 
 

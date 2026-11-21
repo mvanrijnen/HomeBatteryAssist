@@ -371,12 +371,37 @@ def _today_expected(
         battery["imported"] += rest(slot.start, slot.end, max(slot.grid_w, 0.0))
         battery["exported"] += rest(slot.start, slot.end, max(-slot.grid_w, 0.0))
     planned = plan is not None and bool(plan.slots)
+    measured = {key: today.get(key) for key in battery}
+    batteries = getattr(data, "batteries", None)
+    if planned and batteries is not None:
+        # The plan is of the planned batteries (virtual ones, a twin in
+        # place of its real battery); the measurement so far of the real
+        # ones and the real grid. When they differ: the counters of the
+        # planned batteries so far, and no grid (the grid as the planned
+        # batteries make it is not measured).
+        plan_ids = {s.config.id for s in batteries.plan_states()}
+        real_ids = {c.id for c in batteries.configs if not c.virtual}
+        if plan_ids != real_ids:
+            charged = discharged = 0.0
+            for battery_id in plan_ids:
+                energy = batteries.today(battery_id)
+                if energy is not None:
+                    charged += energy[0] * 1000
+                    discharged += energy[1] * 1000
+            measured = {
+                "charged": charged,
+                "discharged": discharged,
+                "imported": None,
+                "exported": None,
+            }
     return {
         "house": round(today["house"] + house),
         "pv": None if pv is None else round(pv),
         "zones": None if zones is None else round(zones),
         **{
-            key: round(today[key] + value) if planned else None
+            key: round(measured[key] + value)
+            if planned and measured[key] is not None
+            else None
             for key, value in battery.items()
         },
     }

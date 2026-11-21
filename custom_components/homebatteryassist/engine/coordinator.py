@@ -327,6 +327,20 @@ class ForecastData:
         return next((s for s in self.consumption if s.start <= when < s.end), None)
 
 
+def _contiguous_end(prices: list[Any], now: datetime) -> datetime | None:
+    """The end of the prices from now on without a gap (None: no prices)."""
+    if not prices:
+        return None
+    end = None
+    for point in sorted(prices, key=lambda p: p.start):
+        if point.end <= now:
+            continue
+        if end is not None and point.start > end + timedelta(minutes=1):
+            break  # a gap
+        end = point.end if end is None else max(end, point.end)
+    return end if end is not None else prices[-1].end
+
+
 def _pv_end(pv_wh: Mapping[datetime, float]) -> datetime | None:
     """Until when the PV forecast reaches: its last hour; when it leaves out
     the night (no hour between local midnight and 03:00 at all, e.g.
@@ -673,7 +687,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         prices, price_unit = await self._async_read_prices(now)
         export_prices = await self._async_read_export_prices(now)
         pv_wh = await self._async_read_pv(now)
-        price_end = prices[-1].end if prices else None
+        # Up to the first gap in the prices: a slot without a price makes
+        # the whole plan go without prices (arbitrage falls back to zero on
+        # the meter), so a gap (a source dropping an hour, an extension
+        # starting later) ends the window there.
+        price_end = _contiguous_end(prices, now)
         self._explain_new_prices(prices)
         # A PV forecast often leaves out the night (sunrise..sunset only):
         # after its last daylight hour there is no sun, so it covers its last
@@ -911,20 +929,18 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 and previous is not None
                 and (at := self._planned_at.get(mode)) is not None
                 and now - at < HEAVY_EVERY
-                # Still inside the window (it may have shrunk since).
+                # The same window (new prices make it longer: its cost and
+                # saving would cover another period than the other plans')
+                # and no slot ended since (its cost and saving count them).
                 and not window.is_empty
                 and previous.slots
-                and previous.slots[-1].end <= window.end
-                # It holds the slot of now (made within the last hour).
-                and previous.slots[0].start <= window.start
-                and previous.slots[-1].end > now
+                and previous.slots[-1].end == window.end
+                and previous.slots[0].end > now
             ):
                 # A heavy mode that is not chosen is only there to compare
-                # with: computed once an hour, not every cycle.
-                # Without the slots that ended since (as the other plans).
-                plans[mode] = replace(
-                    previous, slots=[s for s in previous.slots if s.end > now]
-                )
+                # with: computed again once a slot ended or the window
+                # changed (at most HEAVY_EVERY apart), not every cycle.
+                plans[mode] = previous
                 continue
             try:
                 plan = await self.hass.async_add_executor_job(

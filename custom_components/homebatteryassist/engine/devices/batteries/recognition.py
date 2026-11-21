@@ -71,6 +71,31 @@ def _value(hass: HomeAssistant, entity_id: str | None) -> Any:
     return state.state if state else None
 
 
+# A start value in the form's unit (kWh for the capacity, W for powers),
+# from the unit the sensor gives.
+_TO_FORM_UNIT = {
+    "Wh": 0.001,
+    "kWh": 1.0,
+    "MWh": 1000.0,
+    "W": 1.0,
+    "kW": 1000.0,
+}
+
+
+def _factor(hass: HomeAssistant, entity_id: str | None, field: str) -> float | None:
+    """Factor to the form's unit; None when the unit does not fit the field
+    (no start value then)."""
+    state = hass.states.get(entity_id) if entity_id else None
+    unit = str((state.attributes.get("unit_of_measurement") if state else "") or "")
+    if field == CONF_CAPACITY:
+        return (
+            _TO_FORM_UNIT.get(unit, 1.0) if unit in ("", "Wh", "kWh", "MWh") else None
+        )
+    if field in (CONF_MAX_CHARGE_POWER, CONF_MAX_DISCHARGE_POWER):
+        return _TO_FORM_UNIT.get(unit, 1.0) if unit in ("", "W", "kW") else None
+    return 1.0
+
+
 def find_battery_candidates(
     hass: HomeAssistant, exclude_sensors: set[str]
 ) -> list[BatteryCandidate]:
@@ -138,6 +163,10 @@ def _suggest(
         if ref and (value := parse_float(_value(hass, keyed.get(ref)))) is not None:
             if value <= 0 and field != CONF_MIN_SOC:
                 continue  # e.g. -1 = "no limit" (Victron ESS): not a start value
+            factor = _factor(hass, keyed.get(ref), field)
+            if factor is None:
+                continue  # a unit that does not fit: no start value
+            value *= factor
             data[field] = round(value, 2) if field == CONF_CAPACITY else round(value)
     # What the integration does not tell, the recognised battery type may know.
     if battery_model is not None:

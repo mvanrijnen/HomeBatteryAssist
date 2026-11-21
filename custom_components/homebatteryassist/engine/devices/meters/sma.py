@@ -180,8 +180,11 @@ class SpeedwireMeter(DirectMeter):
         """Join the multicast group (receive only); retried every minute when
         the network is not ready yet (e.g. at boot)."""
         self._stopped = False
+        await self._async_join()
+
+    async def _async_join(self) -> None:
         try:
-            self._transport, _ = await self.hass.loop.create_datagram_endpoint(
+            transport, _ = await self.hass.loop.create_datagram_endpoint(
                 lambda: _SpeedwireProtocol(self._received), sock=_multicast_socket()
             )
         except OSError as err:
@@ -190,12 +193,18 @@ class SpeedwireMeter(DirectMeter):
                 RETRY_S,
                 err,
             )
-            self._retry = async_call_later(self.hass, RETRY_S, self._async_retry)
+            if not self._stopped:
+                self._retry = async_call_later(self.hass, RETRY_S, self._async_retry)
+            return
+        if self._stopped:
+            transport.close()  # stopped (unload) while joining: leave again
+            return
+        self._transport = transport
 
     async def _async_retry(self, _now: Any) -> None:
         self._retry = None
         if not self._stopped and self._transport is None:
-            await self.async_start()
+            await self._async_join()
 
     async def async_stop(self) -> None:
         """Leave the multicast group."""
