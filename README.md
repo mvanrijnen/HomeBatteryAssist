@@ -45,7 +45,7 @@ Home Assistant 2025.6 or newer is required.
 
 ### Prices (recommended for the Netherlands)
 
-For dynamic energy prices HomeBatteryAssist reads a price integration you already have. Tested with **DynTarNL** ([mvanrijnen/ha-dyntarNL](https://github.com/mvanrijnen/ha-dyntarNL)): Dutch dynamic tariffs including the price forecast for the coming days, and from DynTarNL 1.2.0 also the export price (published and forecast; older versions: market price minus the purchase fee). Other sources (Nord Pool, EnergyZero, easyEnergy, …) work too — see [Forecasting](docs/forecasting.md#prices).
+For dynamic energy prices HomeBatteryAssist reads a price integration you already have. Tested with **DynTarNL** ([mvanrijnen/ha-dyntarNL](https://github.com/mvanrijnen/ha-dyntarNL)): Dutch dynamic tariffs including the price forecast for the coming days, and from DynTarNL 1.2.0 also the export price (published and forecast; older versions: market price minus the purchase fee). Other sources (Nord Pool, EnergyZero, easyEnergy, …) work too — see [Inputs](docs/inputs.md#prices) for what is read and which settings to choose.
 
 ## Configuration
 
@@ -66,6 +66,7 @@ The full documentation, in English and Dutch, is at **https://mvanrijnen.github.
 | [FAQ](docs/faq.md) | Frequently asked questions |
 | [Architecture](docs/architecture.md) | Layers, drivers and modules, and where everything is in the code |
 | [Measuring](docs/measuring.md) | Grid meters, batteries, virtual batteries, PV sources, excluded devices, house consumption |
+| [Inputs](docs/inputs.md) | Everything HomeBatteryAssist reads in one place: grid meter, batteries, prices (DynTarNL roles, tariff, export price), PV forecast, weather, history |
 | [Forecasting](docs/forecasting.md) | Planning window, consumption, prices, export price and tariff, PV, accuracy |
 | [Planning](docs/planning.md) | Plan modes, rules and limits, full charge, explanations, plan check |
 | [Dashboard](docs/dashboard.md) | What each tab shows |

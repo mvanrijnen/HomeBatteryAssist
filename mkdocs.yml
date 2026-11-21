@@ -63,6 +63,7 @@ plugins:
           nav_translations:
             Home: Start
             Getting started: Aan de slag
+            Inputs: Invoer
             User guide: Handleiding
             Measuring: Meten
             Forecasting: Voorspellen
@@ -81,6 +82,7 @@ plugins:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
+  - Inputs: inputs.md
   - User guide:
       - Measuring: measuring.md
       - Forecasting: forecasting.md
