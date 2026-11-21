@@ -30,6 +30,13 @@
           "max_current_per_phase": "Aansluiting"
         }
       },
+      "heavy_connection": {
+        "title": "Zware aansluiting bevestigen",
+        "description": "Je koos **{connection}**. Dat is zwaarder dan een gewone huisaansluiting (tot {usual}).\n\n**Let op:** HomeBatteryAssist gebruikt deze waarde als grens voor de fasebeveiliging: de batterijen houden de stroom op elke fase onder {amps} A min de fasemarge. Is die hoger dan je hoofdzekering echt is, dan kan een batterij de hoofdzekering overbelasten. Controleer hem op je energiecontract of op de hoofdzekering in de meterkast.\n\nVink het vakje aan om {connection} te bevestigen; laat het leeg om opnieuw te kiezen.",
+        "data": {
+          "confirm": "Mijn aansluiting is echt {connection}"
+        }
+      },
       "sensors": {
         "title": "Metingen per fase",
         "description": "Kies per fase de sensor die het vermogen (W) op die fase meet, meestal afkomstig van je slimme meter (P1). Is deze sensor positief bij afname en negatief bij teruglevering, laat dan de terugleversensor leeg. Heeft je meter aparte sensoren voor afname en teruglevering, kies dan beide. Een stroomsensor (A) kan afname en teruglevering niet onderscheiden; die hoort in de optionele stroomvelden hieronder.",
@@ -924,6 +931,13 @@
         "description": "Kies de grootte van je netaansluiting (hoofdzekering per fase). Je vindt deze op je energiecontract of op de hoofdzekering in de meterkast.",
         "data": {
           "max_current_per_phase": "Aansluiting"
+        }
+      },
+      "heavy_connection": {
+        "title": "Zware aansluiting bevestigen",
+        "description": "Je koos **{connection}**. Dat is zwaarder dan een gewone huisaansluiting (tot {usual}).\n\n**Let op:** HomeBatteryAssist gebruikt deze waarde als grens voor de fasebeveiliging: de batterijen houden de stroom op elke fase onder {amps} A min de fasemarge. Is die hoger dan je hoofdzekering echt is, dan kan een batterij de hoofdzekering overbelasten. Controleer hem op je energiecontract of op de hoofdzekering in de meterkast.\n\nVink het vakje aan om {connection} te bevestigen; laat het leeg om opnieuw te kiezen.",
+        "data": {
+          "confirm": "Mijn aansluiting is echt {connection}"
         }
       },
       "sensors": {

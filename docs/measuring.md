@@ -125,3 +125,11 @@ The main fuse protects against **current**, not power: with standby devices, cha
 - else **power / 230 V**.
 
 The history keeps the measured current per phase; from it the current that flows besides the power is learned per phase, and the battery plan counts with it for the coming slots. The battery's own share is converted with the measured voltage of its phase.
+
+The **final check** that holds the batteries within the phase limit (the last step before a power is used, after the plan, protection and an interceptor) works from the **worst case** of what is measured, so the current stays under the limit whatever the exact values are:
+
+- a measured current in whole amps (many meters round it, e.g. a P1 port) can be up to half an amp more;
+- without a measured voltage it counts with **207 V**, the lowest grid voltage allowed (230 V − 10 %): every W of the house and of a battery then counts for the most current;
+- without a measured current or power factor the reactive part cannot be known; only the phase margin covers it.
+
+So near the limit the batteries get a little less room than the exact values would leave; with a meter or sensors that send the **current and voltage** per phase that is the least.

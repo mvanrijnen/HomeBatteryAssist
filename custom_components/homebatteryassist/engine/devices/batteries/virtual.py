@@ -77,6 +77,7 @@ from ...planning.battery_distribution import Candidate, Distributor, one_directi
 from ...planning.battery_plan import MODE_NOM
 from ...planning.phase_limit import (
     PhaseDevice,
+    PhaseLoad,
     active_relief_loads,
     cap_powers,
     overloaded,
@@ -97,6 +98,10 @@ LIMIT_CLEAR_AFTER = timedelta(minutes=5)  # no phase limit this long: log it
 INTERCEPT_HORIZON = timedelta(hours=8)  # coming slots an interceptor sees
 RELIEF_END_AFTER = timedelta(minutes=1)  # phase back under the limit this long
 REACT_INTERVAL = timedelta(seconds=2)  # fastest extra step on an overload
+# The grid voltage stays within 230 V +/- 10 % (EN 50160): the range of the
+# active current where the voltage is not measured.
+VOLTAGE_MIN = 207.0
+VOLTAGE_MAX = 253.0
 # Closer to its minimum / maximum (%) is at it: a rest too small to give or
 # take in a round would keep the battery counted as usable forever.
 SOC_SNAP = 0.001
@@ -164,8 +169,13 @@ def without_batteries(flow: Any, batteries: list[tuple[int | None, float]]) -> A
                 amps.append(measured[i])
                 continue
             v = volts[i] if len(volts) == phases and volts[i] else NOMINAL_VOLTAGE
-            q = math.sqrt(max((measured[i] * v) ** 2 - flow.phase_w[i] ** 2, 0.0))
-            amps.append(round(math.hypot(phase_w[i], q) / v, 2))
+            # A current in whole amps can be up to half an amp more: the
+            # reactive part from the most it can be, and rounded up, so the
+            # result is never below the real current.
+            amp = abs(measured[i])
+            amp += 0.5 if amp == round(amp) else 0.0
+            q = math.sqrt(max((amp * v) ** 2 - flow.phase_w[i] ** 2, 0.0))
+            amps.append(math.ceil(math.hypot(phase_w[i], q) / v * 100) / 100)
         phase_a = tuple(amps)
     return replace(
         flow,
@@ -194,6 +204,62 @@ def _active_loads(flow: Any) -> list[float]:
         else loads[i]
         for i, p in enumerate(flow.phase_w)
     ]
+
+
+def phase_loads(flow: Any) -> list[PhaseLoad]:
+    """The load per phase for the final phase check, as the worst case of
+    what the measurement says (``PhaseLoad``, current terms: current x 230 V).
+
+    - A measured current in whole amps (many meters round it) can be up to
+      half an amp more.
+    - The active power in current terms is power x 230 / measured voltage;
+      without a measured voltage, but with a measured current, the voltage
+      can be anything from 207 to 253 V, so the active power is a range
+      (never more than the current).
+    - Without a measured current: power / (voltage x power factor), with
+      the measured voltage or else 207 V (the lowest allowed), and the
+      power factor when the meter sends one (also a low one: then the
+      current is mostly reactive), else 1. Without current and power
+      factor the reactive part cannot be known (only the phase margin
+      covers it).
+    """
+    volts = tuple(getattr(flow, "phase_v", ()) or ())
+    amps = tuple(getattr(flow, "phase_a", ()) or ())
+    pfs = tuple(getattr(flow, "phase_pf", ()) or ())
+    out = []
+    for i, power in enumerate(flow.phase_w):
+        volt = volts[i] if i < len(volts) and volts[i] > 100 else None
+        if i < len(amps):
+            amp = abs(amps[i])
+            if amp == round(amp):
+                amp += 0.5  # whole amps: up to half an amp more
+            current = amp * NOMINAL_VOLTAGE
+            if volt:
+                low = high = power * NOMINAL_VOLTAGE / volt
+            else:
+                small = abs(power) * NOMINAL_VOLTAGE / VOLTAGE_MAX
+                big = min(abs(power) * NOMINAL_VOLTAGE / VOLTAGE_MIN, current)
+                low, high = sorted(
+                    (math.copysign(small, power), math.copysign(max(big, small), power))
+                )
+        else:
+            pf = abs(pfs[i]) if i < len(pfs) else 1.0
+            pf = pf if 0 < pf <= 1 else 1.0
+            active = abs(power) * NOMINAL_VOLTAGE / (volt or VOLTAGE_MIN)
+            current = active / pf
+            if volt:
+                low = high = math.copysign(active, power)
+            else:
+                low, high = sorted(
+                    (
+                        math.copysign(
+                            abs(power) * NOMINAL_VOLTAGE / VOLTAGE_MAX, power
+                        ),
+                        math.copysign(active, power),
+                    )
+                )
+        out.append(PhaseLoad(current, low, high))
+    return out
 
 
 def random_efficiency(config: BatteryConfig) -> float:
@@ -383,12 +449,16 @@ class VirtualBatterySimulator:
         self._peak_seen = peak > 0 and grid > peak
 
     def _nominal_devices(
-        self, flow: Any, phases: int
+        self, flow: Any, phases: int, worst: bool = False
     ) -> tuple[list[PhaseDevice], dict[str, float]]:
         """The batteries for the phase checks in current terms: the phase
         limit and load are current x 230 V, so a battery's power counts as
         power x 230 / (measured voltage of its phase(s)); ``factor`` per
-        battery (1 without a measured voltage), to convert back after."""
+        battery, to convert back after. For the relief: the mean voltage of
+        a spread battery's phases, 230 V where none is measured. ``worst``
+        (the final check): the lowest voltage, the most current per W (a
+        spread battery: its lowest phase; unmeasured: 207 V, the lowest
+        allowed)."""
         voltages = getattr(flow, "phase_v", ()) or ()
         devices: list[PhaseDevice] = []
         factor: dict[str, float] = {}
@@ -400,7 +470,15 @@ class VirtualBatterySimulator:
                 else list(voltages[:phases])
             )
             used = [v for v in used if v > 100]
-            f = NOMINAL_VOLTAGE / (sum(used) / len(used)) if used else 1.0
+            if worst:
+                # Every phase it is on measured, else the lowest allowed.
+                on = 1 if device.phase is not None else phases
+                volt = min(used) if used and len(used) >= on else VOLTAGE_MIN
+                if device.phase is not None and device.phase >= len(voltages):
+                    volt = VOLTAGE_MIN
+            else:
+                volt = sum(used) / len(used) if used else NOMINAL_VOLTAGE
+            f = NOMINAL_VOLTAGE / volt
             factor[config.id] = f
             devices.append(
                 replace(
@@ -960,21 +1038,30 @@ class VirtualBatterySimulator:
     def _phase_limited(
         self, wanted: dict[str, float], now: datetime
     ) -> dict[str, float]:
-        """Hold the powers within the phase limits; explain when that starts/ends."""
+        """Hold the powers within the phase limits; explain when that starts/ends.
+
+        HomeBatteryAssist's own final check: from the worst case of what the
+        measurement says (``phase_loads``); without a measurement nothing
+        runs."""
         flow = self._flow()
         if flow is None or not flow.phase_w:
-            return wanted
+            return dict.fromkeys(wanted, 0.0)
         phases = len(flow.phase_w)
         max_current = self._measurements.max_current
-        devices, factor = self._nominal_devices(flow, phases)
+        devices, factor = self._nominal_devices(flow, phases, worst=True)
         capped, limited = cap_powers(
             {i: w * factor[i] for i, w in wanted.items()},
             devices,
-            flow.phase_load_w,
+            phase_loads(flow),
             self._limit_w(),
-            _active_loads(flow),
         )
-        capped = {i: w / factor[i] for i, w in capped.items()}
+        # Back to W; never more than asked (rounding through the factor).
+        capped = {
+            i: wanted[i]
+            if math.isfinite(wanted[i]) and abs(w / factor[i]) >= abs(wanted[i])
+            else w / factor[i]
+            for i, w in capped.items()
+        }
         self.limited_phases = limited
         if limited:
             self._limit_seen = now

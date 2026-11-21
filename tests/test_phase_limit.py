@@ -165,10 +165,12 @@ def test_simulator_holds_virtual_batteries_within_limit(hass: HomeAssistant) -> 
         SimpleNamespace(balance_interval=timedelta(hours=1), phase_margin=10),
         SimpleNamespace(async_log=lambda *a, **kw: logged.append((a, kw))),
     )
-    assert sim._phase_limited({"v1": 2500.0}, T0) == {"v1": 675.0}
-    assert sim._phase_limited({"v1": 2500.0}, T0 + timedelta(seconds=30)) == {
-        "v1": 675.0
-    }
+    # No voltage measured: the final check takes the lowest allowed (207 V),
+    # so 4500 W is 4500 / 207 = 21.7 A (as power 5000 W) and every W of the
+    # battery counts as 230 / 207: room (5175 - 5000) x 207 / 230 = 157.5 W.
+    assert abs(sim._phase_limited({"v1": 2500.0}, T0)["v1"] - 157.5) < 0.1
+    later = sim._phase_limited({"v1": 2500.0}, T0 + timedelta(seconds=30))
+    assert abs(later["v1"] - 157.5) < 0.1
     assert [a[1] for a, _ in logged] == ["phase_limit"]
     assert logged[0][1]["phase"] == "L2"
     flow.phase_w = flow.phase_load_w = (0.0, 1000.0, 0.0)
@@ -322,8 +324,19 @@ def test_simulator_uses_the_current_not_the_power(hass: HomeAssistant) -> None:
         SimpleNamespace(balance_interval=timedelta(hours=1), phase_margin=10),
         SimpleNamespace(async_log=lambda *a, **kw: None),
     )
-    # limit 25 A x 230 V x 0.9 = 5175 W; load 22 A x 230 V = 5060 W: 115 W room
-    assert sim._phase_limited({"v1": 2500.0}, T0) == {"v1": 115.0}
+    # limit 25 A x 230 V x 0.9 = 5175 W (22.5 A). 22 A in whole amps can be
+    # up to 22.49 A: no room left.
+    assert sim._phase_limited({"v1": 2500.0}, T0) == {"v1": 0.0}
+    # 21.8 A (not whole): 5014 W as power; the active part at most
+    # 4500 x 230 / 207 = 5000; the battery's W count as 230 / 207 (no voltage).
+    flow = PowerFlow(
+        4500.0, 0.0, 0.0, 0.0, 4500.0, (0.0, 4500.0, 0.0), phase_a=(0.0, 21.8, 0.0)
+    )
+    sim._measurements.flow = flow
+    current, active = 21.8 * 230, 5000.0
+    room = (5175**2 - current**2 + active**2) ** 0.5 - active
+    result = sim._phase_limited({"v1": 2500.0}, T0)
+    assert abs(result["v1"] - room * 207 / 230) < 0.1
 
 
 def test_relief_takes_the_reactive_part_into_account() -> None:

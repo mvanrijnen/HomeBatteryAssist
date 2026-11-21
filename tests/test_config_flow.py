@@ -766,3 +766,30 @@ async def test_options_back_to_defaults(hass: HomeAssistant) -> None:
     assert entry.options[CONF_HISTORY_INTERVAL] == 15
     assert entry.options["reserve_soc"] == 0
     assert entry.options[CONF_PRICE_FORECAST] == "sensor.prices"
+
+
+async def test_heavy_connection_is_confirmed_apart(hass: HomeAssistant) -> None:
+    """A connection heavier than 3x35A needs an extra confirmation with a
+    warning; not confirmed, the choice is asked again. 3x35A goes on."""
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_PHASES: "3"}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MAX_CURRENT: "63"}
+    )
+    assert result["step_id"] == "heavy_connection"
+    assert result["description_placeholders"]["connection"] == "3x63A"
+    # Not ticked: back to the choice.
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"confirm": False}
+    )
+    assert result["step_id"] == "max_current"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_MAX_CURRENT: "50"}
+    )
+    assert result["step_id"] == "heavy_connection"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"confirm": True}
+    )
+    assert result["step_id"] == "sensors"

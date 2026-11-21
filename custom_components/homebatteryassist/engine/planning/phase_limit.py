@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ...const import DEFAULT_PHASE_MARGIN, NOMINAL_VOLTAGE, phase_index
 from ..measure.battery_monitor import BatteryConfig
@@ -56,32 +56,66 @@ class PhaseDevice:
 ROUNDING_W = 0.5 * NOMINAL_VOLTAGE
 
 
+@dataclass(frozen=True, slots=True)
+class PhaseLoad:
+    """What is known of a phase's load without the batteries, in current
+    terms (current x 230 V): the most the current can be (``current_w``,
+    >= 0) and the range the active power is in (``active_lo_w`` ..
+    ``active_hi_w``, signed, + import). Exact when known exactly; a range
+    when a measurement leaves room (a current rounded to whole amps, active
+    power without a measured voltage). The final check works from the worst
+    case in that range."""
+
+    current_w: float
+    active_lo_w: float
+    active_hi_w: float
+
+
+def _bounds(
+    load_w: Sequence[float | PhaseLoad], active_w: Sequence[float] | None
+) -> list[PhaseLoad]:
+    """Every phase as a ``PhaseLoad``: one given as it is; a plain load
+    (current as power, signed) with ``active_w`` (the active power in the
+    same terms) or, without it, all active."""
+    out = []
+    for i, load in enumerate(load_w):
+        if isinstance(load, PhaseLoad):
+            out.append(load)
+            continue
+        p = active_w[i] if active_w is not None and i < len(active_w) else load
+        out.append(PhaseLoad(max(abs(load), abs(p)), p, p))
+    return out
+
+
 def _room(
-    load_w: Sequence[float],
+    load_w: Sequence[float | PhaseLoad],
     limit_w: float,
     charging: bool,
     active_w: Sequence[float] | None = None,
 ) -> list[float]:
-    """Room per phase for charging (more import) or discharging. With
-    ``active_w`` (the active power in the same terms as ``load_w``, the
-    current as power) the reactive part counts: the current stays below the
-    limit while the active power stays within sqrt(limit^2 - Q^2)."""
+    """Room per phase for charging (more import) or discharging: the most
+    active power the batteries may add (or take off) so the current stays
+    within the limit, in the worst case of what is known (``PhaseLoad``).
+
+    A battery only changes the active power P; the reactive part Q stays.
+    With current I (as power), Q^2 = I^2 - P^2 and after adding x the
+    current is sqrt(I^2 + 2Px + x^2): at most the limit L while
+    x <= sqrt(L^2 - I^2 + P^2) - P (charging; the highest P and I are the
+    worst) or -x <= sqrt(L^2 - I^2 + P^2) + P (discharging; the lowest P)."""
     rooms = []
-    for i, load in enumerate(load_w):
-        limit, base = limit_w, load
-        if active_w is not None and i < len(active_w):
-            p = active_w[i]
-            if abs(load) - abs(p) >= ROUNDING_W:
-                q2 = max(load * load - p * p, 0.0)
-                limit = math.sqrt(max(limit_w * limit_w - q2, 0.0))
-            base = p
-        rooms.append(max(limit - base if charging else limit + base, 0.0))
+    for phase in _bounds(load_w, active_w):
+        p = phase.active_hi_w if charging else phase.active_lo_w
+        current = max(phase.current_w, abs(phase.active_lo_w), abs(phase.active_hi_w))
+        root = math.sqrt(max(limit_w * limit_w - current * current + p * p, 0.0))
+        room = root - p if charging else root + p
+        # Never NaN (a NaN room would let everything through).
+        rooms.append(max(room, 0.0) if math.isfinite(room) else 0.0)
     return rooms
 
 
 def max_power(
     devices: Iterable[PhaseDevice],
-    load_w: Sequence[float],
+    load_w: Sequence[float | PhaseLoad],
     limit_w: float,
     charging: bool,
     active_w: Sequence[float] | None = None,
@@ -107,21 +141,36 @@ def max_power(
 def cap_powers(
     powers: Mapping[str, float],
     devices: Iterable[PhaseDevice],
-    load_w: Sequence[float],
+    load_w: Sequence[float | PhaseLoad],
     limit_w: float,
     active_w: Sequence[float] | None = None,
 ) -> tuple[dict[str, float], list[int]]:
     """Scale battery powers (+ charging) down where a phase would be overloaded
-    (``active_w``: see ``_room``).
+    (``load_w`` / ``active_w``: see ``_room``). The final check: it only
+    lowers powers, never raises or turns them. Charging and discharging are
+    checked apart, each as if the other did not help (the current is
+    convex in the added power, so every mix in between is within too).
+    A battery on a phase this connection does not have counts in full on
+    the fullest phase (never as spread: that would count a third of it).
+    A power that is not a number stops.
 
     Returns the new powers and the indexes of the phases that limited them.
     """
-    result = dict(powers)
+    result = {k: (float(v) if math.isfinite(v) else 0.0) for k, v in powers.items()}
     limited: set[int] = set()
+    count = len(load_w)
     devices = [d for d in devices if d.id in result]
     for charging in (True, False):
         room = _room(load_w, limit_w, charging, active_w)
-        active = [d for d in devices if (result[d.id] > 0) == charging and result[d.id]]
+        if not room:
+            # No phase known: nothing can be checked, so nothing runs.
+            return dict.fromkeys(result, 0.0), []
+        fullest = room.index(min(room))
+        active = [
+            d if d.phase is None or 0 <= d.phase < count else replace(d, phase=fullest)
+            for d in devices
+            if (result[d.id] > 0) == charging and result[d.id]
+        ]
         for index in range(len(room)):
             on_phase = [d for d in active if d.phase == index]
             total = sum(abs(result[d.id]) for d in on_phase)
@@ -136,7 +185,7 @@ def cap_powers(
         if total > allowed + 0.5:
             for d in spread:
                 result[d.id] *= allowed / total
-            lowest = min(room)
+            lowest = min(room, default=0.0)
             limited.update(i for i, r in enumerate(room) if r == lowest)
     return {k: round(v, 1) + 0.0 for k, v in result.items()}, sorted(limited)
 

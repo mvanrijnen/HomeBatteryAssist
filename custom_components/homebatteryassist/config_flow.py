@@ -231,6 +231,7 @@ from .const import (
     DOMAIN,
     EXPORT_MODES,
     FORECAST_INTERVAL_OPTIONS,
+    HEAVY_CONNECTION_A,
     HISTORY_INTERVAL_OPTIONS,
     INVERTER_NONE,
     MAX_CURRENT_OPTIONS,
@@ -1692,9 +1693,12 @@ class _GridSteps:
         """Step 2: maximum current per phase (main fuse rating)."""
         if user_input is not None:
             self._data[CONF_MAX_CURRENT] = int(user_input[CONF_MAX_CURRENT])
-            if self._from_meter:
-                return await self._async_grid_done()
-            return await self.async_step_sensors()
+            if (
+                self._data[CONF_PHASES] == 3
+                and self._data[CONF_MAX_CURRENT] > HEAVY_CONNECTION_A
+            ):
+                return await self.async_step_heavy_connection()
+            return await self._async_after_max_current()
 
         phases = self._data[CONF_PHASES]
         current = self._data.get(CONF_MAX_CURRENT)
@@ -1708,6 +1712,34 @@ class _GridSteps:
             data_schema=self.add_suggested_values_to_schema(
                 max_current_schema(phases), suggested
             ),
+        )
+
+    async def _async_after_max_current(self) -> ConfigFlowResult:
+        if self._from_meter:
+            return await self._async_grid_done()
+        return await self.async_step_sensors()
+
+    async def async_step_heavy_connection(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Step 2b: a connection heavier than 3x35A, confirmed apart with a
+        warning (the phase protection's limit; a wrong choice here would let
+        the batteries overload the main fuse). Not confirmed: choose again."""
+        if user_input is not None:
+            if user_input.get("confirm"):
+                return await self._async_after_max_current()
+            return await self.async_step_max_current()
+        amps = self._data[CONF_MAX_CURRENT]
+        return self.async_show_form(
+            step_id="heavy_connection",
+            data_schema=vol.Schema(
+                {vol.Required("confirm", default=False): BooleanSelector()}
+            ),
+            description_placeholders={
+                "connection": f"3x{amps}A",
+                "usual": f"3x{HEAVY_CONNECTION_A}A",
+                "amps": str(amps),
+            },
         )
 
     async def async_step_sensors(

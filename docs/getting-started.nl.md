@@ -61,7 +61,7 @@ Afhankelijk van je keuze krijg je (een deel van) deze schermen:
 
     ![Grootte aansluiting](screenshots/config-grid-connection-size.png){ width="420" }
 
-    De hoofdzekering per fase, bijv. **3x25A**. HomeBatteryAssist houdt elke fase daaronder (met een veiligheidsmarge).
+    De hoofdzekering per fase, bijv. **3x25A**. HomeBatteryAssist houdt elke fase daaronder (met een veiligheidsmarge). Een aansluiting zwaarder dan **3x35A** (3x40A, 3x50A, 3x63A, 3x80A) vraagt een extra bevestiging met een waarschuwing: een waarde boven je echte hoofdzekering zou de batterijen die laten overbelasten.
 
 === "Metingen per fase"
 

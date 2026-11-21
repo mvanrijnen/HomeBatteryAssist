@@ -19,6 +19,9 @@ MAX_CURRENT_OPTIONS: Final[dict[int, tuple[int, ...]]] = {
     1: (10, 25, 35, 40),
     3: (25, 35, 40, 50, 63, 80),
 }
+# A 3-phase connection above this (A) is confirmed apart, with a warning:
+# heavier than a usual home connection, and the phase protection's limit.
+HEAVY_CONNECTION_A: Final = 35
 # Most common connection per phase count (1x35A, 3x25A).
 DEFAULT_MAX_CURRENT: Final[dict[int, int]] = {1: 35, 3: 25}
 

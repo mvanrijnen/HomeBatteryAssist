@@ -179,10 +179,17 @@ async def test_pv_per_phase_and_single_phase(hass: HomeAssistant) -> None:
     assert flow.phase_pv_w == (1000.0, 700.0, 200.0)
 
 
-async def test_pv_known_with_one_source_asleep(hass: HomeAssistant) -> None:
+async def test_pv_known_with_one_source_asleep(
+    hass: HomeAssistant, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Two PV sources, one asleep (unavailable, not producing just before):
     its 0 W counts, so the PV is known (recorded in the history), as the
     house consumption counts it."""
+    # The sun up (a source gone at night counts as 0 W): not the clock's.
+    monkeypatch.setattr(
+        "custom_components.homebatteryassist.engine.measure.house_measurement.is_up",
+        lambda _hass: True,
+    )
     _set(hass, "sensor.grid", "-500")
     _set(hass, "sensor.pv1", "2000")
     hass.states.async_set("sensor.pv2", "unavailable", {})

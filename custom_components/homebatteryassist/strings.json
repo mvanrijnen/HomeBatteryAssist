@@ -30,6 +30,13 @@
           "max_current_per_phase": "Connection"
         }
       },
+      "heavy_connection": {
+        "title": "Confirm a heavy connection",
+        "description": "You chose **{connection}**. That is heavier than a usual home connection (up to {usual}).\n\n**Warning:** HomeBatteryAssist uses this value as the limit of the phase protection: the batteries keep the current on every phase below {amps} A minus the phase margin. If it is higher than your main fuse really is, a battery can overload the main fuse. Check it on your energy contract or on the main fuse in your meter cupboard.\n\nTick the box to confirm {connection}; leave it unticked to choose again.",
+        "data": {
+          "confirm": "My connection really is {connection}"
+        }
+      },
       "sensors": {
         "title": "Phase measurements",
         "description": "Select for each phase the sensor that measures the power (W) on that phase, typically from your smart meter (P1). If this sensor is positive for import and negative for export, leave the return sensor empty. If your meter has separate sensors for import and export (return), select both. A current sensor (A) cannot tell import from export, so it goes in the optional current fields below.",
@@ -924,6 +931,13 @@
         "description": "Select the size of your grid connection (main fuse rating per phase). You can find it on your energy contract or on the main fuse in your meter cupboard.",
         "data": {
           "max_current_per_phase": "Connection"
+        }
+      },
+      "heavy_connection": {
+        "title": "Confirm a heavy connection",
+        "description": "You chose **{connection}**. That is heavier than a usual home connection (up to {usual}).\n\n**Warning:** HomeBatteryAssist uses this value as the limit of the phase protection: the batteries keep the current on every phase below {amps} A minus the phase margin. If it is higher than your main fuse really is, a battery can overload the main fuse. Check it on your energy contract or on the main fuse in your meter cupboard.\n\nTick the box to confirm {connection}; leave it unticked to choose again.",
+        "data": {
+          "confirm": "My connection really is {connection}"
         }
       },
       "sensors": {

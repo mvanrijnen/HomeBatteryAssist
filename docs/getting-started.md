@@ -61,7 +61,7 @@ Depending on your choice you get (some of) these screens:
 
     ![Connection size](screenshots/config-grid-connection-size.png){ width="420" }
 
-    The main fuse per phase, e.g. **3x25A**. HomeBatteryAssist keeps every phase below it (with a safety margin).
+    The main fuse per phase, e.g. **3x25A**. HomeBatteryAssist keeps every phase below it (with a safety margin). A connection heavier than **3x35A** (3x40A, 3x50A, 3x63A, 3x80A) asks for an extra confirmation with a warning: a value above your real main fuse would let the batteries overload it.
 
 === "Sensors per phase"
 

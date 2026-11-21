@@ -125,3 +125,11 @@ De hoofdzekering beveiligt tegen **stroom**, niet tegen vermogen: met apparaten 
 - anders **vermogen / 230 V**.
 
 De historie bewaart de gemeten stroom per fase; daaruit wordt per fase geleerd welke stroom er naast het vermogen loopt, en het batterijplan rekent daarmee voor de komende tijdvakken. Het eigen aandeel van de batterij wordt omgerekend met de gemeten spanning van zijn fase.
+
+De **eindcontrole** die de batterijen binnen de fasegrens houdt (de laatste stap voordat een vermogen wordt gebruikt, na het plan, de beveiliging en een onderschepper) rekent met het **slechtste geval** van wat er gemeten is, zodat de stroom onder de grens blijft wat de precieze waarden ook zijn:
+
+- een gemeten stroom in hele ampères (veel meters ronden af, bijvoorbeeld een P1-poort) kan tot een halve ampère hoger zijn;
+- zonder gemeten spanning rekent hij met **207 V**, de laagst toegestane netspanning (230 V − 10 %): elke W van het huis en van een batterij telt dan voor de meeste stroom;
+- zonder gemeten stroom of arbeidsfactor is het blinde deel niet te kennen; dan dekt alleen de fasemarge het.
+
+Vlak bij de grens krijgen de batterijen daardoor iets minder ruimte dan de precieze waarden zouden laten; met een meter of sensoren die **stroom en spanning** per fase doorgeven is dat het minst.
