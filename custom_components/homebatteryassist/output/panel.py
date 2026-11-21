@@ -49,6 +49,7 @@ from .adjustments_ws import (
     websocket_adjustment_save,
 )
 from .batteries import BATTERY_SENSORS, TOTAL_SENSORS, TWIN_SENSOR
+from .ev_ws import websocket_ev_advice
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,6 +84,7 @@ async def async_setup_panel(hass: HomeAssistant, version: str) -> None:
     websocket_api.async_register_command(hass, websocket_history)
     websocket_api.async_register_command(hass, websocket_adjustment_save)
     websocket_api.async_register_command(hass, websocket_adjustment_delete)
+    websocket_api.async_register_command(hass, websocket_ev_advice)
     if "frontend" in hass.config.components:
         from homeassistant.components import panel_custom
         from homeassistant.components.http import StaticPathConfig

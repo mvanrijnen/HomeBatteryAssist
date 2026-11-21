@@ -42,6 +42,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "heating_w": "Heating/cooling (part of the house)",
         "house_w": "House consumption",
         "unknown_flow": "Unknown: a grid measurement has no value.",
+        "unknown_house": "The grid is measured; the house consumption is unknown: a sensor below (battery, excluded device or PV) has no value.",
         "missing": "Without a valid value",
         "inputs": "Sensors read",
         "kind": "Kind",
@@ -83,6 +84,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "heating_w": "Verwarming/koeling (deel van het huis)",
         "house_w": "Huisverbruik",
         "unknown_flow": "Onbekend: een netmeting heeft geen waarde.",
+        "unknown_house": "Het net wordt gemeten; het huisverbruik is onbekend: een sensor hieronder (batterij, uitgesloten apparaat of PV) heeft geen waarde.",
         "missing": "Zonder geldige waarde",
         "inputs": "Uitgelezen sensoren",
         "kind": "Soort",
@@ -153,7 +155,9 @@ def input_report(
         + (dt_util.as_local(last).strftime("%H:%M:%S") if last else t["none"]),
         "",
     ]
-    flow = m.flow
+    # The grid per phase also when only the house is unknown (a battery or
+    # another sensor without a value): the meter itself works then.
+    flow = m.flow if m.flow is not None else getattr(m, "meter_flow", None)
     if flow is not None:
         lines += [
             f"| {t['phase']} | {t['power']} | {t['current']} | {t['voltage']} "
@@ -173,17 +177,20 @@ def input_report(
             )
         if any(i >= len(flow.phase_a) for i in range(m.phases)):
             lines += ["", t["calc"]]
-        lines += ["", f"#### {t['flows']}", ""]
-        lines += [f"| | {t['power']} |", "|---|---:|"]
-        for key in (
-            "grid_w",
-            "pv_w",
-            "excluded_w",
-            "battery_w",
-            "heating_w",
-            "house_w",
-        ):
-            lines.append(f"| {t[key]} | {_num(getattr(flow, key), 0, 'W')} |")
+        if m.flow is None:
+            lines += ["", t["unknown_house"]]
+        else:
+            lines += ["", f"#### {t['flows']}", ""]
+            lines += [f"| | {t['power']} |", "|---|---:|"]
+            for key in (
+                "grid_w",
+                "pv_w",
+                "excluded_w",
+                "battery_w",
+                "heating_w",
+                "house_w",
+            ):
+                lines.append(f"| {t[key]} | {_num(getattr(flow, key), 0, 'W')} |")
     else:
         lines.append(t["unknown_flow"])
     lines.append("")

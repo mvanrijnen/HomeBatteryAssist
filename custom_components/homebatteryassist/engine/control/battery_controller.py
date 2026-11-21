@@ -143,6 +143,7 @@ class BatteryController:
         # Stopped: no command is sent any more (one already being sent is
         # undone by a release when it returns).
         self.stopped = False
+        self.sending = False  # a command is being sent right now
 
     async def async_command(
         self, power_w: float | None, now: datetime | None = None
@@ -189,6 +190,7 @@ class BatteryController:
         # stop while it is being sent releases (else it would see "not
         # active" and the battery would stay forced).
         self.state.active = True
+        self.sending = True
         try:
             await self.driver.async_set_power(action.power_w)
         except Exception:
@@ -196,6 +198,8 @@ class BatteryController:
             _LOGGER.exception("%s: command failed; releasing", self.driver.name)
             await self.async_release("error")
             return
+        finally:
+            self.sending = False
         if self.stopped:
             # Stopped while the command was being sent: undo it.
             await self.async_release("stop")

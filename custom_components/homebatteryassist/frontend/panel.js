@@ -202,6 +202,27 @@ const TEXT = {
     vsMode: "{mode} vs {other}",
     modeNames: { nom: "Zero on the meter", arbitrage: "Arbitrage", arbitrage_full: "Full arbitrage", time_slots: "Time slots", manual: "Manual" },
     compareTitle: "Return compared",
+    evTitle: "Charge the car",
+    evButton: "Charge the car",
+    evNote: "When to switch the charging on for the lowest expected cost: one block, from the prices and the expected solar surplus of the plan. Advice only: nothing is switched.",
+    evKwh: "Energy to charge (kWh, from the grid connection)",
+    evPower: "Charging power (kW)",
+    evFrom: "Not before",
+    evUntil: "Ready by",
+    evCalculate: "Calculate",
+    evClose: "Close",
+    evAdvice: "Switch on {start}, off {end}",
+    evCost: "Expected cost {cost} (on average {avg}/kWh)",
+    evSun: "of which {kwh} kWh from the solar surplus",
+    evNow: "Starting at once ({start}): {cost}",
+    evPricesUntil: "Prices known until {until}.",
+    evReason: {
+      invalid: "Fill in the energy, the power and a period that ends after it starts.",
+      too_short: "The period is too short for this energy at this power.",
+      beyond_prices: "The prices do not reach far enough: known until {until}. Choose an earlier end, or try again when tomorrow's prices are out.",
+      no_prices: "There are no prices in the plan (yet).",
+    },
+    evFailed: "Calculating failed",
     adjTitle: "Occasional consumption",
     adjNote: "Tell the forecast about consumption it cannot know from the history, e.g. 1.5 kWh for the washing machine tomorrow 13:00–15:00. Extra comes on top of the learned consumption; part of the expected consumption moves that much of the day's expected consumption into the time window.",
     adjNone: "Nothing set.",
@@ -487,6 +508,27 @@ const TEXT = {
     vsMode: "{mode} t.o.v. {other}",
     modeNames: { nom: "Nul op de meter", arbitrage: "Arbitrage", arbitrage_full: "Arbitrage volledig", time_slots: "Tijdvakken", manual: "Handmatig" },
     compareTitle: "Rendement vergeleken",
+    evTitle: "Auto laden",
+    evButton: "Auto laden",
+    evNote: "Wanneer je het laden het best aanzet voor de laagste verwachte kosten: één blok, uit de prijzen en het verwachte zonne-overschot van het plan. Alleen advies: er wordt niets geschakeld.",
+    evKwh: "Te laden energie (kWh, vanaf de netaansluiting)",
+    evPower: "Laadvermogen (kW)",
+    evFrom: "Niet vóór",
+    evUntil: "Klaar om",
+    evCalculate: "Bereken",
+    evClose: "Sluiten",
+    evAdvice: "Aanzetten {start}, uit {end}",
+    evCost: "Verwachte kosten {cost} (gemiddeld {avg}/kWh)",
+    evSun: "waarvan {kwh} kWh uit het zonne-overschot",
+    evNow: "Meteen beginnen ({start}): {cost}",
+    evPricesUntil: "Prijzen bekend tot {until}.",
+    evReason: {
+      invalid: "Vul de energie, het vermogen en een periode in die na het begin eindigt.",
+      too_short: "De periode is te kort voor deze energie bij dit vermogen.",
+      beyond_prices: "De prijzen reiken niet ver genoeg: bekend tot {until}. Kies een eerder einde, of probeer het opnieuw als de prijzen van morgen er zijn.",
+      no_prices: "Er zijn (nog) geen prijzen in het plan.",
+    },
+    evFailed: "Berekenen mislukt",
     adjTitle: "Incidenteel verbruik",
     adjNote: "Vertel de voorspelling over verbruik dat hij niet uit de geschiedenis kan weten, bijv. 1,5 kWh voor de wasmachine morgen 13:00–15:00. Extra komt bovenop het geleerde verbruik; deel van het verwachte verbruik verschuift zoveel van het verwachte verbruik van die dag naar het tijdvenster.",
     adjNone: "Niets ingesteld.",
@@ -617,7 +659,7 @@ const STYLE = `
     border-radius: 18px; padding: 6px 14px; }
   .toolbar button:disabled { opacity: .6; cursor: default; }
   .toolbar button ha-icon { --mdc-icon-size: 18px; }
-  @media (max-width: 600px) { .toolbar .adj-open .label { display: none; } }
+  @media (max-width: 600px) { .toolbar .adj-open .label, .toolbar .ev-open .label { display: none; } }
   .content { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
   .tabs { display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; border-bottom: 1px solid var(--divider-color); }
   .tabs button { font: inherit; font-size: 14px; cursor: pointer; background: none; border: none; white-space: nowrap;
@@ -2681,6 +2723,106 @@ class HomeBatteryAssistPanel extends HTMLElement {
     field("energy").focus();
   }
 
+  // Charge the car: when to switch the charging on for the lowest expected
+  // cost within a period (advice only). The last inputs are remembered.
+  _openEvAdvice() {
+    if (this._dialogOpen) return;
+    this._dialogOpen = true;
+    const t = this._t;
+    const lang = this._hass.locale?.language || this._hass.language;
+    const zone = this._hass.config?.time_zone;
+    const overlay = document.createElement("div");
+    overlay.className = "adj-overlay";
+    this.shadowRoot.appendChild(overlay);
+    const close = () => {
+      overlay.remove();
+      this._dialogOpen = false;
+      this._render();
+    };
+    overlay.addEventListener("click", (ev) => {
+      if (ev.target === overlay) close();
+    });
+    overlay.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") close();
+    });
+    // Date and time in Home Assistant's time zone (the backend reads them there).
+    const localInput = (d) => {
+      const parts = Object.fromEntries(
+        new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+          .formatToParts(d)
+          .map((p) => [p.type, p.value]),
+      );
+      return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+    };
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem("homebatteryassist-ev") || "{}");
+    } catch (err) {
+      saved = {};
+    }
+    const now = new Date();
+    const morning = new Date(now.getTime() + 864e5);
+    const untilDefault = `${localInput(morning).slice(0, 10)}T07:00`;
+    overlay.innerHTML = `<div class="adj-dialog" role="dialog" aria-modal="true">
+        <h2>${esc(t.evTitle)}</h2>
+        <div class="muted">${esc(t.evNote)}</div>
+        <label>${esc(t.evKwh)}<input type="number" name="kwh" step="0.5" min="0.1" max="200" value="${esc(saved.kwh ?? 20)}"></label>
+        <label>${esc(t.evPower)}<input type="number" name="power" step="0.1" min="0.5" max="50" value="${esc(saved.power ?? 11)}"></label>
+        <div class="times">
+          <label>${esc(t.evFrom)}<input type="datetime-local" name="start" value="${esc(localInput(now))}"></label>
+          <label>${esc(t.evUntil)}<input type="datetime-local" name="end" value="${esc(untilDefault)}"></label>
+        </div>
+        <div class="ev-result"></div>
+        <div class="error"></div>
+        <div class="adj-actions"><button data-act="close">${esc(t.evClose)}</button><button class="primary" data-act="calc">${esc(t.evCalculate)}</button></div>
+      </div>`;
+    const field = (name) => overlay.querySelector(`[name="${name}"]`);
+    const result = overlay.querySelector(".ev-result");
+    const error = overlay.querySelector(".error");
+    const when = (iso) =>
+      iso ? new Date(iso).toLocaleString(lang, { timeZone: zone, weekday: "short", hour: "2-digit", minute: "2-digit" }) : "–";
+    const money = (v, currency) =>
+      v == null ? "–" : new Intl.NumberFormat(lang, { style: "currency", currency: currency || "EUR", maximumFractionDigits: 3 }).format(v);
+    overlay.querySelector('[data-act="close"]').addEventListener("click", close);
+    overlay.querySelector('[data-act="calc"]').addEventListener("click", async () => {
+      error.textContent = "";
+      result.innerHTML = "";
+      const kwh = parseFloat(String(field("kwh").value).replace(",", "."));
+      const power = parseFloat(String(field("power").value).replace(",", "."));
+      try {
+        localStorage.setItem("homebatteryassist-ev", JSON.stringify({ kwh, power }));
+      } catch (err) {
+        // no storage: not remembered
+      }
+      try {
+        const a = await this._hass.callWS({
+          type: "homebatteryassist/ev_advice",
+          kwh,
+          power_kw: power,
+          start: field("start").value,
+          end: field("end").value,
+        });
+        const until = when(a.prices_until);
+        if (a.reason) {
+          result.innerHTML = `<p>${esc((t.evReason[a.reason] || a.reason).replace("{until}", until))}</p>`;
+          return;
+        }
+        const lines = [
+          `<p><b>${esc(t.evAdvice.replace("{start}", when(a.start)).replace("{end}", when(a.end)))}</b></p>`,
+          `<p>${esc(t.evCost.replace("{cost}", money(a.cost, a.currency)).replace("{avg}", money(a.avg_price, a.currency)))}${a.sun_kwh > 0.05 ? `, ${esc(t.evSun.replace("{kwh}", Number(a.sun_kwh).toLocaleString(lang, { maximumFractionDigits: 1 })))}` : ""}.</p>`,
+        ];
+        if (a.now_cost != null && Math.abs(a.now_cost - a.cost) >= 0.01) {
+          lines.push(`<p class="muted">${esc(t.evNow.replace("{start}", when(a.now_start)).replace("{cost}", money(a.now_cost, a.currency)))}</p>`);
+        }
+        lines.push(`<p class="muted">${esc(t.evPricesUntil.replace("{until}", until))}</p>`);
+        result.innerHTML = lines.join("");
+      } catch (err) {
+        error.textContent = `${t.evFailed}: ${err?.message || err}`;
+      }
+    });
+    field("kwh").focus();
+  }
+
   _render() {
     if (!this._hass) return;
     // A dialog is open: keep its fields (render again when it closes).
@@ -2711,6 +2853,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     }
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <div class="toolbar"><span class="menu"></span><span class="title">${esc(t.title)}${VERSION ? `<span class="version">v${esc(VERSION)}</span>` : ""}</span>
+        ${this._status ? `<button class="ev-open" title="${esc(t.evTitle)}"><ha-icon icon="mdi:car-electric"></ha-icon><span class="label">${esc(t.evButton)}</span></button>` : ""}
         ${this._status ? `<button class="adj-open" title="${esc(t.adjTitle)}"><ha-icon icon="mdi:calendar-plus"></ha-icon><span class="label">${esc(t.adjButton)}${(this._status.adjustments || []).length ? ` (${this._status.adjustments.length})` : ""}</span></button>` : ""}
         ${this._status ? `<button class="recalc" ${this._busy ? "disabled" : ""}>
           <ha-icon icon="mdi:refresh"></ha-icon>${esc(this._busy ? t.recalculating : t.recalculate)}</button>` : ""}</div>
@@ -2736,6 +2879,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       }),
     );
     this.shadowRoot.querySelector("button.adj-open")?.addEventListener("click", () => this._openAdjustments());
+    this.shadowRoot.querySelector("button.ev-open")?.addEventListener("click", () => this._openEvAdvice());
     this.shadowRoot.querySelector('button[data-toggle="compare"]')?.addEventListener("click", () => {
       this._showCompare = !this._showCompare;
       this._render();

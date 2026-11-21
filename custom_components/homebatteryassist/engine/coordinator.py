@@ -1710,7 +1710,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self._last_full_charges = key
         now = dt_util.utcnow()
         for charge in full_charges:
-            overdue = charge.deadline <= now
+            # Also a block that ends after its deadline (none fitted before
+            # it): told as catching up, not as "before the deadline".
+            overdue = charge.deadline <= now or charge.end > charge.deadline
             self._decisions.async_log(
                 "planning",
                 "full_charge_overdue" if overdue else "full_charge_planned",

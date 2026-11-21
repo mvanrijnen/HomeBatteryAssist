@@ -188,13 +188,17 @@ def _redistribute(
     direction, up to their limits, in proportion to the room they have."""
     changed = {battery_id for battery_id, *_ in outcome.changes}
     for sign in (1.0, -1.0):
-        # A released battery is back under its own control, which covers
-        # the load itself: its part is not handed to the others (both would
-        # cover it, and the rest would be exported).
+        # A released real battery is back under its own control, which
+        # covers the load itself: its part is not handed to the others (both
+        # would cover it, and the rest would be exported). A released virtual
+        # battery has no control of its own (0 W): its part is taken over.
         missing = sum(
             sign * (proposed[i] - outcome.powers[i])
             for i in changed
-            if sign * proposed[i] > 0 and i not in outcome.released
+            if sign * proposed[i] > 0
+            and not (
+                i in outcome.released and not getattr(proposals[i], "virtual", False)
+            )
         )
         if missing <= 1:
             continue

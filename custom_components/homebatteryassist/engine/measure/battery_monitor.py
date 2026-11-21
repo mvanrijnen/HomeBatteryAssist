@@ -517,9 +517,10 @@ def measured_efficiency(
     pct = (discharged + stored) / charged * 100
     if not 30 <= pct <= 100:
         return None  # counters or state of charge not trustworthy
-    return MeasuredEfficiency(
-        round(pct, 1), len(stats.get("days") or []), round(charged, 2)
-    )
+    # Over the days from the start day used (after a missed stretch it is
+    # not the oldest one kept).
+    used = sum(1 for d in stats.get("days") or [] if d["date"] >= start["date"])
+    return MeasuredEfficiency(round(pct, 1), used, round(charged, 2))
 
 
 def realised_value(

@@ -29,8 +29,8 @@ FORBIDDEN = re.compile(
 # Anywhere (also in the control layer and the drivers): nothing switches
 # control on in code; the switches only exist as False defaults.
 SWITCHED_ON = re.compile(
-    r"\benabled\s*=\s*True|\ballowed\s*=\s*True|"
-    r"CONTROL_TEST_ALLOWED\s*(?::\s*Final\s*)?=\s*True|\bCONTROL\s*(?::\s*Final\s*)?=\s*True"
+    r"\b(?:enabled|allowed)\s*(?::[^=\n]*)?=\s*True|"
+    r"\b(?:CONTROL_TEST_ALLOWED|CONTROL)\s*(?::[^=\n]*)?=\s*True"
 )
 # The reader adapter is a driver that may be controlled at all; whether it
 # is decides the controller's master switch (``enabled`` False by default).

@@ -712,6 +712,9 @@ async def async_setup_entry(
         await batteries.async_stop()
         if history_started:
             await history.async_stop()
+        # A failed setup is not unloaded: close the databases here too, so a
+        # delayed write of this instance cannot change rows the retry loaded.
+        await async_close_databases(hass)
         raise
 
     # Sensors the recorder leaves out cannot be filled in from its history:

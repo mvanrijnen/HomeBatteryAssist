@@ -179,6 +179,20 @@ class ControlTest:
         assert reader is not None
         if battery_id in self.runs:
             await self.async_stop(battery_id, "stopped")
+        if (old := self.releasing.pop(battery_id, None)) is not None:
+            # An earlier test is still being handed back: first that (its
+            # retry would otherwise undo this test's command, or this one
+            # would run while the battery is under its own control).
+            await old.async_release("retry")
+            if old.state.release_pending or old.sending:
+                self.releasing[battery_id] = old
+                self._decisions.async_log(
+                    "battery",
+                    "control_test_refused",
+                    name=config.name,
+                    reason="@test_error",
+                )
+                return
         limit = max(self.power_w[battery_id], 0.0)
         power = limit if charge else -limit
         now = dt_util.utcnow()
@@ -219,9 +233,12 @@ class ControlTest:
 
     async def _async_tick(self, now: datetime) -> None:
         for battery_id, controller in list(self.releasing.items()):
-            await controller.async_tick(now)  # retries the release
-            if not controller.state.release_pending:
-                del self.releasing[battery_id]
+            if controller.state.release_pending:
+                await controller.async_tick(now)  # retries the release
+            if not controller.state.release_pending and not controller.sending:
+                # (pop: a tick that overlaps a slow release, or a stop of
+                # everything meanwhile, may have removed it already)
+                self.releasing.pop(battery_id, None)
         for battery_id in list(self.runs):
             try:
                 await self._async_tick_run(battery_id, now)
@@ -267,9 +284,11 @@ class ControlTest:
         except Exception:
             _LOGGER.exception("Releasing %s failed", battery_id)
             run.controller.state.release_pending = True
-        if run.controller.state.release_pending:
-            # The release failed: tried again every tick (the battery must
-            # not stay forced while the test counts as stopped).
+        if run.controller.state.release_pending or run.controller.sending:
+            # The release failed, or a command is still being sent (its
+            # release follows when it returns and may fail): tried again
+            # every tick (the battery must not stay forced while the test
+            # counts as stopped).
             self.releasing[battery_id] = run.controller
             if self._unsub is None:
                 self._unsub = async_track_time_interval(
@@ -301,6 +320,6 @@ class ControlTest:
             await self.async_stop(battery_id, "unload")
         for battery_id, controller in list(self.releasing.items()):
             await controller.async_release("retry")
-            if not controller.state.release_pending:
-                del self.releasing[battery_id]
+            if not controller.state.release_pending and not controller.sending:
+                self.releasing.pop(battery_id, None)
         self._stop_timer_when_idle()
