@@ -48,7 +48,7 @@ class _Batteries:
         self.configs = configs
         self.states = {c.id: BatteryState(c, c.initial_soc, 0.0) for c in configs}
 
-    def set_virtual(self, bid, when, power, soc) -> None:
+    def set_virtual(self, bid, when, power, soc, since=None) -> None:
         config = next(c for c in self.configs if c.id == bid)
         self.states[bid] = BatteryState(config, soc, power)
 

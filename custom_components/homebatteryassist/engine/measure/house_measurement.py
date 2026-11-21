@@ -513,12 +513,20 @@ class MeasurementInput:
             if value is not None and returned is not None:
                 phase_w.append(round(value - abs(returned), 1))
         self.stale = self._stale_grid(dt_util.utcnow())
-        missing += [e for e in self.stale if e not in missing]
+        # Only a frozen grid sensor blanks the grid flow; a frozen battery
+        # power sensor makes the house unknown below (battery_power is None
+        # then), the grid connection's sensors stay.
+        battery_sensors = {b.power_sensor for b in self.batteries}
+        missing += [
+            e for e in self.stale if e not in missing and e not in battery_sensors
+        ]
         if missing:
             self.meter_flow = None
             return None, missing
         if not self.direct:
-            phase_a = self._per_phase(self.current_sensors, len(phase_w)) or ()
+            phase_a = (
+                self._per_phase(self.current_sensors, len(phase_w), signed=True) or ()
+            )
             phase_v = self._per_phase(self.voltage_sensors, len(phase_w)) or ()
         grid = round(sum(phase_w), 1)
         pv = round(
@@ -654,10 +662,11 @@ class MeasurementInput:
         return round(pv + held, 1) if held > 0 else None
 
     def _per_phase(
-        self, sensors: list[str | None], count: int
+        self, sensors: list[str | None], count: int, signed: bool = False
     ) -> tuple[float, ...] | None:
         """Every phase's value of these sensors (A or V), or None when one is
-        missing or unknown."""
+        missing or unknown. ``signed`` (current): a sensor that signs the
+        current with the power (negative while exporting) counts its size."""
         if len(sensors) != count or not all(sensors):
             return None
         values = []
@@ -669,6 +678,8 @@ class MeasurementInput:
                 return None
             unit = state.attributes.get("unit_of_measurement") if state else None
             value *= _UNIT_FACTORS.get(str(unit).strip() if unit else "", 1.0)
+            if signed:
+                value = abs(value)
             if not math.isfinite(value) or value < 0:
                 return None
             values.append(value)

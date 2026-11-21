@@ -116,6 +116,8 @@ data:
   days: 28
 ```
 
+A period in which the grid, a battery or an excluded device (e.g. an EV charger) has no statistics is skipped, as live (counting it as 0 W would record a discharge or an EV charge as house consumption); before a battery or device was added it counts as 0 W.
+
 Without importing, HomeBatteryAssist simply starts learning from now.
 
 ## Step 8 — Open the dashboard {#step-8-open-the-dashboard}

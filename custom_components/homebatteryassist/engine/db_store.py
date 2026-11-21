@@ -251,6 +251,10 @@ class _Database:
 
 
 _DATABASES: dict[str, _Database] = {}
+# Raised when the databases close (unload): a store of the unloaded instance
+# then writes nothing more (a cycle or a delayed write still running would
+# open a database again and leave rows the reloaded instance does not know).
+_GENERATION = [0]
 
 
 def _database(url: str) -> _Database:
@@ -261,6 +265,7 @@ def _database(url: str) -> _Database:
 
 async def async_close_databases(hass: HomeAssistant) -> None:
     """Close the open databases (unload: a changed URL opens anew)."""
+    _GENERATION[0] += 1
     databases = list(_DATABASES.values())
     _DATABASES.clear()
     for database in databases:
@@ -339,6 +344,12 @@ class HbaStore:
         self._lock = asyncio.Lock()
         self._unsub: CALLBACK_TYPE | None = None
         self._pending: Callable[[], dict[str, Any]] | None = None
+        self._generation = _GENERATION[0]
+
+    @property
+    def closed(self) -> bool:
+        """The instance this store belongs to is unloaded: no more writes."""
+        return self._generation != _GENERATION[0]
 
     @property
     def where(self) -> str:
@@ -456,6 +467,9 @@ class HbaStore:
             self._unsub()
             self._unsub = None
         self._pending = None
+        if self.closed:
+            _LOGGER.debug("%s: not saved, its instance is unloaded", self.name)
+            return
         if self.url is None:
             await self._json.async_save(data)
             return
@@ -490,6 +504,8 @@ class HbaStore:
         self, data_func: Callable[[], dict[str, Any]], delay: float = 0
     ) -> None:
         """Write after ``delay`` seconds (a later call moves it)."""
+        if self.closed:
+            return
         if self.url is None:
             self._json.async_delay_save(data_func, delay)
             return

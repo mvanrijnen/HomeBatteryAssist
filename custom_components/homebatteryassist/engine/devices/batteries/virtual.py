@@ -344,6 +344,10 @@ class VirtualBatterySimulator:
         self._nom_free = False
         self._nom_total = 0.0
         self._responses: dict[str, BatteryResponse] = {}
+        # The batteries protecting a phase / the peak this round, also those
+        # already doing it without a change (the interceptor must not undo it).
+        self._relief_helpers: set[str] = set()
+        self._peak_helpers: set[str] = set()
 
     def _flow(self) -> Any:
         """The grid as the virtual batteries see it: measured, without the
@@ -579,7 +583,11 @@ class VirtualBatterySimulator:
                     max_charge_w=config.max_charge_w,
                     max_discharge_w=config.max_discharge_w,
                     min_soc=config.min_soc,
-                    max_soc=config.max_soc,
+                    # Held by the charge hysteresis: full for now (a
+                    # redistribution must not charge it).
+                    max_soc=min(socs[config.id], config.max_soc)
+                    if config.id in self._full
+                    else config.max_soc,
                     virtual=config.virtual,
                     full_charge=bool(full[config.id]),
                     proposed_w=wanted[config.id],
@@ -775,8 +783,14 @@ class VirtualBatterySimulator:
         wanted = one_direction(wanted, [i for i in wanted if full.get(i)])
         before = dict(wanted)
         wanted = self._phase_relief(wanted, socs, full, now, hours)
+        # Protecting a phase: the batteries relief changed, and those whose
+        # power (in the right direction) it already counted as relief.
         reasons.update(
-            {i: "phase_relief" for i in wanted if abs(wanted[i] - before[i]) > 1.0}
+            {
+                i: "phase_relief"
+                for i in wanted
+                if abs(wanted[i] - before[i]) > 1.0 or i in self._relief_helpers
+            }
         )
         self._relief_ids = {i for i, r in reasons.items() if r == "phase_relief"}
         before = dict(wanted)
@@ -787,7 +801,9 @@ class VirtualBatterySimulator:
             {
                 i: "peak_shaving"
                 for i in wanted
-                if abs(wanted[i] - before[i]) > 1.0 and wanted[i] < -0.5
+                if wanted[i] < -0.5
+                and (abs(wanted[i] - before[i]) > 1.0 or i in self._peak_helpers)
+                and reasons.get(i) != "phase_relief"
             }
         )
         # The user's last say (interceptor module), then HomeBatteryAssist's
@@ -831,12 +847,19 @@ class VirtualBatterySimulator:
             reacting[config.id] = self._response(config.id).apply(
                 now, commands[config.id]
             )
-        if any(w > 0.5 for w in reacting.values()) and any(
-            w < -0.5 for w in reacting.values()
+        commanded_both = any(w > 0.5 for w in commands.values()) and any(
+            w < -0.5 for w in commands.values()
+        )
+        if (
+            not commanded_both
+            and any(w > 0.5 for w in reacting.values())
+            and any(w < -0.5 for w in reacting.values())
         ):
             # A battery still ramping out of the old direction: the others
             # wait at 0 until it is there (never one charging while another
-            # discharges, also while they react).
+            # discharges, also while they react). Not when both directions
+            # were commanded: that is the protection of two phases
+            # overloaded the opposite way (one_direction), which stands.
             direction = 1 if sum(commands.values()) >= 0 else -1
             for i, w in reacting.items():
                 if w * direction > 0.5 and any(
@@ -856,7 +879,7 @@ class VirtualBatterySimulator:
             if abs(power - reacting[config.id]) > 0.5:
                 self._response(config.id).hold(power, now)  # full / empty: stops
             powers[config.id] = power
-            self._batteries.set_virtual(config.id, now, power, soc)
+            self._batteries.set_virtual(config.id, now, power, soc, now - elapsed)
         # A round counts for the control quality when zero on the meter
         # could do what it asked (no protection, limit or full battery).
         placed = sum(asked[c.id] for c in self.virtual if not full[c.id])
@@ -889,6 +912,7 @@ class VirtualBatterySimulator:
         hours: float,
     ) -> dict[str, float]:
         """Phase protection: take load off an overloaded phase; explain it."""
+        self._relief_helpers = set()
         flow = self._flow()
         if flow is None or not flow.phase_w:
             return wanted
@@ -922,10 +946,13 @@ class VirtualBatterySimulator:
         self.relief_now = dict(relieved)
         for index, power in relieved.items():
             event = self.relief.get(index)
+            # Only those working against the overload (discharging on an
+            # importing phase, charging on an exporting one).
+            sign = -1.0 if flow.phase_load_w[index] > 0 else 1.0
             helpers = [
                 d.id
                 for d in devices
-                if d.phase in (index, None) and abs(result[d.id]) > 1
+                if d.phase in (index, None) and result[d.id] * sign > 1
             ]
             if event is None:
                 discharging = flow.phase_load_w[index] > 0
@@ -951,6 +978,7 @@ class VirtualBatterySimulator:
             event["seen"] = now
             event["wh"] += power * hours
             event["names"] |= {names[i] for i in helpers}
+            self._relief_helpers.update(helpers)
         for index, event in list(self.relief.items()):
             if index not in relieved and now - event["seen"] >= RELIEF_END_AFTER:
                 del self.relief[index]
@@ -978,6 +1006,7 @@ class VirtualBatterySimulator:
         hours: float,
     ) -> dict[str, float]:
         """Keep the total grid import below the peak limit; explain it."""
+        self._peak_helpers = set()
         peak = self._forecast.peak_w
         flow = self._flow()
         if peak <= 0 or flow is None:
@@ -999,6 +1028,13 @@ class VirtualBatterySimulator:
             ],
             keep=getattr(self, "_relief_ids", set()),
         )
+        # Above the peak without the batteries: every one discharging now
+        # protects it (also one that already did, unchanged by shave_peak).
+        checked_now = flow.grid_w - (
+            0.0 if self._forecast.peak_include_excluded else flow.excluded_w
+        )
+        if checked_now - peak > 0.5:
+            self._peak_helpers = {i for i, w in result.items() if w < -0.5}
         dutch = (self.hass.config.language or "").startswith("nl")
         self.peak_now = shaved
         if shaved > 0:

@@ -83,7 +83,7 @@ def follow(data: PlannerInput, fixed_actions: bool) -> PlannerResult:
             full = True
         powers.append(own)
         reasons.append(fixed.reason if fixed is not None else None)
-    return PlannerResult(powers, reasons)
+    return PlannerResult(powers, reasons, forced_included=False)
 
 
 class NomPlanner(Planner):

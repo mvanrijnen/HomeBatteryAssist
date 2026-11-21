@@ -1779,10 +1779,17 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         if self.weather is None:
             return None
         try:
-            return valid_temperature(self.weather.temperature_now(self.hass))
+            value = valid_temperature(self.weather.temperature_now(self.hass))
         except Exception:  # an own weather source may fail in any way
-            _LOGGER.exception("Weather source %s failed", self.weather_key)
+            # Called on every measurement: the traceback once, until it works.
+            if not getattr(self, "_weather_failed", False):
+                self._weather_failed = True
+                _LOGGER.exception("Weather source %s failed", self.weather_key)
             return None
+        if getattr(self, "_weather_failed", False):
+            self._weather_failed = False
+            _LOGGER.info("Weather source %s works again", self.weather_key)
+        return value
 
     async def _async_read_temperature(
         self, window: PlanningWindow, step: timedelta, now: datetime

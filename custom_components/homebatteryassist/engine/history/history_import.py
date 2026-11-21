@@ -46,6 +46,10 @@ class Term:
     required: bool = False  # grid sensors: without them no value
     # Required for the periods of a series that has this sensor at all (PV)
     required_when_known: bool = False
+    # Required between its first and last statistic (a battery or excluded
+    # device: before it existed it was 0 W; a gap in between is unknown,
+    # as live, not 0 W)
+    required_within: bool = False
 
 
 def formula_terms(
@@ -75,12 +79,15 @@ def formula_terms(
         Term(e, 1.0, absolute=True, required_when_known=True)
         for e in data.measurements.pv_sensors
     ]
-    terms += [Term(e, -1.0, absolute=True) for e in data.measurements.excluded_sensors]
+    terms += [
+        Term(e, -1.0, absolute=True, required_within=True)
+        for e in data.measurements.excluded_sensors
+    ]
     real = [b for b in data.batteries.configs if not b.virtual]
     for index, battery in enumerate(real):
         # house -= charging; charging = -sensor if the sensor is + discharging.
         weight = 1.0 if battery.power_sign == SIGN_DISCHARGING_POSITIVE else -1.0
-        terms.append(Term(battery.power_sensor, weight))
+        terms.append(Term(battery.power_sensor, weight, required_within=True))
         if index == 0:  # older sensors of the (first) battery, same sign
             terms += [Term(e, weight) for e in battery_power_history]
     return terms
@@ -95,14 +102,22 @@ def combine(
     practice; their values are simply added.
     """
     result: dict[datetime, float] = {}
+    spans = {
+        t.entity_id: (min(known), max(known))
+        for t in terms
+        if t.required_within and (known := series.get(t.entity_id))
+    }
     for start in starts:
         total = 0.0
         complete = True
         for term in terms:
             value = series.get(term.entity_id, {}).get(start)
             if value is None:
-                if term.required or (
-                    term.required_when_known and series.get(term.entity_id)
+                span = spans.get(term.entity_id) if term.required_within else None
+                if (
+                    term.required
+                    or (term.required_when_known and series.get(term.entity_id))
+                    or (span is not None and span[0] <= start <= span[1])
                 ):
                     complete = False
                     break

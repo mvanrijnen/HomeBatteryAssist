@@ -113,6 +113,9 @@ async def test_frozen_battery_power_counts_as_unknown(
     await hass.async_block_till_done()
     assert hass.states.get(house).state == "unavailable"
     assert measurements.stale == ["sensor.marstek_power"]
+    # The grid meter is fine: the grid connection's flow stays.
+    assert measurements.meter_flow is not None
+    assert measurements.meter_flow.grid_w == 500.0
     report("0")  # idle now
     freezer.tick(timedelta(seconds=100))
     report(None)

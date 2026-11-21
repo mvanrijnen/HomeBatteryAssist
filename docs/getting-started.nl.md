@@ -116,6 +116,8 @@ data:
   days: 28
 ```
 
+Een periode waarin het net, een batterij of een uitgesloten apparaat (bijv. een laadpaal) geen statistieken heeft, wordt overgeslagen, net als live (als 0 W tellen zou een ontlading of een laadsessie als huisverbruik vastleggen); van vóór een batterij of apparaat werd toegevoegd telt die als 0 W.
+
 Importeer je niets, dan begint HomeBatteryAssist gewoon vanaf nu te leren.
 
 ## Stap 8 — Open het dashboard {#step-8-open-the-dashboard}

@@ -829,10 +829,22 @@ class BatteryInput:
 
     @callback
     def set_virtual(
-        self, battery_id: str, when: datetime, power_w: float, soc: float
+        self,
+        battery_id: str,
+        when: datetime,
+        power_w: float,
+        soc: float,
+        since: datetime | None = None,
     ) -> None:
-        """Update a virtual battery from the simulation."""
+        """Update a virtual battery from the simulation: ``power_w`` is what
+        it did from ``since`` to ``when`` (the round its state of charge
+        moved for), so the counters and the value count that power over that
+        stretch, as the state of charge does (a stretch longer than the
+        simulation's, after a gap, only for the part simulated)."""
         config = next(c for c in self.configs if c.id == battery_id)
+        last = self._last_power.get(battery_id)
+        if since is not None and last is not None:
+            self._last_power[battery_id] = (max(last[0], since), power_w)
         self.stats[battery_id]["virtual_soc"] = soc
         self._update(config, when, BatteryState(config, soc, power_w))
 

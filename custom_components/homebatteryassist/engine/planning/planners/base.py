@@ -147,6 +147,10 @@ class PlannerResult:
     powers: list[float]
     reasons: list[str | None] | None = None
     strategy: str | None = None
+    # The powers include the periodic full charge it was given
+    # (``PlannerInput.forced``, as arbitrage does); False: only the planner's
+    # own power (zero on the meter), the final step adds the full charge.
+    forced_included: bool = True
 
 
 class Planner:

@@ -669,9 +669,14 @@ class ForecastAccuracySensor(
 
     @property
     def native_unit_of_measurement(self) -> str | None:
-        """Price errors are in the unit of the price sensor."""
+        """Price errors are in the unit of the price sensor; the last known
+        one while the price source gives nothing (a unit dropping away for a
+        cycle would stop the long-term statistics)."""
         if self._kind == "price":
-            return self.coordinator.data.price_unit
+            unit = getattr(self.coordinator.data, "price_unit", None)
+            if unit:
+                self._price_unit = unit
+            return getattr(self, "_price_unit", None)
         return self._attr_native_unit_of_measurement
 
     @property

@@ -47,14 +47,21 @@ the dashboard simulates is what would be sent:
    release (back to its own control); what is held back may be taken over
    by the approved batteries. ``run_interceptor`` holds it to that. Where
    phase relief or peak shaving set the power, that power stands: the
-   interceptor cannot undo protection.
+   interceptor cannot undo protection. That holds also for a battery that
+   already protects without a change (discharging on an importing phase
+   that relief counted as taken, ``_relief_helpers``; discharging while the
+   grid without the batteries is above the peak, ``_peak_helpers``); a
+   battery held back by the charge hysteresis is offered with
+   ``max_soc`` = its state of charge, so a redistribution never charges it.
    **Never one battery charging while another discharges**
    (``battery_distribution.one_direction``): protection first, then a full
    charge sets the direction and the batteries against it stop; otherwise
    the net stands (the grid sees the same, without the losses of moving
    energy from one battery into the other).
    Exception: two phases overloaded the opposite way are both relieved (the
-   main fuse first). The system's max charge / discharge power is a hard
+   main fuse first); the wait for a battery still ramping out of the old
+   direction (the others at 0 W) is skipped then, it would stop one of
+   them. The system's max charge / discharge power is a hard
    limit, also for protection (``virtual.system_limited``).
 6. **HomeBatteryAssist's own final check**, which always wins: phase limits
    (``_phase_limited``), power limits and the state of charge: never below

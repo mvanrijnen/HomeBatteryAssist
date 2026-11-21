@@ -261,8 +261,10 @@ def _pack(
         max_charge=max_charge,
         max_discharge=max_discharge,
         rules=rules,
-        night_floor=at(rules.night_reserve_soc),
-        peak_floor=at(rules.peak_reserve_soc),
+        # A battery below its minimum does not hide another's room at night
+        # or under the peak reserve either.
+        night_floor=max(at(rules.night_reserve_soc) - below, 0.0),
+        peak_floor=max(at(rules.peak_reserve_soc) - below, 0.0),
         eff=math.sqrt(
             sum(s.config.efficiency * s.config.capacity_kwh for s in usable)
             / (capacity / 1000)
@@ -328,7 +330,8 @@ def night_starts(
     """The slots (by start) of the night reserve: per local day outside the
     first to the last slot with sun (expected PV >= ``SUN_W``), so from the
     evening until the sun is up again. Empty without a PV forecast (when the
-    sun comes up is not known then)."""
+    sun comes up is not known then); a day the PV forecast does not reach
+    (no hour of it) is left out too, not taken as one long night."""
     if not pv_wh:
         return set()
     days: dict[date, list[ForecastSlot]] = {}
@@ -336,6 +339,10 @@ def night_starts(
         days.setdefault(dt_util.as_local(slot.start).date(), []).append(slot)
     result: set[datetime] = set()
     for slots in days.values():
+        if not any(
+            s.start.replace(minute=0, second=0, microsecond=0) in pv_wh for s in slots
+        ):
+            continue  # beyond the PV forecast: when the sun is up is not known
         sun = [
             i
             for i, s in enumerate(slots)
@@ -651,7 +658,11 @@ def finalise(
         if extra > 0 and data.peak_w > 0:
             # Not above the peak limit (live, peak shaving would cut it).
             extra = min(extra, max(data.peak_w - slot.net_w, 0.0))
-        if asked - extra > 0.5 and requested >= asked - 1.0:
+        if (
+            getattr(result, "forced_included", True)
+            and asked - extra > 0.5
+            and requested >= asked - 1.0
+        ):
             # The planner charged at least the full charge it was given, but
             # its battery takes less now (full): not that part, it would go
             # to the other batteries (from the grid).
