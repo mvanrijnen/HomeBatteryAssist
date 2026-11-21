@@ -100,6 +100,9 @@ class ControlTest:
         self.power_w = dict.fromkeys(self.configs, float(DEFAULT_POWER_W))
         self.minutes = dict.fromkeys(self.configs, float(DEFAULT_MINUTES))
         self.runs: dict[str, TestRun] = {}
+        # Stopped tests whose release failed: retried every tick until the
+        # battery is back under its own control.
+        self.releasing: dict[str, BatteryController] = {}
         self._listeners: list[Callable[[], None]] = []
         self._unsub: CALLBACK_TYPE | None = None
 
@@ -215,35 +218,64 @@ class ControlTest:
             await self.async_stop(battery_id, "error")
 
     async def _async_tick(self, now: datetime) -> None:
+        for battery_id, controller in list(self.releasing.items()):
+            await controller.async_tick(now)  # retries the release
+            if not controller.state.release_pending:
+                del self.releasing[battery_id]
         for battery_id in list(self.runs):
-            run = self.runs[battery_id]
-            config = self.configs[battery_id]
-            check = self._commands.checks.get(battery_id) if self._commands else None
-            reason = (
-                "done"
-                if now >= run.until
-                else "error"
-                if run.controller.errors
-                else "not_following"
-                if check is not None and check.problem
-                else self._refusal(config, run.power_w > 0)
-            )
-            if reason is not None:
-                await self.async_stop(battery_id, reason)
-                continue
-            # A fresh target keeps the watchdog quiet; the controller sends
-            # only what changed (and refreshes when the driver needs it).
-            await run.controller.async_command(run.power_w, now)
+            try:
+                await self._async_tick_run(battery_id, now)
+            except Exception:
+                # Whatever went wrong: this test stops (and releases), the
+                # others go on.
+                _LOGGER.exception("Control test of %s failed; stopping", battery_id)
+                await self.async_stop(battery_id, "error")
+        self._stop_timer_when_idle()
+
+    async def _async_tick_run(self, battery_id: str, now: datetime) -> None:
+        run = self.runs[battery_id]
+        config = self.configs[battery_id]
+        check = self._commands.checks.get(battery_id) if self._commands else None
+        reason = (
+            "done"
+            if now >= run.until
+            else "error"
+            if run.controller.errors
+            else "not_following"
+            if check is not None and check.problem
+            else self._refusal(config, run.power_w > 0)
+        )
+        if reason is not None:
+            await self.async_stop(battery_id, reason)
+            return
+        # A fresh target keeps the watchdog quiet; the controller sends
+        # only what changed (and refreshes when the driver needs it).
+        await run.controller.async_command(run.power_w, now)
+
+    def _stop_timer_when_idle(self) -> None:
+        if not self.runs and not self.releasing and self._unsub is not None:
+            self._unsub()
+            self._unsub = None
 
     async def async_stop(self, battery_id: str, reason: str = "stopped") -> None:
         """Stop a test (if any) and hand the battery back to its own control."""
         run = self.runs.pop(battery_id, None)
         if run is None:
             return
-        await run.controller.async_stop()
-        if not self.runs and self._unsub is not None:
-            self._unsub()
-            self._unsub = None
+        try:
+            await run.controller.async_stop()
+        except Exception:
+            _LOGGER.exception("Releasing %s failed", battery_id)
+            run.controller.state.release_pending = True
+        if run.controller.state.release_pending:
+            # The release failed: tried again every tick (the battery must
+            # not stay forced while the test counts as stopped).
+            self.releasing[battery_id] = run.controller
+            if self._unsub is None:
+                self._unsub = async_track_time_interval(
+                    self.hass, self._async_tick, TICK
+                )
+        self._stop_timer_when_idle()
         stats = self._batteries.stats[battery_id]
         minutes = (dt_util.utcnow() - run.start).total_seconds() / 60
         self._decisions.async_log(
@@ -262,7 +294,13 @@ class ControlTest:
         comma = (self.hass.config.language or "").startswith("nl")
         return text.replace(".", ",") if comma else text
 
-    async def async_stop_all(self) -> None:
-        """Stop every test (HomeBatteryAssist stops or reloads)."""
+    async def async_stop_all(self, _event: Any = None) -> None:
+        """Stop every test (HomeBatteryAssist stops or reloads, Home
+        Assistant stops) and release; a failed release is tried once more."""
         for battery_id in list(self.runs):
             await self.async_stop(battery_id, "unload")
+        for battery_id, controller in list(self.releasing.items()):
+            await controller.async_release("retry")
+            if not controller.state.release_pending:
+                del self.releasing[battery_id]
+        self._stop_timer_when_idle()

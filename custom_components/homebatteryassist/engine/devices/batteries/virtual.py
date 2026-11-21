@@ -98,6 +98,8 @@ LIMIT_CLEAR_AFTER = timedelta(minutes=5)  # no phase limit this long: log it
 INTERCEPT_HORIZON = timedelta(hours=8)  # coming slots an interceptor sees
 RELIEF_END_AFTER = timedelta(minutes=1)  # phase back under the limit this long
 REACT_INTERVAL = timedelta(seconds=2)  # fastest extra step on an overload
+# A twinned real battery unknown this long before Why tells the hold.
+TWIN_UNKNOWN_TELL = timedelta(seconds=30)
 # The grid voltage stays within 230 V +/- 10 % (EN 50160): the range of the
 # active current where the voltage is not measured.
 VOLTAGE_MIN = 207.0
@@ -526,12 +528,20 @@ class VirtualBatterySimulator:
                 if c.id in twinned and batteries.states[c.id].power_w is None
             ]
             if unknown:
-                if not getattr(self, "_twin_lost", False):
+                now = dt_util.utcnow()
+                since = getattr(self, "_twin_unknown_since", None) or now
+                self._twin_unknown_since = since
+                if (
+                    not getattr(self, "_twin_lost", False)
+                    and now >= getattr(self, "_quiet_until", now)
+                    and now - since >= TWIN_UNKNOWN_TELL
+                ):
                     self._twin_lost = True
                     self._decisions.async_log(
                         "battery", "twin_real_unknown_hold", names=", ".join(unknown)
                     )
                 return dict.fromkeys(wanted, 0.0)
+            self._twin_unknown_since = None
             if getattr(self, "_twin_lost", False):
                 self._twin_lost = False
                 self._decisions.async_log("battery", "twin_real_back_resume")
@@ -722,8 +732,12 @@ class VirtualBatterySimulator:
         # never counts the excluded devices or an ignored peak.
         error = flow.grid_w + power - self._forecast.rules.nom_target_w
         if error > 0:
+            # The ignored peak over the same time as the averaged grid.
             ignore = self._forecast.spike_ignore_w(
-                self._measurements.spike.ignore_w, now
+                self._round_ignore
+                if self._round_ignore is not None
+                else self._measurements.spike.ignore_w,
+                now,
             )
             error = max(error - flow.excluded_w - max(ignore, 0.0), 0.0)
         self.quality.add(now, error, power)
@@ -1291,18 +1305,20 @@ class VirtualBatterySimulator:
                 if self._protected_last:
                     # Protection (or the interceptor) set the power last
                     # round: zero on the meter starts anew from what it wants,
-                    # not from the protection's power.
-                    self._pd.reset()
-                    commanded = None
-                    actual = total
-                total = self._pd.step(
-                    total,
-                    actual,
-                    commanded,
-                    # Direct: the whole gap in every round (also an extra
-                    # one); PD: its gain per reaction interval of time.
-                    1.0 if self._direct else hours * 3600 / interval.total_seconds(),
-                )
+                    # not from the protection's power; the derivative from
+                    # what the batteries really do (no kick next round).
+                    self._pd.restart(actual)
+                else:
+                    total = self._pd.step(
+                        total,
+                        actual,
+                        commanded,
+                        # Direct: the whole gap in every round (also an
+                        # extra one); PD: its gain per reaction interval.
+                        1.0
+                        if self._direct
+                        else hours * 3600 / interval.total_seconds(),
+                    )
             else:
                 self._pd.reset()  # no meter: start anew when it is back
             unlimited = total

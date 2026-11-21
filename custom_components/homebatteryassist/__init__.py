@@ -239,6 +239,9 @@ async def async_setup_entry(
             "last_full_charge"
         )
         forecast.full_charge_since = batteries.full_charge_since
+        forecast.last_full_charge = lambda battery_id: batteries.stats.get(
+            battery_id, {}
+        ).get("last_full_charge")
 
         def _price_now(when: datetime | None = None) -> float | None:
             data, now = forecast.data, when or dt_util.utcnow()
@@ -589,6 +592,13 @@ async def async_setup_entry(
             commands=commands,
         )
         entry.async_on_unload(control_test.async_stop_all)
+        # Home Assistant stopping does not unload the entry: a running test
+        # is stopped (and the battery released) then too.
+        entry.async_on_unload(
+            hass.bus.async_listen_once(
+                EVENT_HOMEASSISTANT_STOP, control_test.async_stop_all
+            )
+        )
 
         # Battery control — WRITTEN OUT, NOT ACTIVE (engine/control/control_loop.py;
         # see "Activating" there). Once active it runs next to the simulator, on
@@ -607,6 +617,12 @@ async def async_setup_entry(
         # )
         # control.async_start()
         # entry.async_on_unload(control.async_stop)
+        # # Home Assistant stopping does not unload: release then too.
+        # entry.async_on_unload(
+        #     hass.bus.async_listen_once(
+        #         EVENT_HOMEASSISTANT_STOP, lambda _e: control.async_stop()
+        #     )
+        # )
 
         # The export limit (PV inverters): shown and explained; nothing is sent.
         options = entry.options

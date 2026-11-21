@@ -91,7 +91,10 @@ the dashboard simulates is what would be sent:
    is measured again (``meter_lost_hold``).
 7. Per battery ``controller.async_command(power)`` (a released battery:
    ``controller.async_command(None)``, which releases it); the controller
-   decides whether and when it is really sent.
+   decides whether and when it is really sent. A stop while a command is
+   being sent releases once it returns (``BatteryController.stopped``); a
+   failed release is retried every tick; the loop stops (and releases) on
+   unload and when Home Assistant stops.
 8. Per round the loop feeds ``ControlQuality`` (``devices/batteries/
    control_quality.py``, as the virtual batteries do in ``_observe_quality``)
    with the grid error after the batteries' reaction — for real batteries
@@ -109,7 +112,8 @@ the dashboard simulates is what would be sent:
    Direct closes the whole gap in every round (also an extra one on a jump,
    overload or peak); PD scales its step by the time since the previous
    round. After a round in which protection or the interceptor set a power,
-   zero on the meter starts from what it wants (PD reset), not from that
+   zero on the meter starts from what it wants (``PdController.restart``
+   with the measured power, so the derivative gets no kick), not from that
    power. The grid and the ignored spike are averaged over the same time:
    from the previous round (at most a round back), so an extra round does not
    count again what the round before already acted on.

@@ -119,7 +119,7 @@ def test_evening_stays_night_with_daylight_only_pv() -> None:
         dt_util.set_default_time_zone(old)
 
 
-def test_twin_real_unknown_holds_and_explains() -> None:
+def test_twin_real_unknown_holds_and_explains(monkeypatch) -> None:
     """A real battery with a twin whose power is unknown: the virtual
     batteries hold (the grid without it is unknown), and Why says so once."""
     from custom_components.homebatteryassist.engine.measure.battery_monitor import (
@@ -133,6 +133,9 @@ def test_twin_real_unknown_holds_and_explains() -> None:
     batteries.states["R"] = BatteryState(real, 50.0, None)
     logged = []
     sim._decisions = SimpleNamespace(async_log=lambda *a, **k: logged.append(a[1]))
+    from custom_components.homebatteryassist.engine.devices.batteries import virtual
+
+    monkeypatch.setattr(virtual, "TWIN_UNKNOWN_TELL", timedelta(0))
     sim.step(T1 + timedelta(seconds=5))
     assert batteries.states["A"].power_w == 0.0
     sim.step(T1 + timedelta(seconds=10))

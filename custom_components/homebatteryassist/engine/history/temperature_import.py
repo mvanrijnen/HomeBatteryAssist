@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
+from ...const import NOMINAL_VOLTAGE
 from ..measure.heating_zones import HeatingZone
 from ..sources.weather import valid_indoor, valid_temperature
 from .consumption_history import ConsumptionHistory
@@ -68,7 +69,10 @@ def fill_zone(
         if zone_id in zones or (hour := _hour(record)) is None:
             continue
         watts = power.get(hour)
-        if watts is None or not math.isfinite(watts) or watts < 0:
+        if watts is None or not math.isfinite(watts):
+            continue
+        watts = abs(watts)  # as live: a sensor may sign heating negative
+        if watts < 0:
             continue
         values: dict[str, float] = {"w": round(watts, 1)}
         if (room := valid_indoor((indoor or {}).get(hour))) is not None:
@@ -132,10 +136,17 @@ async def async_import_zones(
     means = await _hourly_means(hass, sensors, first - timedelta(hours=1))
     filled = 0
     for zone in zones:
+        # A sensor in A (or mA) as live: x 230 V.
+        state = hass.states.get(zone.power_sensor)
+        unit = state.attributes.get("unit_of_measurement") if state else None
+        amps = {"A": 1.0, "mA": 0.001}.get(str(unit or ""))
+        power = means.get(zone.power_sensor, {})
+        if amps is not None:
+            power = {h: w * amps * NOMINAL_VOLTAGE for h, w in power.items()}
         count = fill_zone(
             history,
             zone.zone_id,
-            means.get(zone.power_sensor, {}),
+            power,
             means.get(zone.indoor_sensor or "", {}),
             means.get(zone.outdoor_sensor or "", {}),
         )

@@ -477,6 +477,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self.timings: dict[str, float] = {}  # ms per step, last cycle
         # When the full charge interval counts from (set by __init__).
         self.full_charge_since: Callable[[str], str | None] = lambda _id: None
+        # The last real full charge (None: never), for the explanation; the
+        # interval counts from first seen when there was none.
+        self.last_full_charge: Callable[[str], str | None] = lambda _id: None
         self._phase_rooms: dict = {}
         self._story_band: int | None = None
         self._adjusted_starts: set[datetime] = set()
@@ -1716,7 +1719,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 start=charge.start,
                 end=charge.end,
                 deadline=charge.deadline,
-                last=charge.last_full
+                last=(
+                    charge.last_full
+                    if self.last_full_charge(charge.battery_id)
+                    else None
+                )
                 or (
                     "nooit"
                     if (self.hass.config.language or "").startswith("nl")

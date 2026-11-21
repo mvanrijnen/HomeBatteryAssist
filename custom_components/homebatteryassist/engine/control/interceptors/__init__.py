@@ -188,10 +188,13 @@ def _redistribute(
     direction, up to their limits, in proportion to the room they have."""
     changed = {battery_id for battery_id, *_ in outcome.changes}
     for sign in (1.0, -1.0):
+        # A released battery is back under its own control, which covers
+        # the load itself: its part is not handed to the others (both would
+        # cover it, and the rest would be exported).
         missing = sum(
             sign * (proposed[i] - outcome.powers[i])
             for i in changed
-            if sign * proposed[i] > 0
+            if sign * proposed[i] > 0 and i not in outcome.released
         )
         if missing <= 1:
             continue

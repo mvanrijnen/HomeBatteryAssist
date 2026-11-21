@@ -360,18 +360,24 @@ def fit_temperature(
     now: datetime,
     zone: str | None = None,
     name: str = "",
+    _target: str | None = None,
 ) -> TemperatureModel | None:
     """Learn the temperature effect of the house (``zone`` None) or of one
     zone from ``records`` (None: not enough)."""
-    if zone is None:
+    if zone is None and _target is None:
         # The heating devices once they have enough days of their own; until
-        # then the whole house (a new device must not switch the step off).
+        # then the whole house (a new device must not switch the step off,
+        # also not while its days are still too few or too partial for a
+        # fit of their own).
         heating_days = {
             str(r.get("start", ""))[:10] for r in records if "heating_w" in r
         }
-        target = "heating_w" if len(heating_days) >= MIN_DAYS else "avg_w"
-    else:
-        target = "zone"
+        if len(heating_days) >= MIN_DAYS:
+            model = fit_temperature(records, now, None, name, "heating_w")
+            if model is not None:
+                return model
+        return fit_temperature(records, now, None, name, "avg_w")
+    target = _target or "zone"
     rows = _rows(records, zone, target)
     if not rows:
         return None

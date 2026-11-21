@@ -218,3 +218,12 @@ def test_later_block_reaches_full() -> None:
                 )
             if mode == "nom":  # it discharged before: the block charges fully
                 assert powers[6] >= 2400.0, (mode, count, powers)
+
+
+def test_deadline_closer_than_the_block() -> None:
+    """Due within 15 minutes, the block takes 30: still planned (within the
+    window, as when overdue), not left until the deadline has passed."""
+    prices = _prices([0.30, 0.05, 0.10, 0.30])
+    last = {"a": NOW - 28 * D + timedelta(minutes=15)}
+    (charge,) = schedule_full_charges([_battery("a")], last, prices, 3, NOW)
+    assert charge.start >= NOW and charge.end - charge.start == timedelta(minutes=30)

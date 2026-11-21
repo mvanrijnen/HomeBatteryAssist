@@ -16,6 +16,7 @@ Both only touch HomeBatteryAssist's own data; no device is ever controlled.
 
 from __future__ import annotations
 
+import logging
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -36,9 +37,15 @@ from homeassistant.util import dt as dt_util
 from .const import CONF_PLAN_MODE, DOMAIN, HISTORY_RETENTION
 from .engine.evaluation.forecast_accuracy import ALL_BUCKETS, BUCKET_KEYS, KINDS, MODES
 from .engine.history.history_import import async_import_history
+from .engine.history.temperature_import import (
+    async_import_temperatures,
+    async_import_zones,
+)
 from .engine.planning.battery_plan import PLAN_MODES
 
 SERVICE_RECALCULATE = "recalculate"
+_LOGGER = logging.getLogger(__name__)
+
 SERVICE_IMPORT_HISTORY = "import_history"
 ATTR_DAYS = "days"
 ATTR_SOURCE_ENTITY = "source_entity"
@@ -222,6 +229,17 @@ def async_setup_services(hass: HomeAssistant) -> None:
         if history.excluded_days:
             history.exclude_days([date.fromisoformat(d) for d in history.excluded_days])
             await history.async_save()  # with the excluded days marked
+        # The imported records get their outdoor temperature and zones from
+        # the statistics too (as at start), else the temperature effect would
+        # drop out until the next restart.
+        forecast = entry.runtime_data.forecast
+        try:
+            if forecast.outdoor_sensor:
+                await async_import_temperatures(hass, history, forecast.outdoor_sensor)
+            if forecast.zones:
+                await async_import_zones(hass, history, forecast.zones)
+        except Exception:  # the recorder may be unavailable
+            _LOGGER.exception("Filling in past temperatures failed")
         entry.runtime_data.forecast.history_changed()  # learn from it at once
         await entry.runtime_data.forecast.async_request_refresh()
         entry.runtime_data.decisions.async_log(

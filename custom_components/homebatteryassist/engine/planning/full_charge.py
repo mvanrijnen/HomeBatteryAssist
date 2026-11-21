@@ -193,45 +193,60 @@ def schedule_full_charges(
                 n += 1
             return max(n, count)
 
-        # (rank, index, cost, slots, power)
+        # Before the deadline if a block fits; else (the deadline is closer
+        # than the block takes) within the window, as when it is overdue.
+        ends = [latest_end]
+        if deadline > now and (late := min(now + window, horizon_end)) > latest_end:
+            ends.append(late)
         best: tuple[float, int, float, int, float] | None = None
-        for i in range(len(slots) - count + 1):
-            n = length(i)
-            if n is None:
+        for latest_end in ends:
+            # (rank, index, cost, slots, power)
+            best = None
+            for i in range(len(slots) - count + 1):
+                n = length(i)
+                if n is None:
+                    break
+                block = slots[i : i + n]
+                start, end = block[0][0], block[-1][0] + step
+                if end > latest_end:
+                    break
+                if block[-1][0] - start != step * (n - 1):
+                    continue  # gap in the prices
+                if not allowed(start, end):
+                    continue  # another battery charges fully then
+                # What the energy charged costs: per slot the price of the energy
+                # charged in it (a slot the limits squeeze counts for less).
+                block_w = power if room is None else can_w
+                cost = left = 0.0
+                left = missing_wh
+                for when, price in block:
+                    w = (
+                        block_w
+                        if room is None
+                        else min(block_w, max(room(when, config.id), 0.0))
+                    )
+                    energy = min(w * eff * seconds / 3600, left)
+                    left -= energy
+                    rate = slot_price(when, price, w) if slot_price else price
+                    cost += rate * energy / 1000
+                rank = cost
+                if (
+                    preferred_day is not None
+                    and dt_util.as_local(start).weekday() != preferred_day
+                ):
+                    rank += 1000  # only when the preferred day is not possible
+                if best is None or rank < best[0]:
+                    # With limits per slot: at the most it can in every slot (the
+                    # length counted on that; finalise stops at 100 %).
+                    best = (
+                        rank,
+                        i,
+                        cost,
+                        n,
+                        power if room is None else round(can_w, 1),
+                    )
+            if best is not None:
                 break
-            block = slots[i : i + n]
-            start, end = block[0][0], block[-1][0] + step
-            if end > latest_end:
-                break
-            if block[-1][0] - start != step * (n - 1):
-                continue  # gap in the prices
-            if not allowed(start, end):
-                continue  # another battery charges fully then
-            # What the energy charged costs: per slot the price of the energy
-            # charged in it (a slot the limits squeeze counts for less).
-            block_w = power if room is None else can_w
-            cost = left = 0.0
-            left = missing_wh
-            for when, price in block:
-                w = (
-                    block_w
-                    if room is None
-                    else min(block_w, max(room(when, config.id), 0.0))
-                )
-                energy = min(w * eff * seconds / 3600, left)
-                left -= energy
-                rate = slot_price(when, price, w) if slot_price else price
-                cost += rate * energy / 1000
-            rank = cost
-            if (
-                preferred_day is not None
-                and dt_util.as_local(start).weekday() != preferred_day
-            ):
-                rank += 1000  # only when the preferred day is not possible
-            if best is None or rank < best[0]:
-                # With limits per slot: at the most it can in every slot (the
-                # length counted on that; finalise stops at 100 %).
-                best = (rank, i, cost, n, power if room is None else round(can_w, 1))
         if best is None:
             continue
         start = slots[best[1]][0]

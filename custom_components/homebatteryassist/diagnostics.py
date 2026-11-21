@@ -226,15 +226,18 @@ def _addresses(entry: Any) -> list[str]:
 
 
 def _mask(value: Any, addresses: list[str]) -> Any:
-    """``value`` with every address in a string replaced by REDACTED."""
+    """``value`` with every address in a string replaced by REDACTED (keys
+    too; a number that is an address, e.g. an SMA serial, as a whole)."""
     if not addresses:
         return value
     if isinstance(value, str):
         for address in addresses:
             value = value.replace(address, REDACTED)
         return value
+    if isinstance(value, int) and not isinstance(value, bool):
+        return REDACTED if str(value) in addresses else value
     if isinstance(value, dict):
-        return {k: _mask(v, addresses) for k, v in value.items()}
+        return {_mask(k, addresses): _mask(v, addresses) for k, v in value.items()}
     if isinstance(value, list | tuple):
         return [_mask(v, addresses) for v in value]
     return value

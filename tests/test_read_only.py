@@ -22,8 +22,19 @@ DEFINITIONS = (
 )
 FORBIDDEN = re.compile(
     r"async_set_power\(|async_release\(|BatteryController\(|"
-    r"\.enabled\s*=\s*True|write_registers?\(|mqtt\.async_publish"
+    r"\.enabled\s*=\s*True|write_registers?\(|mqtt\.async_publish|"
+    r"\benabled\s*=\s*True|\ballowed\s*=\s*True|setattr\([^)]*enabled|"
+    r"services\.call\(|async_post\(|async_rpc\(|async_write\("
 )
+# Anywhere (also in the control layer and the drivers): nothing switches
+# control on in code; the switches only exist as False defaults.
+SWITCHED_ON = re.compile(
+    r"\benabled\s*=\s*True|\ballowed\s*=\s*True|"
+    r"CONTROL_TEST_ALLOWED\s*(?::\s*Final\s*)?=\s*True|\bCONTROL\s*(?::\s*Final\s*)?=\s*True"
+)
+# The reader adapter is a driver that may be controlled at all; whether it
+# is decides the controller's master switch (``enabled`` False by default).
+SWITCH_ALLOWED = ("engine/control/reader_driver.py",)
 # Home Assistant actions that are allowed: notifications, reading prices and
 # reading the weather forecast.
 ALLOWED_ACTION_FILES = (
@@ -46,6 +57,30 @@ def test_nothing_calls_control() -> None:
         for name, text in _files()
         if not name.startswith(DEFINITIONS) and FORBIDDEN.search(text)
     ]
+    assert offenders == []
+
+
+def test_nothing_switches_control_on() -> None:
+    """No file (the control layer and the drivers included) switches a
+    controller, a direct driver or the test control on."""
+    offenders = []
+    for name, text in _files():
+        if name in SWITCH_ALLOWED:
+            continue
+        lines = text.splitlines()
+        for number, line in enumerate(lines):
+            if not SWITCHED_ON.search(line):
+                continue
+            # A Modbus client is allowed only right after the guarded open
+            # of an enabled driver (which refuses while it is disabled).
+            before = [x for x in lines[:number] if x.strip()][-1:]
+            guarded = (
+                "client.allowed = True" in line
+                and before
+                and ".async_open(" in before[0]
+            )
+            if not guarded:
+                offenders.append(f"{name}:{number + 1}")
     assert offenders == []
 
 
@@ -83,7 +118,11 @@ def test_control_loop_is_only_comment() -> None:
 
     tree = ast.parse((PACKAGE / "engine/control/control_loop.py").read_text("utf-8"))
     assert len(tree.body) == 1  # the docstring
-    assert isinstance(tree.body[0], ast.Expr)
+    statement = tree.body[0]
+    assert isinstance(statement, ast.Expr)
+    # A string, not an expression that runs (e.g. __import__("x").run()).
+    assert isinstance(statement.value, ast.Constant)
+    assert isinstance(statement.value.value, str)
 
 
 def test_control_test_switched_off() -> None:

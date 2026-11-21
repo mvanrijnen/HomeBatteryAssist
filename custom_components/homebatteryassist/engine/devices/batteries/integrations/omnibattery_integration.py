@@ -66,16 +66,26 @@ class OmnibatteryReader(EntityReader):
     async def async_set_power(
         self, hass: HomeAssistant, config: BatteryConfig, power_w: float
     ) -> None:
-        """Manual mode with a charge or discharge power (untested, unused)."""
+        """Manual mode with a charge or discharge power (untested, unused).
+
+        The powers first (the other direction to 0 before the new one, so
+        never both), then manual mode: the battery never runs at old values.
+        Without the manual mode switch nothing is written (an error: the
+        controller releases)."""
         entities = device_entities(hass, config)
         manual = entities.get(("switch", "battery_manual_mode"))
-        if manual:
-            await hass.services.async_call(
-                "switch", "turn_on", {"entity_id": manual}, blocking=True
-            )
-        await self._async_number(hass, config, "set_charge_power", max(power_w, 0.0))
-        await self._async_number(
-            hass, config, "set_discharge_power", max(-power_w, 0.0)
+        if not manual:
+            raise RuntimeError(f"{config.name}: no manual mode switch")
+        charge, discharge = max(power_w, 0.0), max(-power_w, 0.0)
+        first, second = (
+            (("set_discharge_power", discharge), ("set_charge_power", charge))
+            if power_w > 0
+            else (("set_charge_power", charge), ("set_discharge_power", discharge))
+        )
+        await self._async_number(hass, config, *first)
+        await self._async_number(hass, config, *second)
+        await hass.services.async_call(
+            "switch", "turn_on", {"entity_id": manual}, blocking=True
         )
 
     async def async_release(self, hass: HomeAssistant, config: BatteryConfig) -> None:

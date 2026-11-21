@@ -140,6 +140,9 @@ class BatteryController:
         self.limits = limits
         self.state = ControlState()
         self.errors = 0
+        # Stopped: no command is sent any more (one already being sent is
+        # undone by a release when it returns).
+        self.stopped = False
 
     async def async_command(
         self, power_w: float | None, now: datetime | None = None
@@ -148,6 +151,8 @@ class BatteryController:
         control is switched off."""
         if not self.enabled:
             raise ControlDisabled("battery control is switched off (read-only)")
+        if self.stopped:
+            return  # stopped: nothing more is sent
         now = now or dt_util.utcnow()
         if power_w is not None and not math.isfinite(power_w):
             # NaN would clamp to full discharge: release instead.
@@ -178,6 +183,12 @@ class BatteryController:
         if action.kind == "release":
             await self.async_release(action.reason)
             return
+        if self.stopped:
+            return
+        # Under external control from the moment the command goes out: a
+        # stop while it is being sent releases (else it would see "not
+        # active" and the battery would stay forced).
+        self.state.active = True
         try:
             await self.driver.async_set_power(action.power_w)
         except Exception:
@@ -185,8 +196,11 @@ class BatteryController:
             _LOGGER.exception("%s: command failed; releasing", self.driver.name)
             await self.async_release("error")
             return
+        if self.stopped:
+            # Stopped while the command was being sent: undo it.
+            await self.async_release("stop")
+            return
         self.state.sent_w, self.state.sent_at = action.power_w, now
-        self.state.active = True
 
     async def async_release(self, reason: str = "") -> None:
         """Hand control back to the battery (always tried; errors logged)."""
@@ -206,6 +220,8 @@ class BatteryController:
         self.state.active = False
 
     async def async_stop(self) -> None:
-        """Stop controlling: release if active."""
+        """Stop controlling: release if active (also while a command is
+        being sent); nothing is sent afterwards."""
+        self.stopped = True
         if self.state.active or self.state.release_pending:
             await self.async_release("stop")

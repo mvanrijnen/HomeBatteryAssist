@@ -203,9 +203,10 @@ async def test_fill_zone_from_statistics(hass: HomeAssistant) -> None:
         {NOW: 20.5, NOW + H: 21.0},
         {NOW: 4.0, NOW + H: 99.0},
     )
-    assert count == 1
+    assert count == 2
     assert history.records[0]["zones"] == {"z1": {"w": 400.0, "in": 20.5, "out": 4.0}}
-    assert "zones" not in history.records[1]  # negative power: skipped
+    # A sensor signing heating negative counts its size (as live).
+    assert history.records[1]["zones"]["z1"]["w"] == 3.0
     assert history.records[2]["zones"] == {"z1": {"w": 5.0}}
 
 

@@ -79,6 +79,12 @@ class PdController:
         self._previous_actual = None
         self._direction = 0
 
+    def restart(self, actual_w: float) -> None:
+        """Start anew from what the batteries do now (``actual_w``): the
+        next step's derivative works from that real measurement."""
+        self._previous_actual = actual_w
+        self._direction = 0
+
     def step(
         self,
         ideal_w: float,
