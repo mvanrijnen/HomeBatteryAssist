@@ -262,7 +262,9 @@ def _pack(
         max_discharge=max_discharge,
         rules=rules,
         # A battery below its minimum does not hide another's room at night
-        # or under the peak reserve either.
+        # or under the peak reserve either (its shortfall to the minimum; a
+        # battery between its minimum and the night level still counts at
+        # the night level: the pack's reserve, which arbitrage charges for).
         night_floor=max(at(rules.night_reserve_soc) - below, 0.0),
         peak_floor=max(at(rules.peak_reserve_soc) - below, 0.0),
         eff=math.sqrt(
@@ -330,18 +332,18 @@ def night_starts(
     """The slots (by start) of the night reserve: per local day outside the
     first to the last slot with sun (expected PV >= ``SUN_W``), so from the
     evening until the sun is up again. Empty without a PV forecast (when the
-    sun comes up is not known then); a day the PV forecast does not reach
-    (no hour of it) is left out too, not taken as one long night."""
+    sun comes up is not known then); a day after the last day the PV
+    forecast reaches is left out too, not taken as one long night (today's
+    evening stays night, also from a source that sends daylight hours only)."""
     if not pv_wh:
         return set()
     days: dict[date, list[ForecastSlot]] = {}
     for slot in consumption:
         days.setdefault(dt_util.as_local(slot.start).date(), []).append(slot)
     result: set[datetime] = set()
-    for slots in days.values():
-        if not any(
-            s.start.replace(minute=0, second=0, microsecond=0) in pv_wh for s in slots
-        ):
+    last_day = max(dt_util.as_local(start).date() for start in pv_wh)
+    for day, slots in days.items():
+        if day > last_day:
             continue  # beyond the PV forecast: when the sun is up is not known
         sun = [
             i

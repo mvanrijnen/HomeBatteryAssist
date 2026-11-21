@@ -106,6 +106,13 @@ the dashboard simulates is what would be sent:
    ``nom_control`` / Kp / Kd / max step / direction hysteresis. Tune it on
    the virtual batteries first (``sim_delay_s`` / ``sim_ramp_w_s`` set to
    what the real battery shows), then use the same settings here.
+   Direct closes the whole gap in every round (also an extra one on a jump,
+   overload or peak); PD scales its step by the time since the previous
+   round. After a round in which protection or the interceptor set a power,
+   zero on the meter starts from what it wants (PD reset), not from that
+   power. The grid and the ignored spike are averaged over the same time:
+   from the previous round (at most a round back), so an extra round does not
+   count again what the round before already acted on.
 
 **Does the battery follow?** ``CommandMonitor``
 (``engine/evaluation/command_check.py``, already active) reads every real

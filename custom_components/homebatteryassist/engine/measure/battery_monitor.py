@@ -951,8 +951,12 @@ class BatteryInput:
         stats = self.stats[battery_id]
         armed = self._armed.get(battery_id)
         if armed is None:
-            last = stats.get("last_soc")
-            armed = last is not None and last < FULL_CHARGE_SOC
+            # Kept in the counters (a restart keeps the flapping guard);
+            # without (older counters): armed by any value below full.
+            armed = stats.get("full_armed")
+            if armed is None:
+                last = stats.get("last_soc")
+                armed = (last if last is not None else soc) < FULL_CHARGE_SOC
         rearm = FULL_CHARGE_SOC - (
             FULL_REARM_PCT if stats.get("last_full_charge") else 0.0
         )
@@ -962,6 +966,7 @@ class BatteryInput:
         if reached:
             armed = False
         self._armed[battery_id] = armed
+        stats["full_armed"] = armed
         stats["last_soc"] = soc
         return reached
 

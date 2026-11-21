@@ -316,12 +316,25 @@ class ForecastAccuracy:
             entry[bucket] = round(value, 4)
         self._save_hourly()
 
-    def _settle(self, kind: Kind, actuals: Mapping[str, float]) -> int:
-        """Move predictions with a known actual value to the results."""
+    def _settle(
+        self,
+        kind: Kind,
+        actuals: Mapping[str, float],
+        minutes: Mapping[str, float] | None = None,
+    ) -> int:
+        """Move predictions with a known actual value to the results.
+        ``minutes``: the length of each actual; a prediction of another
+        length (the history interval changed) is dropped, not compared."""
         count = 0
         pending = self.predictions[kind]
         for start in [s for s in pending if s in actuals]:
             entry = pending.pop(start)
+            if minutes is not None and start in minutes:
+                begin = dt_util.parse_datetime(start)
+                end = dt_util.parse_datetime(str(entry.get("end")))
+                length = (end - begin).total_seconds() / 60 if begin and end else None
+                if length is not None and abs(length - minutes[start]) > 0.5:
+                    continue
             pred = {k: v for k, v in entry.items() if k in BUCKET_KEYS}
             if pred:
                 self.results[kind].append(
@@ -332,6 +345,7 @@ class ForecastAccuracy:
 
     def evaluate_consumption(self, records: Iterable[ConsumptionRecord]) -> int:
         """Compare with measured house consumption (own, well covered records)."""
+        records = list(records)
         actuals = {
             r["start"]: r["avg_w"]
             for r in records
@@ -341,10 +355,11 @@ class ForecastAccuracy:
             # the correction (else it pulls the forecast down after a trip).
             and not r.get("vacation")
         }
-        count = self._settle("consumption", actuals)
+        lengths = {r["start"]: r["minutes"] for r in records if "minutes" in r}
+        count = self._settle("consumption", actuals, lengths)
         for kind in self.kinds:
             if kind.startswith(FORECASTER_KIND):
-                self._settle(kind, actuals)
+                self._settle(kind, actuals, lengths)
         return count
 
     def evaluate_heating(self, records: Iterable[ConsumptionRecord]) -> int:

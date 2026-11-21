@@ -169,7 +169,9 @@ def test_round_average_over_the_meter() -> None:
         _flow=lambda: flow,
         _forecast=SimpleNamespace(react_interval=5 * s, react_average=True),
         # 1000 W for 4 s, then 3000 W for the last second
-        _samples=[(NOW, 1000.0, 0.0), (NOW + 4 * s, 3000.0, 0.0)],
+        # (time, grid, excluded, ignored spike)
+        _samples=[(NOW, 1000.0, 0.0, 0.0), (NOW + 4 * s, 3000.0, 0.0, 0.0)],
+        _round_start=None,
     )
     averaged = VirtualBatterySimulator._round_flow(sim, NOW + 5 * s)
     assert averaged.grid_w == 1400.0

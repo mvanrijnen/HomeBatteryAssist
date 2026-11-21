@@ -317,9 +317,17 @@ class VirtualBatterySimulator:
         self._full: set[str] = set()  # batteries waiting for the hysteresis
         # Grid values since the last round: (time, grid W, excluded W), for
         # the average over the round; the grid at the last round, for jumps.
-        self._samples: list[tuple[datetime, float, float]] = []
+        # (time, grid W, excluded W, ignored spike W) since the last round
+        self._samples: list[tuple[datetime, float, float, float]] = []
+        # The ignored spike averaged over the round (as the grid), the start
+        # of the round (the previous round), and whether protection or the
+        # interceptor set a battery's power last round.
+        self._round_ignore: float | None = None
+        self._round_start: datetime | None = None
+        self._protected_last = False
         self._step_grid: float | None = None
         self._meter_lost = False  # grid unknown: batteries held
+        self._twin_lost = False  # a twinned real battery unknown: held
         # No message while the meter starts up after a (re)start.
         self._quiet_until = dt_util.utcnow() + timedelta(minutes=2)
         # The interceptor (the user's last say) and what it did lately.
@@ -333,10 +341,11 @@ class VirtualBatterySimulator:
         # reaction of each battery to a new power.
         # Direct = the same loop at full gain: with a battery that reacts at
         # once it gives exactly what the grid asks (as before).
+        self._direct = getattr(forecast, "nom_control", CONTROL_DIRECT) != CONTROL_PD
         self._pd = PdController(
-            forecast.pd_settings
-            if getattr(forecast, "nom_control", CONTROL_DIRECT) == CONTROL_PD
-            else PdSettings(kp=1.0, kd=0.0, max_step_w=0, hysteresis_w=0)
+            PdSettings(kp=1.0, kd=0.0, max_step_w=0, hysteresis_w=0)
+            if self._direct
+            else forecast.pd_settings
         )
         # Last NOM command per battery (W), and whether this round's total
         # could be placed as zero on the meter wanted (control quality).
@@ -414,7 +423,10 @@ class VirtualBatterySimulator:
         the peak limit, or (when switched on) on a large jump of the grid."""
         flow = self._flow()
         if flow is not None:
-            self._samples.append((when, flow.grid_w, flow.excluded_w))
+            spike = getattr(self._measurements, "spike", None)
+            self._samples.append(
+                (when, flow.grid_w, flow.excluded_w, getattr(spike, "ignore_w", 0.0))
+            )
         if self._last is None or when - self._last < REACT_INTERVAL:
             return
         if flow is None or not flow.phase_w:
@@ -503,6 +515,26 @@ class VirtualBatterySimulator:
             if self._meter_lost:
                 self._meter_lost = False
                 self._decisions.async_log("battery", "meter_back_resume")
+            # The meter is there, but a real battery with a twin is unknown:
+            # the grid without it is unknown (``_flow``), nothing is done.
+            batteries = getattr(self, "_batteries", None)
+            configs = getattr(batteries, "configs", [])
+            twinned = twinned_ids(configs)
+            unknown = [
+                c.name
+                for c in configs
+                if c.id in twinned and batteries.states[c.id].power_w is None
+            ]
+            if unknown:
+                if not getattr(self, "_twin_lost", False):
+                    self._twin_lost = True
+                    self._decisions.async_log(
+                        "battery", "twin_real_unknown_hold", names=", ".join(unknown)
+                    )
+                return dict.fromkeys(wanted, 0.0)
+            if getattr(self, "_twin_lost", False):
+                self._twin_lost = False
+                self._decisions.async_log("battery", "twin_real_back_resume")
             return wanted
         if not self._meter_lost and dt_util.utcnow() >= self._quiet_until:
             self._meter_lost = True
@@ -512,29 +544,38 @@ class VirtualBatterySimulator:
     def _round_flow(self, now: datetime):
         """The grid as zero on the meter sees it: the average over the round
         (when switched on, time-weighted), else the last value."""
+        self._round_ignore = None
         flow = self._flow()
         interval = getattr(self._forecast, "react_interval", None) or STEP
+        # From the previous round (an extra round soon after it does not
+        # count again what that round already acted on), at most a round.
         start = now - interval
+        if self._round_start is not None and self._round_start > start:
+            start = self._round_start
         # The sample that was in force at the start of the round counts from
         # that start (else the beginning of the round is missing).
         older = [s for s in self._samples if s[0] < start]
         samples = [s for s in self._samples if s[0] >= start]
         if older:
-            samples.insert(0, (start, older[-1][1], older[-1][2]))
+            samples.insert(0, (start, *older[-1][1:]))
         if flow is None or not getattr(self._forecast, "react_average", True):
             return flow
         if len(samples) < 2:
             return flow
-        grid = excluded = seconds = 0.0
-        for (t1, g, x), (t2, _g, _x) in zip(
-            samples, [*samples[1:], (now, 0.0, 0.0)], strict=True
+        grid = excluded = ignored = seconds = 0.0
+        for (t1, g, x, i), (t2, *_rest) in zip(
+            samples, [*samples[1:], (now, 0.0, 0.0, 0.0)], strict=True
         ):
             span = max((t2 - t1).total_seconds(), 0.0)
             grid += g * span
             excluded += x * span
+            ignored += i * span
             seconds += span
         if seconds <= 0:
             return flow
+        # The ignored spike over the same time as the grid (a peak that just
+        # ended is still in the average: so is its ignored part).
+        self._round_ignore = ignored / seconds
         return replace(flow, grid_w=grid / seconds, excluded_w=excluded / seconds)
 
     def _reserve_floor(self, now: datetime, *, peak: bool = True) -> float:
@@ -719,6 +760,7 @@ class VirtualBatterySimulator:
     def step(self, now: datetime) -> None:
         """Let every virtual battery act for the time since the previous step."""
         last, self._last = self._last, now
+        self._round_start = last  # zero on the meter averages from here
         if last is None:
             return
         elapsed = min(now - last, MAX_STEP)
@@ -813,6 +855,7 @@ class VirtualBatterySimulator:
         # limit_power), which always wins.
         proposed = dict(wanted)
         wanted = self._intercept(wanted, socs, full, reasons, now)
+        overruled = any(abs(wanted[i] - proposed[i]) > 1.0 for i in wanted)
         # Protection is not the interceptor's to undo: where phase relief or
         # peak shaving set the power, that power stands.
         for i, reason in reasons.items():
@@ -895,6 +938,11 @@ class VirtualBatterySimulator:
             )
         )
         self._quality_round = sum(powers.values()) if free else None
+        # Protection or the interceptor set a power this round: next round
+        # zero on the meter starts from what it wants, not from that power.
+        self._protected_last = overruled or any(
+            r in ("phase_relief", "peak_shaving") for r in reasons.values()
+        )
         self._commands = (
             {c.id: commands[c.id] for c in self.virtual if not full[c.id]}
             if nom
@@ -1083,6 +1131,7 @@ class VirtualBatterySimulator:
         runs."""
         flow = self._flow()
         if flow is None or not flow.phase_w:
+            self.limited_phases = []
             return dict.fromkeys(wanted, 0.0)
         phases = len(flow.phase_w)
         max_current = self._measurements.max_current
@@ -1199,7 +1248,10 @@ class VirtualBatterySimulator:
             flow = self._round_flow(now)
             rules = self._forecast.rules
             ignore = self._forecast.spike_ignore_w(
-                self._measurements.spike.ignore_w, now
+                self._round_ignore
+                if self._round_ignore is not None
+                else self._measurements.spike.ignore_w,
+                now,
             )
             total = (
                 nom_balance(flow, rules.nom_target_w, ignore)
@@ -1236,11 +1288,20 @@ class VirtualBatterySimulator:
                     else None  # another set of batteries: from what they do
                 )
                 interval = getattr(self._forecast, "react_interval", None) or STEP
+                if self._protected_last:
+                    # Protection (or the interceptor) set the power last
+                    # round: zero on the meter starts anew from what it wants,
+                    # not from the protection's power.
+                    self._pd.reset()
+                    commanded = None
+                    actual = total
                 total = self._pd.step(
                     total,
                     actual,
                     commanded,
-                    hours * 3600 / interval.total_seconds(),
+                    # Direct: the whole gap in every round (also an extra
+                    # one); PD: its gain per reaction interval of time.
+                    1.0 if self._direct else hours * 3600 / interval.total_seconds(),
                 )
             else:
                 self._pd.reset()  # no meter: start anew when it is back

@@ -35,7 +35,7 @@ async def async_get_config_entry_diagnostics(
     """
     data = entry.runtime_data
     forecast = data.forecast.data
-    return {
+    result = {
         "config": {
             "data": async_redact_data(dict(entry.data), TO_REDACT),
             "options": async_redact_data(dict(entry.options), TO_REDACT),
@@ -196,6 +196,48 @@ async def async_get_config_entry_diagnostics(
         },
         "decisions": data.decisions.entries[-RECENT_DECISIONS:],
     }
+    # An address also in a text (a meter that gave no value: "label 1.2.3.4"
+    # in the missing inputs and in Why): masked everywhere.
+    return _mask(result, _addresses(entry))
+
+
+_ADDRESS_KEYS = {
+    "meter_address",
+    "pv_address",
+    "inverter_address",
+    "battery_meter_address",
+}
+
+
+def _addresses(entry: Any) -> list[str]:
+    """The configured device addresses (longest first, so a part of one is
+    not masked before the whole)."""
+    found = {
+        str(v).strip()
+        for source in (
+            entry.data,
+            entry.options,
+            *(s.data for s in entry.subentries.values()),
+        )
+        for k, v in source.items()
+        if k in _ADDRESS_KEYS and v and len(str(v).strip()) >= 3
+    }
+    return sorted(found, key=len, reverse=True)
+
+
+def _mask(value: Any, addresses: list[str]) -> Any:
+    """``value`` with every address in a string replaced by REDACTED."""
+    if not addresses:
+        return value
+    if isinstance(value, str):
+        for address in addresses:
+            value = value.replace(address, REDACTED)
+        return value
+    if isinstance(value, dict):
+        return {k: _mask(v, addresses) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [_mask(v, addresses) for v in value]
+    return value
 
 
 def _state(hass: HomeAssistant, entity_id: str) -> dict[str, Any] | None:

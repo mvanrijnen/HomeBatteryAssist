@@ -929,18 +929,23 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 and previous is not None
                 and (at := self._planned_at.get(mode)) is not None
                 and now - at < HEAVY_EVERY
-                # The same window (new prices make it longer: its cost and
-                # saving would cover another period than the other plans')
-                # and no slot ended since (its cost and saving count them).
+                # About the same window: the end moved less than HEAVY_EVERY
+                # (new prices make it hours longer: its cost and saving would
+                # cover another period than the other plans').
                 and not window.is_empty
                 and previous.slots
-                and previous.slots[-1].end == window.end
-                and previous.slots[0].end > now
+                and previous.slots[-1].end <= window.end
+                and window.end - previous.slots[-1].end < HEAVY_EVERY
+                # It holds the slot of now (made within the last hour).
+                and previous.slots[0].start <= window.start
+                and previous.slots[-1].end > now
             ):
                 # A heavy mode that is not chosen is only there to compare
-                # with: computed again once a slot ended or the window
-                # changed (at most HEAVY_EVERY apart), not every cycle.
-                plans[mode] = previous
+                # with: computed once an hour (or when the window grew),
+                # not every cycle. Without the slots that ended since.
+                plans[mode] = replace(
+                    previous, slots=[s for s in previous.slots if s.end > now]
+                )
                 continue
             try:
                 plan = await self.hass.async_add_executor_job(
@@ -1205,10 +1210,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         end = window.end
         ahead = PlanningWindow(end, end + OUTLOOK_SPAN, HorizonLimit.SETTING)
         factor = 1 - self.pv_margin / 100
+        # The learned PV correction past the window too (by lead time), as
+        # the plans get it inside: else an optimistic forecast makes the
+        # next sun look larger than the corrected one.
+        learned = self.pv_correction in (PV_CORRECTION_AUTO, PV_CORRECTION_BOTH)
 
         def pv_w(start: datetime) -> float:
             hour = start.replace(minute=0, second=0, microsecond=0)
-            return max(raw_pv.get(hour, 0.0), 0.0) * factor
+            lead = self.accuracy.lead_factor(hour, now) if learned else 1.0
+            return max(raw_pv.get(hour, 0.0), 0.0) * factor * lead
 
         slots = ahead.slots(step)
         if not any(pv_w(start) >= SUN_W for start, _ in slots):

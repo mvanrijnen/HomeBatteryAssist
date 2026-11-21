@@ -1538,6 +1538,7 @@ class _GridSteps:
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Step 0: a grid meter found in another integration, or manual."""
+        errors: dict[str, str] = {}
         if user_input is not None:
             choice = user_input[CONF_SOURCE]
             if choice == DIRECT_MANUAL:
@@ -1550,13 +1551,23 @@ class _GridSteps:
             if meter is None:
                 self._from_meter = False
                 return await self.async_step_user()
-            self._from_meter = True
-            self._data = {
-                **{k: v for k, v in self._data.items() if k == CONF_MAX_CURRENT},
-                CONF_PHASES: meter.phases,
-                **meter.sensors,
-            }
-            return await self.async_step_max_current()
+            entry = self._existing_entry()
+            if entry is not None and any(
+                sensor_conflict(entry, sensor, None) == "sensor_in_use"
+                for sensor in meter.sensors.values()
+                if sensor
+            ):
+                # Every sensor once (as in the sensors step): one a subentry
+                # already measures would be counted twice.
+                errors["base"] = "sensor_in_use"
+            else:
+                self._from_meter = True
+                self._data = {
+                    **{k: v for k, v in self._data.items() if k == CONF_MAX_CURRENT},
+                    CONF_PHASES: meter.phases,
+                    **meter.sensors,
+                }
+                return await self.async_step_max_current()
 
         default = next(iter(self._direct), None) or next(
             iter(self._meters), SOURCE_MANUAL
@@ -1617,6 +1628,7 @@ class _GridSteps:
                     )
                 }
             ),
+            errors=errors,
         )
 
     async def async_step_direct(

@@ -36,6 +36,9 @@ def regular_peak_hours(
             or start < since
             or not record.get("coverage")
             or record.get("vacation")  # vacation and excluded days
+            # Imported records never know their peaks: counted as days
+            # without one they would hide a regular peak for weeks.
+            or record.get("source") == "import"
         ):
             continue
         local = dt_util.as_local(start)
