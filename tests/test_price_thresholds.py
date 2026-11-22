@@ -119,6 +119,12 @@ def test_summary_tells_now_with_the_thresholds():
     assert en["now"].startswith("Waiting until ")
     assert "only pays above € 0.47" in en["now"]
     assert len(state_text({"now": "x" * 400})) == 255
+    # The state: short, with the price now and the thresholds.
+    assert nl["state"].startswith("Wachten tot ")
+    assert "Stroom nu € 0,360." in nl["state"]
+    assert "Gebruiken loont boven € 0,47" in nl["state"]
+    assert len(nl["state"]) < 160
+    assert state_text(nl) == nl["state"]
 
 
 @pytest.mark.usefixtures("utc")

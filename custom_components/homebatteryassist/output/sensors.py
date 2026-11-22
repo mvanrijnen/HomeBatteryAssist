@@ -645,7 +645,7 @@ class PlanSummarySensor(
 
     # Text that changes with every plan: not worth keeping in the history.
     _unrecorded_attributes = frozenset(
-        {"next", "plan", "sun", "cheapest", "use_above", "charge_below"}
+        {"now", "next", "plan", "sun", "cheapest", "use_above", "charge_below"}
     )
 
     def __init__(self, entry: HomeBatteryAssistConfigEntry) -> None:
@@ -660,7 +660,7 @@ class PlanSummarySensor(
 
     @property
     def native_value(self) -> str:
-        """What the batteries do now and why."""
+        """What the batteries do now, the price now and the thresholds."""
         return state_text(self._summary())
 
     @property
@@ -669,7 +669,15 @@ class PlanSummarySensor(
         summary = self._summary()
         return {
             key: summary.get(key)
-            for key in ("next", "plan", "sun", "cheapest", "use_above", "charge_below")
+            for key in (
+                "now",
+                "next",
+                "plan",
+                "sun",
+                "cheapest",
+                "use_above",
+                "charge_below",
+            )
         }
 
 

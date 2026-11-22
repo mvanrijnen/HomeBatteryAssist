@@ -1692,6 +1692,9 @@
       "plan_summary": {
         "name": "Plan explanation",
         "state_attributes": {
+          "now": {
+            "name": "Now"
+          },
           "next": {
             "name": "Next"
           },

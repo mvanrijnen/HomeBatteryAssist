@@ -53,6 +53,13 @@ TEXT = {
         "idle_charge": "Laden uit het net loont pas onder {charge} per kWh (na verlies, slijtage en marge).",
         "charging": "Dit laden loont zolang stroom minder kost dan {charge} per kWh (na verlies, slijtage en marge).",
         "using": "Leveren loont zolang stroom meer kost dan {use} per kWh (na verlies, slijtage en marge).",
+        "short": "{kind} tot {until}.",
+        "short_price": "Stroom nu {price}.",
+        "short_both": "Gebruiken loont boven {use}, laden uit het net onder {charge}.",
+        "short_use": "Gebruiken loont boven {use}.",
+        "short_charge": "Laden uit het net loont onder {charge}.",
+        "short_charging": "Dit laden loont tot {charge}.",
+        "short_using": "Leveren loont vanaf {use}.",
         "next": "{when}: {kind} tot {end} ({energy}): {reason}.",
         "plan_part": {
             "charge_grid": "laden uit het net {spans}",
@@ -90,6 +97,13 @@ TEXT = {
         "idle_charge": "Charging from the grid only pays below {charge} per kWh (after losses, wear and margin).",
         "charging": "This charge pays as long as power costs less than {charge} per kWh (after losses, wear and margin).",
         "using": "Supplying pays as long as power costs more than {use} per kWh (after losses, wear and margin).",
+        "short": "{kind} until {until}.",
+        "short_price": "Power now {price}.",
+        "short_both": "Using pays above {use}, charging from the grid below {charge}.",
+        "short_use": "Using pays above {use}.",
+        "short_charge": "Charging from the grid pays below {charge}.",
+        "short_charging": "This charge pays up to {charge}.",
+        "short_using": "Supplying pays from {use}.",
         "next": "{when}: {kind} until {end} ({energy}): {reason}.",
         "plan_part": {
             "charge_grid": "charge from the grid {spans}",
@@ -141,20 +155,22 @@ def _now_line(
     floor_soc: float,
     lang: str,
     currency: str | None,
-) -> tuple[str, Phase | None]:
+) -> tuple[str, str, Phase | None]:
+    """The ``now`` line, its short form (the sensor state: what the
+    batteries do, the price now and the thresholds) and the phase now."""
     text = TEXT[lang]
     slot = next((s for s in slots if s.start <= now < s.end), None)
     if slot is None:
-        return text["no_plan"], None
+        return text["no_plan"], text["no_plan"], None
     phase = reason_now(slots, now, mode, floor_soc, lang, currency)
     if phase is None:
-        line = text["sun_covers"]
+        line = short = text["sun_covers"]
     else:
+        until = _at(phase.end, lang, now)
         line = text["now"].format(
-            kind=text["kind"][phase.kind],
-            until=_at(phase.end, lang, now),
-            reason=phase.reason,
+            kind=text["kind"][phase.kind], until=until, reason=phase.reason
         )
+        short = text["short"].format(kind=text["kind"][phase.kind], until=until)
     kind = phase.kind if phase else None
     use = slot.use_above
     charge = slot.charge_below
@@ -162,23 +178,27 @@ def _now_line(
         "use": _price(use, lang, currency),
         "charge": _price(charge, lang, currency),
     }
-    extra = None
+    which = None
     if kind == "charge_grid" and charge is not None:
-        extra = text["charging"].format(**money)
+        which = ("charging", "short_charging")
     elif kind == "discharge" and use is not None:
-        extra = text["using"].format(**money)
+        which = ("using", "short_using")
     elif kind in ("grid_only", None):
         if use is not None and charge is not None:
-            extra = text["idle_both"].format(**money)
+            which = ("idle_both", "short_both")
         elif use is not None:
-            extra = text["idle_use"].format(**money)
+            which = ("idle_use", "short_use")
         elif charge is not None:
-            extra = text["idle_charge"].format(**money)
-    if extra and slot.price is not None and kind != "charge_pv":
-        line += " " + text["price_now"].format(price=_price(slot.price, lang, currency))
-    if extra:
-        line += " " + extra
-    return line, phase
+            which = ("idle_charge", "short_charge")
+    if which is None:
+        return line, short, phase
+    if slot.price is not None:
+        price = _price(slot.price, lang, currency)
+        line += " " + text["price_now"].format(price=price)
+        short += " " + text["short_price"].format(price=price)
+    line += " " + text[which[0]].format(**money)
+    short += " " + text[which[1]].format(**money)
+    return line, short, phase
 
 
 def _next_line(
@@ -349,7 +369,7 @@ def plan_summary(
     ``cheapest``; None when there is nothing to say), ``lines`` (label and
     text, in order, for the dashboard) and the thresholds of now."""
     lang = _lang(language)
-    now_text, current = _now_line(slots, now, mode, floor_soc, lang, currency)
+    now_text, short, current = _now_line(slots, now, mode, floor_soc, lang, currency)
     slot = next((s for s in slots if s.start <= now < s.end), None)
     out: dict[str, Any] = {
         "now": now_text,
@@ -368,14 +388,15 @@ def plan_summary(
         for key in ORDER
         if out[key]
     ]
+    out["state"] = short
     out["use_above"] = slot.use_above if slot else None
     out["charge_below"] = slot.charge_below if slot else None
     return out
 
 
 def state_text(summary: Mapping[str, Any]) -> str:
-    """The ``now`` line as a state (at most 255 characters)."""
-    text = str(summary.get("now") or "")
+    """The short form of ``now`` as a state (at most 255 characters)."""
+    text = str(summary.get("state") or summary.get("now") or "")
     if len(text) <= STATE_MAX:
         return text
     return text[: STATE_MAX - 1].rstrip() + "…"
