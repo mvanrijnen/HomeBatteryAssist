@@ -33,6 +33,7 @@ from homeassistant.helpers.event import async_track_time_interval
 
 from ..devices.batteries import BatteryCommand, command_readable
 from ..devices.batteries import command as read_command
+from ..devices.batteries import telemetry as battery_telemetry
 from ..explain import DecisionLog
 from ..measure.battery_monitor import BatteryConfig, BatteryInput
 from ..units import state_to_celsius
@@ -238,9 +239,12 @@ class CommandMonitor:
             [HomeAssistant, BatteryConfig], BatteryCommand | None
         ] = read_command,
         readable: Callable[[HomeAssistant, BatteryConfig], bool] = command_readable,
+        observer: Any = None,
     ) -> None:
-        """Initialize."""
+        """Initialize. ``observer`` (``TemperatureLearning``) gets every look
+        at a battery: command, state of charge, power and temperature."""
         self.hass = hass
+        self._observer = observer
         self._batteries = batteries
         self._decisions = decisions
         self._read = read
@@ -279,6 +283,17 @@ class CommandMonitor:
         check = self.checks.get(battery_id)
         return check.as_dict() if check else None
 
+    def _temperature(self, config: BatteryConfig) -> float | None:
+        """The battery's temperature: its sensor, else what its driver reads."""
+        if config.temperature_sensor:
+            celsius = state_to_celsius(self.hass.states.get(config.temperature_sensor))
+            if celsius is not None:
+                return celsius
+        try:
+            return battery_telemetry(self.hass, config).temperature_c
+        except Exception:  # a reader must not stop the check
+            return None
+
     @callback
     def async_check(self, now: datetime) -> None:
         """Look at every real battery once."""
@@ -288,17 +303,20 @@ class CommandMonitor:
                 continue
             state = self._batteries.states[config.id]
             command = self._read(self.hass, config)
+            celsius = self._temperature(config)
             result = check.update(
                 now,
                 command,
                 state.soc,
                 state.power_w,
                 config,
-                state_to_celsius(self.hass.states.get(config.temperature_sensor))
-                if config.temperature_sensor
-                else None,
+                celsius,
                 command is None and not self._readable(self.hass, config),
             )
+            if self._observer is not None:
+                self._observer.observe(
+                    now, config, command, state.soc, state.power_w, celsius
+                )
             if result is not None:
                 key, params = result
                 params["name"] = config.name

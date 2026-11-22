@@ -79,6 +79,7 @@ from .engine.coordinator import ForecastCoordinator
 from .engine.db_store import async_close_databases, database_url
 from .engine.devices.batteries.virtual import VirtualBatterySimulator
 from .engine.devices.inverters import get_driver as get_inverter_driver
+from .engine.evaluation.battery_temperature import TemperatureLearning
 from .engine.evaluation.command_check import CommandMonitor
 from .engine.evaluation.forecast_accuracy import ForecastAccuracy
 from .engine.evaluation.plan_check import PlanVerification
@@ -583,6 +584,11 @@ async def async_setup_entry(
 
         # Does each real battery follow the command it has (in this phase from
         # its own integration; later also HomeBatteryAssist's own commands)?
+        # What each real battery can do at its temperature (to learn from).
+        temperatures = TemperatureLearning(
+            hass, entry.entry_id, forecast.outdoor_temperature
+        )
+        await temperatures.async_load()
         commands = CommandMonitor(
             hass,
             batteries,
@@ -595,6 +601,7 @@ async def async_setup_entry(
                     CONF_COMMAND_CHECK_MINUTES, DEFAULT_COMMAND_CHECK_MINUTES
                 )
             ),
+            observer=temperatures,
         )
         commands.async_start()
         entry.async_on_unload(commands.async_stop)
@@ -718,6 +725,7 @@ async def async_setup_entry(
             plan_check=plan_check,
             simulator=simulator,
             commands=commands,
+            temperatures=temperatures,
             control_test=control_test,
             export_limit=export_limiter,
         )
@@ -782,6 +790,8 @@ async def async_unload_entry(
         await data.forecast.accuracy.async_save()
         await data.forecast.async_save_price_log()
         await data.plan_check.async_save()
+        if data.temperatures is not None:
+            await data.temperatures.async_save()
         await async_close_databases(hass)  # a changed URL opens anew
     return unloaded
 

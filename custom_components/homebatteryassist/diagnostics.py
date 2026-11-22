@@ -80,6 +80,12 @@ async def async_get_config_entry_diagnostics(
                 "command": (
                     data.commands.state(state.config.id) if data.commands else None
                 ),
+                # What it could do at its temperature (observed so far).
+                "temperature_power": (
+                    data.temperatures.summary().get(state.config.id)
+                    if data.temperatures
+                    else None
+                ),
             }
             for state in data.batteries.states.values()
         ],
