@@ -123,6 +123,9 @@
       "phase_grid_only": {
         "default": "mdi:transmission-tower"
       },
+      "plan_summary": {
+        "default": "mdi:text-box-outline"
+      },
       "control_test_status": {
         "default": "mdi:battery-sync-outline",
         "state": {

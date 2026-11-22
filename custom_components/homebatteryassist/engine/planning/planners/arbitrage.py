@@ -60,6 +60,16 @@ CYCLE_SEARCH_STEPS = 6  # bisection steps for the cycle limit
 PEAK_PENALTY = 5.0  # extra cost per kWh imported above the peak limit
 RESERVE_PENALTY = 5.0  # per kWh of night reserve missing when the sun comes up
 MIN_GAIN_PER_KWH = 0.01  # a cycle must bring at least this per kWh discharged
+# The worth of a kWh in the batteries (for the price thresholds) is measured
+# over this many levels around the planned stored energy (3 % of the usable
+# range: one level alone is noisy with the fractional choices).
+WORTH_LEVELS = 3
+
+
+class _Powers(list[float]):
+    """The planned powers, with the price thresholds per slot."""
+
+    thresholds: list[tuple[float | None, float | None]]
 
 
 def _cycles_per_day(data: PlannerInput, powers: list[float]) -> dict[date, float]:
@@ -72,13 +82,15 @@ def _cycles_per_day(data: PlannerInput, powers: list[float]) -> dict[date, float
     return {d: kwh / capacity for d, kwh in days.items()} if capacity else {}
 
 
-def _optimise(
-    data: PlannerInput, allow_export: bool, penalty: float = 0.0
-) -> list[float]:
+def _optimise(data: PlannerInput, allow_export: bool, penalty: float = 0.0) -> _Powers:
     """Dynamic programming over the stored energy (backward), then forward.
 
     ``penalty``: extra cost per kWh discharged, only to steer the choices
-    (cycle limit).
+    (cycle limit). Also gives per slot the price thresholds (``thresholds``):
+    what a kWh in the batteries is worth after the slot (the change of the
+    cost of the rest of the plan with a little more or less stored), turned
+    into the price above which using them pays and below which charging
+    from the grid pays, after losses, wear and the margins.
     """
     battery = data.battery
     rules = data.rules
@@ -161,7 +173,10 @@ def _optimise(
         [[""] * levels for _ in flags] for _ in range(count)
     ]
     future = [terminal for _ in flags]
+    # The cost of the rest of the plan after each slot (per flag and level).
+    rest: list[list[list[float]]] = [[] for _ in range(count)]
     for t in range(count - 1, -1, -1):
+        rest[t] = future
         slot = slots[t]
         hours, net, price = slot.hours, slot.net_w, slot.price
         margin = slot.price_margin
@@ -359,8 +374,13 @@ def _optimise(
     stored = battery.stored_wh
     # Held when it is (nearly) full now; else free to charge.
     flag = 0 if band <= 0 or stored >= battery.ceiling_wh - 1.0 or battery.held else 1
-    powers = []
+    powers = _Powers()
+    powers.thresholds = []
+    # Thresholds beyond this are the steering penalties (reserve, peak), no
+    # price anyone can use.
+    sane = 3 * max((abs(s.price) for s in slots), default=0.0) + 0.1
     for t, slot in enumerate(slots):
+        before = stored
         i = min(max(round((stored - battery.floor_wh) / step), 0), levels - 1)
         j = best_next[t][flag][i]
         kind = kinds[t][flag][i]
@@ -387,7 +407,76 @@ def _optimise(
         stored += power * slot.hours * eff if power >= 0 else power * slot.hours / eff
         flag = after(flag, (stored - battery.floor_wh) / step)
         powers.append(power)
+        powers.thresholds.append(
+            _thresholds(
+                rest[t][flag],
+                (before - battery.floor_wh) / step if step > 0 else 0.0,
+                (stored - battery.floor_wh) / step if step > 0 else 0.0,
+                step,
+                eff,
+                data.cycle_cost + extra + slot.price_margin,
+                data.cycle_cost + slot.price_margin,
+                sane,
+            )
+        )
     return powers
+
+
+def _thresholds(
+    table: list[float],
+    start: float,
+    end: float,
+    step: float,
+    eff: float,
+    use_cost: float,
+    charge_cost: float,
+    sane: float,
+) -> tuple[float | None, float | None]:
+    """(use above, charge below) from the cost of the rest of the plan
+    ``table`` (per level after the slot; the slot starts at level ``start``
+    and ends at ``end``, may be fractions): a kWh less stored costs the rest
+    of the plan ``down`` more, a kWh more saves ``up``. Using the batteries
+    pays when the price is above ``down`` / efficiency plus the costs per
+    kWh of using them; charging from the grid when it is below ``up`` x
+    efficiency minus the costs of charging.
+
+    Idle: ``down`` and ``up`` around ``start``. A slot that charges (or
+    discharges) gets the worth of the energy it charges (discharges) on
+    average, so the threshold says up to which price that block pays (the
+    last kWh alone can be worth a little less: the plan works in levels).
+    None at the floor / the top, or when it is a penalty, not a price."""
+    levels = len(table)
+    if step <= 0 or levels < 2 or eff <= 0:
+        return None, None
+    top = levels - 1
+    start = min(max(start, 0.0), top)
+    end = min(max(end, 0.0), top)
+    position = start
+
+    def at(pos: float) -> float:
+        low = min(int(pos), levels - 1)
+        high = min(low + 1, levels - 1)
+        part = pos - low
+        return (1 - part) * table[low] + part * table[high]
+
+    def worth(low: float, high: float) -> float:
+        """What a kWh stored between levels ``low`` and ``high`` saves."""
+        return (at(low) - at(high)) / ((high - low) * step / 1000)
+
+    use = charge = None
+    if end > start + 0.5:
+        charge = worth(start, end) * eff - charge_cost
+    elif position + WORTH_LEVELS <= top + 1e-9:
+        charge = worth(position, position + WORTH_LEVELS) * eff - charge_cost
+    if end < start - 0.5:
+        use = worth(end, start) / eff + use_cost
+    elif position - WORTH_LEVELS >= -1e-9:
+        use = worth(position - WORTH_LEVELS, position) / eff + use_cost
+    if use is not None and (not math.isfinite(use) or abs(use) > sane):
+        use = None
+    if charge is not None and (not math.isfinite(charge) or abs(charge) > sane):
+        charge = None
+    return use, charge
 
 
 WARM_SEARCH_STEPS = 3  # bisection steps when starting near the last penalty
@@ -456,7 +545,9 @@ class ArbitragePlanner(Planner):
                     low = middle
             self._penalty[self.key] = high
             powers = best
-        return PlannerResult(powers, strategy=self.key)
+        return PlannerResult(
+            list(powers), strategy=self.key, thresholds=powers.thresholds
+        )
 
 
 class ArbitrageFullPlanner(ArbitragePlanner):

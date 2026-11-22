@@ -29,6 +29,7 @@ from ..engine.devices.batteries.control_quality import (
 from ..engine.devices.meters import SOURCE_NAMES
 from ..engine.explain.plan_phases import KINDS as PHASE_KINDS
 from ..engine.explain.plan_phases import current_and_next, phase_attributes
+from ..engine.explain.plan_summary import state_text
 from ..engine.measure.house_measurement import MeasurementInput, PowerFlow
 from ..models import HomeBatteryAssistConfigEntry
 from .batteries import (
@@ -74,6 +75,7 @@ async def async_setup_entry(
         main.append(BatteryForecastSensor(entry))
         # The plan as phases: discharging, charging (grid / solar), grid only.
         main += [PlanPhaseSensor(entry, kind) for kind in PHASE_KINDS]
+        main.append(PlanSummarySensor(entry))
     if any(not c.virtual for c in batteries.configs):
         main += [
             BatteriesTotalSensor(entry, description, main_device_info(entry))
@@ -631,6 +633,43 @@ class PlanPhaseSensor(
         return {
             **phase_attributes(current, "current_", shares, share),
             **phase_attributes(following, "next_", shares, share),
+        }
+
+
+class PlanSummarySensor(
+    HomeBatteryAssistEntity, CoordinatorEntity[ForecastCoordinator], SensorEntity
+):
+    """The plan at a glance: what the batteries do now and why (state), the
+    next change, the plan in one line, the sun, the cheapest price and the
+    price thresholds of now (attributes)."""
+
+    # Text that changes with every plan: not worth keeping in the history.
+    _unrecorded_attributes = frozenset(
+        {"next", "plan", "sun", "cheapest", "use_above", "charge_below"}
+    )
+
+    def __init__(self, entry: HomeBatteryAssistConfigEntry) -> None:
+        """Initialize."""
+        CoordinatorEntity.__init__(self, entry.runtime_data.forecast)
+        HomeBatteryAssistEntity.__init__(self, entry, "plan_summary")
+        self._batteries = entry.runtime_data.batteries
+
+    def _summary(self) -> dict[str, Any]:
+        configs = [s.config for s in self._batteries.plan_states() if s.soc is not None]
+        return self.coordinator.plan_summary(configs)
+
+    @property
+    def native_value(self) -> str:
+        """What the batteries do now and why."""
+        return state_text(self._summary())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The other lines and the thresholds of now."""
+        summary = self._summary()
+        return {
+            key: summary.get(key)
+            for key in ("next", "plan", "sun", "cheapest", "use_above", "charge_below")
         }
 
 

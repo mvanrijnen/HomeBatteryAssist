@@ -1689,6 +1689,29 @@
           }
         }
       },
+      "plan_summary": {
+        "name": "Plan explanation",
+        "state_attributes": {
+          "next": {
+            "name": "Next"
+          },
+          "plan": {
+            "name": "Plan"
+          },
+          "sun": {
+            "name": "Sun"
+          },
+          "cheapest": {
+            "name": "Cheapest"
+          },
+          "use_above": {
+            "name": "Using pays above"
+          },
+          "charge_below": {
+            "name": "Charging pays below"
+          }
+        }
+      },
       "control_test_status": {
         "name": "Test control",
         "state": {

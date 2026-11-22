@@ -156,6 +156,11 @@ class PlannerResult:
     # (``PlannerInput.forced``, as arbitrage does); False: only the planner's
     # own power (zero on the meter), the final step adds the full charge.
     forced_included: bool = True
+    # Per slot (optional): (use above, charge below) — the price above which
+    # using the batteries pays in that slot and below which charging from
+    # the grid pays, after losses, wear and margins (what a kWh in the
+    # batteries is worth in the rest of the plan). None = not known.
+    thresholds: list[tuple[float | None, float | None]] | None = None
 
 
 class Planner:

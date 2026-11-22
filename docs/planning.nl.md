@@ -113,6 +113,16 @@ Het plan wordt in gewone taal uitgelegd, als periodes — wat er gebeurt tot wan
 
 Wat elke batterij doet, wordt ook als periodes uitgelegd — sinds wanneer ze laadt of levert, waarmee (zonnestroom of het net), tot wanneer dat naar verwachting doorgaat en wat er gebeurt als ze stopt — en of dat bij het plan past, met de reden van het plan (bijv. *Dat klopt met het plan: stroom is dan duur (€ 0,42 per kWh).*). Een echte batterij volgt haar eigen sturing; een virtuele batterij (en een twin) laat zien wat HomeBatteryAssist zou doen, tot het eind van die fase van het plan. Het planverhaal zelf wordt opnieuw verteld als verandert wat het plan nu doet, en anders hooguit elke 3 uur.
 
+**Het plan in het kort** (dashboard *Overzicht*, sensor *Uitleg plan*): een paar regels die er altijd staan —
+
+- **Nu**: wat de batterijen doen, tot wanneer en waarom, met de prijs nu en de **drempelprijzen** van het plan, bijv. *Wachten tot ma 08:00: de batterijen bewaren hun energie voor ma 16:00 (stroom dan € 0,50 per kWh). Stroom kost nu € 0,412 per kWh. Gebruiken van de batterijen loont pas boven € 0,474 per kWh, laden uit het net onder € 0,301 (na verlies, slijtage en marge).*
+- **Straks**: de volgende verandering, met de energie en de reden;
+- **Plan**: de periodes van laden en leveren in één regel en de verwachte winst tegenover geen batterij;
+- **Zon**: de zonne-opbrengst die vandaag nog en morgen verwacht wordt, en het overschot dat de batterijen kunnen opslaan;
+- **Goedkoopst**: de goedkoopste gepubliceerde prijs vanaf nu en tot wanneer de prijzen gepubliceerd zijn.
+
+De drempels komen uit het arbitrageplan zelf, niet uit een vuistregel: ze zijn wat een kWh in de batterijen waard is in de rest van het plan (de kosten van de rest van het plan met iets meer of minder opgeslagen), na het verlies van laden en ontladen, de slijtage, de minimale marge en de marge voor geschatte prijzen, en binnen je prijsregels. Zo zeggen ze ook waarom het plan *niet* handelt bij een prijs die goed lijkt: bijv. energie die 's ochtends bij € 0,47 gebruikt zou worden, is 's avonds bij € 0,51 meer waard als de zon hem tussendoor niet kan bijvullen, en laden uit het net bij € 0,36 loont niet als het zonne-overschot van morgen de batterij toch vult (dan gaat zonnestroom voor de terugleverprijs naar het net). In een tijdvak dat laadt of levert is de drempel de gemiddelde waarde van dat blok energie: tot welke prijs dat laden loont, vanaf welke prijs dat leveren loont. Plannen zonder prijzen (nul op de meter, vaste standen) hebben geen drempels.
+
 ## Plancontrole {#plan-check}
 
 Achteraf wordt het plan per dag vergeleken met wat er echt gebeurde (dashboard, tab *Rendement*).

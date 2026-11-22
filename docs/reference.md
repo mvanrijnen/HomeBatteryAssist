@@ -389,6 +389,7 @@ What HomeBatteryAssist creates (names as shown in Home Assistant).
 | Phase charging (grid) | Sensor |
 | Phase charging (solar) | Sensor |
 | Phase grid only | Sensor |
+| Plan explanation | Sensor |
 | Test control | Sensor |
 | Value today | Sensor |
 | Difference with the real battery today | Sensor |

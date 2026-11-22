@@ -123,6 +123,7 @@ const TEXT = {
       no_pv: "the PV forecast has no data",
     },
     decisions: "Why — recent decisions",
+    summaryTitle: "The plan at a glance",
     noDecisions: "No decisions yet.",
     error: "Could not load the status",
     recalculate: "Recalculate",
@@ -429,6 +430,7 @@ const TEXT = {
       no_pv: "de PV-voorspelling levert geen gegevens",
     },
     decisions: "Waarom — recente beslissingen",
+    summaryTitle: "Het plan in het kort",
     noDecisions: "Nog geen beslissingen.",
     error: "Status kon niet worden geladen",
     recalculate: "Herbereken",
@@ -704,6 +706,10 @@ const STYLE = `
   .row b { color: var(--primary-text-color); font-weight: 500; }
   .row.cmd.alert span { color: var(--error-color, #db4437); font-weight: 500; }
   .phases { display: grid; gap: 10px; }
+  .summary { display: grid; gap: 6px; font-size: 14px; line-height: 1.4; }
+  .summary-row { display: grid; grid-template-columns: 90px 1fr; gap: 8px; }
+  .summary-row b { font-weight: 500; }
+  @media (max-width: 600px) { .summary-row { grid-template-columns: 1fr; gap: 0; } }
   table.compare { border-collapse: collapse; width: 100%; max-width: 640px; margin-bottom: 8px; }
   table.compare td { padding: 6px 8px; border-bottom: 1px solid var(--divider-color); }
   table.compare td.num, table.compare th.num { text-align: right; white-space: nowrap; }
@@ -2575,6 +2581,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
       what ? ` · <span class="alert-text">${esc(what)}</span>` : ` · <small class="muted">${esc(t.icAllThrough)}</small>`}</div>`;
   }
 
+  // The plan at a glance: now, next, the plan, the sun, the cheapest price.
+  _summary(s, t) {
+    const lines = s.summary || [];
+    if (!lines.length) return "";
+    const rows = lines.map((l) => `<div class="summary-row"><b>${esc(l.label)}</b><span>${esc(l.text)}</span></div>`).join("");
+    return `<div class="card"><h2>${esc(t.summaryTitle)}</h2><div class="summary">${rows}</div></div>`;
+  }
+
   _decisions(s, t) {
     const items = s.decisions.length
       ? `<ul class="decisions">${s.decisions.map((d) => `<li><time>${this._time(d.time)}</time><div>${this._message(d.message)}</div></li>`).join("")}</ul>`
@@ -2835,7 +2849,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
     else {
       const s = this._status;
       const tabs = {
-        overview: () => [this._planner(s, t), this._flows(s, t), this._flowDiagram(s, t), this._phases(s, t), this._decisions(s, t)],
+        overview: () => [this._planner(s, t), this._summary(s, t), this._flows(s, t), this._flowDiagram(s, t), this._phases(s, t), this._decisions(s, t)],
         forecast: () => [this._consumption(t), this._planning(s, t), this._decisions(s, t)],
         value: () => [this._compare(s, t), this._planCheck(s, t)],
         batteries: () => [this._batteries(s, t)],

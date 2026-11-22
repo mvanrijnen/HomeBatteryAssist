@@ -1689,6 +1689,29 @@
           }
         }
       },
+      "plan_summary": {
+        "name": "Uitleg plan",
+        "state_attributes": {
+          "next": {
+            "name": "Straks"
+          },
+          "plan": {
+            "name": "Plan"
+          },
+          "sun": {
+            "name": "Zon"
+          },
+          "cheapest": {
+            "name": "Goedkoopst"
+          },
+          "use_above": {
+            "name": "Gebruiken loont boven"
+          },
+          "charge_below": {
+            "name": "Laden loont onder"
+          }
+        }
+      },
       "control_test_status": {
         "name": "Testbesturing",
         "state": {

@@ -164,6 +164,7 @@ from .explain import DecisionLog
 from .explain.money import format_money
 from .explain.plan_story import DAYS as STORY_DAYS
 from .explain.plan_story import plan_story
+from .explain.plan_summary import plan_summary
 from .forecast.consumption_forecast import (
     METHODS,
     ForecastSlot,
@@ -1830,6 +1831,29 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         )
         capacity = sum(c.capacity_kwh for c in configs) or 1.0
         return sum(max(c.min_soc, reserve) * c.capacity_kwh for c in configs) / capacity
+
+    def plan_summary(
+        self, configs: list[Any], now: datetime | None = None
+    ) -> dict[str, Any]:
+        """The plan at a glance (``explain.plan_summary``) for the planned
+        batteries ``configs``: now, next, the plan in one line, the sun and
+        the cheapest published price, with the price thresholds of now."""
+        now = now or dt_util.utcnow()
+        data = self.data
+        plan = data.selected_plan
+        published = [p.end for p in data.prices if not p.estimated]
+        until = max(published) if published else (now if data.prices else None)
+        return plan_summary(
+            plan,
+            data.battery,
+            now,
+            plan.strategy if plan else data.plan_mode,
+            self.plan_floor(configs, now),
+            self.hass.config.language,
+            self.hass.config.currency,
+            data.pv_wh,
+            until,
+        )
 
     def outdoor_temperature(self) -> float | None:
         """The outdoor temperature now (°C): the sensor, else the weather

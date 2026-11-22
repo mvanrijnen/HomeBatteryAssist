@@ -89,6 +89,11 @@ class PlanSlot:
     # Steering margin per kWh from/for the grid: the price is (partly) an
     # estimate (``PlanRules.estimated_margin``); 0 = published.
     price_margin: float = 0.0
+    # Price thresholds (planners that know them, e.g. arbitrage): using the
+    # batteries pays above ``use_above``, charging from the grid below
+    # ``charge_below`` (after losses, wear, margins and the price rules).
+    use_above: float | None = None
+    charge_below: float | None = None
 
     @property
     def duration_h(self) -> float:
@@ -653,6 +658,7 @@ def finalise(
     # empty one gives nothing (the pack's sum would allow both).
     member_wh = [m.stored_wh for m in battery.members]
     reasons = result.reasons or []
+    thresholds = result.thresholds or []
     out: list[PlanSlot] = []
     cost_with = cost_without = 0.0
     for index, slot in enumerate(data.slots):
@@ -751,6 +757,15 @@ def finalise(
         else:
             stored += power * hours * eff if power >= 0 else power * hours / eff
         grid = slot.net_w + power
+        use_above, charge_below = (
+            thresholds[index] if index < len(thresholds) else (None, None)
+        )
+        # The price rules hold as well.
+        lowest = getattr(rules, "min_discharge_price", None)
+        if use_above is not None and lowest is not None:
+            use_above = max(use_above, lowest)
+        if charge_below is not None and rules.max_charge_price is not None:
+            charge_below = min(charge_below, rules.max_charge_price)
         if data.priced:
             export = slot.export_price if slot.export_price is not None else slot.price
             cost_with += grid_cost(grid, hours, slot.price, export)
@@ -769,6 +784,8 @@ def finalise(
                 reason,
                 hours,
                 slot.price_margin,
+                None if use_above is None else round(use_above, 4),
+                None if charge_below is None else round(charge_below, 4),
             )
         )
     strategy = result.strategy or mode

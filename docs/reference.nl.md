@@ -389,6 +389,7 @@ Wat HomeBatteryAssist aanmaakt (namen zoals in Home Assistant).
 | Fase laden (net) | Sensor |
 | Fase laden (zon) | Sensor |
 | Fase alleen net | Sensor |
+| Uitleg plan | Sensor |
 | Testbesturing | Sensor |
 | Opbrengst vandaag | Sensor |
 | Verschil met echte batterij vandaag | Sensor |

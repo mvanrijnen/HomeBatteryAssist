@@ -113,6 +113,16 @@ The plan is explained in plain language, as periods — what happens until when,
 
 What each battery does is explained as periods too — since when it charges or supplies, with what (solar power or the grid), until when it is expected to go on, and what happens when it stops — and whether that matches the plan, with the plan's reason (e.g. *That matches the plan: power is expensive then (€ 0.42 per kWh).*). A real battery follows its own control; a virtual battery (and a twin) shows what HomeBatteryAssist would do, until the end of the plan's phase. The plan story itself is told again when what the plan does now changes, and otherwise at most every 3 hours.
 
+**The plan at a glance** (dashboard *Overview*, sensor *Plan explanation*): a few lines that are always there —
+
+- **Now**: what the batteries do, until when and why, with the price now and the **price thresholds** of the plan, e.g. *Waiting until Mon 08:00: the batteries keep their energy for Mon 16:00 (power then € 0.50 per kWh). Power costs € 0.412 per kWh now. Using the batteries only pays above € 0.474 per kWh, charging from the grid below € 0.301 (after losses, wear and margin).*
+- **Next**: the next change, with its energy and reason;
+- **Plan**: the charge and supply periods in one line and the expected saving compared with no battery;
+- **Sun**: the solar production still expected today and tomorrow, and the surplus the batteries can store;
+- **Cheapest**: the cheapest published price from now on and how far the published prices reach.
+
+The thresholds come from the arbitrage plan itself, not from a rule of thumb: they are what a kWh in the batteries is worth in the rest of the plan (the cost of the rest of the plan with a little more or less stored), after the losses of charging and discharging, the wear, the minimum margin and the margin for estimated prices, and within your price rules. So they also say why the plan does *not* act at a price that looks good: e.g. energy that would be used in the morning at € 0.47 is worth more in the evening at € 0.51 when the sun cannot refill it in between, and charging from the grid at € 0.36 does not pay when tomorrow's solar surplus fills the battery anyway (that would push solar power to the grid at the export price). In a slot that charges or supplies, the threshold is the worth of that block of energy on average: up to which price that charge pays, from which price that supply pays. Plans without prices (zero on the meter, fixed modes) have no thresholds.
+
 ## Plan check
 
 Afterwards, the plan is compared with what really happened, per day (dashboard, *Return* tab).

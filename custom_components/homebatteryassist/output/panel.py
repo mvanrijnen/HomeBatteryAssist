@@ -522,6 +522,8 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             "limited_by": window.limited_by.value,
         },
         "prices": _prices_now(hass, data),
+        # The plan at a glance (label + text per line).
+        "summary": _summary(data),
         # What the phase protection, phase limits and peak shaving do now.
         "protection": _protection(data),
         # How far each forecast reaches (ISO end or None), for the indicators.
@@ -551,6 +553,18 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             for d in reversed(data.decisions.entries[-RECENT_DECISIONS:])
         ],
     }
+
+
+def _summary(data: Any) -> list[dict[str, str]]:
+    """The lines of the plan summary; none without batteries or a plan."""
+    if not data.batteries.configs or data.forecast.data is None:
+        return []
+    configs = [s.config for s in data.batteries.plan_states() if s.soc is not None]
+    try:
+        return data.forecast.plan_summary(configs)["lines"]
+    except Exception:  # the panel must not fail on an explanation
+        _LOGGER.exception("Plan summary failed")
+        return []
 
 
 def _device_sensors(sub: Any, data: Any) -> list[str]:
