@@ -38,7 +38,7 @@ Een prijsbron geeft tot drie soorten prijzen (rollen), allemaal **per kWh**:
 - **markt**: de kale marktprijs (EPEX). Alleen nodig voor het tarief *Marktprijs + opslag + energiebelasting, plus btw* en voor de terugleverprijs *kale marktprijs*.
 - **teruglevering**: wat een teruggeleverde kWh oplevert op jouw contract.
 
-Gepubliceerde en voorspelde (geschatte) prijzen worden allebei gebruikt; schattingen zijn als zodanig gemarkeerd. Het venster van de plannen eindigt waar de prijzen eindigen, en bij het **eerste gat** erin. Zonder prijzen plant arbitrage nul op de meter en worden kosten en besparing niet getoond.
+Gepubliceerde en voorspelde (geschatte) prijzen worden allebei gebruikt; schattingen zijn als zodanig gemarkeerd. Arbitrage handelt op een geschatte prijs alleen als dat minstens de *marge voor geschatte prijzen* (standaard 0,02 per kWh) meer oplevert dan handelen bij een gepubliceerde prijs; kosten en besparing gebruiken de prijzen zelf. Het venster van de plannen eindigt waar de prijzen eindigen, en bij het **eerste gat** erin. Zonder prijzen plant arbitrage nul op de meter en worden kosten en besparing niet getoond.
 
 Eenheden worden omgerekend naar de hoofdvaluta per kWh (ct/kWh, EUR/MWh, öre/kWh, …); een bron zonder eenheid geldt als per kWh.
 

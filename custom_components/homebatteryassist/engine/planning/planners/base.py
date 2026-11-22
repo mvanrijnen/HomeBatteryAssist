@@ -39,6 +39,11 @@ class PlannerSlot:
     # the grid before, when needed and allowed).
     reserve_wh: float = 0.0
     reserve_due: bool = False
+    # Per kWh charged from the grid or discharged in this slot: the price is
+    # (partly) an estimate, not yet published (``PlanRules.estimated_margin``
+    # x the estimated part). Steering only, like the wear: an action on an
+    # estimate must bring this much more; costs use the price itself.
+    price_margin: float = 0.0
 
     @property
     def net_w(self) -> float:

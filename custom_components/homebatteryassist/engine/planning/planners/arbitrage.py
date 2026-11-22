@@ -11,6 +11,8 @@ energy cost over the window:
 
     cost = sum(grid import * price - grid export * export price)
          + cycle_cost * energy through the battery
+         + price_margin * energy from / for the grid in slots with an
+           estimated price (steering: acting on an estimate must bring more)
          - value of the energy left at the end
 
 with grid = house - PV + battery power (+ charging). Solved exactly by dynamic
@@ -105,8 +107,17 @@ def _optimise(
     # discharge now pays them too; else with flat prices nothing is used.
     avg_price = sum(s.price for s in slots) / count
     # (Not the cycle limit's steering penalty: that is for discharging now.)
+    # Energy kept for after the window counts on prices not even estimated
+    # yet: as uncertain as the most uncertain slot (else keeping it would
+    # look safer than discharging at an estimated price).
+    unsure = max((s.price_margin for s in slots), default=0.0)
     later = max(
-        avg_price * eff - data.cycle_cost - rules.min_margin - MIN_GAIN_PER_KWH, 0.0
+        avg_price * eff
+        - data.cycle_cost
+        - rules.min_margin
+        - MIN_GAIN_PER_KWH
+        - unsure,
+        0.0,
     )
     # The sun after the window fills the battery again (``Outlook``): of what
     # is left, the part above what the house uses before that sun plus the
@@ -153,6 +164,8 @@ def _optimise(
     for t in range(count - 1, -1, -1):
         slot = slots[t]
         hours, net, price = slot.hours, slot.net_w, slot.price
+        margin = slot.price_margin
+        sun = max(-net, 0.0)  # solar surplus: storing it needs no estimate
         export = slot.export_price if slot.export_price is not None else price
         up = int(slot.max_charge_w * hours * eff / step)
         down = int(slot.max_discharge_w * hours / eff / step)
@@ -205,6 +218,12 @@ def _optimise(
                         + abs(power) * hours / 1000 * data.cycle_cost
                         + (-power * hours / 1000 * extra if power < 0 else 0.0)
                         + (
+                            (-power if power < 0 else max(power - sun, 0.0))
+                            * hours
+                            / 1000
+                            * margin
+                        )
+                        + (
                             max(net + power - data.peak_w, 0.0)
                             * hours
                             / 1000
@@ -240,7 +259,7 @@ def _optimise(
                     cost = (
                         grid_cost(net - need, hours, price, export)
                         + need * hours / 1000 * data.cycle_cost
-                        + need * hours / 1000 * extra
+                        + need * hours / 1000 * (extra + margin)
                         + (
                             max(net - need - data.peak_w, 0.0)
                             * hours
@@ -311,6 +330,7 @@ def _optimise(
                     cost = (
                         grid_cost(net + full_w, hours, price, export)
                         + full_w * hours / 1000 * data.cycle_cost
+                        + max(full_w - sun, 0.0) * hours / 1000 * margin
                         + (
                             max(net + full_w - data.peak_w, 0.0)
                             * hours

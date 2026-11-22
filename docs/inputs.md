@@ -38,7 +38,7 @@ A price source gives up to three kinds of prices (roles), all **per kWh**:
 - **market**: the bare market price (EPEX). Only needed for the tariff *Market price + surcharge + energy tax, plus VAT* and for the export price *bare market price*.
 - **export**: what an exported kWh earns on your contract.
 
-Published prices and forecast (estimated) prices are both used; estimates are marked as such. The window of the plans ends where the prices end, and at the **first gap** in them. Without prices arbitrage plans zero on the meter, and costs and savings are not shown.
+Published prices and forecast (estimated) prices are both used; estimates are marked as such. Arbitrage acts on an estimated price only when it brings at least the *margin for estimated prices* (default 0.02 per kWh) more than acting at a published price; costs and savings use the prices themselves. The window of the plans ends where the prices end, and at the **first gap** in them. Without prices arbitrage plans zero on the meter, and costs and savings are not shown.
 
 Units are converted to the main currency per kWh (ct/kWh, EUR/MWh, öre/kWh, …); a source without a unit is taken as per kWh.
 

@@ -109,6 +109,7 @@ How the plans weigh costs and prices, and the fixed modes.
 | **Battery wear cost** | Cost per kWh through the battery (wear), in the price unit; avoids charging/discharging for tiny gains. |
 | **Max. cycles per day (arbitrage)** | Arbitrage charges and discharges at most this many full cycles per day (energy discharged / capacity), to spare the batteries. 0 = no limit. |
 | **Min. arbitrage margin** | Arbitrage only charges to discharge later when that brings at least this much per kWh, on top of the wear cost. |
+| **Margin for estimated prices** | Prices that are not published yet are estimates. Arbitrage charges, discharges or holds energy for a slot with an estimated price only when that brings at least this much more per kWh than acting at a published price; the charge-the-car advice weighs it the same way. Costs and savings are still counted at the prices themselves. 0 = estimates count as published prices. |
 | **Discharge only from price** | Optional: the batteries only discharge when power costs at least this much (also in zero on the meter). |
 | **Charge from the grid up to price** | Optional: arbitrage only charges from the grid when power costs at most this much (charging with surplus solar power is always allowed). |
 | **Target grid power (zero on the meter)** | Zero on the meter aims at this grid power instead of exactly 0 W, e.g. +50 W so a little is always imported. |

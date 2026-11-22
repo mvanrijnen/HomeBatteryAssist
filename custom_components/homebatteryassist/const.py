@@ -163,6 +163,10 @@ CONF_NOM_TARGET: Final = "nom_target_w"  # grid power NOM aims at
 CONF_MIN_DISCHARGE_PRICE: Final = "min_discharge_price"  # optional
 CONF_MAX_CHARGE_PRICE: Final = "max_charge_price"  # optional
 CONF_MIN_MARGIN: Final = "min_arbitrage_margin"  # per kWh
+# Per kWh: what acting on an estimated (not yet published) price must bring
+# more than acting on a published one (the estimate's uncertainty).
+CONF_ESTIMATED_MARGIN: Final = "estimated_price_margin"
+DEFAULT_ESTIMATED_MARGIN: Final = 0.02
 CONF_CHARGE_HYSTERESIS: Final = "charge_hysteresis"  # % below max before recharging
 CONF_VACATION: Final = "vacation"  # do not learn the house consumption
 # Today clearly more/less than forecast so far: the rest of today follows.

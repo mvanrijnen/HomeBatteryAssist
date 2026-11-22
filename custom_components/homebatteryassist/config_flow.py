@@ -86,6 +86,7 @@ from .const import (
     CONF_CYCLE_COST,
     CONF_DEVICE_PHASE_SENSORS,
     CONF_EFFICIENCY,
+    CONF_ESTIMATED_MARGIN,
     CONF_EXPORT_ENTITIES,
     CONF_EXPORT_FACTOR,
     CONF_EXPORT_LIMIT,
@@ -197,6 +198,7 @@ from .const import (
     DEFAULT_COMMAND_CHECK_W,
     DEFAULT_CYCLE_COST,
     DEFAULT_EFFICIENCY,
+    DEFAULT_ESTIMATED_MARGIN,
     DEFAULT_EXPORT_FACTOR,
     DEFAULT_EXPORT_LIMIT,
     DEFAULT_EXPORT_LIMIT_COST,
@@ -501,6 +503,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "cycle_cost",
         "max_cycles_per_day",
         "min_arbitrage_margin",
+        "estimated_price_margin",
         "min_discharge_price",
         "max_charge_price",
         "nom_target_w",
@@ -883,6 +886,10 @@ async def _flat_settings_schema(
         vol.Required(CONF_MIN_MARGIN, default=current.get(CONF_MIN_MARGIN, 0)): _number(
             0, PRICE_MAX, 0.005, ""
         ),
+        vol.Required(
+            CONF_ESTIMATED_MARGIN,
+            default=current.get(CONF_ESTIMATED_MARGIN, DEFAULT_ESTIMATED_MARGIN),
+        ): _number(0, PRICE_MAX, 0.005, ""),
         vol.Required(
             CONF_CHARGE_HYSTERESIS, default=current.get(CONF_CHARGE_HYSTERESIS, 0)
         ): _number(0, 20, 1, "%"),
@@ -1342,6 +1349,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     )
     options[CONF_NOM_TARGET] = int(user_input.get(CONF_NOM_TARGET, 0))
     options[CONF_MIN_MARGIN] = float(user_input.get(CONF_MIN_MARGIN, 0))
+    options[CONF_ESTIMATED_MARGIN] = float(
+        user_input.get(CONF_ESTIMATED_MARGIN, DEFAULT_ESTIMATED_MARGIN)
+    )
     options[CONF_CHARGE_HYSTERESIS] = int(user_input.get(CONF_CHARGE_HYSTERESIS, 0))
     options[CONF_VACATION] = bool(user_input.get(CONF_VACATION, False))
     options[CONF_INTRADAY] = bool(user_input.get(CONF_INTRADAY, True))

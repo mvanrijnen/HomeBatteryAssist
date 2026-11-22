@@ -86,6 +86,9 @@ class PlanSlot:
     reason: str | None = None  # time slot name / "manual" in the fixed modes
     # Hours planned (the slot now only from now); None = the whole slot
     hours: float | None = None
+    # Steering margin per kWh from/for the grid: the price is (partly) an
+    # estimate (``PlanRules.estimated_margin``); 0 = published.
+    price_margin: float = 0.0
 
     @property
     def duration_h(self) -> float:
@@ -150,7 +153,11 @@ class PlanRules:
     - ``max_charge_price``: charge from the grid only at or below this price
       (charging with surplus solar power is always fine);
     - ``min_margin``: an arbitrage cycle must bring at least this per kWh
-      (on top of the wear cost).
+      (on top of the wear cost);
+    - ``estimated_margin``: per kWh charged from or discharged for the grid
+      in a slot whose price is only estimated (not yet published): steering
+      only, so the plan acts on an estimate only when it brings at least that
+      much more than acting at a published price.
     """
 
     reserve_soc: float = 0.0
@@ -162,6 +169,7 @@ class PlanRules:
     min_discharge_price: float | None = None
     max_charge_price: float | None = None
     min_margin: float = 0.0
+    estimated_margin: float = 0.0
     charge_hysteresis: float = 0.0  # % below max SoC before charging again
     # Several batteries charge one after the other (the emptiest first, the
     # next only for what it cannot take at its full power), not all at once.
@@ -376,6 +384,24 @@ def _price_over(
     return total / seconds if seconds > 0 else None
 
 
+def _estimated_share(
+    prices: Sequence[PricePoint], start: datetime, end: datetime
+) -> float:
+    """The part (0..1) of the priced time of a slot whose price is only
+    estimated (as ``_price_over`` weighs the prices)."""
+    estimated = seconds = 0.0
+    first = max(bisect_right(prices, start, key=lambda p: p.start) - 1, 0)
+    for point in prices[first:]:
+        if point.start >= end:
+            break
+        overlap = (min(point.end, end) - max(point.start, start)).total_seconds()
+        if overlap > 0:
+            seconds += overlap
+            if point.estimated:
+                estimated += overlap
+    return estimated / seconds if seconds > 0 else 0.0
+
+
 def plan_batteries(
     states: Iterable[BatteryState],
     consumption: Sequence[ForecastSlot],
@@ -486,6 +512,12 @@ def planner_input(
             export = _price_over(export_prices, slot.start, slot.end)
         if export is None and price is not None:
             export = price * export_factor
+        margin = 0.0
+        if rules.estimated_margin > 0 and price is not None:
+            share = _estimated_share(prices, begin, slot.end)
+            if not share and _price_over(prices, begin, slot.end) is None:
+                share = _estimated_share(prices, slot.start, slot.end)
+            margin = rules.estimated_margin * share
         slots.append(
             _InSlot(
                 slot.start,
@@ -498,6 +530,7 @@ def planner_input(
                 max(min(max_c, pack.max_charge), 0.0),
                 max(min(max_d, pack.max_discharge), 0.0),
                 pack.night_floor if slot.start in night else 0.0,
+                price_margin=margin,
             )
         )
     if not slots:
@@ -735,6 +768,7 @@ def finalise(
                 slot.export_price,
                 reason,
                 hours,
+                slot.price_margin,
             )
         )
     strategy = result.strategy or mode

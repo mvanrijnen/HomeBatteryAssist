@@ -8,7 +8,10 @@ expected cost, from the selected battery plan per slot:
 - what a kWh costs then (the import price after the tariff);
 - the expected solar surplus left after the batteries (the plan's export,
   ``-grid_w``): charging from it costs only what exporting it would have
-  earned (the export price), as the plans count solar charging.
+  earned (the export price), as the plans count solar charging;
+- the margin for estimated prices (``PlanSlot.price_margin``): a block on an
+  estimated price is chosen only when it is at least that much per kWh from
+  the grid cheaper (the cost told is at the prices themselves).
 
 The car is an excluded load: the batteries never discharge for it, so the
 plan's grid is not changed by the advice.
@@ -37,6 +40,7 @@ class EvSlot:
     price: float  # import, per kWh
     export_price: float | None  # what exporting earns, per kWh
     surplus_w: float  # expected export after the batteries (>= 0)
+    margin: float = 0.0  # per kWh from the grid: the price is an estimate
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,10 +65,11 @@ class EvAdvice:
 
 def _cost(
     slots: Sequence[EvSlot], start: datetime, end: datetime, power_w: float
-) -> tuple[float, float] | None:
-    """(cost, kWh from the sun) of charging ``power_w`` from start to end;
-    None when a part of it has no slot (no price)."""
-    cost = sun = 0.0
+) -> tuple[float, float, float] | None:
+    """(cost, kWh from the sun, cost with the estimate margin) of charging
+    ``power_w`` from start to end; None when a part of it has no slot (no
+    price)."""
+    cost = sun = steer = 0.0
     covered = timedelta(0)
     for slot in slots:
         a, b = max(slot.start, start), min(slot.end, end)
@@ -75,10 +80,11 @@ def _cost(
         from_sun = min(power_w, max(slot.surplus_w, 0.0))
         export = slot.export_price if slot.export_price is not None else slot.price
         cost += (from_sun * export + (power_w - from_sun) * slot.price) * hours / 1000
+        steer += (power_w - from_sun) * slot.margin * hours / 1000
         sun += from_sun * hours / 1000
     if covered < (end - start) - timedelta(seconds=1):
         return None
-    return cost, sun
+    return cost, sun, cost + steer
 
 
 def advise(
@@ -112,18 +118,18 @@ def advise(
         for when in (slot.start, slot.end - duration):
             if begin <= when and when + duration <= last_end:
                 starts.add(when)
-    best: tuple[float, datetime, float] | None = None
+    best: tuple[float, datetime, float, float] | None = None
     for start in sorted(starts):
         result = _cost(slots, start, start + duration, power_w)
         if result is None:
             continue
-        cost, sun = result
-        if best is None or cost < best[0] - TIE:
-            best = (cost, start, sun)
+        cost, sun, steer = result
+        if best is None or steer < best[0] - TIE:
+            best = (steer, start, sun, cost)
     if best is None:
         return EvAdvice(kwh=kwh, prices_until=prices_until, reason="no_prices")
     now_result = _cost(slots, begin, begin + duration, power_w)
-    cost, start, sun = best
+    _steer, start, sun, cost = best
     return EvAdvice(
         start=start,
         end=start + duration,
@@ -145,6 +151,7 @@ def slots_from_plan(plan: object) -> list[EvSlot]:
             s.price,
             s.export_price,
             max(-s.grid_w, 0.0),
+            getattr(s, "price_margin", 0.0),
         )
         for s in getattr(plan, "slots", None) or []
         if s.price is not None

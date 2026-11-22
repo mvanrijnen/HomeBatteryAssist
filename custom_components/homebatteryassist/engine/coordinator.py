@@ -44,6 +44,7 @@ from ..const import (
     CONF_CHARGE_ORDER,
     CONF_CONSUMPTION_FORECASTER,
     CONF_CYCLE_COST,
+    CONF_ESTIMATED_MARGIN,
     CONF_EXPORT_ENTITIES,
     CONF_EXPORT_FACTOR,
     CONF_EXPORT_MODE,
@@ -107,6 +108,7 @@ from ..const import (
     CONF_WEATHER_SOURCE,
     DEFAULT_BALANCE_INTERVAL,
     DEFAULT_CYCLE_COST,
+    DEFAULT_ESTIMATED_MARGIN,
     DEFAULT_EXPORT_FACTOR,
     DEFAULT_EXPORT_MODE,
     DEFAULT_FORECAST_INTERVAL,
@@ -504,6 +506,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             min_discharge_price=opts.get(CONF_MIN_DISCHARGE_PRICE),
             max_charge_price=opts.get(CONF_MAX_CHARGE_PRICE),
             min_margin=float(opts.get(CONF_MIN_MARGIN, 0)),
+            estimated_margin=float(
+                opts.get(CONF_ESTIMATED_MARGIN, DEFAULT_ESTIMATED_MARGIN)
+            ),
             charge_hysteresis=float(opts.get(CONF_CHARGE_HYSTERESIS, 0)),
             charge_sequential=opts.get(CONF_CHARGE_ORDER, CHARGE_SEQUENTIAL)
             == CHARGE_SEQUENTIAL,

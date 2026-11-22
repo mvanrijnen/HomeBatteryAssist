@@ -109,6 +109,7 @@ Hoe de plannen kosten en prijzen afwegen, en de vaste standen.
 | **Slijtagekosten batterij** | Kosten per kWh door de batterij (slijtage), in de prijseenheid; voorkomt laden/ontladen voor minieme winst. |
 | **Max. cycli per dag (arbitrage)** | Arbitrage laadt en ontlaadt hoogstens zoveel volledige cycli per dag (ontladen energie / capaciteit), om de batterijen te sparen. 0 = geen grens. |
 | **Min. arbitragemarge** | Arbitrage laadt alleen om later te ontladen als dat minstens zoveel per kWh oplevert, bovenop de slijtagekosten. |
+| **Marge voor geschatte prijzen** | Prijzen die nog niet gepubliceerd zijn, zijn schattingen. Arbitrage laadt, ontlaadt of bewaart energie voor een tijdvak met een geschatte prijs alleen als dat minstens zoveel per kWh meer oplevert dan handelen bij een gepubliceerde prijs; het advies voor het laden van de auto weegt het net zo. Kosten en besparing worden gewoon met de prijzen zelf berekend. 0 = schattingen tellen als gepubliceerde prijzen. |
 | **Pas ontladen vanaf prijs** | Optioneel: de batterijen ontladen alleen als stroom minstens dit kost (ook bij nul op de meter). |
 | **Uit het net laden tot prijs** | Optioneel: arbitrage laadt alleen uit het net als stroom hoogstens dit kost (laden met zonne-overschot mag altijd). |
 | **Doelnetvermogen (nul op de meter)** | Nul op de meter mikt op dit netvermogen in plaats van precies 0 W, bijv. +50 W zodat er altijd een beetje wordt afgenomen. |
