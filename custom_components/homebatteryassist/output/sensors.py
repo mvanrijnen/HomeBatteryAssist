@@ -592,20 +592,10 @@ class PlanPhaseSensor(
         data = self.coordinator.data
         # The planned batteries (a real battery with a twin is not planned).
         configs = [s.config for s in self._batteries.plan_states() if s.soc is not None]
-        rules = self.coordinator.rules
-        now = dt_util.utcnow()
-        night = data.night_at(now)
+        capacity = sum(c.capacity_kwh for c in configs) or 1.0
         # The floor the plan holds now: the reserve, the night reserve at
         # night, the peak reserve with a peak limit.
-        reserve = max(
-            rules.reserve_soc,
-            rules.night_reserve_soc if night else 0.0,
-            rules.peak_reserve_soc if self.coordinator.peak_w > 0 else 0.0,
-        )
-        capacity = sum(c.capacity_kwh for c in configs) or 1.0
-        floor = (
-            sum(max(c.min_soc, reserve) * c.capacity_kwh for c in configs) / capacity
-        )
+        floor = self.coordinator.plan_floor(configs, dt_util.utcnow())
         current, following = current_and_next(
             data.battery,
             self._kind,

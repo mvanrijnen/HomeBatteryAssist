@@ -86,6 +86,7 @@ from .engine.evaluation.pv_corrections import async_load_user_pv_correctors
 from .engine.evaluation.unexpected_surplus import UnexpectedSurplus
 from .engine.explain import DecisionLog
 from .engine.explain.notifications import Notifier
+from .engine.explain.plan_phases import reason_now
 from .engine.forecast.forecasters import async_load_user_forecasters
 from .engine.forecast.user_adjustments import AdjustmentStore
 from .engine.history import ConsumptionHistory
@@ -279,6 +280,23 @@ async def async_setup_entry(
             )
 
         batteries.planned_now = _planned_now
+
+        def _plan_reason():
+            """The phase the selected plan is in now, with its reason."""
+            data, now = forecast.data, dt_util.utcnow()
+            if data is None or not data.battery:
+                return None
+            configs = [s.config for s in batteries.plan_states() if s.soc is not None]
+            return reason_now(
+                data.battery,
+                now,
+                data.selected_plan.strategy if data.selected_plan else data.plan_mode,
+                forecast.plan_floor(configs, now),
+                hass.config.language,
+                hass.config.currency,
+            )
+
+        batteries.plan_reason = _plan_reason
 
         def _expected_until(battery_id: str, activity: str):
             """When a real battery's activity is expected to end if it follows the

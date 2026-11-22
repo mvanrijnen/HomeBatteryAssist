@@ -109,7 +109,7 @@ Het plan wordt in gewone taal uitgelegd, als periodes — wat er gebeurt tot wan
 
 > *Tot 17:00 ontladen de batterijen niet en draait het huis op het net, omdat stroom nu niet duur genoeg is (€ 0,31 per kWh): ze bewaren hun energie voor ma 17:00-20:00, als stroom € 0,46 per kWh kost.*
 
-Wat elke echte batterij uit zichzelf doet, wordt ook als periodes uitgelegd — sinds wanneer ze laadt of levert, waarmee (zonnestroom of het net), tot wanneer dat naar verwachting doorgaat en wat er gebeurt als ze stopt — en of dat bij het plan past.
+Wat elke batterij doet, wordt ook als periodes uitgelegd — sinds wanneer ze laadt of levert, waarmee (zonnestroom of het net), tot wanneer dat naar verwachting doorgaat en wat er gebeurt als ze stopt — en of dat bij het plan past, met de reden van het plan (bijv. *Dat klopt met het plan: stroom is dan duur (€ 0,42 per kWh).*). Een echte batterij volgt haar eigen sturing; een virtuele batterij (en een twin) laat zien wat HomeBatteryAssist zou doen, tot het eind van die fase van het plan. Het planverhaal zelf wordt opnieuw verteld als verandert wat het plan nu doet, en anders hooguit elke 3 uur.
 
 ## Plancontrole {#plan-check}
 

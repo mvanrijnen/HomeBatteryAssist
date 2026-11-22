@@ -537,6 +537,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             minutes=entry.options.get(CONF_BALANCE_INTERVAL, DEFAULT_BALANCE_INTERVAL)
         )
         self._last_plan: str | None = None
+        self._story_at: datetime | None = None
         self._last_method: str | None = None
         # Recalculated by hand: tell the plan in *Why* even when unchanged.
         self.explain_next = False
@@ -1802,10 +1803,33 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             band = self._story_band
         self._story_band = band
         key = f"{plan.mode}|{action}|{next_charge}|{band}"
-        if key == self._last_plan and not forced:
-            return
+        if not forced and self._last_plan is not None:
+            if key == self._last_plan:
+                return
+            same_action = key.split("|")[:2] == self._last_plan.split("|")[:2]
+            if (
+                same_action
+                and self._story_at is not None
+                and now - self._story_at < STORY_MIN_GAP
+            ):
+                return
         self._last_plan = key
+        self._story_at = now
         self._decisions.async_log("planning", "battery_plan_story", text=text)
+
+    def plan_floor(self, configs: list[Any], now: datetime) -> float:
+        """The state of charge (%) the plan holds now over ``configs`` (the
+        planned batteries): each battery's minimum or the reserve (the night
+        reserve at night, the peak reserve with a peak limit)."""
+        rules = self.rules
+        night = self.data.night_at(now) if self.data is not None else False
+        reserve = max(
+            rules.reserve_soc,
+            rules.night_reserve_soc if night else 0.0,
+            rules.peak_reserve_soc if self.peak_w > 0 else 0.0,
+        )
+        capacity = sum(c.capacity_kwh for c in configs) or 1.0
+        return sum(max(c.min_soc, reserve) * c.capacity_kwh for c in configs) / capacity
 
     def outdoor_temperature(self) -> float | None:
         """The outdoor temperature now (°C): the sensor, else the weather
@@ -2066,6 +2090,10 @@ def _periods(
 # are only compared with on the dashboard).
 HEAVY_MODES = (MODE_ARBITRAGE, MODE_ARBITRAGE_FULL)
 HEAVY_EVERY = timedelta(hours=1)
+# The plan story with the same action now is told again at most this often
+# (a next charge or the saving moving a little is no news; what each battery
+# starts and stops doing is told with the plan's reason anyway).
+STORY_MIN_GAP = timedelta(hours=3)
 
 
 OUTLOOK_SPAN = timedelta(hours=36)  # how far past the window to look for sun

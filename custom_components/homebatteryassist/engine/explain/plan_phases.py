@@ -253,6 +253,28 @@ def current_and_next(
     return current, following
 
 
+def reason_now(
+    slots: Sequence[PlanSlot],
+    now: datetime,
+    mode: str,
+    floor_soc: float = 0.0,
+    language: str | None = None,
+    currency: str | None = None,
+) -> Phase | None:
+    """The phase the plan is in now (the main kind of the slot of now:
+    discharging, else the larger charge part, else idle on the grid) with
+    its reason and end; None without a plan slot now or when the batteries
+    are idle and the grid is not used (the sun covers the house)."""
+    slot = next((s for s in slots if s.start <= now < s.end), None)
+    if slot is None:
+        return None
+    parts = slot_parts(slot)
+    if not parts:
+        return None
+    kind = "discharge" if "discharge" in parts else max(parts, key=parts.__getitem__)
+    return current_and_next(slots, kind, now, mode, floor_soc, language, currency)[0]
+
+
 def phase_attributes(
     phase: Phase | None,
     prefix: str,

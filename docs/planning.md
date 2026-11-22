@@ -109,7 +109,7 @@ The plan is explained in plain language, as periods — what happens until when,
 
 > *Until 17:00 the batteries do not discharge and the house runs on the grid, because power is not expensive enough now (€ 0.31 per kWh): they keep their energy for Mon 17:00-20:00, when power costs € 0.46 per kWh.*
 
-What each real battery does by its own control is explained as periods too — since when it charges or supplies, with what (solar power or the grid), until when it is expected to go on, and what happens when it stops — and whether that matches the plan.
+What each battery does is explained as periods too — since when it charges or supplies, with what (solar power or the grid), until when it is expected to go on, and what happens when it stops — and whether that matches the plan, with the plan's reason (e.g. *That matches the plan: power is expensive then (€ 0.42 per kWh).*). A real battery follows its own control; a virtual battery (and a twin) shows what HomeBatteryAssist would do, until the end of the plan's phase. The plan story itself is told again when what the plan does now changes, and otherwise at most every 3 hours.
 
 ## Plan check
 
