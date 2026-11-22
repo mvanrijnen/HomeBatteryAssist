@@ -28,8 +28,9 @@ the dashboard simulates is what would be sent:
    surplus instead of the forecast one (``plan_balance``; a planned
    discharge only as far as needed now, ``planned_discharge``, threshold
    ``ForecastCoordinator.pv_deviation_w``): an unexpected surplus stored on
-   top, a planned charge from the sun that is not there not taken from the
-   grid; or, for zero on the meter,
+   top when the plan stores the forecast surplus itself (not when it chose
+   to export it), a planned charge from the sun that is not there never
+   taken from the grid; or, for zero on the meter,
    ``nom_balance`` — surplus charged; a shortage discharged, but never for
    excluded devices nor for a random short peak (spike filter, when on).
    Price rules: no discharging below the minimum discharge price. Lowest

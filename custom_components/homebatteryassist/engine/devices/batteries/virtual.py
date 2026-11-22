@@ -7,7 +7,8 @@ selected plan mode, using the real measurements:
   grid right now (after the real batteries);
 - the other modes (arbitrage, time slots, manual): follow the battery plan of
   the current slot, for the virtual batteries' share of the planned capacity;
-  an unexpected solar surplus (``plan_balance``) is stored on top; when the
+  an unexpected solar surplus (``plan_balance``) is stored on top (unless the
+  plan exports the forecast surplus: storing does not pay); when the
   sun falls short, the part of a planned charge that was to come from it is
   only charged as far as it is really there.
 

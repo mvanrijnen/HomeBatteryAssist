@@ -941,6 +941,10 @@ def unexpected_shortage(
     )
 
 
+# A plan that charges at least the forecast surplus minus this stores it all.
+STORES_ALL_W = 50.0
+
+
 def plan_balance(
     planned_w: float,
     surplus_w: float,
@@ -951,18 +955,30 @@ def plan_balance(
     real solar surplus instead of the forecast one.
 
     The plan counted on ``expected_w`` of surplus (forecast for this hour).
-    Unexpectedly more: that is charged as well, never so much that the grid
-    supplies it. Unexpectedly less: the part of a planned charge that was to
-    come from the sun is only charged as far as the surplus is really there,
-    so the grid does not fill in for the missing sun (a planned grid charge
-    goes on). A plan that discharges now is followed as it is.
+
+    - Less sun: the part of a planned charge that was to come from the sun
+      is only charged as far as the surplus is really there, however small
+      the shortage: the grid never fills in for the missing sun (a planned
+      grid charge goes on).
+    - Unexpectedly more (``unexpected_surplus``): charged as well, never so
+      much that the grid supplies it — but only when the plan stores the
+      forecast surplus itself. A plan that exports it chose to (storing does
+      not pay then: the export price is worth more than the energy later),
+      so the extra is exported too.
+
+    A plan that discharges now is followed as it is.
     """
     if planned_w < 0:
         return planned_w
-    if unexpected_surplus(surplus_w, expected_w, threshold_w):
-        extra = surplus_w - max(expected_w, 0.0)
-        return min(planned_w + extra, max(planned_w, surplus_w))
-    if planned_w > 0 and unexpected_shortage(surplus_w, expected_w, threshold_w):
-        from_sun = min(planned_w, max(expected_w, 0.0))
-        return planned_w - from_sun + min(from_sun, max(surplus_w, 0.0))
+    surplus = max(surplus_w, 0.0)
+    expected = max(expected_w, 0.0)
+    from_sun = min(planned_w, expected)
+    if surplus < from_sun:
+        return planned_w - from_sun + surplus
+    if (
+        unexpected_surplus(surplus_w, expected_w, threshold_w)
+        and planned_w >= expected - STORES_ALL_W
+    ):
+        extra = surplus - expected
+        return min(planned_w + extra, max(planned_w, surplus))
     return planned_w

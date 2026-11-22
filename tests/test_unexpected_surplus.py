@@ -88,7 +88,13 @@ def test_plan_does_not_take_missing_sun_from_the_grid() -> None:
     assert plan_balance(1000.0, 200.0, 1200.0) == 200.0  # all from the sun
     assert plan_balance(1000.0, -300.0, 1200.0) == 0.0  # nothing left over
     assert plan_balance(2000.0, 100.0, 800.0) == 1300.0  # 1200 grid + 100
-    assert plan_balance(1000.0, 700.0, 1200.0) == 1000.0  # more than half there
+    # Also a small shortage: the missing sun never from the grid.
+    assert plan_balance(1000.0, 700.0, 1200.0) == 700.0
+    assert plan_balance(310.0, 260.0, 310.0) == 260.0
+    # The plan exports the forecast surplus (storing does not pay): the
+    # unexpected extra is exported too.
+    assert plan_balance(0.0, 1500.0, 600.0) == 0.0
+    assert plan_balance(200.0, 1500.0, 600.0) == 200.0
     assert plan_balance(0.0, 0.0, 1200.0) == 0.0  # nothing planned
     assert plan_balance(-500.0, 0.0, 1200.0) == -500.0  # discharge as planned
 

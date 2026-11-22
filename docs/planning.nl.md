@@ -11,7 +11,7 @@ HomeBatteryAssist plant wat de batterijen het beste kunnen doen binnen het [plan
 Elke planmodus is een [planner (planningsmodule)](modules.md); ze worden allemaal elke ronde berekend, met de verwachte besparing vergeleken met geen batterij:
 
 - **Minder verbruik dan voorspeld**: gepland ontladen gaat niet verder dan het huis nu nodig heeft, dus batterijstroom gaat nooit het net op tenzij het plan die teruglevering koos.
-- **Meer of minder zon dan verwacht**: in elke modus volgen de batterijen het zonne-overschot dat er echt is — een onverwacht overschot wordt bovenop het plan opgeslagen, ontbrekende zon wordt niet uit het net gehaald. Zie [Als de zon afwijkt van de voorspelling](#when-the-sun-differs-from-the-forecast).
+- **Meer of minder zon dan verwacht**: in elke modus volgen de batterijen het zonne-overschot dat er echt is — een onverwacht overschot wordt bovenop het plan opgeslagen (tenzij het plan het overschot teruglevert omdat opslaan niet loont), ontbrekende zon wordt nooit uit het net gehaald. Zie [Als de zon afwijkt van de voorspelling](#when-the-sun-differs-from-the-forecast).
 - **Nul op de meter (NOM)**: laden met overtollige zonnestroom, het huis voeden bij een tekort — niet de uitgesloten apparaten (bijv. een laadpaal) en, als dat aanstaat, niet willekeurige [korte pieken](measuring.md#short-peaks).
 - **Arbitrage** (eigen gebruik): laden als stroom goedkoop is, het huis voeden als stroom duur is. Energie die aan het eind van het venster nog in de batterij zit, telt voor wat ze later bespaart (de gemiddelde prijs, min de slijtage van dat gebruik; de kosten en besparing van het plan rekenen het net zo); maar als de zonverwachting verder reikt dan de prijzen en de volgende zon een overschot heeft dat de batterij toch vult, is het deel dat die zon vult alleen de terugleverprijs van dat overschot waard. Zo voedt de batterij in de zomer ook 's avonds en 's nachts het huis in plaats van het net, zolang de prijs na slijtage (*kosten per cyclus*) en de *minimale arbitragemarge* het waard is. Diagnostiek: `outlook`.
 - **Arbitrage volledig**: zoals arbitrage, maar mag ook ontladen naar het net als de terugleverprijs dat de moeite waard maakt.
@@ -31,9 +31,11 @@ HomeBatteryAssist vergelijkt het **overschot** nu (PV − huis − uitgesloten a
 |---|---|---|
 | **Wanneer** | minstens **300 W** over, en minder dan de helft daarvan was voorspeld | minstens **300 W** voorspeld, en er is minder dan de helft van over |
 | **Nul op de meter** | opgeslagen, zoals elk overschot | minder op te slaan; bij een tekort leveren de batterijen het huis stroom uit wat ze hebben |
-| **Arbitrage en andere plannen per tijdvak** | **bovenop** het geplande vermogen opgeslagen — nooit meer dan het overschot, dus nooit uit het net | het deel van gepland laden dat **van de zon** moest komen, wordt alleen geladen voor zover het overschot er echt is: het net vult de ontbrekende zon niet aan; gepland laden **uit het net** gaat door |
+| **Arbitrage en andere plannen per tijdvak** | **bovenop** het geplande vermogen opgeslagen — nooit meer dan het overschot, dus nooit uit het net; alleen als het plan het voorspelde overschot zelf ook opslaat: levert het plan het terug (opslaan loont niet bij die terugleverprijs), dan gaat het extra deel ook naar het net | het deel van gepland laden dat **van de zon** moest komen, wordt alleen geladen voor zover het overschot er echt is — ook onder de drempel: het net vult de ontbrekende zon nooit aan; gepland laden **uit het net** gaat door |
 | **Een geplande ontlading** | gevolgd zoals gepland | gevolgd zoals gepland |
 | **Waarom** | na **5 minuten**: *Onverwacht zonne-overschot* | na **5 minuten**: *Minder zon dan verwacht* |
+
+De drempel bepaalt wanneer een extra overschot bovenop wordt opgeslagen en wanneer *Waarom* het meldt; een tekort wordt nooit uit het net aangevuld, hoe klein ook.
 
 !!! example "Voorbeeld"
     Arbitrage plande tussen 12:00 en 13:00 te laden met 1.000 W zonnestroom.

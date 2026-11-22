@@ -11,7 +11,7 @@ HomeBatteryAssist plans what the batteries could best do over the [planning wind
 Every plan mode is a [planner module](modules.md); all are calculated every cycle, with the expected saving compared with no battery:
 
 - **Less consumption than forecast**: a planned discharge goes no further than the house needs now, so battery energy never goes into the grid unless the plan chose that export.
-- **More or less sun than forecast**: in every mode the batteries follow the solar surplus that is really there — an unexpected surplus is stored on top of the plan, missing sun is not taken from the grid. See [When the sun differs from the forecast](#when-the-sun-differs-from-the-forecast).
+- **More or less sun than forecast**: in every mode the batteries follow the solar surplus that is really there — an unexpected surplus is stored on top of the plan (unless the plan exports the surplus because storing does not pay), missing sun is never taken from the grid. See [When the sun differs from the forecast](#when-the-sun-differs-from-the-forecast).
 - **Zero on the meter (NOM)**: charge with surplus solar power, supply the house on shortage — not excluded devices (e.g. an EV charger) and, when switched on, not random [short peaks](measuring.md#short-peaks).
 - **Arbitrage** (own use): charge when power is cheap, supply the house when it is expensive. Energy still in the battery at the end of the window is valued at what it saves later (the average price, minus the wear of using it then; the plan's cost and saving count it the same way); but when the PV forecast reaches further than the prices and the next sun has a surplus that fills the battery anyway, the part it fills is only worth that surplus's export price. So in summer the battery also covers the evening and night instead of the grid, as long as the price minus wear (*cost per cycle*) and the *minimum arbitrage margin* make it worthwhile. Diagnostics: `outlook`.
 - **Full arbitrage**: like arbitrage, but may also discharge to the grid when the export price makes that worthwhile.
@@ -31,9 +31,11 @@ HomeBatteryAssist compares the **surplus** now (PV − house − excluded device
 |---|---|---|
 | **When** | at least **300 W** left over, and less than half of it was forecast | at least **300 W** was forecast, and less than half of it is left over |
 | **Zero on the meter** | stored, like any surplus | less to store; on a shortage the batteries supply the house from what they hold |
-| **Arbitrage and other plans per slot** | stored **on top of** the planned power — never more than the surplus, so never from the grid | the part of a planned charge that was to come **from the sun** is only charged as far as the surplus is really there: the grid does not fill in for the missing sun; a planned charge **from the grid** goes on |
+| **Arbitrage and other plans per slot** | stored **on top of** the planned power — never more than the surplus, so never from the grid; only when the plan stores the forecast surplus itself: when it exports it (storing does not pay at that export price), the extra goes to the grid too | the part of a planned charge that was to come **from the sun** is only charged as far as the surplus is really there — also below the threshold: the grid never fills in for the missing sun; a planned charge **from the grid** goes on |
 | **A planned discharge** | followed as planned | followed as planned |
 | **Why** | after **5 minutes**: *Unexpected solar surplus* | after **5 minutes**: *Less solar than forecast* |
+
+The threshold decides when an extra surplus is stored on top and when *Why* tells it; a shortage is never filled in from the grid, however small.
 
 !!! example "Example"
     Arbitrage planned to charge 1,000 W with solar power between 12:00 and 13:00.
