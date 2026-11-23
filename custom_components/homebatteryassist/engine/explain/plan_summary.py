@@ -3,6 +3,8 @@
 - ``now``: what the batteries do now, until when and why, with the price
   thresholds of the plan (using the batteries pays above, charging from the
   grid below; planners that know them, e.g. arbitrage);
+- ``power``: batteries the plans give less power for their temperature
+  (warm now; cold once that is learned);
 - ``next``: the next change (another kind of phase);
 - ``plan``: the charge and discharge periods in one line and the expected
   saving compared with no battery;
@@ -33,6 +35,7 @@ TEXT = {
     "nl": {
         "labels": {
             "now": "Nu",
+            "power": "Vermogen",
             "next": "Straks",
             "plan": "Plan",
             "sun": "Zon",
@@ -60,6 +63,8 @@ TEXT = {
         "short_charge": "Laden uit het net loont onder {charge}.",
         "short_charging": "Dit laden loont tot {charge}.",
         "short_using": "Leveren loont vanaf {use}.",
+        "power_warm": "{name} is warm ({temperature}): laden met hooguit {charge} W in plaats van {max_charge} W.",
+        "power_warm_both": "{name} is warm ({temperature}): laden met hooguit {charge} W in plaats van {max_charge} W, ontladen met hooguit {discharge} W in plaats van {max_discharge} W.",
         "next": "{when}: {kind} tot {end} ({energy}): {reason}.",
         "plan_part": {
             "charge_grid": "laden uit het net {spans}",
@@ -77,6 +82,7 @@ TEXT = {
     "en": {
         "labels": {
             "now": "Now",
+            "power": "Power",
             "next": "Next",
             "plan": "Plan",
             "sun": "Sun",
@@ -104,6 +110,8 @@ TEXT = {
         "short_charge": "Charging from the grid pays below {charge}.",
         "short_charging": "This charge pays up to {charge}.",
         "short_using": "Supplying pays from {use}.",
+        "power_warm": "{name} is warm ({temperature}): charging at {charge} W at most instead of {max_charge} W.",
+        "power_warm_both": "{name} is warm ({temperature}): charging at {charge} W at most instead of {max_charge} W, discharging at {discharge} W at most instead of {max_discharge} W.",
         "next": "{when}: {kind} until {end} ({energy}): {reason}.",
         "plan_part": {
             "charge_grid": "charge from the grid {spans}",
@@ -120,7 +128,29 @@ TEXT = {
     },
 }
 
-ORDER = ("now", "next", "plan", "sun", "cheapest")
+ORDER = ("now", "power", "next", "plan", "sun", "cheapest")
+
+
+def _power_line(limits: Sequence[Mapping[str, Any]], lang: str) -> str | None:
+    """The batteries planned with less power for their temperature."""
+    text = TEXT[lang]
+    parts = []
+    for info in limits:
+        both = info["discharge_w"] < info["max_discharge_w"]
+        temperature = f"{info['temperature_c']:.1f} °C"
+        if lang == "nl":
+            temperature = temperature.replace(".", ",")
+        parts.append(
+            text["power_warm_both" if both else "power_warm"].format(
+                name=info["name"],
+                temperature=temperature,
+                charge=info["charge_w"],
+                max_charge=info["max_charge_w"],
+                discharge=info["discharge_w"],
+                max_discharge=info["max_discharge_w"],
+            )
+        )
+    return " ".join(parts) or None
 
 
 def _lang(language: str | None) -> str:
@@ -364,15 +394,19 @@ def plan_summary(
     currency: str | None = None,
     pv_wh: Mapping[datetime, float] | None = None,
     published_until: datetime | None = None,
+    power_limits: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
-    """The lines of the summary (``now``, ``next``, ``plan``, ``sun``,
-    ``cheapest``; None when there is nothing to say), ``lines`` (label and
-    text, in order, for the dashboard) and the thresholds of now."""
+    """The lines of the summary (``now``, ``power``, ``next``, ``plan``,
+    ``sun``, ``cheapest``; None when there is nothing to say), ``lines``
+    (label and text, in order, for the dashboard) and the thresholds of now.
+    ``power_limits``: per battery planned with less power for its
+    temperature its name, temperature and powers (``ForecastCoordinator``)."""
     lang = _lang(language)
     now_text, short, current = _now_line(slots, now, mode, floor_soc, lang, currency)
     slot = next((s for s in slots if s.start <= now < s.end), None)
     out: dict[str, Any] = {
         "now": now_text,
+        "power": _power_line(power_limits, lang),
         "next": (
             _next_line(slots, now, current, mode, floor_soc, lang, currency)
             if slots

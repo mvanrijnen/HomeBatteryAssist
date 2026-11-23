@@ -250,6 +250,7 @@ from .sources.weather import (
 )
 from .units import state_to_celsius
 
+DERATE_END_C = 1.0  # °C below the limit: told as ended
 _LOGGER = logging.getLogger(__name__)
 
 PRICE_LOG_DAYS = timedelta(days=8)  # published prices kept for the chart
@@ -491,6 +492,10 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         self._adjusted_today: set[datetime] = set()
         self.full_charge_solar: bool = opts.get(CONF_FULL_CHARGE_SOLAR, True)
         self.charge_order: str = opts.get(CONF_CHARGE_ORDER, CHARGE_SEQUENTIAL)
+        # Batteries planned with less power for their temperature (by id),
+        # and those told so in *Why* (id -> name).
+        self.power_limits: dict[str, dict[str, Any]] = {}
+        self._derating_told: dict[str, str] = {}
         self.temperature = {
             "limit": float(opts.get(CONF_TEMP_LIMIT, 40)),
             "band": float(opts.get(CONF_TEMP_BAND, 10)),
@@ -922,6 +927,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         }
         plans: dict[str, BatteryPlan] = {}
         derated = [self._derated(s) for s in states]
+        self._tell_derating(derated)
         lap("phases_full_charge")
         outlook = self._outlook(raw_pv, window, step, now)
         self.outlook = outlook
@@ -1435,7 +1441,76 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             config=state.config,
             charge_factor=factor,
             discharge_factor=factor if t["discharge"] else 1.0,
+            temperature_c=celsius,
         )
+
+    def _tell_derating(self, batteries: list[Any]) -> None:
+        """Remember which batteries the plans give less power for their
+        temperature (``power_limits``, for the plan summary) and tell when
+        that starts and ends (*Why*; ends ``DERATE_END_C`` below the limit,
+        so a temperature around the limit does not tell it every cycle)."""
+        limits: dict[str, dict[str, Any]] = {}
+        for battery in batteries:
+            charge = getattr(battery, "charge_factor", 1.0)
+            discharge = getattr(battery, "discharge_factor", 1.0)
+            if charge >= 1 and discharge >= 1:
+                continue
+            config = battery.config
+            limits[config.id] = {
+                "name": config.name,
+                "reason": "warm",
+                "temperature_c": round(battery.temperature_c, 1),
+                "charge_w": round(config.max_charge_w * charge),
+                "max_charge_w": round(config.max_charge_w),
+                "discharge_w": round(config.max_discharge_w * discharge),
+                "max_discharge_w": round(config.max_discharge_w),
+            }
+        told = self._derating_told
+        for battery_id, info in limits.items():
+            if battery_id not in told:
+                told[battery_id] = info["name"]
+                key = (
+                    "battery_warm_both"
+                    if info["discharge_w"] < info["max_discharge_w"]
+                    else "battery_warm"
+                )
+                self._decisions.async_log(
+                    "battery",
+                    key,
+                    name=info["name"],
+                    temperature=info["temperature_c"],
+                    limit=round(self.temperature["limit"]),
+                    charge=info["charge_w"],
+                    max_charge=info["max_charge_w"],
+                    discharge=info["discharge_w"],
+                    max_discharge=info["max_discharge_w"],
+                )
+        for battery in batteries:
+            config = battery.config
+            if config.id in limits or config.id not in told:
+                continue
+            celsius = getattr(battery, "temperature_c", None)
+            if celsius is None:
+                sensor = config.temperature_sensor
+                celsius = state_to_celsius(
+                    self.hass.states.get(sensor) if sensor else None
+                )
+                if celsius is None:
+                    celsius = battery_telemetry(self.hass, config).temperature_c
+            if (
+                celsius is not None
+                and celsius > self.temperature["limit"] - DERATE_END_C
+            ):
+                # Just below the limit: still the full power, not told yet.
+                continue
+            del told[config.id]
+            self._decisions.async_log(
+                "battery",
+                "battery_warm_ended",
+                name=config.name,
+                power=round(config.max_charge_w),
+            )
+        self.power_limits = limits
 
     def _solar_price(
         self,
@@ -1853,6 +1928,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             self.hass.config.currency,
             data.pv_wh,
             until,
+            [self.power_limits[c.id] for c in configs if c.id in self.power_limits],
         )
 
     def outdoor_temperature(self) -> float | None:

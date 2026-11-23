@@ -1695,6 +1695,9 @@
           "now": {
             "name": "Now"
           },
+          "power": {
+            "name": "Power"
+          },
           "next": {
             "name": "Next"
           },

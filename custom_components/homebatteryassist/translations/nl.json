@@ -1695,6 +1695,9 @@
           "now": {
             "name": "Nu"
           },
+          "power": {
+            "name": "Vermogen"
+          },
           "next": {
             "name": "Straks"
           },

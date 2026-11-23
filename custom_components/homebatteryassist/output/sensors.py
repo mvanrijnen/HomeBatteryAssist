@@ -645,7 +645,16 @@ class PlanSummarySensor(
 
     # Text that changes with every plan: not worth keeping in the history.
     _unrecorded_attributes = frozenset(
-        {"now", "next", "plan", "sun", "cheapest", "use_above", "charge_below"}
+        {
+            "now",
+            "power",
+            "next",
+            "plan",
+            "sun",
+            "cheapest",
+            "use_above",
+            "charge_below",
+        }
     )
 
     def __init__(self, entry: HomeBatteryAssistConfigEntry) -> None:
@@ -671,6 +680,7 @@ class PlanSummarySensor(
             key: summary.get(key)
             for key in (
                 "now",
+                "power",
                 "next",
                 "plan",
                 "sun",
