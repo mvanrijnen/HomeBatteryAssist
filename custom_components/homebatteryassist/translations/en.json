@@ -345,6 +345,16 @@
               "storage_backend": "JSON files in .storage (default), or a database: only what changed is written (less wear on an SD card). Changing it moves the data at the next start.",
               "storage_url": "Only for MySQL / MariaDB or PostgreSQL, e.g. mysql://user:password@core-mariadb/homebatteryassist?charset=utf8mb4 or postgresql://user:password@host/homebatteryassist. The database must exist."
             }
+          },
+          "control": {
+            "name": "Test control",
+            "description": "Test controlling a battery by hand (buttons Test: charge / discharge / stop on each battery), with you present. Through the battery's direct connection when it has one, else through its integration. Always back to the battery's own control afterwards.",
+            "data": {
+              "control_test": "Test control on"
+            },
+            "data_description": {
+              "control_test": "Off: the test buttons only explain that the test is off; nothing is sent to a battery."
+            }
           }
         }
       }
@@ -611,6 +621,11 @@
       "options": {
         "direct": "Direct",
         "pd": "PD control"
+      }
+    },
+    "direct_driver": {
+      "options": {
+        "none": "No direct connection (through its sensors)"
       }
     }
   },
@@ -911,6 +926,16 @@
               "storage_backend": "JSON files in .storage (default), or a database: only what changed is written (less wear on an SD card). Changing it moves the data at the next start.",
               "storage_url": "Only for MySQL / MariaDB or PostgreSQL, e.g. mysql://user:password@core-mariadb/homebatteryassist?charset=utf8mb4 or postgresql://user:password@host/homebatteryassist. The database must exist."
             }
+          },
+          "control": {
+            "name": "Test control",
+            "description": "Test controlling a battery by hand (buttons Test: charge / discharge / stop on each battery), with you present. Through the battery's direct connection when it has one, else through its integration. Always back to the battery's own control afterwards.",
+            "data": {
+              "control_test": "Test control on"
+            },
+            "data_description": {
+              "control_test": "Off: the test buttons only explain that the test is off; nothing is sent to a battery."
+            }
           }
         }
       },
@@ -1145,11 +1170,15 @@
             "phase": "Phase",
             "temperature_sensor": "Temperature sensor (optional)",
             "battery_meter": "Battery meter (optional)",
-            "battery_meter_address": "Address of the battery meter"
+            "battery_meter_address": "Address of the battery meter",
+            "direct_driver": "Direct connection (optional)",
+            "direct_address": "Address of the battery",
+            "direct_port": "Port",
+            "direct_unit": "Unit id"
           },
           "data_description": {
-            "soc_sensor": "Sensor with the state of charge in %.",
-            "power_sensor": "Sensor with the charge/discharge power (W) or current (A) of the battery.",
+            "soc_sensor": "Sensor with the state of charge in %. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback).",
+            "power_sensor": "Sensor with the charge/discharge power (W) or current (A) of the battery. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback).",
             "power_sign": "Is the power sensor positive while charging or while discharging?",
             "capacity_kwh": "Capacity of the battery in kWh (from the specifications).",
             "min_soc": "The battery is not discharged below this level.",
@@ -1159,7 +1188,11 @@
             "phase": "The phase the battery is connected to, if it uses a single phase.",
             "temperature_sensor": "Battery temperature; when warm the plans use less power (see the temperature settings).",
             "battery_meter": "A meter on the battery's line that can be read directly, e.g. a kWh meter. Its power (+ into the battery = charging) is then used instead of the power sensor; for batteries whose integration does not give their own power, or as a check.",
-            "battery_meter_address": "IP address or host name of that meter."
+            "battery_meter_address": "IP address or host name of that meter.",
+            "direct_driver": "HomeBatteryAssist reads the battery itself over its own connection (e.g. a Marstek Venus over Modbus TCP) instead of through another integration's sensors, and can control it over that connection (test control, later the control). Many batteries allow only one connection: switch off the integration that reads it now (e.g. Omnibattery) first. Choosing a driver here switches the connection on.",
+            "direct_address": "IP address or host name of the battery.",
+            "direct_port": "Modbus TCP: usually 502.",
+            "direct_unit": "Modbus unit id: usually 1."
           }
         },
         "battery": {
@@ -1180,11 +1213,15 @@
             "phase": "Phase",
             "temperature_sensor": "Temperature sensor (optional)",
             "battery_meter": "Battery meter (optional)",
-            "battery_meter_address": "Address of the battery meter"
+            "battery_meter_address": "Address of the battery meter",
+            "direct_driver": "Direct connection (optional)",
+            "direct_address": "Address of the battery",
+            "direct_port": "Port",
+            "direct_unit": "Unit id"
           },
           "data_description": {
-            "soc_sensor": "Sensor with the state of charge in %.",
-            "power_sensor": "Sensor with the charge/discharge power (W) or current (A) of the battery.",
+            "soc_sensor": "Sensor with the state of charge in %. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback).",
+            "power_sensor": "Sensor with the charge/discharge power (W) or current (A) of the battery. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback).",
             "power_sign": "Is the power sensor positive while charging or while discharging?",
             "capacity_kwh": "Capacity of the battery in kWh (from the specifications).",
             "min_soc": "The battery is not discharged below this level.",
@@ -1194,7 +1231,11 @@
             "phase": "The phase the battery is connected to, if it uses a single phase.",
             "temperature_sensor": "Battery temperature; when warm the plans use less power (see the temperature settings).",
             "battery_meter": "A meter on the battery's line that can be read directly, e.g. a kWh meter. Its power (+ into the battery = charging) is then used instead of the power sensor; for batteries whose integration does not give their own power, or as a check.",
-            "battery_meter_address": "IP address or host name of that meter."
+            "battery_meter_address": "IP address or host name of that meter.",
+            "direct_driver": "HomeBatteryAssist reads the battery itself over its own connection (e.g. a Marstek Venus over Modbus TCP) instead of through another integration's sensors, and can control it over that connection (test control, later the control). Many batteries allow only one connection: switch off the integration that reads it now (e.g. Omnibattery) first. Choosing a driver here switches the connection on.",
+            "direct_address": "IP address or host name of the battery.",
+            "direct_port": "Modbus TCP: usually 502.",
+            "direct_unit": "Modbus unit id: usually 1."
           }
         }
       },
@@ -1202,7 +1243,9 @@
         "sensor_is_phase_sensor": "This sensor is already used as a grid phase measurement.",
         "sensor_in_use": "This sensor is already used by another device.",
         "soc_range": "The maximum state of charge must be higher than the minimum.",
-        "address_required": "Enter the address of the battery's meter."
+        "address_required": "Enter the address of the battery's meter.",
+        "sensor_required": "Choose a sensor, or a direct connection.",
+        "direct_address_required": "Fill in the battery's IP address for the direct connection."
       },
       "abort": {
         "reconfigure_successful": "Settings saved.",
@@ -1837,6 +1880,15 @@
           "oscillating": "Oscillating",
           "sluggish": "Sluggish",
           "idle": "Idle"
+        }
+      },
+      "direct_connection": {
+        "name": "Direct connection",
+        "state": {
+          "connecting": "Connecting",
+          "connected": "Connected",
+          "error": "Error",
+          "stopped": "Stopped"
         }
       }
     },

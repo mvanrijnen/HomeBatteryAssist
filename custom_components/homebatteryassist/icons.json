@@ -140,6 +140,14 @@
       },
       "export_limit": {
         "default": "mdi:transmission-tower-export"
+      },
+      "direct_connection": {
+        "default": "mdi:lan-connect",
+        "state": {
+          "error": "mdi:lan-disconnect",
+          "stopped": "mdi:lan-disconnect",
+          "connecting": "mdi:lan-pending"
+        }
       }
     },
     "button": {

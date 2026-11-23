@@ -446,7 +446,7 @@ class BatteriesTotalSensor(_BatteryEntityBase):
 
 def source_device(hass: HomeAssistant, entity_id: str) -> tuple[str | None, str | None]:
     """(manufacturer, model) of the device that owns ``entity_id``, if known."""
-    entity = er.async_get(hass).async_get(entity_id)
+    entity = er.async_get(hass).async_get(entity_id) if entity_id else None
     if entity is None or entity.device_id is None:
         return None, None
     device = dr.async_get(hass).async_get(entity.device_id)

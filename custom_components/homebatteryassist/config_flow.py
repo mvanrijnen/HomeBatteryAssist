@@ -83,8 +83,13 @@ from .const import (
     CONF_COMMAND_CHECK_MINUTES,
     CONF_COMMAND_CHECK_W,
     CONF_CONSUMPTION_FORECASTER,
+    CONF_CONTROL_TEST,
     CONF_CYCLE_COST,
     CONF_DEVICE_PHASE_SENSORS,
+    CONF_DIRECT_ADDRESS,
+    CONF_DIRECT_DRIVER,
+    CONF_DIRECT_PORT,
+    CONF_DIRECT_UNIT,
     CONF_EFFICIENCY,
     CONF_ESTIMATED_MARGIN,
     CONF_EXPORT_ENTITIES,
@@ -197,6 +202,8 @@ from .const import (
     DEFAULT_COMMAND_CHECK_MINUTES,
     DEFAULT_COMMAND_CHECK_W,
     DEFAULT_CYCLE_COST,
+    DEFAULT_DIRECT_PORT,
+    DEFAULT_DIRECT_UNIT,
     DEFAULT_EFFICIENCY,
     DEFAULT_ESTIMATED_MARGIN,
     DEFAULT_EXPORT_FACTOR,
@@ -230,6 +237,7 @@ from .const import (
     DEFAULT_SPIKE_DURATION,
     DEFAULT_SPIKE_THRESHOLD,
     DEFAULT_TARIFF_VAT,
+    DIRECT_NONE,
     DOMAIN,
     EXPORT_MODES,
     FORECAST_INTERVAL_OPTIONS,
@@ -282,6 +290,7 @@ from .engine.db_store import (
     async_check_database,
     database_url,
 )
+from .engine.devices.batteries import DIRECT_DRIVERS as BATTERY_DIRECT_DRIVERS
 from .engine.devices.batteries.recognition import (
     BatteryCandidate,
     find_battery_candidates,
@@ -552,6 +561,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "sim_ramp_w_s",
     ),
     "command_check": ("command_check_w", "command_check_minutes"),
+    "control": ("control_test",),
     "export_limit": (
         "export_never",
         "export_limit_on",
@@ -1119,6 +1129,9 @@ async def _flat_settings_schema(
             ),
         ): _number(1, 30, 1, "min"),
         vol.Required(
+            CONF_CONTROL_TEST, default=bool(current.get(CONF_CONTROL_TEST, False))
+        ): BooleanSelector(),
+        vol.Required(
             CONF_EXPORT_NEVER,
             default=current.get(CONF_EXPORT_NEVER, DEFAULT_EXPORT_NEVER),
         ): BooleanSelector(),
@@ -1448,6 +1461,7 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     options[CONF_COMMAND_CHECK_MINUTES] = int(
         user_input.get(CONF_COMMAND_CHECK_MINUTES, DEFAULT_COMMAND_CHECK_MINUTES)
     )
+    options[CONF_CONTROL_TEST] = bool(user_input.get(CONF_CONTROL_TEST, False))
     options[CONF_EXPORT_LIMIT] = bool(
         user_input.get(CONF_EXPORT_LIMIT, DEFAULT_EXPORT_LIMIT)
     )
@@ -2222,12 +2236,13 @@ def battery_schema(
     must be chosen (spreading it over all phases under-counts the phase)."""
     schema: dict[Any, Any] = {
         vol.Required(CONF_NAME): TextSelector(),
-        vol.Required(CONF_SOC_SENSOR): EntitySelector(
+        # Not needed for a battery read over its direct connection.
+        vol.Optional(CONF_SOC_SENSOR): EntitySelector(
             EntitySelectorConfig(
                 domain="sensor", device_class=SensorDeviceClass.BATTERY
             )
         ),
-        vol.Required(CONF_POWER_SENSOR): PHASE_SENSOR_SELECTOR,
+        vol.Optional(CONF_POWER_SENSOR): PHASE_SENSOR_SELECTOR,
         vol.Required(CONF_POWER_SIGN, default=SIGN_CHARGING_POSITIVE): _select(
             SIGN_OPTIONS, CONF_POWER_SIGN
         ),
@@ -2272,6 +2287,31 @@ def battery_schema(
             )
         ),
         vol.Optional(CONF_BATTERY_METER_ADDRESS): TextSelector(),
+        # Optional direct connection: read (and controlled) by a direct
+        # driver over its own connection instead of through its sensors.
+        vol.Required(CONF_DIRECT_DRIVER, default=DIRECT_NONE): SelectSelector(
+            SelectSelectorConfig(
+                options=[
+                    SelectOptionDict(value=DIRECT_NONE, label=DIRECT_NONE),
+                    *(
+                        SelectOptionDict(
+                            value=d.key,
+                            label=f"{d.name}{untested(d.verified, dutch)}",
+                        )
+                        for d in BATTERY_DIRECT_DRIVERS
+                    ),
+                ],
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_DIRECT_DRIVER,
+            )
+        ),
+        vol.Optional(CONF_DIRECT_ADDRESS): TextSelector(),
+        vol.Optional(CONF_DIRECT_PORT, default=DEFAULT_DIRECT_PORT): _number(
+            1, 65535, 1, ""
+        ),
+        vol.Optional(CONF_DIRECT_UNIT, default=DEFAULT_DIRECT_UNIT): _number(
+            0, 255, 1, ""
+        ),
     }
     if three_phase and single_phase:
         schema[vol.Required(CONF_PHASE)] = SelectSelector(
@@ -2388,11 +2428,19 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         current = self._current()
         errors: dict[str, str] = {}
         if user_input is not None:
+            direct = user_input.get(CONF_DIRECT_DRIVER, DIRECT_NONE) != DIRECT_NONE
             for key in BATTERY_SENSOR_KEYS:
-                if error := sensor_conflict(entry, user_input[key], current):
+                if not user_input.get(key):
+                    if not direct:
+                        errors[key] = "sensor_required"
+                elif error := sensor_conflict(entry, user_input[key], current):
                     errors[key] = error
-            if user_input[CONF_SOC_SENSOR] == user_input[CONF_POWER_SENSOR]:
+            if user_input.get(CONF_SOC_SENSOR) and user_input.get(
+                CONF_SOC_SENSOR
+            ) == user_input.get(CONF_POWER_SENSOR):
                 errors[CONF_POWER_SENSOR] = "sensor_in_use"
+            if direct and not (user_input.get(CONF_DIRECT_ADDRESS) or "").strip():
+                errors[CONF_DIRECT_ADDRESS] = "direct_address_required"
             if user_input[CONF_MIN_SOC] >= user_input[CONF_MAX_SOC]:
                 errors[CONF_MAX_SOC] = "soc_range"
             if (
@@ -2430,6 +2478,21 @@ class BatterySubentryFlow(ConfigSubentryFlow):
             data[CONF_BATTERY_METER_ADDRESS] = address
         else:
             data.pop(CONF_BATTERY_METER_ADDRESS, None)
+        for key in BATTERY_SENSOR_KEYS:
+            if not data.get(key):
+                data.pop(key, None)
+        direct = (user_input.get(CONF_DIRECT_ADDRESS) or "").strip()
+        if direct:
+            data[CONF_DIRECT_ADDRESS] = direct
+        else:
+            data.pop(CONF_DIRECT_ADDRESS, None)
+        data[CONF_DIRECT_DRIVER] = user_input.get(CONF_DIRECT_DRIVER, DIRECT_NONE)
+        data[CONF_DIRECT_PORT] = int(
+            user_input.get(CONF_DIRECT_PORT) or DEFAULT_DIRECT_PORT
+        )
+        data[CONF_DIRECT_UNIT] = int(
+            user_input.get(CONF_DIRECT_UNIT) or DEFAULT_DIRECT_UNIT
+        )
         return {
             **data,
             CONF_PHASE: user_input.get(CONF_PHASE, PHASE_NONE),
@@ -2451,7 +2514,10 @@ class BatterySubentryFlow(ConfigSubentryFlow):
     def _async_finish(
         self, data: dict[str, Any], current: ConfigSubentry | None
     ) -> SubentryFlowResult:
-        title, unique_id = data[CONF_NAME], data[CONF_POWER_SENSOR]
+        title = data[CONF_NAME]
+        unique_id = data.get(CONF_POWER_SENSOR) or (
+            f"direct:{data.get(CONF_DIRECT_ADDRESS)}:{data.get(CONF_DIRECT_UNIT)}"
+        )
         if current is None:
             return self.async_create_entry(title=title, data=data, unique_id=unique_id)
         return self.async_update_and_abort(

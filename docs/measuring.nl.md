@@ -53,7 +53,7 @@ Wat een batterij door zijn eigen aansturing doet (laden, leveren, stoppen) wordt
 
 ### Testbesturing (staat voorlopig uit) {#test-control-switched-off-for-now}
 
-Om het aansturen van een batterij met de hand te testen — voordat HomeBatteryAssist haar ooit automatisch aanstuurt — heeft het apparaat van elke echte batterij een **testbesturing**. **In deze fase staat die uit**: de knoppen versturen niets; *Waarom* meldt alleen dat de testbesturing uit staat.
+Om het aansturen van een batterij met de hand te testen — voordat HomeBatteryAssist haar ooit automatisch aanstuurt — heeft het apparaat van elke echte batterij een **testbesturing**. **Standaard staat die uit**: de knoppen versturen niets; *Waarom* meldt alleen dat de testbesturing uit staat. Zet hem aan met de instelling *Testbesturing aan* (onderdeel *Testbesturing*), alleen terwijl je erbij bent.
 
 | Entiteit | Wat het is |
 |---|---|
@@ -66,11 +66,11 @@ Om het aansturen van een batterij met de hand te testen — voordat HomeBatteryA
 Staat hij eenmaal aan, dan doet een test het volgende:
 
 1. **eerst controleren**: het laadniveau moet bekend zijn, een laadtest start niet als de batterij vol is, een ontlaadtest niet op of onder haar laagst toegestane laadniveau (max(min. laadniveau, reserve));
-2. **de opdracht via de eigen integratie van de batterij sturen** — bij Omnibattery: de handmatige modus van de batterij met het laad- of ontlaadvermogen — via de beveiligingslaag die elke toekomstige besturing gebruikt (een watchdog, altijd teruggeven, hoogstens één nieuwe opdracht per 5 s, vermogensgrenzen);
+2. **de opdracht over de [directe verbinding](drivers.md#direct-battery-drivers) van de batterij sturen** als ze die heeft — bij een Marstek Venus: RS485-besturing aan, het laad- of ontlaadvermogen en de geforceerde modus in haar registers — **en anders via de eigen integratie van de batterij** — bij Omnibattery: de handmatige modus van de batterij met het laad- of ontlaadvermogen — via de beveiligingslaag die elke toekomstige besturing gebruikt (een watchdog, altijd teruggeven, hoogstens één nieuwe opdracht per 5 s, vermogensgrenzen);
 3. **vanzelf stoppen** als de tijd om is, als de batterij vol raakt of haar laagst toegestane laadniveau bereikt, als ze [de opdracht niet volgt](#does-the-battery-follow-its-command), als een opdracht mislukt, met *Test: stoppen* en als HomeBatteryAssist stopt of herlaadt;
-4. **de batterij altijd teruggeven** aan haar eigen sturing (Omnibattery neemt het weer over), en in *Waarom* vertellen waarom hij stopte en hoeveel er geladen en ontladen is.
+4. **de batterij altijd teruggeven** aan haar eigen sturing (direct: vermogen 0, geforceerde modus uit, RS485-besturing uit; via Omnibattery: Omnibattery neemt het weer over), en in *Waarom* vertellen waarom hij stopte en hoeveel er geladen en ontladen is.
 
-Aanzetten is een besluit van de projecteigenaar, samen met de eerste test op een echte installatie terwijl er iemand bij is.
+Gebruik hem de eerste keer op een echte installatie terwijl er iemand bij is.
 
 ## Virtuele batterijen {#virtual-batteries}
 

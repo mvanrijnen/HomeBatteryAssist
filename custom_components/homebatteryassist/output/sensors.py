@@ -30,6 +30,7 @@ from ..engine.devices.meters import SOURCE_NAMES
 from ..engine.explain.plan_phases import KINDS as PHASE_KINDS
 from ..engine.explain.plan_phases import current_and_next, phase_attributes
 from ..engine.explain.plan_summary import state_text
+from ..engine.measure.battery_monitor import direct_link
 from ..engine.measure.house_measurement import MeasurementInput, PowerFlow
 from ..models import HomeBatteryAssistConfigEntry
 from .batteries import (
@@ -40,7 +41,7 @@ from .batteries import (
     BatterySensor,
     source_device,
 )
-from .control_test import ControlTestStatus
+from .control_test import ControlTestStatus, DirectLinkStatus
 from .registry_cleanup import tracked
 
 MAX_STATE_LENGTH = 255
@@ -108,6 +109,12 @@ async def async_setup_entry(
                 *(
                     [ControlTestStatus(entry, config.id)]
                     if config.id in entry.runtime_data.control_test.configs
+                    else []
+                ),
+                # Its direct connection, if it has one.
+                *(
+                    [DirectLinkStatus(entry, config.id, link)]
+                    if (link := direct_link(hass, config)) is not None
                     else []
                 ),
             ],

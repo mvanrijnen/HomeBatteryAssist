@@ -1,13 +1,12 @@
 """Direct battery drivers: a battery read (and later controlled) by
 HomeBatteryAssist itself, not through another integration's entities.
 
-PREPARED, NOT USED. A direct driver talks to the battery over its own
-connection (Modbus TCP, local HTTP API, MQTT). Many batteries allow only one
-such connection, and today another integration (e.g. Omnibattery) owns it.
-So direct drivers are never offered and never connect unless ``enabled`` is
-set deliberately; HomeBatteryAssist is read-only and never calls the write
-methods. They exist so a switch from another integration to HomeBatteryAssist
-is a matter of turning one on.
+A direct driver talks to the battery over its own connection (Modbus TCP,
+local HTTP API, MQTT). Many batteries allow only one such connection, often
+owned by another integration (e.g. Omnibattery). So a driver never connects
+unless ``enabled``: only the instance of a battery that chose it as its
+direct connection (``link.py``) is. Its write methods are called only through
+that link (test control; later the control loop).
 
 Shape, per kind of connection:
 
@@ -32,7 +31,7 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant
 
-from ..base import BatteryModel, BatteryTelemetry
+from ..base import BatteryCommand, BatteryModel, BatteryTelemetry
 
 
 @dataclass(slots=True)
@@ -95,10 +94,15 @@ class DirectBatteryDriver:
         """Close the connection."""
 
     async def async_set_power(self, power_w: float) -> None:
-        """Charge (+) / discharge (-) at ``power_w``. NEVER called while
-        HomeBatteryAssist is read-only."""
+        """Charge (+) / discharge (-) at ``power_w`` (through ``DirectLink``
+        only)."""
         raise NotImplementedError
 
     async def async_release(self) -> None:
-        """Hand control back to the battery's own logic. NEVER called yet."""
+        """Hand control back to the battery's own logic."""
         raise NotImplementedError
+
+    def command(self, reading: DirectReading) -> BatteryCommand | None:
+        """The command the battery has now according to ``reading`` (None:
+        not readable, or the battery controls itself)."""
+        return None

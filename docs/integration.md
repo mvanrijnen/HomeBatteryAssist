@@ -16,7 +16,7 @@ The sensors have a fixed meaning and can be used by other integrations and add-o
 
 **Does not follow its command.** Each real battery has a problem sensor that is on while the battery does not follow the command of the integration that controls it, without an explanation (see [Measuring](measuring.md#does-the-battery-follow-its-command)); attributes: the command, the battery's power, the reason when explained, and since when.
 
-**Test control.** Each real battery's device also has the [test control](architecture.md#control-layer-built-not-active) (buttons *Test: charge / discharge / stop*, *Test power*, *Test duration*, status *Test control*; see [Measuring](measuring.md#test-control-switched-off-for-now)). In this phase it is switched off: the buttons send nothing.
+**Test control.** Each real battery's device also has the [test control](architecture.md#control-layer-built-not-active) (buttons *Test: charge / discharge / stop*, *Test power*, *Test duration*, status *Test control*; see [Measuring](measuring.md#test-control-switched-off-for-now)). It is off unless the setting *Test control on* is on: until then the buttons send nothing. A battery with a [direct connection](drivers.md#direct-battery-drivers) also has the diagnostic sensor *Direct connection* (connecting / connected / error, with what it reads).
 
 ## Actions
 

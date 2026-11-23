@@ -240,6 +240,14 @@ Where the consumption history and the forecast accuracy are kept.
 | **Storage** | JSON files in .storage (default), or a database: only what changed is written (less wear on an SD card). Changing it moves the data at the next start. |
 | **Database URL** | Only for MySQL / MariaDB or PostgreSQL, e.g. mysql://user:password@core-mariadb/homebatteryassist?charset=utf8mb4 or postgresql://user:password@host/homebatteryassist. The database must exist. |
 
+### Test control {#settings-control}
+
+Test controlling a battery by hand (buttons Test: charge / discharge / stop on each battery), with you present. Through the battery's direct connection when it has one, else through its integration. Always back to the battery's own control afterwards.
+
+| Field | Explanation |
+|---|---|
+| **Test control on** | Off: the test buttons only explain that the test is off; nothing is sent to a battery. |
+
 ## Devices and time slots {#devices}
 
 Added under the integration (**+ Add …**) and changed with the gear icon next to each one.
@@ -283,8 +291,8 @@ Link a home battery through the entities of its own integration (for now read-on
 | Field | Explanation |
 |---|---|
 | **Name** |  |
-| **State of charge sensor** | Sensor with the state of charge in %. |
-| **Power sensor** | Sensor with the charge/discharge power (W) or current (A) of the battery. |
+| **State of charge sensor** | Sensor with the state of charge in %. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback). |
+| **Power sensor** | Sensor with the charge/discharge power (W) or current (A) of the battery. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback). |
 | **Power sensor direction** | Is the power sensor positive while charging or while discharging? |
 | **Usable capacity** | Capacity of the battery in kWh (from the specifications). |
 | **Maximum charge power** |  |
@@ -297,6 +305,10 @@ Link a home battery through the entities of its own integration (for now read-on
 | **Temperature sensor (optional)** | Battery temperature; when warm the plans use less power (see the temperature settings). |
 | **Battery meter (optional)** | A meter on the battery's line that can be read directly, e.g. a kWh meter. Its power (+ into the battery = charging) is then used instead of the power sensor; for batteries whose integration does not give their own power, or as a check. |
 | **Address of the battery meter** | IP address or host name of that meter. |
+| **Direct connection (optional)** | HomeBatteryAssist reads the battery itself over its own connection (e.g. a Marstek Venus over Modbus TCP) instead of through another integration's sensors, and can control it over that connection (test control, later the control). Many batteries allow only one connection: switch off the integration that reads it now (e.g. Omnibattery) first. Choosing a driver here switches the connection on. |
+| **Address of the battery** | IP address or host name of the battery. |
+| **Port** | Modbus TCP: usually 502. |
+| **Unit id** | Modbus unit id: usually 1. |
 
 ### Virtual battery {#device-virtual-battery}
 
@@ -396,6 +408,7 @@ What HomeBatteryAssist creates (names as shown in Home Assistant).
 | Difference with the real battery today | Sensor |
 | Max export | Sensor |
 | Control quality | Sensor |
+| Direct connection | Sensor |
 | Recalculate | Button |
 | Test: charge | Button |
 | Test: discharge | Button |

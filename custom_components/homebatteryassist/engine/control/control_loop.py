@@ -129,16 +129,19 @@ full/empty, not switched off, no hysteresis) is released to its own control
 (``control_released``) instead of being commanded on; it is commanded again
 once the check is clear.
 
-How a battery is reached (``ReaderDriver``, ``reader_driver.py``):
+How a battery is reached (``reader_driver.py``):
 
-- through the integration it is linked with — the reader's
+- over its **direct connection** first, when its subentry chose one
+  (``LinkDriver`` on the battery's ``DirectLink``: the same connection it is
+  read with, e.g. a Marstek Venus over Modbus TCP with Omnibattery switched
+  off; the driver's refresh / pacing / limits);
+- else through the integration it is linked with (``ReaderDriver``) — the reader's
   ``async_set_power`` / ``async_release`` (e.g. Omnibattery: manual mode +
   charge/discharge power entities; Marstek Modbus: RS485 control mode +
   force charge/discharge). Only when that integration's own control is off,
   otherwise the two fight;
-- or a **direct driver** (``engine/devices/batteries/direct/``) once it is
-  enabled — the only way for batteries without an integration that can
-  control them.
+- the direct connection is the only way for batteries without an
+  integration that can control them.
 
 Activating (later, deliberately, with the project owner)
 ==========================================================
@@ -194,7 +197,8 @@ Activating (later, deliberately, with the project owner)
 # from .battery_controller import BatteryController
 # from .interceptors import run_interceptor
 # from ..planning.battery_distribution import one_direction
-# from .reader_driver import ReaderDriver  # active code, shared with control_test
+# from ..measure.battery_monitor import direct_link
+# from .reader_driver import LinkDriver, ReaderDriver  # shared with control_test
 # from .targets import (  # step 1 of "Activating"
 #     battery_targets,
 #     intercept_input,
@@ -236,11 +240,16 @@ Activating (later, deliberately, with the project owner)
 #                 continue
 #             if config.id in twinned_ids(batteries.configs):
 #                 continue  # its twin is planned in its place: it keeps its own control
+#             link = direct_link(hass, config)  # its direct connection first
 #             reader = reader_for(hass, config)
-#             if reader is None or not reader.can_write:
+#             if link is not None and link.can_write:
+#                 driver = LinkDriver(hass, link, config)
+#             elif link is None and reader is not None and reader.can_write:
+#                 driver = ReaderDriver(hass, reader, config)
+#             else:
 #                 continue  # no way to reach this battery
 #             self.controllers[config.id] = BatteryController(
-#                 ReaderDriver(hass, reader, config),
+#                 driver,
 #                 enabled=enabled,
 #                 limits=(config.max_charge_w, config.max_discharge_w),
 #             )

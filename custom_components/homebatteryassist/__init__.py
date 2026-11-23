@@ -31,6 +31,7 @@ from homeassistant.util import dt as dt_util
 from .const import (
     CONF_COMMAND_CHECK_MINUTES,
     CONF_COMMAND_CHECK_W,
+    CONF_CONTROL_TEST,
     CONF_EXPORT_LIMIT,
     CONF_EXPORT_LIMIT_COST,
     CONF_EXPORT_LIMIT_MAX_W,
@@ -69,7 +70,7 @@ from .const import (
     PRICES_CHECKED,
     SUBENTRY_PV_SOURCE,
 )
-from .engine.control.control_test import ControlTest
+from .engine.control.control_test import CONTROL_TEST_ALLOWED, ControlTest
 from .engine.control.export_limiter import ExportLimiter
 from .engine.control.interceptors import (
     async_load_user_interceptors,
@@ -606,15 +607,16 @@ async def async_setup_entry(
         commands.async_start()
         entry.async_on_unload(commands.async_stop)
 
-        # Test control per real battery: built, switched off in this phase
-        # (CONTROL_TEST_ALLOWED); a test always ends with the battery back on its
-        # own control, also on unload.
+        # Test control per real battery: built, off unless the setting *Test
+        # control* is on; a test always ends with the battery back on its own
+        # control, also on unload.
         control_test = ControlTest(
             hass,
             batteries,
             decisions,
             reserve_soc=lambda: forecast.rules.reserve_soc,
             commands=commands,
+            allowed=bool(entry.options.get(CONF_CONTROL_TEST, CONTROL_TEST_ALLOWED)),
         )
         entry.async_on_unload(control_test.async_stop_all)
         # Home Assistant stopping does not unload the entry: a running test
@@ -753,7 +755,11 @@ async def async_setup_entry(
                 entry.entry_id,
                 [
                     *measurements.source_entity_ids,
-                    *(c.soc_sensor for c in batteries.configs if not c.virtual),
+                    *(
+                        c.soc_sensor
+                        for c in batteries.configs
+                        if not c.virtual and c.soc_sensor
+                    ),
                     *([forecast.outdoor_sensor] if forecast.outdoor_sensor else []),
                     *(s for zone in forecast.zones for s in zone.temperature_sensors),
                 ],

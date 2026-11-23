@@ -85,6 +85,8 @@ def formula_terms(
     ]
     real = [b for b in data.batteries.configs if not b.virtual]
     for index, battery in enumerate(real):
+        if not battery.power_sensor:
+            continue  # read directly only: no sensor history to import
         # house -= charging; charging = -sensor if the sensor is + discharging.
         weight = 1.0 if battery.power_sign == SIGN_DISCHARGING_POSITIVE else -1.0
         terms.append(Term(battery.power_sensor, weight, required_within=True))

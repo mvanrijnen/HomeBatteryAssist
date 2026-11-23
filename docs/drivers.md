@@ -33,9 +33,9 @@ A battery driver has two parts (`base.py`):
 
 One battery type can be read through several integrations; the model and the reader are chosen separately. `template.py` shows both. The **virtual battery** (`virtual.py`) is a simulated device that follows the plan.
 
-### Direct battery drivers — prepared, not used
+### Direct battery drivers
 
-Next to the readers (which go through another integration), every brand can have a **direct driver**: HomeBatteryAssist's own connection to the battery, for the day it controls batteries itself instead of e.g. Omnibattery. They are **disabled** (`enabled = False`): never offered, never connecting, and their write methods are never called. Many batteries allow only one connection, which today belongs to another integration.
+Next to the readers (which go through another integration), every brand can have a **direct driver**: HomeBatteryAssist's own connection to the battery, to read it and to control it itself instead of e.g. Omnibattery. A driver is off (`enabled = False`) until a battery chooses it: setting *Direct connection* in the battery's form (driver, the battery's address, port, unit id). Only then does it connect (`direct/link.py`: a reading every 5 s, waiting longer after each failure instead of reconnecting at once). The battery's state of charge and power then come from the battery itself (its sensors are only the fallback, and are not needed), the diagnostic sensor *Direct connection* shows the connection and what it reads (the command in the registers included), and the [test control](measuring.md#test-control-switched-off-for-now) goes through the same connection. **Many batteries allow only one connection: switch off the integration that reads the battery now (e.g. Omnibattery) first.** All direct drivers are *(not tested)*.
 
 Generic bases in `direct/` (a brand only adds its specifics): `modbus_driver.py` (a register map as data, read in blocks that never cross undefined registers; own small Modbus TCP client in `engine/devices/transports/modbus_tcp.py`), `http_driver.py` (local JSON API) and `mqtt_driver.py` (through Home Assistant's MQTT integration).
 

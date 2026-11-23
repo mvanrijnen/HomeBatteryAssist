@@ -240,6 +240,14 @@ Waar de verbruiksgeschiedenis en de voorspelnauwkeurigheid worden bewaard.
 | **Opslag** | JSON-bestanden in .storage (standaard), of een database: alleen wat veranderd is wordt geschreven (minder slijtage van een SD-kaart). Bij wisselen verhuizen de gegevens bij de volgende start. |
 | **Database-URL** | Alleen voor MySQL / MariaDB of PostgreSQL, bijv. mysql://gebruiker:wachtwoord@core-mariadb/homebatteryassist?charset=utf8mb4 of postgresql://gebruiker:wachtwoord@host/homebatteryassist. De database moet bestaan. |
 
+### Testbesturing {#settings-control}
+
+Een batterij met de hand testen (knoppen Test: laden / ontladen / stoppen bij elke batterij), terwijl je erbij bent. Via de directe verbinding van de batterij als ze die heeft, anders via haar integratie. Daarna altijd terug naar de eigen sturing van de batterij.
+
+| Veld | Uitleg |
+|---|---|
+| **Testbesturing aan** | Uit: de testknoppen leggen alleen uit dat de test uit staat; er wordt niets naar een batterij gestuurd. |
+
 ## Apparaten en tijdvakken {#devices}
 
 Toe te voegen onder de integratie (**+ … toevoegen**) en te wijzigen met het tandwiel ernaast.
@@ -283,8 +291,8 @@ Koppel een thuisbatterij via de entiteiten van zijn eigen integratie (voorlopig 
 | Veld | Uitleg |
 |---|---|
 | **Naam** |  |
-| **Sensor vulling** | Sensor met de vulling in %. |
-| **Sensor vermogen** | Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij. |
+| **Sensor vulling** | Sensor met de vulling in %. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval). |
+| **Sensor vermogen** | Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval). |
 | **Richting vermogensensor** | Is de vermogensensor positief tijdens laden of tijdens ontladen? |
 | **Bruikbare capaciteit** | Capaciteit van de batterij in kWh (uit de specificaties). |
 | **Maximaal laadvermogen** |  |
@@ -297,6 +305,10 @@ Koppel een thuisbatterij via de entiteiten van zijn eigen integratie (voorlopig 
 | **Temperatuursensor (optioneel)** | Temperatuur van de batterij; bij warmte rekenen de plannen met minder vermogen (zie de temperatuurinstellingen). |
 | **Batterijmeter (optioneel)** | Een direct uit te lezen meter op de lijn van de batterij, bijvoorbeeld een kWh-meter. Het vermogen daarvan (+ de batterij in = laden) wordt dan gebruikt in plaats van de vermogenssensor; voor batterijen waarvan de integratie het eigen vermogen niet geeft, of als controle. |
 | **Adres van de batterijmeter** | IP-adres of hostnaam van die meter. |
+| **Directe verbinding (optioneel)** | HomeBatteryAssist leest de batterij zelf uit over een eigen verbinding (bijv. een Marstek Venus via Modbus TCP) in plaats van via de sensoren van een andere integratie, en kan haar over die verbinding aansturen (testbesturing, later de besturing). Veel batterijen staan maar één verbinding toe: zet de integratie die haar nu uitleest (bijv. Omnibattery) eerst uit. Een driver kiezen zet de verbinding aan. |
+| **Adres van de batterij** | IP-adres of hostnaam van de batterij. |
+| **Poort** | Modbus TCP: meestal 502. |
+| **Unit-id** | Modbus unit-id: meestal 1. |
 
 ### Virtuele batterij {#device-virtual-battery}
 
@@ -396,6 +408,7 @@ Wat HomeBatteryAssist aanmaakt (namen zoals in Home Assistant).
 | Verschil met echte batterij vandaag | Sensor |
 | Max. teruglevering | Sensor |
 | Regelkwaliteit | Sensor |
+| Directe verbinding | Sensor |
 | Herbereken | Knop |
 | Test: laden | Knop |
 | Test: ontladen | Knop |

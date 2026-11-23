@@ -84,6 +84,7 @@ from .battery_monitor import (
     battery_configs,
     battery_meter,
     battery_power,
+    direct_link,
     power_frozen,
 )
 from .spike_filters import SpikeFilter, SpikeState, checked
@@ -318,7 +319,7 @@ class MeasurementInput:
     def source_entity_ids(self) -> list[str]:
         """All sensors the calculation depends on."""
         grid = [e for pair in self.grid_phases for e in pair if e is not None]
-        batteries = [b.power_sensor for b in self.batteries]
+        batteries = [b.power_sensor for b in self.batteries if b.power_sensor]
         return [
             *grid,
             *self.pv_sensors,
@@ -344,6 +345,12 @@ class MeasurementInput:
             meter.async_add_listener(self._update)
             for b in self.batteries
             if (meter := battery_meter(self.hass, b)) is not None
+        ]
+        # Batteries read over their own connection: update with each reading.
+        self._unsub_pv += [
+            link.async_add_listener(self._update)
+            for b in self.batteries
+            if (link := direct_link(self.hass, b)) is not None
         ]
         if self.grid_phases or any(b.power_sensor for b in self.batteries):
             self._unsub_stale = async_track_time_interval(
@@ -549,9 +556,13 @@ class MeasurementInput:
         ]
         powers = [battery_power(self.hass, b) for b in self.batteries]
         unknown += [
-            b.power_sensor
+            b.power_sensor or b.name
             for b, power in zip(self.batteries, powers, strict=True)
-            if power is None and self.hass.states.get(b.power_sensor) is not None
+            if power is None
+            and (
+                direct_link(self.hass, b) is not None
+                or self.hass.states.get(b.power_sensor) is not None
+            )
         ]
         # PV that drops out while it was producing is not 0 W (an inverter's
         # wifi dropping would record its PV as no house use). An inverter

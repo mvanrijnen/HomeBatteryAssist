@@ -345,6 +345,16 @@
               "storage_backend": "JSON-bestanden in .storage (standaard), of een database: alleen wat veranderd is wordt geschreven (minder slijtage van een SD-kaart). Bij wisselen verhuizen de gegevens bij de volgende start.",
               "storage_url": "Alleen voor MySQL / MariaDB of PostgreSQL, bijv. mysql://gebruiker:wachtwoord@core-mariadb/homebatteryassist?charset=utf8mb4 of postgresql://gebruiker:wachtwoord@host/homebatteryassist. De database moet bestaan."
             }
+          },
+          "control": {
+            "name": "Testbesturing",
+            "description": "Een batterij met de hand testen (knoppen Test: laden / ontladen / stoppen bij elke batterij), terwijl je erbij bent. Via de directe verbinding van de batterij als ze die heeft, anders via haar integratie. Daarna altijd terug naar de eigen sturing van de batterij.",
+            "data": {
+              "control_test": "Testbesturing aan"
+            },
+            "data_description": {
+              "control_test": "Uit: de testknoppen leggen alleen uit dat de test uit staat; er wordt niets naar een batterij gestuurd."
+            }
           }
         }
       }
@@ -611,6 +621,11 @@
       "options": {
         "direct": "Direct",
         "pd": "PD-regeling"
+      }
+    },
+    "direct_driver": {
+      "options": {
+        "none": "Geen directe verbinding (via de sensoren)"
       }
     }
   },
@@ -911,6 +926,16 @@
               "storage_backend": "JSON-bestanden in .storage (standaard), of een database: alleen wat veranderd is wordt geschreven (minder slijtage van een SD-kaart). Bij wisselen verhuizen de gegevens bij de volgende start.",
               "storage_url": "Alleen voor MySQL / MariaDB of PostgreSQL, bijv. mysql://gebruiker:wachtwoord@core-mariadb/homebatteryassist?charset=utf8mb4 of postgresql://gebruiker:wachtwoord@host/homebatteryassist. De database moet bestaan."
             }
+          },
+          "control": {
+            "name": "Testbesturing",
+            "description": "Een batterij met de hand testen (knoppen Test: laden / ontladen / stoppen bij elke batterij), terwijl je erbij bent. Via de directe verbinding van de batterij als ze die heeft, anders via haar integratie. Daarna altijd terug naar de eigen sturing van de batterij.",
+            "data": {
+              "control_test": "Testbesturing aan"
+            },
+            "data_description": {
+              "control_test": "Uit: de testknoppen leggen alleen uit dat de test uit staat; er wordt niets naar een batterij gestuurd."
+            }
           }
         }
       },
@@ -1145,11 +1170,15 @@
             "phase": "Fase",
             "temperature_sensor": "Temperatuursensor (optioneel)",
             "battery_meter": "Batterijmeter (optioneel)",
-            "battery_meter_address": "Adres van de batterijmeter"
+            "battery_meter_address": "Adres van de batterijmeter",
+            "direct_driver": "Directe verbinding (optioneel)",
+            "direct_address": "Adres van de batterij",
+            "direct_port": "Poort",
+            "direct_unit": "Unit-id"
           },
           "data_description": {
-            "soc_sensor": "Sensor met de vulling in %.",
-            "power_sensor": "Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij.",
+            "soc_sensor": "Sensor met de vulling in %. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval).",
+            "power_sensor": "Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval).",
             "power_sign": "Is de vermogensensor positief tijdens laden of tijdens ontladen?",
             "capacity_kwh": "Capaciteit van de batterij in kWh (uit de specificaties).",
             "min_soc": "De batterij wordt niet verder ontladen dan dit niveau.",
@@ -1159,7 +1188,11 @@
             "phase": "De fase waarop de batterij is aangesloten, als hij één fase gebruikt.",
             "temperature_sensor": "Temperatuur van de batterij; bij warmte rekenen de plannen met minder vermogen (zie de temperatuurinstellingen).",
             "battery_meter": "Een direct uit te lezen meter op de lijn van de batterij, bijvoorbeeld een kWh-meter. Het vermogen daarvan (+ de batterij in = laden) wordt dan gebruikt in plaats van de vermogenssensor; voor batterijen waarvan de integratie het eigen vermogen niet geeft, of als controle.",
-            "battery_meter_address": "IP-adres of hostnaam van die meter."
+            "battery_meter_address": "IP-adres of hostnaam van die meter.",
+            "direct_driver": "HomeBatteryAssist leest de batterij zelf uit over een eigen verbinding (bijv. een Marstek Venus via Modbus TCP) in plaats van via de sensoren van een andere integratie, en kan haar over die verbinding aansturen (testbesturing, later de besturing). Veel batterijen staan maar één verbinding toe: zet de integratie die haar nu uitleest (bijv. Omnibattery) eerst uit. Een driver kiezen zet de verbinding aan.",
+            "direct_address": "IP-adres of hostnaam van de batterij.",
+            "direct_port": "Modbus TCP: meestal 502.",
+            "direct_unit": "Modbus unit-id: meestal 1."
           }
         },
         "battery": {
@@ -1180,11 +1213,15 @@
             "phase": "Fase",
             "temperature_sensor": "Temperatuursensor (optioneel)",
             "battery_meter": "Batterijmeter (optioneel)",
-            "battery_meter_address": "Adres van de batterijmeter"
+            "battery_meter_address": "Adres van de batterijmeter",
+            "direct_driver": "Directe verbinding (optioneel)",
+            "direct_address": "Adres van de batterij",
+            "direct_port": "Poort",
+            "direct_unit": "Unit-id"
           },
           "data_description": {
-            "soc_sensor": "Sensor met de vulling in %.",
-            "power_sensor": "Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij.",
+            "soc_sensor": "Sensor met de vulling in %. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval).",
+            "power_sensor": "Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval).",
             "power_sign": "Is de vermogensensor positief tijdens laden of tijdens ontladen?",
             "capacity_kwh": "Capaciteit van de batterij in kWh (uit de specificaties).",
             "min_soc": "De batterij wordt niet verder ontladen dan dit niveau.",
@@ -1194,7 +1231,11 @@
             "phase": "De fase waarop de batterij is aangesloten, als hij één fase gebruikt.",
             "temperature_sensor": "Temperatuur van de batterij; bij warmte rekenen de plannen met minder vermogen (zie de temperatuurinstellingen).",
             "battery_meter": "Een direct uit te lezen meter op de lijn van de batterij, bijvoorbeeld een kWh-meter. Het vermogen daarvan (+ de batterij in = laden) wordt dan gebruikt in plaats van de vermogenssensor; voor batterijen waarvan de integratie het eigen vermogen niet geeft, of als controle.",
-            "battery_meter_address": "IP-adres of hostnaam van die meter."
+            "battery_meter_address": "IP-adres of hostnaam van die meter.",
+            "direct_driver": "HomeBatteryAssist leest de batterij zelf uit over een eigen verbinding (bijv. een Marstek Venus via Modbus TCP) in plaats van via de sensoren van een andere integratie, en kan haar over die verbinding aansturen (testbesturing, later de besturing). Veel batterijen staan maar één verbinding toe: zet de integratie die haar nu uitleest (bijv. Omnibattery) eerst uit. Een driver kiezen zet de verbinding aan.",
+            "direct_address": "IP-adres of hostnaam van de batterij.",
+            "direct_port": "Modbus TCP: meestal 502.",
+            "direct_unit": "Modbus unit-id: meestal 1."
           }
         }
       },
@@ -1202,7 +1243,9 @@
         "sensor_is_phase_sensor": "Deze sensor wordt al gebruikt als netmeting van een fase.",
         "sensor_in_use": "Deze sensor wordt al door een ander apparaat gebruikt.",
         "soc_range": "De maximale vulling moet hoger zijn dan de minimale.",
-        "address_required": "Vul het adres van de meter van de batterij in."
+        "address_required": "Vul het adres van de meter van de batterij in.",
+        "sensor_required": "Kies een sensor, of een directe verbinding.",
+        "direct_address_required": "Vul het IP-adres van de batterij in voor de directe verbinding."
       },
       "abort": {
         "reconfigure_successful": "Instellingen opgeslagen.",
@@ -1837,6 +1880,15 @@
           "oscillating": "Slingert",
           "sluggish": "Traag",
           "idle": "Rust"
+        }
+      },
+      "direct_connection": {
+        "name": "Directe verbinding",
+        "state": {
+          "connecting": "Verbinden",
+          "connected": "Verbonden",
+          "error": "Fout",
+          "stopped": "Gestopt"
         }
       }
     },

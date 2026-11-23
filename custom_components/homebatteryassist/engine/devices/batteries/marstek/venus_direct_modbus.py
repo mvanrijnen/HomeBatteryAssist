@@ -1,4 +1,4 @@
-"""Direct drivers: Marstek Venus over Modbus TCP — PREPARED, NOT USED.
+"""Direct drivers: Marstek Venus over Modbus TCP (not tested).
 
 One driver per hardware version; the battery does not report its own model,
 so the user has to pick it:
@@ -46,9 +46,12 @@ Hazards (from the device facts; read them before enabling anything):
   ``34002 + 100 * (n - 1)`` (0.1 %), per-pack cell max/min at 34005/34006
   with the same stride; ``pack_mask`` (32110) tells which slots are online.
 
-Control (``async_set_power`` / ``async_release``) is described for a future
-in which HomeBatteryAssist controls batteries; it is NEVER called while
-HomeBatteryAssist is read-only.
+Use: chosen per battery as its direct connection (subentry
+``direct_driver``); only then is the driver enabled and does it connect (Omnibattery
+or another Modbus client must be switched off first: one client only).
+Control (``async_set_power`` / ``async_release``) goes through that
+connection: the control test buttons (when switched on) and, once active,
+the control loop.
 
 ESPHome variant (LilyGo T-CAN485 bridge on the battery's RS485 port, Venus E
 with the v2 map): not a direct driver here. The ESP32 polls the battery about
@@ -74,6 +77,7 @@ import time
 from typing import Any, ClassVar
 
 from ...transports.modbus_tcp import ModbusError, decode
+from ..base import BatteryCommand
 from ..direct.base import DirectBatteryDriver, DirectReading
 from ..direct.modbus_driver import ModbusBatteryDriver, Point, blocks
 from .venus_a import MarstekVenusA
@@ -162,7 +166,7 @@ def _is_exception(err: ModbusError) -> bool:
 class MarstekVenusModbus(ModbusBatteryDriver):
     """What the Marstek Venus versions share. Not a driver by itself."""
 
-    can_write = True  # described below; NEVER called
+    can_write = True  # through a direct link only
     enabled = False
     verified = False
     source = (
@@ -174,6 +178,11 @@ class MarstekVenusModbus(ModbusBatteryDriver):
     pause = 0.15  # the TCP server task needs >= 150 ms between requests
     max_block = 125
     ceiling: ClassVar[float] = 2500.0  # W, highest set-point the hardware takes
+    # The battery can drop out of forced mode on its own: repeat the command.
+    refresh_s = 30.0
+    # Each change is three register writes; the battery needs 3-4 s to settle.
+    min_interval_s = 5.0
+    deadband_w = 25.0
 
     def __init__(self, hass: Any, address: str, **options: Any) -> None:
         """Initialize; ``options`` may override ``port`` and ``unit``."""
@@ -295,10 +304,26 @@ class MarstekVenusModbus(ModbusBatteryDriver):
             reading.extra["packs_online"] = mask.bit_count()
         return reading
 
+    def command(self, reading: DirectReading) -> BatteryCommand | None:
+        """The command in the registers: None while RS485 control is off (the
+        battery follows its own logic) or unknown."""
+        extra = reading.extra
+        if extra.get("rs485_control") != RS485_ENABLE:
+            return None
+        force = extra.get("force_mode")
+        if force == FORCE_CHARGE:
+            return BatteryCommand(float(extra.get("charge_setpoint_w") or 0.0))
+        if force == FORCE_DISCHARGE:
+            return BatteryCommand(-float(extra.get("discharge_setpoint_w") or 0.0))
+        if force == FORCE_NONE:
+            return BatteryCommand(0.0)
+        return None
+
     async def async_set_power(self, power_w: float) -> None:
         """Charge (+) or discharge (-) at ``power_w`` (0 = idle).
 
-        NEVER called while HomeBatteryAssist is read-only.
+        Only through a battery's direct connection (``direct/link.py``),
+        chosen per battery; written by the control test or the control loop.
 
         Sequence: RS485 control on (0x55AA to 42000, once per connection: a
         new connection can reset it), then discharge set-point (42021),
@@ -328,8 +353,6 @@ class MarstekVenusModbus(ModbusBatteryDriver):
 
     async def async_release(self) -> None:
         """Hand control back to the battery's own logic.
-
-        NEVER called while HomeBatteryAssist is read-only.
 
         Leaves the battery alone when its backup function is on and the
         backup port carries more than 50 W (or either is unknown). Otherwise:
@@ -371,7 +394,7 @@ class MarstekVenusModbus(ModbusBatteryDriver):
 
 
 class MarstekVenusEV2Modbus(MarstekVenusModbus):
-    """Marstek Venus E v2 over Modbus TCP (prepared, not used)."""
+    """Marstek Venus E v2 over Modbus TCP (not tested)."""
 
     key = "marstek_venus_e_v2_modbus"
     name = "Marstek Venus E v2 (Modbus TCP)"
@@ -393,7 +416,7 @@ class MarstekVenusEV2Modbus(MarstekVenusModbus):
 
 
 class MarstekVenusEV3Modbus(MarstekVenusModbus):
-    """Marstek Venus E v3 over Modbus TCP (prepared, not used)."""
+    """Marstek Venus E v3 over Modbus TCP (not tested)."""
 
     key = "marstek_venus_e_v3_modbus"
     name = "Marstek Venus E v3 (Modbus TCP)"
@@ -407,7 +430,7 @@ class MarstekVenusEV3Modbus(MarstekVenusModbus):
 
 
 class MarstekVenusAModbus(MarstekVenusModbus):
-    """Marstek Venus A over Modbus TCP (prepared, not used)."""
+    """Marstek Venus A over Modbus TCP (not tested)."""
 
     key = "marstek_venus_a_modbus"
     name = "Marstek Venus A (Modbus TCP)"
@@ -417,7 +440,7 @@ class MarstekVenusAModbus(MarstekVenusModbus):
 
 
 class MarstekVenusDModbus(MarstekVenusModbus):
-    """Marstek Venus D over Modbus TCP (prepared, not used).
+    """Marstek Venus D over Modbus TCP (not tested).
 
     The power ceiling depends on the EMS firmware (30200): 2500 W from
     version 149, otherwise (or unknown) 2200 W.

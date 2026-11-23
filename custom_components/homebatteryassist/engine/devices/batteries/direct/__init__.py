@@ -1,8 +1,10 @@
-"""Direct battery drivers — PREPARED, NOT USED (see ``base.py``).
+"""Direct battery drivers (see ``base.py``) and a battery's direct connection
+(``link.py``).
 
-``DIRECT_DRIVERS`` lists them for documentation and tests only; nothing in
-HomeBatteryAssist offers or starts them. Brand drivers live with their brand
-(e.g. ``marstek/venus_direct_modbus.py``) and subclass the generic drivers here.
+``DIRECT_DRIVERS`` (in ``..``) lists them; a battery chooses one in its form
+(``direct_driver``) and only then does that driver connect. Brand drivers
+live with their brand (e.g. ``marstek/venus_direct_modbus.py``) and subclass
+the generic drivers here.
 """
 
 from __future__ import annotations

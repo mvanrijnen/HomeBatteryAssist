@@ -1,7 +1,8 @@
 """Test control entities per real battery (on its device): buttons to start
 charging / discharging and to stop, the test power and duration, and the
-status. While the test control is switched off (``CONTROL_TEST_ALLOWED``)
-the buttons only tell *Why* so; nothing is sent."""
+status. While the test control is switched off (setting *Test control*)
+the buttons only tell *Why* so; nothing is sent. A battery with a direct
+connection also gets its status (``DirectLinkStatus``)."""
 
 from __future__ import annotations
 
@@ -10,11 +11,12 @@ from typing import Any
 from homeassistant.components.button import ButtonEntity
 from homeassistant.components.number import NumberMode, RestoreNumber
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
-from homeassistant.const import EntityCategory, UnitOfPower, UnitOfTime
+from homeassistant.const import MATCH_ALL, EntityCategory, UnitOfPower, UnitOfTime
 from homeassistant.helpers.device_registry import DeviceInfo
 
 from ..const import DOMAIN
 from ..engine.control.control_test import STATUSES, ControlTest
+from ..engine.devices.batteries.direct.link import STATES as LINK_STATES
 from ..models import HomeBatteryAssistConfigEntry
 
 
@@ -149,3 +151,37 @@ def control_test_numbers(entry: HomeBatteryAssistConfigEntry, battery_id: str) -
         ),
         ControlTestNumber(entry, battery_id, "control_test_minutes", 30),
     ]
+
+
+class DirectLinkStatus(_TestEntity, SensorEntity):
+    """The battery's direct connection: connected / error, and what it reads
+    (state of charge, power, the command in its registers, telemetry)."""
+
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    # Changes every reading: kept out of the recorder.
+    _unrecorded_attributes = frozenset({MATCH_ALL})
+
+    def __init__(
+        self, entry: HomeBatteryAssistConfigEntry, battery_id: str, link: Any
+    ) -> None:
+        """Initialize."""
+        self._setup(entry, battery_id, "direct_connection")
+        self._attr_options = list(LINK_STATES)
+        self._link = link
+
+    async def async_added_to_hass(self) -> None:
+        """Follow every reading."""
+        self.async_on_remove(
+            self._link.async_add_listener(lambda _when: self.async_write_ha_state())
+        )
+
+    @property
+    def native_value(self) -> str:
+        """The connection's state."""
+        return self._link.state
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """What the connection reads."""
+        return self._link.as_dict()

@@ -34,7 +34,12 @@ SWITCHED_ON = re.compile(
 )
 # The reader adapter is a driver that may be controlled at all; whether it
 # is decides the controller's master switch (``enabled`` False by default).
-SWITCH_ALLOWED = ("engine/control/reader_driver.py",)
+# A direct link enables the one driver instance of a battery whose user chose
+# that direct connection (the deliberate switch, per battery).
+SWITCH_ALLOWED = (
+    "engine/control/reader_driver.py",
+    "engine/devices/batteries/direct/link.py",
+)
 # Home Assistant actions that are allowed: notifications, reading prices and
 # reading the weather forecast.
 ALLOWED_ACTION_FILES = (

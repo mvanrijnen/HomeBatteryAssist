@@ -117,7 +117,7 @@ custom_components/homebatteryassist/
     │   │                  integrations/ (entity_reader.py, omnibattery_integration.py,
     │   │                  marstek_modbus_integration.py),
     │   │                  direct/ (base.py, modbus_driver.py, http_driver.py, mqtt_driver.py
-    │   │                  — prepared, not used),
+    │   │                  — chosen per battery, direct/link.py),
     │   │                  one folder per brand: models (brand → range → type) + direct driver:
     │   │                  marstek/, anker/, huawei/, zendure/, sessy/, indevolt/, hoymiles/
     │   ├── transports/    modbus_tcp.py (own small Modbus TCP client)
@@ -172,11 +172,11 @@ In deze fase van de ontwikkeling stuurt HomeBatteryAssist nog geen batterijen aa
 
 Een test (`tests/test_read_only.py`) faalt zodra code buiten de drivers en deze laag een schrijfmethode aanroept, een controller aanmaakt, een directe driver inschakelt of een Home Assistant-actie aanroept die een apparaat verandert.
 
-Elke [directe driver](drivers.md#direct-battery-drivers--prepared-not-used) geeft zijn eigen eisen voor aansturing aan; de controller dwingt die af.
+Elke [directe driver](drivers.md#direct-battery-drivers) geeft zijn eigen eisen voor aansturing aan; de controller dwingt die af.
 
 De **regellus** (`engine/control/control_loop.py`) is volledig uitgeschreven, maar als commentaar: geen regel ervan wordt uitgevoerd, en een test controleert dat het bestand geen actieve code bevat. Eenmaal actief draait hij elke ronde (standaard 5 s, direct bij een grote sprong of overbelasting) naast de virtuele batterijen, op dezelfde doelen — vollading, het vermogen uit het plan of nul op de meter (nooit voor uitgesloten apparaten of willekeurige korte pieken), verdeeld over de batterijen, fasebeveiliging en peak shaving, grenzen voor het laadniveau — en geeft elke batterij haar vermogen via haar controller, via de integratie waarmee ze gekoppeld is (bijv. de handmatige modus van Omnibattery) of een ingeschakelde directe driver. De stappen om hem te activeren staan bovenaan het bestand.
 
-**Testbesturing (gebouwd, uitgeschakeld).** Elke echte batterij heeft *Test: laden*, *Test: ontladen* en *Test: stoppen* (knoppen), een *Testvermogen* en een *Testduur* (getallen) en een status *Testbesturing*, om het aansturen van een batterij met de hand te testen vóór elke automatische besturing (`engine/control/control_test.py`, via `reader_driver.py`). Een test laadt of ontlaadt met het testvermogen gedurende de testduur via de integratie van de batterij en geeft de batterij daarna altijd terug aan haar eigen sturing; hij stopt meteen als de batterij vol is of op haar laagst toegestane laadniveau zit, de opdracht niet volgt, bij een fout, met *Test: stoppen* en bij herladen. In deze fase staat hij uit (`CONTROL_TEST_ALLOWED = False`, bewaakt door een test): een knop meldt dat alleen in *Waarom*, er wordt niets verstuurd.
+**Testbesturing (gebouwd, uitgeschakeld).** Elke echte batterij heeft *Test: laden*, *Test: ontladen* en *Test: stoppen* (knoppen), een *Testvermogen* en een *Testduur* (getallen) en een status *Testbesturing*, om het aansturen van een batterij met de hand te testen vóór elke automatische besturing (`engine/control/control_test.py`, via `reader_driver.py`: `LinkDriver` over de directe verbinding van de batterij, anders `ReaderDriver` via haar integratie). Een test laadt of ontlaadt met het testvermogen gedurende de testduur en geeft de batterij daarna altijd terug aan haar eigen sturing; hij stopt meteen als de batterij vol is of op haar laagst toegestane laadniveau zit, de opdracht niet volgt, bij een fout, met *Test: stoppen* en bij herladen. Hij staat uit tenzij de instelling *Testbesturing aan* aan staat (standaard `CONTROL_TEST_ALLOWED = False`, bewaakt door een test): een knop meldt dat alleen in *Waarom*, er wordt niets verstuurd.
 
 ## Meters {#meters}
 

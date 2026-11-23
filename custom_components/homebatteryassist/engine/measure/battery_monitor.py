@@ -41,6 +41,10 @@ from ...const import (
     CONF_BATTERY_METER_ADDRESS,
     CONF_CAPACITY,
     CONF_CYCLE_COST,
+    CONF_DIRECT_ADDRESS,
+    CONF_DIRECT_DRIVER,
+    CONF_DIRECT_PORT,
+    CONF_DIRECT_UNIT,
     CONF_EFFICIENCY,
     CONF_FULL_CHARGE_INTERVAL,
     CONF_INITIAL_SOC,
@@ -57,6 +61,8 @@ from ...const import (
     CONF_TEMPERATURE_SENSOR,
     CONF_TWIN_OF,
     DEFAULT_CYCLE_COST,
+    DEFAULT_DIRECT_PORT,
+    DEFAULT_DIRECT_UNIT,
     DEFAULT_EFFICIENCY,
     DEFAULT_FULL_CHARGE_INTERVAL,
     DEFAULT_INITIAL_SOC,
@@ -64,6 +70,8 @@ from ...const import (
     DEFAULT_LOSS_MIN,
     DEFAULT_MAX_SOC,
     DEFAULT_MIN_SOC,
+    DIRECT_LINKS_KEY,
+    DIRECT_NONE,
     DOMAIN,
     FULL_CHARGE_SOC,
     IDLE_THRESHOLD_W,
@@ -182,6 +190,12 @@ class BatteryConfig:
     meter_address: str = ""
     # Virtual: the real battery (subentry id) this one is the twin of.
     twin_of: str = ""
+    # Direct connection (driver key, address, port, unit): read and
+    # controlled over its own connection; "" = through its sensors.
+    direct_driver: str = ""
+    direct_address: str = ""
+    direct_port: int = DEFAULT_DIRECT_PORT
+    direct_unit: int = DEFAULT_DIRECT_UNIT
 
     @classmethod
     def from_subentry(cls, subentry: ConfigSubentry) -> BatteryConfig:
@@ -198,8 +212,8 @@ class BatteryConfig:
         return cls(
             id=subentry.subentry_id,
             name=data[CONF_NAME],
-            soc_sensor="" if virtual else data[CONF_SOC_SENSOR],
-            power_sensor="" if virtual else data[CONF_POWER_SENSOR],
+            soc_sensor="" if virtual else data.get(CONF_SOC_SENSOR) or "",
+            power_sensor="" if virtual else data.get(CONF_POWER_SENSOR) or "",
             power_sign=data.get(CONF_POWER_SIGN, SIGN_CHARGING_POSITIVE),
             capacity_kwh=float(data[CONF_CAPACITY]),
             max_charge_w=float(data[CONF_MAX_CHARGE_POWER]),
@@ -229,6 +243,14 @@ class BatteryConfig:
                 if virtual and (twin := data.get(CONF_TWIN_OF)) and twin != TWIN_NONE
                 else ""
             ),
+            direct_driver=(
+                ""
+                if virtual or data.get(CONF_DIRECT_DRIVER, DIRECT_NONE) == DIRECT_NONE
+                else data[CONF_DIRECT_DRIVER]
+            ),
+            direct_address="" if virtual else data.get(CONF_DIRECT_ADDRESS) or "",
+            direct_port=int(data.get(CONF_DIRECT_PORT) or DEFAULT_DIRECT_PORT),
+            direct_unit=int(data.get(CONF_DIRECT_UNIT) or DEFAULT_DIRECT_UNIT),
         )
 
     def as_twin_of(self, real: BatteryConfig) -> BatteryConfig:
@@ -367,12 +389,23 @@ def battery_meter(hass: HomeAssistant, config: BatteryConfig) -> Any:
     return hass.data.get(METERS_KEY, {}).get(config.id)
 
 
+def direct_link(hass: HomeAssistant, config: BatteryConfig) -> Any:
+    """The running direct connection of a battery, if it has one."""
+    return hass.data.get(DIRECT_LINKS_KEY, {}).get(config.id)
+
+
 def battery_power(hass: HomeAssistant, config: BatteryConfig) -> float | None:
     """Battery power in W, + charging / - discharging, or None if unknown.
 
-    From the battery's external meter when it has a value (+ into the battery),
+    From the battery's direct connection when it has a recent reading, else
+    from its external meter when it has a value (+ into the battery),
     otherwise from the battery's power sensor.
     """
+    link = direct_link(hass, config)
+    if link is not None and link.power_w is not None:
+        return round(float(link.power_w), 1)
+    if link is not None and not config.power_sensor:
+        return None  # read directly only: unknown while the link is down
     meter = battery_meter(hass, config)
     if meter is not None and meter.available and meter.phase_w:
         return round(sum(meter.phase_w), 1)
@@ -391,6 +424,9 @@ def power_frozen(
     ``POWER_STALE``); never with a working external meter or for a virtual
     battery."""
     if config.virtual or not config.power_sensor:
+        return False
+    link = direct_link(hass, config)
+    if link is not None and link.power_w is not None:
         return False
     meter = battery_meter(hass, config)
     if meter is not None and meter.available and meter.phase_w:
@@ -411,10 +447,12 @@ def power_frozen(
 
 
 def read_battery(hass: HomeAssistant, config: BatteryConfig) -> BatteryState:
-    """Read the current state of a battery."""
-    return BatteryState(
-        config, _soc(hass.states.get(config.soc_sensor)), battery_power(hass, config)
-    )
+    """Read the current state of a battery (its direct connection first)."""
+    link = direct_link(hass, config)
+    soc = link.soc if link is not None else None
+    if soc is None and config.soc_sensor:
+        soc = _soc(hass.states.get(config.soc_sensor))
+    return BatteryState(config, soc, battery_power(hass, config))
 
 
 class BatteryStats(TypedDict):
@@ -605,6 +643,7 @@ class BatteryInput:
         # battery id -> start of the current period with the counters then
         self._began: dict[str, tuple[datetime, float, float]] = {}
         self._startup: dict[str, CALLBACK_TYPE] = {}
+        self._links: list[Any] = []  # direct connections (DirectLink)
         self._meter_unsubs: list[CALLBACK_TYPE] = []  # the one message after start-up
         # When the current activity is expected to end and why
         # (``empty``/``full``/``pv_end``/``pv_covers``), if known.
@@ -660,11 +699,13 @@ class BatteryInput:
                 days[-1]["value"] = round(stats.get("value", 0.0), 5)
                 days[-1]["value_kwh"] = round(stats.get("value_kwh", 0.0), 4)
         await self._async_start_meters()
+        await self._async_start_links()
         entity_ids = [
             e
             for c in self.configs
             if not c.virtual
             for e in (c.soc_sensor, c.power_sensor)
+            if e
         ]
         if entity_ids:
             self._unsub = async_track_state_change_event(
@@ -782,6 +823,7 @@ class BatteryInput:
             cancel()
         self._startup.clear()
         await self._async_stop_meters()
+        await self._async_stop_links()
         # Count the energy up to now (else the last stretch before a reload or
         # restart is lost).
         now = dt_util.utcnow()
@@ -810,6 +852,40 @@ class BatteryInput:
                 meter.async_add_listener(lambda when, c=config: self._update(c, when))
             )
             await meter.async_start()
+
+    async def _async_start_links(self) -> None:
+        """Start the direct connections of the batteries that have one."""
+        from ..devices.batteries import direct_driver  # devices: a lower layer
+        from ..devices.batteries.direct.link import DirectLink
+
+        for config in self.configs:
+            if config.virtual or not config.direct_driver:
+                continue
+            cls = direct_driver(config.direct_driver)
+            if cls is None or not config.direct_address:
+                _LOGGER.warning(
+                    "Battery %s: unknown direct driver %s or no address",
+                    config.name,
+                    config.direct_driver,
+                )
+                continue
+            driver = cls(
+                self.hass,
+                config.direct_address,
+                port=config.direct_port,
+                unit=config.direct_unit,
+            )
+            link = DirectLink(self.hass, config.id, config.name, driver)
+            self._links.append(link)
+            self._meter_unsubs.append(
+                link.async_add_listener(lambda when, c=config: self._update(c, when))
+            )
+            await link.async_start()
+
+    async def _async_stop_links(self) -> None:
+        links, self._links = self._links, []
+        for link in links:
+            await link.async_stop()
 
     async def _async_stop_meters(self) -> None:
         meters = self.hass.data.get(METERS_KEY, {})

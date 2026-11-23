@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from .engine.evaluation.pv_corrections import BUILTIN as PV_CORRECTORS
+from .engine.measure.battery_monitor import direct_link
 from .models import HomeBatteryAssistConfigEntry
 
 RECENT_RECORDS = 12
@@ -84,6 +85,11 @@ async def async_get_config_entry_diagnostics(
                 "temperature_power": (
                     data.temperatures.summary().get(state.config.id)
                     if data.temperatures
+                    else None
+                ),
+                "direct_connection": (
+                    link.as_dict()
+                    if (link := direct_link(hass, state.config)) is not None
                     else None
                 ),
             }

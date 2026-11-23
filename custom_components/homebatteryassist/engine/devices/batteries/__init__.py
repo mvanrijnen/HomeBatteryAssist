@@ -6,8 +6,11 @@ readers per HA integration (``integrations/``), and the virtual battery (simulat
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.core import HomeAssistant
 
+from ....const import DIRECT_LINKS_KEY
 from ...measure.battery_monitor import BatteryConfig
 from .anker.solarbank_direct_modbus import AnkerModbusDriver
 from .anker.solarbank_e5000_pro import AnkerSolarbankE5000Pro
@@ -89,8 +92,9 @@ MODELS: tuple[BatteryModel, ...] = (
     VictronEss(),
 )
 
-# Direct drivers (own connection to the battery): PREPARED, NOT USED. Listed
-# for documentation and tests only; nothing offers or starts them.
+# Direct drivers (own connection to the battery): offered per battery
+# (subentry ``direct_driver``); a driver only connects for a battery that
+# chose it (``direct/link.py`` enables that instance).
 DIRECT_DRIVERS: tuple[type[DirectBatteryDriver], ...] = (
     HoymilesMqttDriver,
     MarstekVenusEV2Modbus,
@@ -114,6 +118,7 @@ __all__ = [
     "BatteryReader",
     "BatteryTelemetry",
     "command",
+    "direct_driver",
     "model_for",
     "reader_for",
     "telemetry",
@@ -128,25 +133,47 @@ def reader_for(hass: HomeAssistant, config: BatteryConfig) -> BatteryReader | No
     return next((r for r in READERS if r.key == platform), None)
 
 
+def direct_driver(key: str) -> type[DirectBatteryDriver] | None:
+    """The direct driver class with ``key``, if any."""
+    return next((d for d in DIRECT_DRIVERS if d.key == key), None)
+
+
 def model_for(model: str | None) -> BatteryModel | None:
     """The battery type of a device model name, if known."""
     return next((m for m in MODELS if m.matches(model)), None)
 
 
+def _link(hass: HomeAssistant, config: BatteryConfig) -> Any:
+    return hass.data.get(DIRECT_LINKS_KEY, {}).get(config.id)
+
+
 def telemetry(hass: HomeAssistant, config: BatteryConfig) -> BatteryTelemetry:
-    """Extra live details of a battery (empty without a reader)."""
+    """Extra live details of a battery: from its direct connection, else its
+    reader (empty without either)."""
+    link = _link(hass, config)
+    if link is not None and link.available and link.reading is not None:
+        return link.reading.telemetry
     reader = reader_for(hass, config)
     return reader.telemetry(hass, config) if reader else BatteryTelemetry()
 
 
 def command(hass: HomeAssistant, config: BatteryConfig) -> BatteryCommand | None:
     """The command a battery has now from its controlling integration, if
-    readable (None without a reader, or when the battery controls itself)."""
+    readable (None without a reader, or when the battery controls itself).
+    A battery with a direct connection: what its registers say."""
+    link = _link(hass, config)
+    if link is not None:
+        if not link.available or link.reading is None:
+            return None
+        return link.driver.command(link.reading)
     reader = reader_for(hass, config)
     return reader.command(hass, config) if reader else None
 
 
 def command_readable(hass: HomeAssistant, config: BatteryConfig) -> bool:
     """False when the command cannot be read now (see ``command``)."""
+    link = _link(hass, config)
+    if link is not None:
+        return bool(link.available)
     reader = reader_for(hass, config)
     return reader.command_readable(hass, config) if reader else True

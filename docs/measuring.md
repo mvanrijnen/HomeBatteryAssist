@@ -53,7 +53,7 @@ What a battery does by its own control (charging, supplying, stopping) is explai
 
 ### Test control (switched off for now)
 
-To test controlling a battery by hand — before HomeBatteryAssist ever controls it automatically — each real battery's device has a **test control**. **In this phase it is switched off**: the buttons send nothing; *Why* only says that the test control is switched off.
+To test controlling a battery by hand — before HomeBatteryAssist ever controls it automatically — each real battery's device has a **test control**. **It is off by default**: the buttons send nothing; *Why* only says that the test control is switched off. Switch it on with the setting *Test control on* (section *Test control*), only while you are there.
 
 | Entity | What it is |
 |---|---|
@@ -66,11 +66,11 @@ To test controlling a battery by hand — before HomeBatteryAssist ever controls
 Once switched on, a test:
 
 1. **checks first**: the state of charge must be known, a charge test does not start when the battery is full, a discharge test not at or below its lowest allowed state of charge (max(min SoC, reserve SoC));
-2. **sends the command through the battery's own integration** — for Omnibattery: the battery's manual mode with the charge or discharge power — through the safety layer that every future control uses (a watchdog, always handing back, at most one new command every 5 s, power limits);
+2. **sends the command over the battery's [direct connection](drivers.md#direct-battery-drivers)** when it has one — for a Marstek Venus: RS485 control on, the charge or discharge power and the force mode in its registers — **or else through the battery's own integration** — for Omnibattery: the battery's manual mode with the charge or discharge power — through the safety layer that every future control uses (a watchdog, always handing back, at most one new command every 5 s, power limits);
 3. **stops by itself** when the time is up, when the battery becomes full or reaches its lowest allowed state of charge, when it [does not follow the command](#does-the-battery-follow-its-command), when a command fails, by *Test: stop* and when HomeBatteryAssist stops or reloads;
-4. **always hands the battery back** to its own control (Omnibattery takes over again), and tells in *Why* why it stopped and how much was charged and discharged.
+4. **always hands the battery back** to its own control (direct: power 0, force mode off, RS485 control off; through Omnibattery: Omnibattery takes over again), and tells in *Why* why it stopped and how much was charged and discharged.
 
-Switching it on is a decision of the project owner, together with the first test on a real installation with someone present.
+Use it the first time on a real installation with someone present.
 
 ## Virtual batteries
 

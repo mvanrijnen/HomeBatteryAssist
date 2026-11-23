@@ -258,6 +258,18 @@ CONF_PV_DRIVER: Final = "pv_driver"  # "sensor" or a meter driver key
 CONF_BATTERY_METER: Final = "battery_meter"  # "none" or a meter driver key
 CONF_BATTERY_METER_ADDRESS: Final = "battery_meter_address"
 BATTERY_METER_NONE: Final = "none"
+# A battery read (and controlled) over its own connection by a direct driver
+# (engine/devices/batteries/direct/link.py). Choosing one is the switch.
+CONF_DIRECT_DRIVER: Final = "direct_driver"  # "none" or a direct driver key
+CONF_DIRECT_ADDRESS: Final = "direct_address"  # host / IP / device id
+CONF_DIRECT_PORT: Final = "direct_port"
+CONF_DIRECT_UNIT: Final = "direct_unit"  # Modbus unit id
+DIRECT_NONE: Final = "none"
+DEFAULT_DIRECT_PORT: Final = 502
+DEFAULT_DIRECT_UNIT: Final = 1
+DIRECT_LINKS_KEY: Final = "homebatteryassist_direct_links"  # hass.data
+# Test control (buttons per battery): off unless the user switches it on.
+CONF_CONTROL_TEST: Final = "control_test"
 # The breaker of a PV inverter's group (A per phase): the most it can deliver.
 CONF_INVERTER_MAX_CURRENT: Final = "inverter_max_current"
 CONF_PV_ADDRESS: Final = "pv_address"  # address of a directly read PV meter

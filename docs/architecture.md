@@ -117,7 +117,7 @@ custom_components/homebatteryassist/
     │   │                  integrations/ (entity_reader.py, omnibattery_integration.py,
     │   │                  marstek_modbus_integration.py),
     │   │                  direct/ (base.py, modbus_driver.py, http_driver.py, mqtt_driver.py
-    │   │                  — prepared, not used),
+    │   │                  — chosen per battery, direct/link.py),
     │   │                  one folder per brand: models (brand → range → type) + direct driver:
     │   │                  marstek/, anker/, huawei/, zendure/, sessy/, indevolt/, hoymiles/
     │   ├── transports/    modbus_tcp.py (own small Modbus TCP client)
@@ -172,11 +172,11 @@ In this phase of development HomeBatteryAssist does not control batteries yet. T
 
 A test (`tests/test_read_only.py`) fails as soon as code outside the drivers and this layer calls a write method, creates a controller, enables a direct driver or calls a Home Assistant action that changes a device.
 
-Each [direct driver](drivers.md#direct-battery-drivers--prepared-not-used) states its own control needs; the controller enforces them.
+Each [direct driver](drivers.md#direct-battery-drivers) states its own control needs; the controller enforces them.
 
 The **control loop** (`engine/control/control_loop.py`) is written out completely, but as comment: no line of it runs, and a test checks that the file has no active code. Once active it runs every round (default 5 s, at once on a large jump or an overload) next to the virtual batteries, on the same targets — full charge, the plan's power or zero on the meter (never for excluded devices or random short peaks), spread over the batteries, phase protection and peak shaving, state of charge limits — and gives each battery its power through its controller, via the integration it is linked with (e.g. Omnibattery's manual mode) or an enabled direct driver. The steps to activate it are listed at the top of the file.
 
-**Test control (built, switched off).** Each real battery has *Test: charge*, *Test: discharge* and *Test: stop* (buttons), a *Test power* and a *Test duration* (numbers) and a *Test control* status, to test controlling a battery by hand before any automatic control (`engine/control/control_test.py`, through `reader_driver.py`). A test charges or discharges at the test power for the test duration through the battery's integration and then always hands the battery back to its own control; it stops at once when the battery is full or at its lowest allowed state of charge, does not follow the command, on an error, by *Test: stop* and on reload. In this phase it is switched off (`CONTROL_TEST_ALLOWED = False`, checked by a test): a button only tells *Why* so, nothing is sent.
+**Test control (built, switched off).** Each real battery has *Test: charge*, *Test: discharge* and *Test: stop* (buttons), a *Test power* and a *Test duration* (numbers) and a *Test control* status, to test controlling a battery by hand before any automatic control (`engine/control/control_test.py`, through `reader_driver.py`: `LinkDriver` over the battery's direct connection, else `ReaderDriver` through its integration). A test charges or discharges at the test power for the test duration and then always hands the battery back to its own control; it stops at once when the battery is full or at its lowest allowed state of charge, does not follow the command, on an error, by *Test: stop* and on reload. It is off unless the setting *Test control on* is on (default `CONTROL_TEST_ALLOWED = False`, checked by a test): a button only tells *Why* so, nothing is sent.
 
 ## Meters
 

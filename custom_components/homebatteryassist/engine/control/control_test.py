@@ -1,19 +1,20 @@
-"""Test control of one battery — BUILT, SWITCHED OFF in this phase.
+"""Test control of one battery — BUILT, OFF unless the user switches it on.
 
 To test controlling a battery by hand, before any automatic control: per real
 battery *Test: charge*, *Test: discharge* and *Test: stop* (buttons), with a
 test power and a test duration (numbers). A test charges or discharges at
-that power for that long through the battery's integration
-(``ReaderDriver``: e.g. Omnibattery's manual mode) and then always hands the
-battery back to its own control.
+that power for that long and then always hands the battery back to its own
+control. It goes through the battery's direct connection when it has one
+(``LinkDriver``: e.g. the Marstek Venus over Modbus TCP, with Omnibattery
+switched off), else through the integration it is read with
+(``ReaderDriver``: e.g. Omnibattery's manual mode).
 
-**Switched off**: ``CONTROL_TEST_ALLOWED`` is False by decision of the project
-owner (HomeBatteryAssist is read-only in this phase). While it is False a
-button only tells *Why* that the test is switched off; nothing is sent
-(``tests/test_read_only.py`` checks it stays False). Switching it on is the
-owner's call; then the steps are: set it to True (later an option), test on a
-real installation with the user present, mark the reader ``verified`` for
-writing.
+**Off by default**: the setting *Test control* (option ``control_test``,
+default off; ``CONTROL_TEST_ALLOWED`` is that default and stays False,
+checked by ``tests/test_read_only.py``). While off, a button only tells
+*Why* that the test is switched off; nothing is sent. Steps: switch it on,
+test on a real installation with the user present, mark the driver
+``verified`` for writing.
 
 Safety, on top of ``BatteryController`` (watchdog, always release, throttle,
 limits): never charging at or above the battery's max state of charge, never
@@ -37,13 +38,13 @@ from homeassistant.util import dt as dt_util
 
 from ..devices.batteries import reader_for
 from ..explain import DecisionLog
-from ..measure.battery_monitor import BatteryConfig, BatteryInput
+from ..measure.battery_monitor import BatteryConfig, BatteryInput, direct_link
 from .battery_controller import BatteryController
-from .reader_driver import ReaderDriver
+from .reader_driver import LinkDriver, ReaderDriver
 
 _LOGGER = logging.getLogger(__name__)
 
-# The owner's decision: while False, a test sends nothing.
+# The default of the setting *Test control*: off, a test sends nothing.
 CONTROL_TEST_ALLOWED: Final = False
 
 DEFAULT_POWER_W: Final = 300
@@ -116,6 +117,19 @@ class ControlTest:
         for listener in list(self._listeners):
             listener()
 
+    def writer(self, config: BatteryConfig) -> tuple[Any, str] | None:
+        """How a battery can be controlled: (driver for the controller, its
+        name for *Why*), or None. Its direct connection first."""
+        link = direct_link(self.hass, config)
+        if link is not None:
+            if not link.can_write:
+                return None
+            return LinkDriver(self.hass, link, config), link.driver.name
+        reader = reader_for(self.hass, config)
+        if reader is None or not reader.can_write:
+            return None
+        return ReaderDriver(self.hass, reader, config), reader.name
+
     def status(self, battery_id: str) -> str:
         """What the test control of a battery can do / does now."""
         if not self.allowed:
@@ -123,8 +137,7 @@ class ControlTest:
         run = self.runs.get(battery_id)
         if run is not None:
             return STATUS_CHARGING if run.power_w > 0 else STATUS_DISCHARGING
-        reader = reader_for(self.hass, self.configs[battery_id])
-        if reader is None or not reader.can_write:
+        if self.writer(self.configs[battery_id]) is None:
             return STATUS_NOT_POSSIBLE
         return STATUS_READY
 
@@ -162,12 +175,8 @@ class ControlTest:
                 "battery", "control_test_blocked", name=config.name
             )
             return
-        reader = reader_for(self.hass, config)
-        reason = (
-            "no_writer"
-            if reader is None or not reader.can_write
-            else self._refusal(config, charge)
-        )
+        writer = self.writer(config)
+        reason = "no_writer" if writer is None else self._refusal(config, charge)
         if reason is not None:
             self._decisions.async_log(
                 "battery",
@@ -176,7 +185,8 @@ class ControlTest:
                 reason=f"@test_{reason}",
             )
             return
-        assert reader is not None
+        assert writer is not None
+        driver, writer_name = writer
         if battery_id in self.runs:
             await self.async_stop(battery_id, "stopped")
         if (old := self.releasing.pop(battery_id, None)) is not None:
@@ -198,7 +208,7 @@ class ControlTest:
         now = dt_util.utcnow()
         stats = self._batteries.stats[battery_id]
         controller = BatteryController(
-            ReaderDriver(self.hass, reader, config),
+            driver,
             enabled=self.allowed,
             limits=(
                 min(limit, config.max_charge_w),
@@ -222,7 +232,7 @@ class ControlTest:
             power=f"{abs(power):.0f} W",
             minutes=f"{self.minutes[battery_id]:.0f}",
             until=run.until,
-            integration=reader.name,
+            integration=writer_name,
         )
         if self._unsub is None:
             self._unsub = async_track_time_interval(self.hass, self._async_tick, TICK)
