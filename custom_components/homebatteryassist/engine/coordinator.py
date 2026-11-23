@@ -965,7 +965,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                 continue
             try:
                 plan = await self.hass.async_add_executor_job(
-                    lambda m=mode, p=planner: plan_batteries(
+                    lambda m=mode, p=planner, prev=previous: plan_batteries(
                         derated,
                         consumption,
                         pv_plan,
@@ -987,6 +987,7 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
                         now=now,
                         forced=forced,
                         forced_by=forced_by,
+                        previous=prev,
                     )
                 )
             except Exception:  # an own planner module may fail in any way

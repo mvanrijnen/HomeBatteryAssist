@@ -13,6 +13,8 @@ energy cost over the window:
          + cycle_cost * energy through the battery
          + price_margin * energy from / for the grid in slots with an
            estimated price (steering: acting on an estimate must bring more)
+         + STICK_MARGIN * energy the slot of now differs from the previous
+           plan (steering: no flipping between cycles at a threshold)
          - value of the energy left at the end
 
 with grid = house - PV + battery power (+ charging). Solved exactly by dynamic
@@ -60,6 +62,10 @@ CYCLE_SEARCH_STEPS = 6  # bisection steps for the cycle limit
 PEAK_PENALTY = 5.0  # extra cost per kWh imported above the peak limit
 RESERVE_PENALTY = 5.0  # per kWh of night reserve missing when the sun comes up
 MIN_GAIN_PER_KWH = 0.01  # a cycle must bring at least this per kWh discharged
+# Per kWh the slot of now differs from the previous plan (steering only): a
+# new plan changes what the batteries do now only when that brings at least
+# this; else a price right at a threshold flips the plan every cycle.
+STICK_MARGIN = 0.01
 # The worth of a kWh in the batteries (for the price thresholds) is measured
 # over this many levels around the planned stored energy (3 % of the usable
 # range: one level alone is noisy with the fractional choices).
@@ -180,6 +186,16 @@ def _optimise(data: PlannerInput, allow_export: bool, penalty: float = 0.0) -> _
         slot = slots[t]
         hours, net, price = slot.hours, slot.net_w, slot.price
         margin = slot.price_margin
+        previous_w = data.previous_w if t == 0 else None
+
+        def stick(
+            power: float, hours: float = hours, was: float | None = previous_w
+        ) -> float:
+            """Steering: what changing the previous plan's power now costs."""
+            if was is None:
+                return 0.0
+            return abs(power - was) * hours / 1000 * STICK_MARGIN
+
         sun = max(-net, 0.0)  # solar surplus: storing it needs no estimate
         export = slot.export_price if slot.export_price is not None else price
         up = int(slot.max_charge_w * hours * eff / step)
@@ -247,6 +263,7 @@ def _optimise(data: PlannerInput, allow_export: bool, penalty: float = 0.0) -> _
                             else 0.0
                         )
                         + future[after(flag, j)][j]
+                        + stick(power)
                     )
                     if slot.reserve_due and j < reserve:
                         cost += (reserve - j) * step / 1000 * RESERVE_PENALTY
@@ -272,7 +289,8 @@ def _optimise(data: PlannerInput, allow_export: bool, penalty: float = 0.0) -> _
                     low = int(target)
                     frac = target - low
                     cost = (
-                        grid_cost(net - need, hours, price, export)
+                        stick(-need)
+                        + grid_cost(net - need, hours, price, export)
                         + need * hours / 1000 * data.cycle_cost
                         + need * hours / 1000 * (extra + margin)
                         + (
@@ -309,7 +327,8 @@ def _optimise(data: PlannerInput, allow_export: bool, penalty: float = 0.0) -> _
                     low = int(target)
                     frac = target - low
                     cost = (
-                        grid_cost(net + surplus, hours, price, export)
+                        stick(surplus)
+                        + grid_cost(net + surplus, hours, price, export)
                         + surplus * hours / 1000 * data.cycle_cost
                         + (1 - frac) * future[after(flag, low)][low]
                         + frac
@@ -343,7 +362,8 @@ def _optimise(data: PlannerInput, allow_export: bool, penalty: float = 0.0) -> _
                     low = int(target)
                     frac = target - low
                     cost = (
-                        grid_cost(net + full_w, hours, price, export)
+                        stick(full_w)
+                        + grid_cost(net + full_w, hours, price, export)
                         + full_w * hours / 1000 * data.cycle_cost
                         + max(full_w - sun, 0.0) * hours / 1000 * margin
                         + (

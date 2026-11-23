@@ -430,13 +430,15 @@ def plan_batteries(
     phase_rooms: Mapping[datetime, Any] | None = None,
     outlook: Outlook | None = None,
     held: Iterable[str] = (),
+    previous: BatteryPlan | None = None,
 ) -> BatteryPlan | None:
     """Plan the batteries with ``planner`` (default: the built-in planner of
     ``mode``) over the consumption slots, checked by ``finalise``; None
     without batteries.
 
     ``export_prices``: what exported energy earns per period; where it is not
-    known, the import price x ``export_factor``.
+    known, the import price x ``export_factor``. ``previous``: the plan of
+    this mode from the cycle before (``PlannerInput.previous_w``).
     """
     prices = sorted(prices, key=lambda p: p.start)
     export_prices = sorted(export_prices, key=lambda p: p.start)
@@ -460,6 +462,7 @@ def plan_batteries(
         phase_rooms=phase_rooms,
         outlook=outlook,
         held=held,
+        previous=previous,
     )
     if data is None:
         return None
@@ -488,6 +491,7 @@ def planner_input(
     phase_rooms: Mapping[datetime, Any] | None = None,
     outlook: Outlook | None = None,
     held: Iterable[str] = (),
+    previous: BatteryPlan | None = None,
 ) -> PlannerInput | None:
     """What a planner gets; None without batteries or slots."""
     states = list(states)
@@ -632,7 +636,15 @@ def planner_input(
         dict(member_limits or {}),
         dict(phase_rooms or {}),
         outlook,
+        _previous_w(previous, slots[0].start),
     )
+
+
+def _previous_w(previous: BatteryPlan | None, start: datetime) -> float | None:
+    """The power the previous plan had for the slot holding ``start``."""
+    if previous is None:
+        return None
+    return next((s.power_w for s in previous.slots if s.start <= start < s.end), None)
 
 
 def finalise(

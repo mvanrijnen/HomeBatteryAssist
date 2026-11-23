@@ -123,6 +123,8 @@ What each battery does is explained as periods too — since when it charges or 
 
 The thresholds come from the arbitrage plan itself, not from a rule of thumb: they are what a kWh in the batteries is worth in the rest of the plan (the cost of the rest of the plan with a little more or less stored), after the losses of charging and discharging, the wear, the minimum margin and the margin for estimated prices, and within your price rules. So they also say why the plan does *not* act at a price that looks good: e.g. energy that would be used in the morning at € 0.47 is worth more in the evening at € 0.51 when the sun cannot refill it in between, and charging from the grid at € 0.36 does not pay when tomorrow's solar surplus fills the battery anyway (that would push solar power to the grid at the export price). In a slot that charges or supplies, the threshold is the worth of that block of energy on average: up to which price that charge pays, from which price that supply pays. Plans without prices (zero on the meter, fixed modes) have no thresholds.
 
+**Stable from cycle to cycle.** The plan is made again every few minutes. So that a price right at a threshold does not make it switch the batteries on and off every time, arbitrage changes what the batteries do *now* compared with the previous plan only when that brings at least € 0.01 per kWh changed; later slots are planned freely.
+
 ## Plan check
 
 Afterwards, the plan is compared with what really happened, per day (dashboard, *Return* tab).

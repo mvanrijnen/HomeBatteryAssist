@@ -123,6 +123,8 @@ Wat elke batterij doet, wordt ook als periodes uitgelegd — sinds wanneer ze la
 
 De drempels komen uit het arbitrageplan zelf, niet uit een vuistregel: ze zijn wat een kWh in de batterijen waard is in de rest van het plan (de kosten van de rest van het plan met iets meer of minder opgeslagen), na het verlies van laden en ontladen, de slijtage, de minimale marge en de marge voor geschatte prijzen, en binnen je prijsregels. Zo zeggen ze ook waarom het plan *niet* handelt bij een prijs die goed lijkt: bijv. energie die 's ochtends bij € 0,47 gebruikt zou worden, is 's avonds bij € 0,51 meer waard als de zon hem tussendoor niet kan bijvullen, en laden uit het net bij € 0,36 loont niet als het zonne-overschot van morgen de batterij toch vult (dan gaat zonnestroom voor de terugleverprijs naar het net). In een tijdvak dat laadt of levert is de drempel de gemiddelde waarde van dat blok energie: tot welke prijs dat laden loont, vanaf welke prijs dat leveren loont. Plannen zonder prijzen (nul op de meter, vaste standen) hebben geen drempels.
 
+**Stabiel van ronde tot ronde.** Het plan wordt om de paar minuten opnieuw gemaakt. Zodat een prijs precies op een drempel de batterijen niet elke keer aan en uit zet, verandert arbitrage wat de batterijen *nu* doen ten opzichte van het vorige plan alleen als dat minstens € 0,01 per veranderde kWh oplevert; latere tijdvakken worden vrij gepland.
+
 ## Plancontrole {#plan-check}
 
 Achteraf wordt het plan per dag vergeleken met wat er echt gebeurde (dashboard, tab *Rendement*).

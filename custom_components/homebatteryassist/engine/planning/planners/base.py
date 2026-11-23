@@ -137,6 +137,11 @@ class PlannerInput:
     # stay within it.
     phase_rooms: Mapping[datetime, Any] = field(default_factory=dict)
     outlook: Outlook | None = None  # after the window (value of what is left)
+    # What the previous plan had for the slot of now (W, all batteries; None
+    # = no previous plan): a planner may stick to it unless changing clearly
+    # pays (arbitrage: ``STICK_MARGIN``), so the plan does not flip between
+    # cycles on a price right at a threshold.
+    previous_w: float | None = None
     priced: bool = field(init=False)
 
     def __post_init__(self) -> None:
