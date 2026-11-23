@@ -650,7 +650,11 @@ def websocket_activity(
         msg["id"],
         {
             "periods": activity.recent(msg["days"]) if activity else [],
-            "price_unit": entry.runtime_data.forecast.price_unit,
+            "price_unit": (
+                data.price_unit
+                if (data := entry.runtime_data.forecast.data) is not None
+                else None
+            ),
         },
     )
 

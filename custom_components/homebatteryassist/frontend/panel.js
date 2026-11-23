@@ -2943,7 +2943,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const result = await this._hass.callWS({ type: "homebatteryassist/activity", days });
       this._activity = { ...result, days };
     } catch (err) {
+      // Not available: show empty, try again after a minute (never a loop).
       console.warn("HomeBatteryAssist: activity log not available", err);
+      this._activity = { periods: [], days, failed: true };
     }
     this._activityBusy = false;
     this._render();

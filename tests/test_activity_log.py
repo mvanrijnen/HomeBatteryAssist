@@ -47,3 +47,31 @@ async def test_periods(hass: HomeAssistant) -> None:
     # Old periods go after 30 days.
     log._sample = None  # (not used here)
     assert log.recent(1, T0 + timedelta(days=2)) == []
+
+
+async def test_websocket(hass, hass_ws_client) -> None:
+    """The dashboard's call answers (also before the first forecast)."""
+    from types import SimpleNamespace
+
+    from homeassistant.components import websocket_api
+
+    from custom_components.homebatteryassist.output import panel
+
+    log = ActivityLog(hass, "e1", list)
+    log.add(T0 + MINUTE, _look(-600), MINUTE)
+    entry = SimpleNamespace(
+        runtime_data=SimpleNamespace(activity=log, forecast=SimpleNamespace(data=None))
+    )
+    websocket_api.async_register_command(hass, panel.websocket_activity)
+    panel_loaded = panel._loaded_entry
+    try:
+        panel._loaded_entry = lambda hass: entry
+        client = await hass_ws_client(hass)
+        await client.send_json(
+            {"id": 1, "type": "homebatteryassist/activity", "days": 30}
+        )
+        result = await client.receive_json()
+    finally:
+        panel._loaded_entry = panel_loaded
+    assert result["success"], result
+    assert result["result"]["price_unit"] is None
