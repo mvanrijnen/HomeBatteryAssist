@@ -89,6 +89,9 @@ async def async_setup_panel(hass: HomeAssistant, version: str) -> None:
         from homeassistant.components import panel_custom
         from homeassistant.components.http import StaticPathConfig
 
+        # The file's time in the URL too: a new panel between two releases
+        # (same version) is not taken from the browser's cache.
+        stamp = await hass.async_add_executor_job(_panel_stamp)
         await hass.http.async_register_static_paths(
             [StaticPathConfig(STATIC_URL, str(FRONTEND_DIR), cache_headers=False)]
         )
@@ -98,11 +101,19 @@ async def async_setup_panel(hass: HomeAssistant, version: str) -> None:
             webcomponent_name=PANEL_COMPONENT,
             sidebar_title=NAME,
             sidebar_icon="mdi:home-battery-outline",
-            module_url=f"{STATIC_URL}/panel.js?v={version}",
+            module_url=f"{STATIC_URL}/panel.js?v={version}-{stamp}",
             require_admin=False,
         )
         _LOGGER.debug("Status panel registered")
     hass.data[DATA_REGISTERED] = True
+
+
+def _panel_stamp() -> int:
+    """When ``panel.js`` was last changed (0 if it cannot be read)."""
+    try:
+        return int((FRONTEND_DIR / "panel.js").stat().st_mtime)
+    except OSError:
+        return 0
 
 
 def _entity_ids(registry: er.EntityRegistry, prefix: str, keys: Any) -> dict[str, str]:
