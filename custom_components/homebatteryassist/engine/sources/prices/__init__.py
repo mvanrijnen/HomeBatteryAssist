@@ -16,6 +16,7 @@ from .base import (
     PriceDriver,
     PriceSource,
 )
+from .block_tariff import BlockTariffDriver
 from .dyntarnl import DynTarNLDriver
 from .ha_price_actions import ACTION_DRIVERS
 from .price_forecasts import FORECAST_DRIVERS
@@ -27,6 +28,7 @@ DRIVERS: tuple[PriceDriver, ...] = (
     *ACTION_DRIVERS,
     *SENSOR_DRIVERS,
     *REGIONAL_DRIVERS,
+    BlockTariffDriver(),
     *FORECAST_DRIVERS,
 )
 

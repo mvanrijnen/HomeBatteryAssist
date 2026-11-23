@@ -67,6 +67,15 @@ Instellingen met DynTarNL:
 
 - **Nord Pool, EnergyZero, easyEnergy** (niet getest) geven de **kale marktprijs**. Kies het tarief *Marktprijs + opslag + energiebelasting, plus btw* en vul de opslag van je leverancier, de energiebelasting (beide per kWh, excl. btw) en de btw in. Anders ziet arbitrage een rondje laden en ontladen als te goedkoop.
 - **Prijssensor**: elke sensor met een prijslijst in zijn attributen (`prices`, `prices_today`/`prices_tomorrow`, `raw_today`/`raw_tomorrow`, `today`/`tomorrow`, …; voor marktprijzen `forecast_market`, `prices_market`, …). Elk item heeft een begin (`start`, `from`, `time`, …) en een prijs nodig; een item zonder einde loopt tot het volgende.
+- **Bloktarief** (niet getest): voor een contract met **vaste prijzen per tijdsblok** (dag/nacht, piekuren, goedkope uren op vaste tijden) — geen prijssensor nodig. Kies *Bloktarief* als prijsbron en schrijf de blokken in de instelling *Bloktarief*, één regel per blok: optioneel de dagen (`ma-vr`, `za,zo`; Engels `mon`–`sun` kan ook), een tijdsblok (`23:00-07:00`, over middernacht mag; `00:00-24:00` = de hele dag) en de prijs per kWh (alles inbegrepen, punt of komma). Een regel met alleen een prijs is de prijs op alle andere tijden; een latere regel wint waar ze overlappen; `#` begint een opmerking. Voorbeeld:
+
+  ```text
+  0,30
+  23:00-07:00 0,22
+  ma-vr 17:00-21:00 0,40
+  ```
+
+  De prijzen liggen vast, dus ze tellen als gepubliceerd voor de hele planningshorizon; tijd die geen regel dekt heeft geen prijs (de plannen eindigen daar). De terugleverprijs volgt de terugleverinstellingen.
 
 ### Prijsverlenging {#price-extension}
 

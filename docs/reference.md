@@ -65,6 +65,7 @@ Select for each phase the sensor that measures the power (W) on that phase, typi
 | **Battery plan mode** | How HomeBatteryAssist would control the batteries (advice only for now). All modes are always calculated for comparison. Own planner modules from /config/homebatteryassist/planners appear here too (after a reload). |
 | **Price source** | Where the power prices come from. Sources found in Home Assistant are listed (* = not yet tested on a real installation); 'Price sensor' uses the sensor chosen below. |
 | **Extra price forecast** | Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated. |
+| **Block tariff** | Only for the price source *Block tariff*: fixed prices per time block, one rule per line: an optional day range (mon-fri, sat,sun), a time block (23:00-07:00, past midnight allowed) and the price per kWh; a line with only a price is the price at any other time. A later line wins where they overlap. Example: '0,30' / '23:00-07:00 0,22' / 'mon-fri 17:00-21:00 0,40'. |
 | **Consumption forecaster** | How the house consumption is forecast. The accuracy of every forecaster is shown side by side on the dashboard. Own forecasters from /config/homebatteryassist/forecasters appear here too (after a reload). |
 | **Tariff** | How the prices of the price source become what a kWh really costs and earns. Own tariffs from /config/homebatteryassist/tariffs appear here too (after a reload). |
 

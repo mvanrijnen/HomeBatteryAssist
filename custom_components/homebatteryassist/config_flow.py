@@ -324,6 +324,11 @@ from .engine.planning.battery_plan import DEFAULT_PLAN_MODE, PLAN_MODES
 from .engine.planning.planners import async_load_user_planners
 from .engine.planning.time_slots import ACTION_CHARGE, ACTIONS, WEEKDAYS
 from .engine.sources.prices import find_sources, get_driver
+from .engine.sources.prices.block_tariff import (
+    CONF_PRICE_BLOCKS,
+    BlockError,
+    parse_blocks,
+)
 from .engine.sources.pv_forecasts import (
     async_find_pv_forecasts,
     async_load_user_pv_sources,
@@ -649,6 +654,7 @@ KEEP_ON_RESET = (
     CONF_NOTIFY_KINDS,
     CONF_PRICE_SOURCE,
     CONF_PRICE_EXTENSION,
+    CONF_PRICE_BLOCKS,
     CONF_PRICE_FORECAST,
     CONF_PV_FORECAST,
     CONF_EXPORT_ENTITIES,
@@ -767,6 +773,9 @@ async def _flat_settings_schema(
             PRICE_EXTENSION_NONE,
             CONF_PRICE_EXTENSION,
             keep=current.get(CONF_PRICE_EXTENSION),
+        ),
+        vol.Optional(CONF_PRICE_BLOCKS): TextSelector(
+            TextSelectorConfig(multiline=True)
         ),
         vol.Optional(CONF_PRICE_FORECAST): EntitySelector(
             EntitySelectorConfig(domain="sensor")
@@ -1258,6 +1267,24 @@ def _reload_if_not_loaded(hass: HomeAssistant, entry: ConfigEntry) -> None:
         hass.config_entries.async_schedule_reload(entry.entry_id)
 
 
+async def settings_errors(
+    hass: HomeAssistant,
+    options: Mapping[str, Any],
+    current: Mapping[str, Any] | None = None,
+) -> dict[str, str]:
+    """What is wrong in the settings: the storage (``storage_errors``) and a
+    block tariff that cannot be read, or that is chosen but empty."""
+    errors = await storage_errors(hass, options, current)
+    try:
+        blocks = parse_blocks(options.get(CONF_PRICE_BLOCKS))
+    except BlockError:
+        errors[CONF_PRICE_BLOCKS] = "price_blocks_invalid"
+    else:
+        if not blocks and str(options.get(CONF_PRICE_SOURCE, "")).startswith("blocks:"):
+            errors[CONF_PRICE_BLOCKS] = "price_blocks_missing"
+    return errors
+
+
 async def storage_errors(
     hass: HomeAssistant,
     options: Mapping[str, Any],
@@ -1336,6 +1363,8 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     options[CONF_PRICE_EXTENSION] = user_input.get(
         CONF_PRICE_EXTENSION, PRICE_EXTENSION_NONE
     )
+    if str(user_input.get(CONF_PRICE_BLOCKS) or "").strip():
+        options[CONF_PRICE_BLOCKS] = str(user_input[CONF_PRICE_BLOCKS]).strip()
     options[CONF_EXPORT_MODE] = user_input.get(CONF_EXPORT_MODE, DEFAULT_EXPORT_MODE)
     options[CONF_MANUAL_POWER] = int(
         user_input.get(CONF_MANUAL_POWER, DEFAULT_MANUAL_POWER)
@@ -1837,7 +1866,7 @@ class HomeBatteryAssistConfigFlow(_GridSteps, ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             options = settings_from_input(user_input)
-            if not (errors := await storage_errors(self.hass, options)):
+            if not (errors := await settings_errors(self.hass, options)):
                 # A new entry: thresholds entered now are meant as they are.
                 return self.async_create_entry(
                     title=NAME,
@@ -1904,7 +1933,7 @@ class HomeBatteryAssistOptionsFlow(_GridSteps, OptionsFlow):
         if user_input is not None:
             options = settings_from_input(user_input)
             if not (
-                errors := await storage_errors(
+                errors := await settings_errors(
                     self.hass, options, self.config_entry.options
                 )
             ):

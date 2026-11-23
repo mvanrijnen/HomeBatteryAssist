@@ -67,6 +67,15 @@ Settings with DynTarNL:
 
 - **Nord Pool, EnergyZero, easyEnergy** (not tested) give the **bare market price**. Choose the tariff *Market price + surcharge + energy tax, plus VAT* and fill in your supplier's surcharge, the energy tax (both per kWh, excl. VAT) and the VAT. Otherwise arbitrage sees a round trip as too cheap.
 - **Price sensor**: any sensor with a price list in its attributes (`prices`, `prices_today`/`prices_tomorrow`, `raw_today`/`raw_tomorrow`, `today`/`tomorrow`, …; for market prices `forecast_market`, `prices_market`, …). Each item needs a start (`start`, `from`, `time`, …) and a price; an item without an end lasts until the next one.
+- **Block tariff** (not tested): for a contract with **fixed prices per time block** (day/night, peak hours, cheap hours at fixed times) — no price sensor needed. Choose *Block tariff* as price source and write the blocks in the setting *Block tariff*, one rule per line: optional days (`mon-fri`, `sat,sun`; Dutch `ma`–`zo` works too), a time block (`23:00-07:00`, past midnight allowed; `00:00-24:00` = the whole day) and the price per kWh (all-in, decimal point or comma). A line with only a price is the price at any other time; a later line wins where they overlap; `#` starts a comment. Example:
+
+  ```text
+  0,30
+  23:00-07:00 0,22
+  mon-fri 17:00-21:00 0,40
+  ```
+
+  The prices are fixed, so they count as published for the whole planning horizon; time no rule covers has no price (the plans end there). The export price follows the export settings.
 
 ### Price extension {#price-extension}
 

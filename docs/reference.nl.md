@@ -65,6 +65,7 @@ Kies per fase de sensor die het vermogen (W) op die fase meet, meestal afkomstig
 | **Modus batterijplan** | Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Alle modi worden altijd ter vergelijking doorgerekend. Eigen planningsmodules uit /config/homebatteryassist/planners verschijnen hier ook (na herladen). |
 | **Prijsbron** | Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest. |
 | **Extra prijsvoorspelling** | Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld. |
+| **Bloktarief** | Alleen voor de prijsbron *Bloktarief*: vaste prijzen per tijdsblok, één regel per blok: optioneel de dagen (ma-vr, za,zo), een tijdsblok (23:00-07:00, over middernacht mag) en de prijs per kWh; een regel met alleen een prijs is de prijs op alle andere tijden. Een latere regel wint waar ze overlappen. Voorbeeld: '0,30' / '23:00-07:00 0,22' / 'ma-vr 17:00-21:00 0,40'. |
 | **Verbruiksvoorspeller** | Hoe het huisverbruik voorspeld wordt. De nauwkeurigheid van elke voorspeller staat naast elkaar op het dashboard. Eigen voorspellers uit /config/homebatteryassist/forecasters verschijnen hier ook (na herladen). |
 | **Tarief** | Hoe de prijzen van de prijsbron worden omgezet in wat een kWh echt kost en oplevert. Eigen tarieven uit /config/homebatteryassist/tariffs verschijnen hier ook (na herladen). |
 

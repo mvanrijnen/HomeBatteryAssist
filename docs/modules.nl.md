@@ -19,7 +19,7 @@ De verwisselbare onderdelen van de lagen van HomeBatteryAssist zijn *modules* (a
 
 De ingebouwde modules zitten in de integratie en worden mee bijgewerkt; je eigen modules staan in hun eigen map onder `/config`, dus een update komt er nooit aan.
 
-De **prijsbronnen** (`engine/sources/prices/`: [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (geverifieerd), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, of elke sensor met prijzen in zijn attributen) zijn ook modules; nieuwe worden voorlopig aan de code toegevoegd (`template.py`). Bronnen die nog in ontwikkeling zijn (bijv. Tibber) staan apart in `in_development/` en worden niet aangeboden.
+De **prijsbronnen** (`engine/sources/prices/`: [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (geverifieerd), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, een bloktarief (`block_tariff.py`, vaste prijzen per tijdsblok uit een instelling), of elke sensor met prijzen in zijn attributen) zijn ook modules; nieuwe worden voorlopig aan de code toegevoegd (`template.py`). Bronnen die nog in ontwikkeling zijn (bijv. Tibber) staan apart in `in_development/` en worden niet aangeboden.
 
 ## HomeBatteryAssist houdt het laatste woord {#homebatteryassist-keeps-the-final-say}
 
