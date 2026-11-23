@@ -2660,9 +2660,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
   _controlLine(c, t) {
     if (!c) return "";
     const each = (c.batteries || [])
-      .map((b) => `${b.name}: ${b.held ? `<span class="alert-text">${esc(t.controlHeld[b.held] || b.held)}</span>` : esc(t.controlActive)}`)
+      .map((b) => `<b>${esc(b.name)}</b> · ${b.held ? `<span class="alert-text">${esc(t.controlHeld[b.held] || b.held)}</span>` : esc(t.controlActive)}`)
       .join(" · ");
-    return `<div class="sub"><span class="muted">${esc(t.controlLine)}</span> <b>${esc(t.controlModes[c.mode] || c.mode)}</b> · ${each}</div>`;
+    // The mode is the active planner module above: not repeated here.
+    return `<div class="sub"><span class="muted">${esc(t.controlLine)}</span> ${each}</div>`;
   }
 
   // The interceptor (own module) and what it holds back or limits now.
