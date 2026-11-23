@@ -1902,6 +1902,9 @@
       "control_test_discharge": {
         "name": "Test: ontladen"
       },
+      "control_test_full": {
+        "name": "Test: vol laden"
+      },
       "control_test_stop": {
         "name": "Test: stoppen"
       },

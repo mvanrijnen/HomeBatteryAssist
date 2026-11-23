@@ -49,6 +49,12 @@ CONTROL_TEST_ALLOWED: Final = False
 
 DEFAULT_POWER_W: Final = 300
 DEFAULT_MINUTES: Final = 5
+# Test: charge full — at the battery's max charge power until full, then on
+# a little for the cells to balance: until it takes less than FULL_DONE_W,
+# at most FULL_TOP_UP; never longer than FULL_MAX in all.
+FULL_MAX: Final = timedelta(hours=6)
+FULL_TOP_UP: Final = timedelta(minutes=30)
+FULL_DONE_W: Final = 100.0
 TICK = timedelta(seconds=5)
 
 STATUS_READ_ONLY = "read_only"
@@ -75,6 +81,8 @@ class TestRun:
     charged_kwh: float  # the battery's counters at the start
     discharged_kwh: float
     controller: BatteryController
+    full: bool = False  # Test: charge full
+    full_since: datetime | None = None  # when it reached its max SoC
 
 
 class ControlTest:
@@ -155,20 +163,27 @@ class ControlTest:
     def _floor(self, config: BatteryConfig) -> float:
         return max(config.min_soc, self._reserve_soc())
 
-    def _refusal(self, config: BatteryConfig, charge: bool) -> str | None:
-        """Why a test cannot start (or must stop) now, if so."""
+    def _refusal(
+        self, config: BatteryConfig, charge: bool, topping_up: bool = False
+    ) -> str | None:
+        """Why a test cannot start (or must stop) now, if so; ``topping_up``:
+        a full charge that may go on at its max SoC for the cells."""
         soc = self._batteries.states[config.id].soc
         if soc is None:
             return "unknown"
-        if charge and soc >= config.max_soc:
+        if charge and soc >= config.max_soc and not topping_up:
             return "full"
         if not charge and soc <= self._floor(config):
             return "empty"
         return None
 
-    async def async_start(self, battery_id: str, charge: bool) -> None:
+    async def async_start(
+        self, battery_id: str, charge: bool, full: bool = False
+    ) -> None:
         """Start a test: charge (or discharge) at the test power for the test
-        duration. Only tells *Why* while the test control is switched off."""
+        duration; ``full``: charge at the battery's max charge power until it
+        is full (``FULL_MAX`` at most). Only tells *Why* while the test
+        control is switched off."""
         config = self.configs[battery_id]
         if not self.allowed:
             self._decisions.async_log(
@@ -203,7 +218,7 @@ class ControlTest:
                     reason="@test_error",
                 )
                 return
-        limit = max(self.power_w[battery_id], 0.0)
+        limit = config.max_charge_w if full else max(self.power_w[battery_id], 0.0)
         power = limit if charge else -limit
         now = dt_util.utcnow()
         stats = self._batteries.stats[battery_id]
@@ -218,10 +233,11 @@ class ControlTest:
         run = TestRun(
             power,
             now,
-            now + timedelta(minutes=self.minutes[battery_id]),
+            now + (FULL_MAX if full else timedelta(minutes=self.minutes[battery_id])),
             stats.get("charged_kwh", 0.0),
             stats.get("discharged_kwh", 0.0),
             controller,
+            full=full,
         )
         self.runs[battery_id] = run
         # A new command: an earlier one not followed (e.g. a refused
@@ -230,16 +246,25 @@ class ControlTest:
             check := self._commands.checks.get(battery_id)
         ):
             check.restart()
-        self._decisions.async_log(
-            "battery",
-            "control_test_started",
-            name=config.name,
-            direction="@dir_charge" if charge else "@dir_discharge",
-            power=f"{abs(power):.0f} W",
-            minutes=f"{self.minutes[battery_id]:.0f}",
-            until=run.until,
-            integration=writer_name,
-        )
+        if full:
+            self._decisions.async_log(
+                "battery",
+                "control_test_full_started",
+                name=config.name,
+                power=f"{abs(power):.0f} W",
+                integration=writer_name,
+            )
+        else:
+            self._decisions.async_log(
+                "battery",
+                "control_test_started",
+                name=config.name,
+                direction="@dir_charge" if charge else "@dir_discharge",
+                power=f"{abs(power):.0f} W",
+                minutes=f"{self.minutes[battery_id]:.0f}",
+                until=run.until,
+                integration=writer_name,
+            )
         if self._unsub is None:
             self._unsub = async_track_time_interval(self.hass, self._async_tick, TICK)
         self._changed()
@@ -269,14 +294,26 @@ class ControlTest:
         run = self.runs[battery_id]
         config = self.configs[battery_id]
         check = self._commands.checks.get(battery_id) if self._commands else None
+        state = self._batteries.states[battery_id]
+        topped_up = False
+        if run.full and state.soc is not None and state.soc >= config.max_soc:
+            # Full: on a little for the cells, until it takes little.
+            run.full_since = run.full_since or now
+            topped_up = now - run.full_since >= FULL_TOP_UP or (
+                now - run.full_since >= TICK * 6
+                and state.power_w is not None
+                and state.power_w < FULL_DONE_W
+            )
         reason = (
-            "done"
+            "full"
+            if topped_up
+            else "done"
             if now >= run.until
             else "error"
             if run.controller.errors
             else "not_following"
-            if check is not None and check.problem
-            else self._refusal(config, run.power_w > 0)
+            if check is not None and check.problem and run.full_since is None
+            else self._refusal(config, run.power_w > 0, topping_up=run.full)
         )
         if reason is not None:
             await self.async_stop(battery_id, reason)

@@ -412,6 +412,7 @@ Wat HomeBatteryAssist aanmaakt (namen zoals in Home Assistant).
 | Herbereken | Knop |
 | Test: laden | Knop |
 | Test: ontladen | Knop |
+| Test: vol laden | Knop |
 | Test: stoppen | Knop |
 | Invoer testen | Knop |
 | Gelijkzetten met echte batterij | Knop |

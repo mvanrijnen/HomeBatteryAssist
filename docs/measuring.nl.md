@@ -58,6 +58,7 @@ Om het aansturen van een batterij met de hand te testen — voordat HomeBatteryA
 | Entiteit | Wat het is |
 |---|---|
 | *Test: laden* / *Test: ontladen* (knoppen) | Een test starten: laden of ontladen met het testvermogen gedurende de testduur. |
+| *Test: vol laden* (knop) | Laden met het maximale laadvermogen van de batterij tot ze vol is, dan nog even door zodat de cellen balanceren (tot ze minder dan 100 W opneemt, hoogstens 30 min); in totaal hoogstens 6 uur. Telt als volledige oplading. |
 | *Test: stoppen* (knop) | De test meteen stoppen; de batterij gaat terug naar haar eigen sturing. |
 | *Testvermogen* (getal) | Het vermogen van een test, 50 W tot het maximale vermogen van de batterij. Standaard 300 W. |
 | *Testduur* (getal) | Hoe lang een test duurt, 1–30 minuten. Standaard 5 min. |

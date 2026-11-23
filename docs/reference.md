@@ -412,6 +412,7 @@ What HomeBatteryAssist creates (names as shown in Home Assistant).
 | Recalculate | Button |
 | Test: charge | Button |
 | Test: discharge | Button |
+| Test: charge full | Button |
 | Test: stop | Button |
 | Test inputs | Button |
 | Sync with the real battery | Button |

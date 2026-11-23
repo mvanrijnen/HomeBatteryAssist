@@ -111,6 +111,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "control_test_blocked": "Test control of {name}: not started. In this phase HomeBatteryAssist only reads; the test control is built but switched off.",
         "control_test_refused": "Test control of {name}: not started, {reason}.",
         "control_test_started": "Test control of {name}: {direction} at {power} for {minutes} min (until {until}), through {integration}. Afterwards, or at once with Test: stop, it goes back to its own control.",
+        "control_test_full_started": "Test control of {name}: charging full at {power}, through {integration}; at full it charges on a little for the cells to balance (until it takes little, at most 30 min), then it goes back to its own control (or at once with Test: stop).",
         "control_test_stopped": "Test control of {name} ended ({reason}) after {minutes} min: charged {charged} kWh, discharged {discharged} kWh. Back to its own control.",
     },
     "nl": {
@@ -210,6 +211,7 @@ MESSAGES: dict[str, dict[str, str]] = {
         "control_test_blocked": "Testbesturing van {name}: niet gestart. In deze fase leest HomeBatteryAssist alleen; de testbesturing is gebouwd maar staat uit.",
         "control_test_refused": "Testbesturing van {name}: niet gestart, {reason}.",
         "control_test_started": "Testbesturing van {name}: {direction} met {power} gedurende {minutes} min (tot {until}), via {integration}. Daarna, of meteen met Test: stoppen, gaat ze terug naar haar eigen sturing.",
+        "control_test_full_started": "Testbesturing van {name}: vol laden met {power}, via {integration}; als ze vol is laadt ze nog even door zodat de cellen balanceren (tot ze weinig opneemt, hoogstens 30 min), daarna gaat ze terug naar haar eigen sturing (of meteen met Test: stoppen).",
         "control_test_stopped": "Testbesturing van {name} beëindigd ({reason}) na {minutes} min: {charged} kWh geladen, {discharged} kWh ontladen. Terug naar haar eigen sturing.",
     },
 }

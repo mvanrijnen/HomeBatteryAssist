@@ -350,3 +350,32 @@ async def test_an_earlier_refusal_does_not_stop_a_new_test(
     finally:
         await test.async_stop_all()
         await link_.async_stop()
+
+
+async def test_charge_full(hass: HomeAssistant, venus: FakeVenus) -> None:
+    """Test: charge full at the max charge power, on at full for the cells
+    until it takes little, then released."""
+    link_ = _link(hass)
+    await link_.async_start()
+    log = FakeLog()
+    state = {"b1": BatteryState(CONFIG, 90.0, 0.0)}
+    batteries = SimpleNamespace(configs=[CONFIG], states=state, stats={"b1": {}})
+    test = ControlTest(hass, batteries, log, allowed=True)
+    try:
+        await test.async_start("b1", charge=True, full=True)
+        assert venus.registers[42020] == 2500 and venus.registers[42010] == 1
+        assert log.keys[-1][0] == "control_test_full_started"
+        now = dt_util.utcnow()
+        # Full: it charges on (no stop at 100 %) ...
+        state["b1"] = BatteryState(CONFIG, 100.0, 1800.0)
+        await test._async_tick(now)
+        assert test.status("b1") == "charging"
+        # ... until it takes little.
+        state["b1"] = BatteryState(CONFIG, 100.0, 40.0)
+        await test._async_tick(now + timedelta(minutes=1))
+        assert test.status("b1") == "ready"
+        assert dict(log.keys)["control_test_stopped"]["reason"] == "@test_full"
+        assert venus.registers[42000] == 0x55BB and venus.registers[42010] == 0
+    finally:
+        await test.async_stop_all()
+        await link_.async_stop()

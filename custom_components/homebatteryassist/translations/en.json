@@ -1902,6 +1902,9 @@
       "control_test_discharge": {
         "name": "Test: discharge"
       },
+      "control_test_full": {
+        "name": "Test: charge full"
+      },
       "control_test_stop": {
         "name": "Test: stop"
       },

@@ -58,6 +58,7 @@ To test controlling a battery by hand — before HomeBatteryAssist ever controls
 | Entity | What it is |
 |---|---|
 | *Test: charge* / *Test: discharge* (buttons) | Start a test: charge or discharge at the test power for the test duration. |
+| *Test: charge full* (button) | Charge at the battery's max charge power until it is full, then on a little so the cells balance (until it takes less than 100 W, at most 30 min); 6 hours at most in all. Counts as a full charge. |
 | *Test: stop* (button) | Stop the test at once; the battery goes back to its own control. |
 | *Test power* (number) | The power of a test, 50 W up to the battery's max power. Default 300 W. |
 | *Test duration* (number) | How long a test lasts, 1–30 minutes. Default 5 min. |

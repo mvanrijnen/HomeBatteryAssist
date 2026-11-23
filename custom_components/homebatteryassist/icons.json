@@ -168,6 +168,9 @@
       },
       "twin_sync": {
         "default": "mdi:sync"
+      },
+      "control_test_full": {
+        "default": "mdi:battery-charging-100"
       }
     },
     "binary_sensor": {

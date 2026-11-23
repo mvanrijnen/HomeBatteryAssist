@@ -44,7 +44,7 @@ class ControlTestButton(_TestEntity, ButtonEntity):
     def __init__(
         self, entry: HomeBatteryAssistConfigEntry, battery_id: str, action: str
     ) -> None:
-        """``action``: charge, discharge or stop."""
+        """``action``: charge, discharge, full or stop."""
         self._setup(entry, battery_id, f"control_test_{action}")
         self._action = action
 
@@ -52,6 +52,8 @@ class ControlTestButton(_TestEntity, ButtonEntity):
         """Start or stop the test."""
         if self._action == "stop":
             await self._test.async_stop(self._battery_id, "stopped")
+        elif self._action == "full":
+            await self._test.async_start(self._battery_id, True, full=True)
         else:
             await self._test.async_start(self._battery_id, self._action == "charge")
 
@@ -132,10 +134,10 @@ class ControlTestStatus(_TestEntity, SensorEntity):
 
 
 def control_test_buttons(entry: HomeBatteryAssistConfigEntry, battery_id: str) -> list:
-    """The three buttons of a battery."""
+    """The buttons of a battery."""
     return [
         ControlTestButton(entry, battery_id, action)
-        for action in ("charge", "discharge", "stop")
+        for action in ("charge", "discharge", "full", "stop")
     ]
 
 
