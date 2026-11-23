@@ -309,7 +309,7 @@ CONF_FULL_CHARGE_INTERVAL: Final = "full_charge_interval_days"  # 0 = off
 DEFAULT_MIN_SOC: Final = 10
 DEFAULT_MAX_SOC: Final = 100
 DEFAULT_EFFICIENCY: Final = 90
-DEFAULT_FULL_CHARGE_INTERVAL: Final = 28
+DEFAULT_FULL_CHARGE_INTERVAL: Final = 14
 # Monitoring
 IDLE_THRESHOLD_W: Final = 20.0  # |power| below this counts as idle
 FULL_CHARGE_SOC: Final = 99.5  # % at or above which a full charge is registered
