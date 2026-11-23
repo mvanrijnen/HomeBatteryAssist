@@ -104,9 +104,10 @@ async def test_released_battery_is_not_redistributed() -> None:
     assert outcome.powers["b"] == -500.0
 
 
-async def test_omnibattery_powers_before_manual_mode(monkeypatch) -> None:
-    """Powers first (the other direction to 0 first), then manual mode; no
-    manual mode switch: nothing is written."""
+async def test_omnibattery_manual_mode_before_powers(monkeypatch) -> None:
+    """Manual mode first (Omnibattery refuses setpoints under its own
+    control), then the other direction to 0, then the power; no manual mode
+    switch: nothing is written."""
     import pytest
 
     from custom_components.homebatteryassist.engine.devices.batteries.integrations import (
@@ -133,11 +134,11 @@ async def test_omnibattery_powers_before_manual_mode(monkeypatch) -> None:
     reader = omni.OmnibatteryReader()
     await reader.async_set_power(hass, CONFIG, 1500.0)
     assert [c[2] for c in calls] == [
+        "switch.manual",
         "number.discharge",
         "number.charge",
-        "switch.manual",
     ]
-    assert calls[0][3] == 0.0 and calls[1][3] == 1500.0
+    assert calls[1][3] == 0.0 and calls[2][3] == 1500.0
     calls.clear()
     del entities[("switch", "battery_manual_mode")]
     with pytest.raises(RuntimeError):
