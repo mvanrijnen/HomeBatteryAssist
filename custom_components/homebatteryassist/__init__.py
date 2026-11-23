@@ -33,7 +33,6 @@ from .const import (
     CONF_COMMAND_CHECK_MINUTES,
     CONF_COMMAND_CHECK_W,
     CONF_CONTROL_ENABLED,
-    CONF_CONTROL_MODE,
     CONF_CONTROL_TEST,
     CONF_EXPORT_LIMIT,
     CONF_EXPORT_LIMIT_COST,
@@ -73,7 +72,7 @@ from .const import (
     PRICES_CHECKED,
     SUBENTRY_PV_SOURCE,
 )
-from .engine.control.control_loop import CONTROL_MODE_NOM, ControlLoop
+from .engine.control.control_loop import ControlLoop
 from .engine.control.control_test import CONTROL_TEST_ALLOWED, ControlTest
 from .engine.control.export_limiter import ExportLimiter
 from .engine.control.interceptors import (
@@ -646,7 +645,6 @@ async def async_setup_entry(
                 measurements,
                 forecast,
                 decisions,
-                mode=entry.options.get(CONF_CONTROL_MODE, CONTROL_MODE_NOM),
                 monitor=commands,  # releases a battery that does not follow
                 tests=control_test,
             )

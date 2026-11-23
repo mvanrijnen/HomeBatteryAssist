@@ -246,8 +246,7 @@ Een batterij met de hand testen (knoppen Test: laden / ontladen / stoppen bij el
 
 | Veld | Uitleg |
 |---|---|
-| **Besturing aan** | HomeBatteryAssist stuurt de batterijen met Aangestuurd door HomeBatteryAssist elke ronde aan, binnen hun grenzen; bij elk probleem gaat een batterij terug naar haar eigen sturing. Uit: alleen lezen en adviseren. |
-| **Besturingsmodus** | Nul op de meter: de batterijen houden het net op het doel, wat het plan ook zegt (een veilig begin). Volgens het plan: het gekozen plan (bij arbitrage laden uit het net en leveren in dure uren). |
+| **Besturing aan** | HomeBatteryAssist stuurt de batterijen met Aangestuurd door HomeBatteryAssist elke ronde aan, binnen hun grenzen, zoals de actieve planningsmodule zegt: Nul op de meter houdt het net op het doel, Arbitrage volgt het plan. Bij elk probleem gaat een batterij terug naar haar eigen sturing. Uit: alleen lezen en adviseren. |
 | **Testbesturing aan** | Uit: de testknoppen leggen alleen uit dat de test uit staat; er wordt niets naar een batterij gestuurd. |
 
 ## Apparaten en tijdvakken {#devices}

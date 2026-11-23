@@ -33,7 +33,7 @@ T0 = datetime(2026, 11, 24, 18, 0, tzinfo=dt_util.UTC)
 
 
 class _Data:
-    plan_mode = "arbitrage"  # the loop does zero on the meter anyway (mode nom)
+    plan_mode = "nom"  # the active planner module: zero on the meter
     selected_plan = None
 
     def __init__(self) -> None:

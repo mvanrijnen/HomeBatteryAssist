@@ -85,7 +85,6 @@ from .const import (
     CONF_COMMAND_CHECK_W,
     CONF_CONSUMPTION_FORECASTER,
     CONF_CONTROL_ENABLED,
-    CONF_CONTROL_MODE,
     CONF_CONTROL_TEST,
     CONF_CYCLE_COST,
     CONF_DEVICE_PHASE_SENSORS,
@@ -564,7 +563,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "sim_ramp_w_s",
     ),
     "command_check": ("command_check_w", "command_check_minutes"),
-    "control": ("control_enabled", "control_mode", "control_test"),
+    "control": ("control_enabled", "control_test"),
     "export_limit": (
         "export_never",
         "export_limit_on",
@@ -1139,9 +1138,6 @@ async def _flat_settings_schema(
             default=bool(current.get(CONF_CONTROL_ENABLED, False)),
         ): BooleanSelector(),
         vol.Required(
-            CONF_CONTROL_MODE, default=current.get(CONF_CONTROL_MODE, "nom")
-        ): _select(["nom", "plan"], CONF_CONTROL_MODE),
-        vol.Required(
             CONF_EXPORT_NEVER,
             default=current.get(CONF_EXPORT_NEVER, DEFAULT_EXPORT_NEVER),
         ): BooleanSelector(),
@@ -1473,7 +1469,6 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
     )
     options[CONF_CONTROL_TEST] = bool(user_input.get(CONF_CONTROL_TEST, False))
     options[CONF_CONTROL_ENABLED] = bool(user_input.get(CONF_CONTROL_ENABLED, False))
-    options[CONF_CONTROL_MODE] = user_input.get(CONF_CONTROL_MODE, "nom")
     options[CONF_EXPORT_LIMIT] = bool(
         user_input.get(CONF_EXPORT_LIMIT, DEFAULT_EXPORT_LIMIT)
     )

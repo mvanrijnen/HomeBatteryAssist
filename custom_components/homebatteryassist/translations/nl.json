@@ -351,12 +351,10 @@
             "description": "Een batterij met de hand testen (knoppen Test: laden / ontladen / stoppen bij elke batterij), terwijl je erbij bent. Via de directe verbinding van de batterij als ze die heeft, anders via haar integratie. Daarna altijd terug naar de eigen sturing van de batterij.",
             "data": {
               "control_enabled": "Besturing aan",
-              "control_mode": "Besturingsmodus",
               "control_test": "Testbesturing aan"
             },
             "data_description": {
-              "control_enabled": "HomeBatteryAssist stuurt de batterijen met Aangestuurd door HomeBatteryAssist elke ronde aan, binnen hun grenzen; bij elk probleem gaat een batterij terug naar haar eigen sturing. Uit: alleen lezen en adviseren.",
-              "control_mode": "Nul op de meter: de batterijen houden het net op het doel, wat het plan ook zegt (een veilig begin). Volgens het plan: het gekozen plan (bij arbitrage laden uit het net en leveren in dure uren).",
+              "control_enabled": "HomeBatteryAssist stuurt de batterijen met Aangestuurd door HomeBatteryAssist elke ronde aan, binnen hun grenzen, zoals de actieve planningsmodule zegt: Nul op de meter houdt het net op het doel, Arbitrage volgt het plan. Bij elk probleem gaat een batterij terug naar haar eigen sturing. Uit: alleen lezen en adviseren.",
               "control_test": "Uit: de testknoppen leggen alleen uit dat de test uit staat; er wordt niets naar een batterij gestuurd."
             }
           }
@@ -630,12 +628,6 @@
     "direct_driver": {
       "options": {
         "none": "Via de sensoren van een andere integratie"
-      }
-    },
-    "control_mode": {
-      "options": {
-        "nom": "Nul op de meter",
-        "plan": "Volgens het plan"
       }
     }
   },
@@ -942,12 +934,10 @@
             "description": "Een batterij met de hand testen (knoppen Test: laden / ontladen / stoppen bij elke batterij), terwijl je erbij bent. Via de directe verbinding van de batterij als ze die heeft, anders via haar integratie. Daarna altijd terug naar de eigen sturing van de batterij.",
             "data": {
               "control_enabled": "Besturing aan",
-              "control_mode": "Besturingsmodus",
               "control_test": "Testbesturing aan"
             },
             "data_description": {
-              "control_enabled": "HomeBatteryAssist stuurt de batterijen met Aangestuurd door HomeBatteryAssist elke ronde aan, binnen hun grenzen; bij elk probleem gaat een batterij terug naar haar eigen sturing. Uit: alleen lezen en adviseren.",
-              "control_mode": "Nul op de meter: de batterijen houden het net op het doel, wat het plan ook zegt (een veilig begin). Volgens het plan: het gekozen plan (bij arbitrage laden uit het net en leveren in dure uren).",
+              "control_enabled": "HomeBatteryAssist stuurt de batterijen met Aangestuurd door HomeBatteryAssist elke ronde aan, binnen hun grenzen, zoals de actieve planningsmodule zegt: Nul op de meter houdt het net op het doel, Arbitrage volgt het plan. Bij elk probleem gaat een batterij terug naar haar eigen sturing. Uit: alleen lezen en adviseren.",
               "control_test": "Uit: de testknoppen leggen alleen uit dat de test uit staat; er wordt niets naar een batterij gestuurd."
             }
           }

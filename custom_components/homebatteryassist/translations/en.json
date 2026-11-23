@@ -351,12 +351,10 @@
             "description": "Test controlling a battery by hand (buttons Test: charge / discharge / stop on each battery), with you present. Through the battery's direct connection when it has one, else through its integration. Always back to the battery's own control afterwards.",
             "data": {
               "control_enabled": "Control on",
-              "control_mode": "Control mode",
               "control_test": "Test control on"
             },
             "data_description": {
-              "control_enabled": "HomeBatteryAssist controls the batteries marked Controlled by HomeBatteryAssist, every round, within their limits; on any problem a battery goes back to its own control. Off: it only reads and advises.",
-              "control_mode": "Zero on the meter: the batteries keep the grid at the target, whatever the plan says (a safe start). Following the plan: the selected plan (charging from the grid and supplying at expensive hours in arbitrage).",
+              "control_enabled": "HomeBatteryAssist controls the batteries marked Controlled by HomeBatteryAssist, every round, within their limits, as the active planner module says: Zero on the meter keeps the grid at the target, Arbitrage follows the plan. On any problem a battery goes back to its own control. Off: it only reads and advises.",
               "control_test": "Off: the test buttons only explain that the test is off; nothing is sent to a battery."
             }
           }
@@ -630,12 +628,6 @@
     "direct_driver": {
       "options": {
         "none": "Through the sensors of another integration"
-      }
-    },
-    "control_mode": {
-      "options": {
-        "nom": "Zero on the meter",
-        "plan": "Following the plan"
       }
     }
   },
@@ -942,12 +934,10 @@
             "description": "Test controlling a battery by hand (buttons Test: charge / discharge / stop on each battery), with you present. Through the battery's direct connection when it has one, else through its integration. Always back to the battery's own control afterwards.",
             "data": {
               "control_enabled": "Control on",
-              "control_mode": "Control mode",
               "control_test": "Test control on"
             },
             "data_description": {
-              "control_enabled": "HomeBatteryAssist controls the batteries marked Controlled by HomeBatteryAssist, every round, within their limits; on any problem a battery goes back to its own control. Off: it only reads and advises.",
-              "control_mode": "Zero on the meter: the batteries keep the grid at the target, whatever the plan says (a safe start). Following the plan: the selected plan (charging from the grid and supplying at expensive hours in arbitrage).",
+              "control_enabled": "HomeBatteryAssist controls the batteries marked Controlled by HomeBatteryAssist, every round, within their limits, as the active planner module says: Zero on the meter keeps the grid at the target, Arbitrage follows the plan. On any problem a battery goes back to its own control. Off: it only reads and advises.",
               "control_test": "Off: the test buttons only explain that the test is off; nothing is sent to a battery."
             }
           }

@@ -271,9 +271,9 @@ DIRECT_LINKS_KEY: Final = "homebatteryassist_direct_links"  # hass.data
 # Test control (buttons per battery): off unless the user switches it on.
 CONF_CONTROL_TEST: Final = "control_test"
 # Control (engine/control/control_loop.py): off unless switched on, and then
-# only for batteries with ``control`` in their form; mode nom / plan.
+# only for batteries with ``control`` in their form; it does what the active
+# planner module says (zero on the meter or the plan).
 CONF_CONTROL_ENABLED: Final = "control_enabled"
-CONF_CONTROL_MODE: Final = "control_mode"
 CONF_BATTERY_CONTROL: Final = "control"  # battery subentry: controlled by HBA
 # The breaker of a PV inverter's group (A per phase): the most it can deliver.
 CONF_INVERTER_MAX_CURRENT: Final = "inverter_max_current"

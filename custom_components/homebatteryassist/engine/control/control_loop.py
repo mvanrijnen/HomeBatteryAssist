@@ -5,10 +5,11 @@ for the batteries whose form says *Controlled by HomeBatteryAssist*
 (``control``). Each round it gives such a battery the power the virtual
 batteries would get in its place: the loop IS the virtual battery simulator
 (``VirtualBatterySimulator``) on the controlled real batteries, so both share
-every step — zero on the meter (PD control on the measured grid), or the
-plan (setting *Control mode*: ``nom`` = zero on the meter whatever the plan,
-``plan`` = the selected plan), full charges, phase protection, peak shaving,
-the interceptor, the state of charge limits and the system limits.
+every step — zero on the meter (PD control on the measured grid) or the
+selected plan, as the active planner module says (one choice: *Zero on the
+meter* gives zero on the meter, *Arbitrage* the plan), full charges, phase
+protection, peak shaving, the interceptor, the state of charge limits and the
+system limits.
 
 What differs from the simulation:
 
@@ -56,9 +57,8 @@ from .reader_driver import LinkDriver, ReaderDriver
 
 _LOGGER = logging.getLogger(__name__)
 
-CONTROL_MODE_NOM = "nom"  # zero on the meter, whatever the plan says
+CONTROL_MODE_NOM = "nom"  # zero on the meter (the planner module says so)
 CONTROL_MODE_PLAN = "plan"  # the selected plan (arbitrage, full charges, ...)
-CONTROL_MODES = (CONTROL_MODE_NOM, CONTROL_MODE_PLAN)
 
 HOLD_TEST = "test"
 HOLD_NOT_FOLLOWING = "not_following"
@@ -77,13 +77,11 @@ class ControlLoop(VirtualBatterySimulator):
         forecast: Any,
         decisions: DecisionLog,
         *,
-        mode: str = CONTROL_MODE_NOM,
         monitor: Any = None,  # CommandMonitor: does a battery follow?
         tests: Any = None,  # ControlTest: a running test has the battery
     ) -> None:
         """Initialize: a controller per battery that may and can be controlled."""
         super().__init__(hass, batteries, measurements, forecast, decisions)
-        self.mode = mode if mode in CONTROL_MODES else CONTROL_MODE_NOM
         self._monitor = monitor
         self._tests = tests
         self.controllers: dict[str, BatteryController] = {}
@@ -140,11 +138,11 @@ class ControlLoop(VirtualBatterySimulator):
             ],
         )
 
-    def _follows_nom(self, data: Any) -> bool:  # type: ignore[override]
-        """Zero on the meter in mode ``nom``; else as the plan says."""
-        if self.mode == CONTROL_MODE_NOM:
-            return True
-        return VirtualBatterySimulator._follows_nom(data)
+    @property
+    def mode(self) -> str:
+        """``nom`` or ``plan``: what the active planner module makes it do."""
+        data = getattr(self._forecast, "data", None)
+        return CONTROL_MODE_NOM if self._follows_nom(data) else CONTROL_MODE_PLAN
 
     def step(self, now: datetime) -> None:
         """One round. Direct zero on the meter works from what the battery

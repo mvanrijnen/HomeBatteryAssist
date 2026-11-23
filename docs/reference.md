@@ -246,8 +246,7 @@ Test controlling a battery by hand (buttons Test: charge / discharge / stop on e
 
 | Field | Explanation |
 |---|---|
-| **Control on** | HomeBatteryAssist controls the batteries marked Controlled by HomeBatteryAssist, every round, within their limits; on any problem a battery goes back to its own control. Off: it only reads and advises. |
-| **Control mode** | Zero on the meter: the batteries keep the grid at the target, whatever the plan says (a safe start). Following the plan: the selected plan (charging from the grid and supplying at expensive hours in arbitrage). |
+| **Control on** | HomeBatteryAssist controls the batteries marked Controlled by HomeBatteryAssist, every round, within their limits, as the active planner module says: Zero on the meter keeps the grid at the target, Arbitrage follows the plan. On any problem a battery goes back to its own control. Off: it only reads and advises. |
 | **Test control on** | Off: the test buttons only explain that the test is off; nothing is sent to a battery. |
 
 ## Devices and time slots {#devices}
