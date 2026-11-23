@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
+from typing import Any
 
 from homeassistant.const import (
     CONF_NAME,
@@ -90,6 +91,8 @@ from .engine.evaluation.plan_check import PlanVerification
 from .engine.evaluation.pv_corrections import async_load_user_pv_correctors
 from .engine.evaluation.unexpected_surplus import UnexpectedSurplus
 from .engine.explain import DecisionLog
+from .engine.explain.activity_log import IDLE_W as ACTIVITY_IDLE_W
+from .engine.explain.activity_log import ActivityLog
 from .engine.explain.notifications import Notifier
 from .engine.explain.plan_phases import reason_now
 from .engine.forecast.forecasters import async_load_user_forecasters
@@ -103,8 +106,9 @@ from .engine.measure.battery_monitor import (
     ACTIVITY_THRESHOLD_W,
     BatteryInput,
     activity_of,
+    direct_link,
 )
-from .engine.measure.house_measurement import MeasurementInput
+from .engine.measure.house_measurement import MeasurementInput, solar_surplus_w
 from .engine.measure.recorder_check import check_recorder
 from .engine.measure.spike_filters import (
     DEFAULT_SPIKE_FILTER,
@@ -654,6 +658,68 @@ async def async_setup_entry(
                 )
             )
 
+        # The activity log (dashboard tab Log): what each real battery did,
+        # who decided it and whether that was the plan.
+        def _activity_look(
+            control=control, control_test=control_test
+        ) -> list[dict[str, Any]]:
+            flow = measurements.flow
+            surplus = solar_surplus_w(flow) if flow is not None else None
+            data = forecast.data
+            plan = data.selected_plan if data is not None else None
+            now = dt_util.utcnow()
+            slot = (
+                next((s for s in plan.slots if s.start <= now < s.end), None)
+                if plan is not None
+                else None
+            )
+            planned = (
+                None
+                if slot is None
+                else "charge"
+                if slot.power_w > ACTIVITY_IDLE_W
+                else "discharge"
+                if slot.power_w < -ACTIVITY_IDLE_W
+                else "idle"
+            )
+            price = batteries.price_now()
+            looks = []
+            for config in batteries.configs:
+                if config.virtual:
+                    continue
+                state = batteries.states.get(config.id)
+                check = commands.checks.get(config.id)
+                link = direct_link(hass, config)
+                held = control.holding.get(config.id) if control else None
+                if config.id in control_test.runs:
+                    source = "test"
+                elif (
+                    (check is not None and check.problem)
+                    or held in ("not_following", "meter", "unknown")
+                    or (link is not None and not link.available)
+                ):
+                    source = "incident"
+                elif control is not None and config.id in control.controllers:
+                    source = f"hba_{control.mode}"
+                else:
+                    source = "own"
+                looks.append(
+                    {
+                        "id": config.id,
+                        "name": config.name,
+                        "power_w": state.power_w if state else None,
+                        "pv_surplus_w": surplus,
+                        "source": source,
+                        "plan": planned,
+                        "price": price,
+                    }
+                )
+            return looks
+
+        activity = ActivityLog(hass, entry.entry_id, _activity_look)
+        await activity.async_start()
+        entry.async_on_unload(activity.async_stop)
+
         # The export limit (PV inverters): shown and explained; nothing is sent.
         options = entry.options
         pv_subs = [
@@ -732,6 +798,8 @@ async def async_setup_entry(
             commands=commands,
             temperatures=temperatures,
             control_test=control_test,
+            control=control,
+            activity=activity,
             export_limit=export_limiter,
         )
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

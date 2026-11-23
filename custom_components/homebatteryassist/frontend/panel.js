@@ -178,6 +178,10 @@ const TEXT = {
     pvCorrectorNames: { hour_and_level: "Per lead time, hour and level", lead_time: "Per lead time (original)" },
     plannerPvCorrector: "PV correction:",
     plannerInterceptor: "Interceptor:",
+    controlLine: "Control:",
+    controlModes: { nom: "zero on the meter", plan: "following the plan" },
+    controlActive: "active",
+    controlHeld: { test: "test running", not_following: "does not follow", meter: "meter gone", unknown: "state unknown" },
     icAllThrough: "lets everything through",
     icActions: { reject: "held back", release: "released", limit: "limited to" },
     pvCorrectorsTitle: "PV corrections compared",
@@ -254,7 +258,16 @@ const TEXT = {
     adjNeedWindow: "Give a time window (from and until), or choose extra.",
     adjNeedEnergy: "Give an amount of energy in kWh.",
     adjFailed: "Saving failed",
-    tabs: { overview: "Overview", forecast: "Forecast", value: "Return", batteries: "Batteries", check: "Accuracy" },
+    tabs: { overview: "Overview", forecast: "Forecast", value: "Return", batteries: "Batteries", check: "Accuracy", log: "Log" },
+    logTitle: "Activity log",
+    logHelp: "What each real battery did, per period: who decided it (HomeBatteryAssist's control, a test, the battery's own control, or an incident) and whether it was what the plan said. Kept 30 days.",
+    logEmpty: "Nothing logged yet (a line is added every minute).",
+    logCols: ["From", "To", "Battery", "Activity", "kWh", "Max W", "Price", "By", "Plan"],
+    logKinds: { charge_pv: "Charge (solar)", charge_grid: "Charge (grid)", discharge: "Discharge", idle: "Idle" },
+    logSources: { hba_nom: "HBA: zero on the meter", hba_plan: "HBA: plan", test: "Test (by hand)", own: "Own control", incident: "Incident" },
+    logPlan: { charge: "charge", discharge: "discharge", idle: "idle" },
+    logDays: "days",
+    logCsv: "CSV",
     compareShow: "Return overview ▾",
     compareHide: "Hide overview ▴",
     realizedShort: "realised so far",
@@ -490,6 +503,10 @@ const TEXT = {
     pvCorrectorNames: { hour_and_level: "Per vooruitzicht, uur en niveau", lead_time: "Per vooruitzicht (oorspronkelijk)" },
     plannerPvCorrector: "PV-correctie:",
     plannerInterceptor: "Onderschepper:",
+    controlLine: "Besturing:",
+    controlModes: { nom: "nul op de meter", plan: "volgens het plan" },
+    controlActive: "actief",
+    controlHeld: { test: "test loopt", not_following: "volgt niet", meter: "meter weg", unknown: "stand onbekend" },
     icAllThrough: "laat alles door",
     icActions: { reject: "tegengehouden", release: "vrijgegeven", limit: "beperkt tot" },
     pvCorrectorsTitle: "PV-correcties vergeleken",
@@ -566,7 +583,16 @@ const TEXT = {
     adjNeedWindow: "Geef een tijdvenster (van en tot), of kies extra.",
     adjNeedEnergy: "Geef een hoeveelheid energie in kWh.",
     adjFailed: "Opslaan mislukt",
-    tabs: { overview: "Overzicht", forecast: "Voorspelling", value: "Rendement", batteries: "Batterijen", check: "Nauwkeurigheid" },
+    tabs: { overview: "Overzicht", forecast: "Voorspelling", value: "Rendement", batteries: "Batterijen", check: "Nauwkeurigheid", log: "Log" },
+    logTitle: "Activiteitenlog",
+    logHelp: "Wat elke echte batterij deed, per periode: wie het besliste (de besturing van HomeBatteryAssist, een test, de eigen sturing van de batterij, of een incident) en of het was wat het plan zei. 30 dagen bewaard.",
+    logEmpty: "Nog niets gelogd (elke minuut komt er een regel bij).",
+    logCols: ["Van", "Tot", "Batterij", "Activiteit", "kWh", "Max W", "Prijs", "Door", "Plan"],
+    logKinds: { charge_pv: "Laden (zon)", charge_grid: "Laden (net)", discharge: "Ontladen", idle: "Rust" },
+    logSources: { hba_nom: "HBA: nul op de meter", hba_plan: "HBA: plan", test: "Test (handmatig)", own: "Eigen sturing", incident: "Incident" },
+    logPlan: { charge: "laden", discharge: "ontladen", idle: "rust" },
+    logDays: "dagen",
+    logCsv: "CSV",
     compareShow: "Rendement overzicht ▾",
     compareHide: "Overzicht verbergen ▴",
     realizedShort: "tot nu gerealiseerd",
@@ -685,6 +711,8 @@ const STYLE = `
   .flow { display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 10px;
     background: var(--secondary-background-color); }
   .flow ha-icon { --mdc-icon-size: 28px; color: var(--state-icon-color, var(--primary-color)); }
+  .flow { position: relative; }
+  .flow .corner { position: absolute; top: 8px; right: 10px; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; font-size: 11px; color: var(--secondary-text-color); line-height: 1.2; }
   .flow .value { font-size: 22px; font-weight: 500; white-space: nowrap; }
   .flow .label { color: var(--secondary-text-color); font-size: 12px; }
   .flow .value small { font-size: 60%; font-weight: 400; margin-left: 2px; }
@@ -720,6 +748,15 @@ const STYLE = `
   .summary-row { display: grid; grid-template-columns: 90px 1fr; gap: 8px; }
   .summary-row b { font-weight: 500; }
   @media (max-width: 600px) { .summary-row { grid-template-columns: 1fr; gap: 0; } }
+  table.log { border-collapse: collapse; width: 100%; font-size: 13px; }
+  table.log th, table.log td { padding: 4px 6px; border-bottom: 1px solid var(--divider-color); text-align: left; white-space: nowrap; }
+  table.log th { font-weight: 500; color: var(--secondary-text-color); }
+  table.log td.num { text-align: right; }
+  table.log tr.off-plan td { color: var(--warning-color, #ff9800); }
+  table.log tr.incident td { color: var(--error-color, #db4437); }
+  .log-nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  .log-nav button { background: none; border: 1px solid var(--divider-color); border-radius: 12px; padding: 2px 10px; color: var(--primary-text-color); cursor: pointer; font: inherit; font-size: 12px; }
+  .log-nav button.active { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: var(--primary-color); }
   table.compare { border-collapse: collapse; width: 100%; max-width: 640px; margin-bottom: 8px; }
   table.compare td { padding: 6px 8px; border-bottom: 1px solid var(--divider-color); }
   table.compare td.num, table.compare th.num { text-align: right; white-space: nowrap; }
@@ -822,7 +859,8 @@ const esc = (value) =>
 // The integration's version: the panel is loaded as panel.js?v=<version>.
 const VERSION = (() => {
   try {
-    return new URL(import.meta.url).searchParams.get("v") || "";
+    // "0.109.0-1795450471": the version, then the file time (cache only).
+    return (new URL(import.meta.url).searchParams.get("v") || "").replace(/-\d+$/, "");
   } catch (err) {
     return "";
   }
@@ -1098,8 +1136,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     return date.toLocaleString(this._hass.locale?.language || this._hass.language, { ...opts, timeZone: this._tz });
   }
 
-  _flow(cls, icon, label, value, sub = "") {
-    return `<div class="flow ${cls}"><ha-icon icon="${icon}"></ha-icon>
+  _flow(cls, icon, label, value, sub = "", corner = "") {
+    return `<div class="flow ${cls}">${corner ? `<div class="corner">${corner}</div>` : ""}<ha-icon icon="${icon}"></ha-icon>
       <div class="value">${value}</div><div class="label">${esc(label)}${sub ? ` · ${esc(sub)}` : ""}</div></div>`;
   }
 
@@ -1397,9 +1435,15 @@ class HomeBatteryAssistPanel extends HTMLElement {
       let label = t.batteries;
       if (summed && s.batteries.every((b) => b.virtual)) label = `${t.batteries} (${t.virtual})`;
       const mode = power === null ? "" : power > 20 ? t.charging : power < -20 ? t.discharging : t.idle;
+      // The real batteries' temperatures, small in the corner (at most 4).
+      const temps = s.batteries
+        .filter((b) => !b.virtual && b.details && b.details.temperature_c != null)
+        .slice(0, 4)
+        .map((b) => `<span title="${esc(b.name)}">${Number(b.details.temperature_c).toFixed(1)} °C</span>`)
+        .join("");
       parts.push(
         this._flow("battery", "mdi:home-battery", label, this._power(power === null ? null : Math.abs(power)),
-          [mode, soc === null ? "" : `${Math.round(soc)}%`].filter(Boolean).join(" · ")),
+          [mode, soc === null ? "" : `${Math.round(soc)}%`].filter(Boolean).join(" · "), temps),
       );
     }
     if (s.has_excluded) parts.push(this._flow("excluded", "mdi:ev-station", t.excluded, this._power(this._num(e.excluded_power))));
@@ -2609,7 +2653,16 @@ class HomeBatteryAssistPanel extends HTMLElement {
     };
     return `<div class="card planner"><span class="muted">${esc(t.plannerActive)}</span>
       <b>${esc(name.charAt(0).toUpperCase() + name.slice(1))}</b> <small class="muted">(${esc(kind)})</small>${esc(saving)}${warn}
-      ${module(t.plannerForecaster, p.forecaster, t.forecasterNames)}${module(t.plannerTariff, p.tariff, t.tariffNames)}${module(t.plannerPvCorrector, p.pv_corrector, t.pvCorrectorNames)}${this._interceptorLine(p.interceptor, t)}</div>`;
+      ${this._controlLine(s.control, t)}${module(t.plannerForecaster, p.forecaster, t.forecasterNames)}${module(t.plannerTariff, p.tariff, t.tariffNames)}${module(t.plannerPvCorrector, p.pv_corrector, t.pvCorrectorNames)}${this._interceptorLine(p.interceptor, t)}</div>`;
+  }
+
+  // Control by HomeBatteryAssist: the mode and per battery active / why held.
+  _controlLine(c, t) {
+    if (!c) return "";
+    const each = (c.batteries || [])
+      .map((b) => `${b.name}: ${b.held ? `<span class="alert-text">${esc(t.controlHeld[b.held] || b.held)}</span>` : esc(t.controlActive)}`)
+      .join(" · ");
+    return `<div class="sub"><span class="muted">${esc(t.controlLine)}</span> <b>${esc(t.controlModes[c.mode] || c.mode)}</b> · ${each}</div>`;
   }
 
   // The interceptor (own module) and what it holds back or limits now.
@@ -2878,6 +2931,73 @@ class HomeBatteryAssistPanel extends HTMLElement {
     field("kwh").focus();
   }
 
+  // The activity log: fetched when its tab is open (at most every minute).
+  async _loadActivity(force) {
+    const days = this._logDays || 7;
+    if (!force && this._activity && this._activity.days === days && Date.now() - this._activityAt < 60000) return;
+    if (this._activityBusy) return;
+    this._activityBusy = true;
+    this._activityAt = Date.now();
+    try {
+      const result = await this._hass.callWS({ type: "homebatteryassist/activity", days });
+      this._activity = { ...result, days };
+    } catch (err) {
+      console.warn("HomeBatteryAssist: activity log not available", err);
+    }
+    this._activityBusy = false;
+    this._render();
+  }
+
+  _activityRows(t) {
+    const unit = this._activity?.price_unit || "";
+    const time = (iso) => new Date(iso).toLocaleString(this._hass.language, { timeZone: this._tz, weekday: "short", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
+    return (this._activity?.periods || []).map((p) => [
+      time(p.start),
+      time(p.end),
+      p.name,
+      t.logKinds[p.kind] || p.kind,
+      p.kind === "idle" ? "" : p.kwh.toFixed(2),
+      p.kind === "idle" ? "" : String(Math.round(p.max_w)),
+      p.price == null ? "" : `${p.price.toFixed(3)}${unit ? ` ${unit}` : ""}`,
+      t.logSources[p.source] || p.source,
+      p.plan == null ? "" : `${p.follows ? "✓" : "✗"} ${t.logPlan[p.plan] || p.plan}`,
+      p,
+    ]);
+  }
+
+  _activityLog(t) {
+    const days = this._logDays || 7;
+    const pick = [1, 7, 30]
+      .map((d) => `<button data-log-days="${d}" class="${d === days ? "active" : ""}">${d} ${esc(t.logDays)}</button>`)
+      .join("");
+    const rows = this._activityRows(t);
+    const head = `<tr>${t.logCols.map((c) => `<th>${esc(c)}</th>`).join("")}</tr>`;
+    const body = rows
+      .map((r) => {
+        const p = r[9];
+        const cls = p.source === "incident" ? "incident" : p.follows === false ? "off-plan" : "";
+        return `<tr class="${cls}">${r.slice(0, 9).map((v, i) => `<td class="${i >= 4 && i <= 6 ? "num" : ""}">${esc(v)}</td>`).join("")}</tr>`;
+      })
+      .join("");
+    const table = rows.length
+      ? `<div class="acc-wrap"><table class="log">${head}${body}</table></div>`
+      : `<div class="muted">${esc(t.logEmpty)}</div>`;
+    return `<div class="card"><div class="head"><h2>${esc(t.logTitle)}</h2><span class="log-nav">${pick}<button class="log-csv">${esc(t.logCsv)}</button></span></div>
+      ${table}<div class="muted small">${esc(t.logHelp)}</div></div>`;
+  }
+
+  _activityCsv() {
+    const t = this._t;
+    const quote = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    const lines = [t.logCols, ...this._activityRows(t).map((r) => r.slice(0, 9))].map((r) => r.map(quote).join(";"));
+    const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `homebatteryassist-log-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+
   _render() {
     if (!this._hass) return;
     // A dialog is open: keep its fields (render again when it closes).
@@ -2895,6 +3015,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
         value: () => [this._compare(s, t), this._planCheck(s, t)],
         batteries: () => [this._batteries(s, t)],
         check: () => [this._accuracy(t)],
+        log: () => [this._activityLog(t)],
       };
       const tab = tabs[this._tab] ? this._tab : "overview";
       const bar = Object.keys(tabs)
@@ -2933,6 +3054,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
         this._render();
       }),
     );
+    this.shadowRoot.querySelectorAll("button[data-log-days]").forEach((button) =>
+      button.addEventListener("click", () => {
+        this._logDays = Number(button.dataset.logDays);
+        this._loadActivity(true);
+      }),
+    );
+    this.shadowRoot.querySelector("button.log-csv")?.addEventListener("click", () => this._activityCsv());
+    if (this._tab === "log") this._loadActivity(false);
     this.shadowRoot.querySelector("button.adj-open")?.addEventListener("click", () => this._openAdjustments());
     this.shadowRoot.querySelector("button.ev-open")?.addEventListener("click", () => this._openEvAdvice());
     this.shadowRoot.querySelector('button[data-toggle="compare"]')?.addEventListener("click", () => {

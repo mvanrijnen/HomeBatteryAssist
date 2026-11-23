@@ -18,5 +18,6 @@ De bovenbalk heeft naast *Herberekenen* twee knoppen:
 - **Rendement**: het verwachte en gerealiseerde rendement van elke modus vergeleken met geen batterij en met elkaar; het plan per dag vergeleken met wat er echt gebeurde.
 - **Batterijen**: elke batterij met haar laadniveau, vermogen, tijd tot vol/leeg (nu, volgens het plan en bij nul op de meter), de details die haar driver toevoegt (temperatuur, spanningen, cellen, cycli), de energie die vandaag geladen en ontladen is en het [gemeten rendement](measuring.md#today-and-measured-efficiency).
 - **Nauwkeurigheid**: hoe goed het [plan gevolgd](planning.md#plan-check) werd (afgelopen 7 dagen, virtuele en echte batterijen); de nauwkeurigheid van de verbruiks- (en het verwarmings-/koeldeel daarvan), PV- en prijsvoorspellingen per vooruitlooptijd, met hun correcties; de verbruiksvoorspellers vergeleken; en de PV-correcties vergeleken (met de ongecorrigeerde voorspelling als referentie).
+- **Log**: het activiteitenlog van elke echte batterij, per periode (van, tot, laden met zon / uit het net, ontladen, rust, kWh, hoogste vermogen, gemiddelde prijs), wie het besliste (de besturing van HomeBatteryAssist, een test, de eigen sturing van de batterij, of een incident) en of het was wat het plan zei; 1, 7 of 30 dagen, te exporteren als CSV. 30 dagen bewaard.
 
 De planmodus kun je direct op het dashboard kiezen.

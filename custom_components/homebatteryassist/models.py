@@ -29,7 +29,9 @@ class HomeBatteryAssistData:
     commands: Any = None  # CommandMonitor (does each battery follow its command)
     # TemperatureLearning (what each real battery can do at its temperature)
     temperatures: Any = None
-    control_test: Any = None  # ControlTest (switched off in this phase)
+    control_test: Any = None  # ControlTest (off unless switched on)
+    control: Any = None  # ControlLoop, only with the setting Control on
+    activity: Any = None  # ActivityLog (dashboard tab Log)
     export_limit: Any = None  # ExportLimiter (shown and explained only)
     # Unique ids each platform added this time (stale ones are removed).
     provided: dict[str, set[str]] = field(default_factory=dict)

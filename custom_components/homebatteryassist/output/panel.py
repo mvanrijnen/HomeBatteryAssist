@@ -82,6 +82,7 @@ async def async_setup_panel(hass: HomeAssistant, version: str) -> None:
         return
     websocket_api.async_register_command(hass, websocket_status)
     websocket_api.async_register_command(hass, websocket_history)
+    websocket_api.async_register_command(hass, websocket_activity)
     websocket_api.async_register_command(hass, websocket_adjustment_save)
     websocket_api.async_register_command(hass, websocket_adjustment_delete)
     websocket_api.async_register_command(hass, websocket_ev_advice)
@@ -559,9 +560,27 @@ def status(hass: HomeAssistant, entry: HomeBatteryAssistConfigEntry) -> dict[str
             **_planner_info(data.forecast),
             "interceptor": _interceptor_info(entry),
         },
+        # Control by HomeBatteryAssist (None: off).
+        "control": _control_info(data),
         "decisions": [
             {"time": d["time"], "category": d["category"], "message": d["message"]}
             for d in reversed(data.decisions.entries[-RECENT_DECISIONS:])
+        ],
+    }
+
+
+def _control_info(data: Any) -> dict[str, Any] | None:
+    """Whether HomeBatteryAssist controls batteries now, and how."""
+    control = getattr(data, "control", None)
+    if control is None or not control.controllers:
+        return None
+    names = {c.id: c.name for c in data.batteries.configs}
+    info = control.as_dict()
+    return {
+        "mode": info["mode"],
+        "batteries": [
+            {"name": names.get(i, i), "held": b["held"], "sent": b["sent"]}
+            for i, b in info["batteries"].items()
         ],
     }
 
@@ -610,6 +629,30 @@ def websocket_status(
         # The meter's address on the network is for admins only.
         result["meter"] = {**result["meter"], "address": None}
     connection.send_result(msg["id"], result)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/activity",
+        vol.Optional("days", default=7): vol.All(int, vol.Range(min=1, max=30)),
+    }
+)
+@callback
+def websocket_activity(
+    hass: HomeAssistant, connection: websocket_api.ActiveConnection, msg: dict[str, Any]
+) -> None:
+    """The activity log: what each real battery did, newest first."""
+    if (entry := _loaded_entry(hass)) is None:
+        connection.send_error(msg["id"], "not_loaded", f"{NAME} is not loaded")
+        return
+    activity = entry.runtime_data.activity
+    connection.send_result(
+        msg["id"],
+        {
+            "periods": activity.recent(msg["days"]) if activity else [],
+            "price_unit": entry.runtime_data.forecast.price_unit,
+        },
+    )
 
 
 @websocket_api.websocket_command(
