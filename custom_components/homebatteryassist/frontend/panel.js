@@ -725,14 +725,13 @@ const STYLE = `
   table.compare td.num, table.compare th.num { text-align: right; white-space: nowrap; }
   table.compare th { text-align: left; font-weight: 500; padding: 6px 8px; color: var(--secondary-text-color); }
   table.compare tr.sel td { font-weight: 500; }
-  table.daytotals { border-collapse: collapse; font-size: 13px; flex: 0 0 auto; align-self: flex-start; }
-  table.daytotals th, table.daytotals td { padding: 2px 6px; text-align: right; white-space: nowrap; }
+  .daytotals-wrap { overflow-x: auto; margin-top: 6px; }
+  table.daytotals { border-collapse: collapse; font-size: 13px; width: 100%; }
+  table.daytotals th, table.daytotals td { padding: 2px 4px; text-align: right; white-space: nowrap; }
   table.daytotals th { font-weight: 500; color: var(--secondary-text-color); }
-  table.daytotals td:first-child { text-align: left; }
-  table.daytotals tr.avg td { border-top: 1px solid var(--divider-color); font-weight: 500; }
-  table.daytotals i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 5px; }
-  .daywrap { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-start; }
-  .daywrap > .daychart { flex: 1 1 280px; min-width: 0; }
+  table.daytotals tr > :first-child { text-align: left; padding-left: 0; color: var(--secondary-text-color); font-weight: 400; }
+  table.daytotals .avg { border-left: 1px solid var(--divider-color); font-weight: 500; }
+  table.daytotals i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; }
   table.compare small { color: var(--secondary-text-color); margin-left: 4px; }
   .phase { display: grid; grid-template-columns: 40px 1fr 190px; gap: 8px; align-items: center; font-size: 14px; }
   .phase.total { border-top: 1px solid var(--divider-color); padding-top: 8px; font-weight: 500; }
@@ -2071,13 +2070,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
     };
     const allTotals = dayNames.map((_, i) => dayKwh(h.profile?.days?.[i]));
     const weekTotals = shown ? dayNames.map((_, i) => dayKwh(shown.days?.[i])) : null;
-    const totalsHead = `<tr><th></th>${weekTotals ? `<th>${esc(t.dayTotalsWeek)}</th>` : ""}<th>${esc(weekTotals ? t.dayTotalsAll : "kWh")}</th></tr>`;
-    const totalsRows = dayNames.map((name, i) =>
-      `<tr><td><i style="background:${dayColors[i]}"></i>${esc(name)}</td>${weekTotals ? `<td>${kwh(weekTotals[i])}</td>` : ""}<td>${kwh(allTotals[i])}</td></tr>`,
-    ).join("");
-    const totalsAvg = `<tr class="avg"><td>${esc(t.dayTotalsAvg)}</td>${weekTotals ? `<td>${kwh(meanOf(weekTotals))}</td>` : ""}<td>${kwh(meanOf(allTotals))}</td></tr>`;
+    // Lying down under the chart: a column per day, a row per period.
+    const totalsHead = `<tr><th>kWh</th>${dayNames.map((name, i) => `<th><i style="background:${dayColors[i]}"></i>${esc(name)}</th>`).join("")}<th class="avg">${esc(t.dayTotalsAvg)}</th></tr>`;
+    const totalsRow = (label, totals) =>
+      `<tr><th>${esc(label)}</th>${totals.map((v) => `<td>${kwh(v)}</td>`).join("")}<td class="avg">${kwh(meanOf(totals))}</td></tr>`;
     const dayTotals = allTotals.some((v) => v != null)
-      ? `<table class="daytotals" title="${esc(t.dayTotalsInfo)}"><caption class="muted small" style="caption-side:top;text-align:left">${esc(t.dayTotals)} (kWh)</caption>${totalsHead}${totalsRows}${totalsAvg}</table>`
+      ? `<div class="daytotals-wrap"><table class="daytotals" title="${esc(t.dayTotalsInfo)}">${totalsHead}${
+          weekTotals ? totalsRow(t.dayTotalsWeek, weekTotals) : ""
+        }${totalsRow(weekTotals ? t.dayTotalsAll : t.dayTotals, allTotals)}</table></div>`
       : "";
     // Expected consumption: past 24 h measured vs. predicted, next 48 h forecast.
     const now = Date.now();
@@ -2418,9 +2418,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
       ${this._temperatureChart(h, t, lang)}
       <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}<div class="muted small">${esc(t.last7Info)}</div></div>
       <div class="chart"><div class="head"><h3>${esc(t.avgDay)}</h3>${this._dayNav(t, weeks, lang)}</div>
-        <div class="daywrap"><div class="daychart">${avg}
+        ${avg}
         <div class="legend">${dayNames.map((name, i) => `<span><i style="background:${dayColors[i]}"></i>${esc(name)}</span>`).join("")}
-        <span>${esc(t.allAverage)}</span></div></div>${dayTotals}</div>
+        <span>${esc(t.allAverage)}</span></div>${dayTotals}
         <div class="muted small">${esc(t.avgDayInfo)} ${esc(t.dayTotalsInfo)}</div></div>
     </div></div>`;
   }
