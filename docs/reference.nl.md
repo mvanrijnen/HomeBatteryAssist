@@ -240,12 +240,14 @@ Waar de verbruiksgeschiedenis en de voorspelnauwkeurigheid worden bewaard.
 | **Opslag** | JSON-bestanden in .storage (standaard), of een database: alleen wat veranderd is wordt geschreven (minder slijtage van een SD-kaart). Bij wisselen verhuizen de gegevens bij de volgende start. |
 | **Database-URL** | Alleen voor MySQL / MariaDB of PostgreSQL, bijv. mysql://gebruiker:wachtwoord@core-mariadb/homebatteryassist?charset=utf8mb4 of postgresql://gebruiker:wachtwoord@host/homebatteryassist. De database moet bestaan. |
 
-### Testbesturing {#settings-control}
+### Besturing {#settings-control}
 
 Een batterij met de hand testen (knoppen Test: laden / ontladen / stoppen bij elke batterij), terwijl je erbij bent. Via de directe verbinding van de batterij als ze die heeft, anders via haar integratie. Daarna altijd terug naar de eigen sturing van de batterij.
 
 | Veld | Uitleg |
 |---|---|
+| **Besturing aan** | HomeBatteryAssist stuurt de batterijen met Aangestuurd door HomeBatteryAssist elke ronde aan, binnen hun grenzen; bij elk probleem gaat een batterij terug naar haar eigen sturing. Uit: alleen lezen en adviseren. |
+| **Besturingsmodus** | Nul op de meter: de batterijen houden het net op het doel, wat het plan ook zegt (een veilig begin). Volgens het plan: het gekozen plan (bij arbitrage laden uit het net en leveren in dure uren). |
 | **Testbesturing aan** | Uit: de testknoppen leggen alleen uit dat de test uit staat; er wordt niets naar een batterij gestuurd. |
 
 ## Apparaten en tijdvakken {#devices}
@@ -309,6 +311,7 @@ Koppel een thuisbatterij via de entiteiten van zijn eigen integratie (voorlopig 
 | **Adres van de batterij** | IP-adres of hostnaam van de batterij. |
 | **Poort** | Modbus TCP: meestal 502. |
 | **Unit-id** | Modbus unit-id: meestal 1. |
+| **Aangestuurd door HomeBatteryAssist** | Als de instelling Besturing aan aan staat, stuurt HomeBatteryAssist deze batterij zelf aan (via de directe verbinding, anders via haar integratie). Zet een andere integratie die haar aanstuurt uit. |
 
 ### Virtuele batterij {#device-virtual-battery}
 

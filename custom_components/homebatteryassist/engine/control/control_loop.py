@@ -1,411 +1,289 @@
-"""Battery control loop — WRITTEN OUT, COMMENTED OUT (not active).
+"""The control loop: HomeBatteryAssist controls real batteries.
 
-Everything below the docstring is comment on purpose: HomeBatteryAssist does
-not control batteries yet. The code is complete so that switching control on
-later is uncommenting it, plus the steps under *Activating* — not designing
-it then. ``tests/test_read_only.py`` checks that this file stays without
-active code.
+Off unless the setting *Control on* (``control_enabled``) is on, and then only
+for the batteries whose form says *Controlled by HomeBatteryAssist*
+(``control``). Each round it gives such a battery the power the virtual
+batteries would get in its place: the loop IS the virtual battery simulator
+(``VirtualBatterySimulator``) on the controlled real batteries, so both share
+every step — zero on the meter (PD control on the measured grid), or the
+plan (setting *Control mode*: ``nom`` = zero on the meter whatever the plan,
+``plan`` = the selected plan), full charges, phase protection, peak shaving,
+the interceptor, the state of charge limits and the system limits.
 
-What it does, once active
-=========================
+What differs from the simulation:
 
-Every round (setting ``react_interval_s``, default 5 s; on the average of
-the meter over the round when ``react_average`` is on) and at once when the
-grid meter shows a phase overload, a peak or (``react_jump``) a jump of at
-least ``react_jump_w``, the loop decides a power per real battery and hands it to that
-battery's ``BatteryController`` (``battery_controller.py``), which applies the
-safety rules (master switch, always release, watchdog, refresh, throttle,
-deadband, idle = release, limits) and talks to the battery.
+- the grid is the measured grid **without** the controlled batteries (their
+  measured power taken off, as for a twin): what the house and the sun ask;
+- the powers are not simulated but sent, per battery through its
+  ``BatteryController`` (watchdog, throttle, deadband, limits, release on any
+  error) over its direct connection (``LinkDriver``) or, without one, its
+  integration (``ReaderDriver``);
+- what the batteries do is what they are measured to do (no simulated delay).
 
-The power per battery comes from the same steps the virtual batteries
-(``engine/devices/batteries/virtual.py``) already run every second, so what
-the dashboard simulates is what would be sent:
-
-1. **Full charge** due for a battery (``ForecastData.full_charge_now``):
-   charge at its max power up to 100 %.
-2. **Target total**: the selected plan's power for the current slot
-   (arbitrage, time slots, manual, own planners), with the real solar
-   surplus instead of the forecast one (``plan_balance``; a planned
-   discharge only as far as needed now, ``planned_discharge``, threshold
-   ``ForecastCoordinator.pv_deviation_w``): an unexpected surplus stored on
-   top when the plan stores the forecast surplus itself (not when it chose
-   to export it), a planned charge from the sun that is not there never
-   taken from the grid; or, for zero on the meter,
-   ``nom_balance`` — surplus charged; a shortage discharged, but never for
-   excluded devices nor for a random short peak (spike filter, when on).
-   Price rules: no discharging below the minimum discharge price. Lowest
-   state of charge for this target: max(min SoC, reserve SoC, night reserve
-   while ``ForecastData.night_at(now)``, peak reserve when a peak limit is
-   set); below the peak reserve only peak shaving (step 4) discharges, for
-   the import above the peak limit. Arbitrage plans already charge from the
-   grid for the night reserve before sunrise.
-3. **Spread** over the batteries (``Distributor``: few batteries at low power,
-   more when more power is needed; per-battery min/max power, hysteresis).
-4. **Phase protection** (relieve an overloaded phase, never push a phase over
-   its limit — ``phase_limit.py``) and **peak shaving** (``peak.py``).
-5. **Interceptor** (``interceptors/``, the user's module, default none):
-   per battery approve, limit (less, same direction), hold back (0 W) or
-   release (back to its own control); what is held back may be taken over
-   by the approved batteries. ``run_interceptor`` holds it to that. Where
-   phase relief or peak shaving set the power, that power stands: the
-   interceptor cannot undo protection. That holds also for a battery that
-   already protects without a change (discharging on an importing phase
-   that relief counted as taken, ``_relief_helpers``; discharging while the
-   grid without the batteries is above the peak, ``_peak_helpers``); a
-   battery held back by the charge hysteresis is offered with
-   ``max_soc`` = its state of charge, so a redistribution never charges it.
-   **Never one battery charging while another discharges**
-   (``battery_distribution.one_direction``): protection first, then a full
-   charge sets the direction and the batteries against it stop; otherwise
-   the net stands (the grid sees the same, without the losses of moving
-   energy from one battery into the other).
-   Exception: two phases overloaded the opposite way are both relieved (the
-   main fuse first); the wait for a battery still ramping out of the old
-   direction (the others at 0 W) is skipped then, it would stop one of
-   them. The system's max charge / discharge power is a hard
-   limit, also for protection (``virtual.system_limited``).
-6. **HomeBatteryAssist's own final check**, which always wins: phase limits
-   (``_phase_limited``), power limits and the state of charge: never below
-   max(min SoC, reserve SoC), never above max SoC (100 % during a full
-   charge).
-
-   The load per phase is the current as precise as known
-   (``PowerFlow.phase_load_w``: measured current; else power / (measured
-   voltage x power factor); else power / 230 V). **Real batteries are in
-   the measurement**: the meter already sees their current power on their
-   phase, so the load without them = measured load - their power now (per
-   phase; a battery without a phase spread evenly; ``virtual.
-   without_batteries``, which keeps the reactive part from the most a
-   whole-amp current can be) before ``relieve`` / ``cap_powers`` (the
-   virtual batteries are not in the measurement, so they use it as it is).
-   ``cap_powers`` gets ``virtual.phase_loads(flow)``: the worst case of
-   what the meter says (a current in whole amps up to half an amp more;
-   without a measured voltage 207-253 V, the lowest for the current per W
-   of a battery, ``_nominal_devices(worst=True)``); it only lowers powers,
-   a power that is not a number and a battery on a phase the connection
-   lacks are handled safely, and without phases nothing runs. **Grid unknown** (meter gone for 10 s, a grid
-   sensor unknown, or a grid sensor frozen: not reported anew for
-   ``GRID_STALE`` = 90 s, ``MeasurementInput.stale``, *Why* ``grid_stale``;
-   also a battery power sensor frozen at >= ``BATTERY_STALE_W`` (``power_frozen``), since the
-   load without the batteries would then be wrong):
-   no control; every battery is released to its own control until the grid
-   is measured again (``meter_lost_hold``).
-7. Per battery ``controller.async_command(power)`` (a released battery:
-   ``controller.async_command(None)``, which releases it); the controller
-   decides whether and when it is really sent. A stop while a command is
-   being sent releases once it returns (``BatteryController.stopped``); a
-   failed release is retried every tick; the loop stops (and releases) on
-   unload and when Home Assistant stops.
-8. Per round the loop feeds ``ControlQuality`` (``devices/batteries/
-   control_quality.py``, as the virtual batteries do in ``_observe_quality``)
-   with the grid error after the batteries' reaction — for real batteries
-   the measured grid itself (they are in it) minus the target, only in
-   rounds where zero on the meter could do what it asked. *Oscillating*
-   points to a too fast reaction (raise the deadband or the round time),
-   *sluggish* to a battery that follows slowly; the sensor
-   ``control_quality`` then shows the real control instead of the virtual.
-9. Zero on the meter's total goes through the same ``PdController``
-   (``engine/control/pd_controller.py``) as the virtual batteries: built on
-   the previous command and the measured battery power, with the user's
-   ``nom_control`` / Kp / Kd / max step / direction hysteresis. Tune it on
-   the virtual batteries first (``sim_delay_s`` / ``sim_ramp_w_s`` set to
-   what the real battery shows), then use the same settings here.
-   Direct closes the whole gap in every round (also an extra one on a jump,
-   overload or peak); PD scales its step by the time since the previous
-   round. After a round in which protection or the interceptor set a power,
-   zero on the meter starts from what it wants (``PdController.restart``
-   with the measured power, so the derivative gets no kick), not from that
-   power. The grid and the ignored spike are averaged over the same time:
-   from the previous round (at most a round back), so an extra round does not
-   count again what the round before already acted on.
-
-**Does the battery follow?** ``CommandMonitor``
-(``engine/evaluation/command_check.py``, already active) reads every real
-battery's command back from its integration's entities and compares it with
-its power. Today that checks the battery's own integration; once this loop
-writes the command, it checks HomeBatteryAssist's own commands the same way.
-A battery that does not follow without an explanation (``problem``: not
-full/empty, not switched off, no hysteresis) is released to its own control
-(``control_released``) instead of being commanded on; it is commanded again
-once the check is clear.
-
-How a battery is reached (``reader_driver.py``):
-
-- over its **direct connection** first, when its subentry chose one
-  (``LinkDriver`` on the battery's ``DirectLink``: the same connection it is
-  read with, e.g. a Marstek Venus over Modbus TCP with Omnibattery switched
-  off; the driver's refresh / pacing / limits);
-- else through the integration it is linked with (``ReaderDriver``) — the reader's
-  ``async_set_power`` / ``async_release`` (e.g. Omnibattery: manual mode +
-  charge/discharge power entities; Marstek Modbus: RS485 control mode +
-  force charge/discharge). Only when that integration's own control is off,
-  otherwise the two fight;
-- the direct connection is the only way for batteries without an
-  integration that can control them.
-
-Activating (later, deliberately, with the project owner)
-==========================================================
-
-1. Refactor the steps 2 to 4 out of ``VirtualBatteries`` into
-   ``engine/control/targets.py`` (``battery_targets(configs, ...)`` with the
-   reason per battery, ``intercept_input`` from ``_intercept`` and
-   ``load_without`` = the measured phase load minus the real batteries'
-   power now), used by
-   the virtual batteries and this loop alike (now they work on
-   ``self.virtual``; they must take the list of batteries).
-2. Uncomment this file and the wiring in ``__init__.py`` (search for
-   "control_loop").
-3. Add the setting ``control_enabled`` (default off, a clear warning text,
-   per battery ``control`` on/off in the battery subentry) and pass it as
-   ``enabled``; add the decision log messages (``control_started``,
-   ``control_stopped``, ``control_failed``, ``control_released``) in all
-   languages.
-   The export limit (``export_limiter.py``, ``CONTROL``) would then send
-   ``ExportLimiter.targets()`` through the PV inverter drivers
-   (``devices/inverters``): the export limit to a driver that limits the
-   export (Home Manager), the production limit (PV + grid + limit, split by
-   breaker) to one that limits its own output; renew before the device's
-   fallback (Home Manager 60 min, SunSpec ``WMaxLimPct_RvrtTms``), read
-   PMAX / WMax first to turn W into %.
-   A real battery with a twin (a virtual battery ``twin_of`` it) is not
-   planned and never controlled (it keeps its own control, to compare);
-   ``_flow`` of the virtual batteries takes it off the grid, so the twin
-   acts in its place.
-4. Adapt ``tests/test_read_only.py`` (this file then may contain code) and
-   test the write methods of the reader on a real installation first
-   (``verified`` per reader / driver).
+A battery is handed back to its own control (released) and not commanded
+while a test runs on it (``ControlTest``), while it does not follow its
+command (``CommandMonitor``), while its state of charge or power is unknown,
+or while the grid measurement is gone; it is taken up again when that ends.
+On stop (unload, Home Assistant stopping) every battery is released.
 """
 
-# The code (commented out; see "Activating" above).
-#
-# from __future__ import annotations
-#
-# import logging
-# from dataclasses import replace
-# from datetime import datetime, timedelta
-# from typing import Any
-#
-# from homeassistant.config_entries import ConfigEntry
-# from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
-# from homeassistant.helpers.event import async_track_time_interval
-# from homeassistant.util import dt as dt_util
-#
-# from ..devices.batteries import reader_for
-# from ..explain import DecisionLog
-# from ..measure.battery_monitor import BatteryConfig, BatteryInput
-# from ..measure.house_measurement import MeasurementInput
-# from .battery_controller import BatteryController
-# from .interceptors import run_interceptor
-# from ..planning.battery_distribution import one_direction
-# from ..measure.battery_monitor import direct_link
-# from .reader_driver import LinkDriver, ReaderDriver  # shared with control_test
-# from .targets import (  # step 1 of "Activating"
-#     battery_targets,
-#     intercept_input,
-#     phase_limited,  # the phase caps, as VirtualBatterySimulator._phase_limited
-#     protection_needed,
-# )
-# from ..measure.battery_monitor import twinned_ids
-#
-# _LOGGER = logging.getLogger(__name__)
-#
-# STEP = timedelta(seconds=5)  # fallback; the round is forecast.react_interval
-# REACT_INTERVAL = timedelta(seconds=0.5)  # fastest extra round on the meter
-#
-#
-# class ControlLoop:
-#     """Turns the plan (or zero on the meter) into commands per real battery."""
-#
-#     def __init__(
-#         self,
-#         hass: HomeAssistant,
-#         entry: ConfigEntry,
-#         decisions: DecisionLog,
-#         batteries: BatteryInput,
-#         measurements: MeasurementInput,
-#         forecast: Any,  # ForecastCoordinator (no import cycle)
-#         enabled: bool,
-#         commands: Any = None,  # CommandMonitor: does a battery follow?
-#     ) -> None:
-#         self.hass = hass
-#         self._commands = commands
-#         self._decisions = decisions
-#         self._batteries = batteries
-#         self._measurements = measurements
-#         self._forecast = forecast
-#         self.enabled = enabled
-#         self.controllers: dict[str, BatteryController] = {}
-#         for config in batteries.configs:
-#             if config.virtual or not config.control:  # step 3: per battery
-#                 continue
-#             if config.id in twinned_ids(batteries.configs):
-#                 continue  # its twin is planned in its place: it keeps its own control
-#             link = direct_link(hass, config)  # its direct connection first
-#             reader = reader_for(hass, config)
-#             if link is not None and link.can_write:
-#                 driver = LinkDriver(hass, link, config)
-#             elif link is None and reader is not None and reader.can_write:
-#                 driver = ReaderDriver(hass, reader, config)
-#             else:
-#                 continue  # no way to reach this battery
-#             self.controllers[config.id] = BatteryController(
-#                 driver,
-#                 enabled=enabled,
-#                 limits=(config.max_charge_w, config.max_discharge_w),
-#             )
-#         self._last: datetime | None = None
-#         self._unsub: list[CALLBACK_TYPE] = []
-#
-#     @property
-#     def configs(self) -> list[BatteryConfig]:
-#         return [c for c in self._batteries.configs if c.id in self.controllers]
-#
-#     @callback
-#     def async_start(self) -> None:
-#         if not self.controllers:
-#             return
-#         self._last = dt_util.utcnow()
-#         self._unsub.append(
-#             async_track_time_interval(
-#                 self.hass, self._async_step, self._forecast.react_interval or STEP
-#             )
-#         )
-#         self._unsub.append(self._measurements.async_add_listener(self._measured))
-#         self._decisions.async_log(
-#             "battery",
-#             "control_started",
-#             names=", ".join(c.name for c in self.configs),
-#         )
-#
-#     async def async_stop(self) -> None:
-#         """Stop and hand every battery back to its own control."""
-#         for unsub in self._unsub:
-#             unsub()
-#         self._unsub.clear()
-#         for controller in self.controllers.values():
-#             await controller.async_stop()  # always releases
-#         if self.controllers:
-#             self._decisions.async_log("battery", "control_stopped")
-#
-#     @callback
-#     def _measured(self, when: datetime, _power: float | None) -> None:
-#         """React at once on a phase overload, a peak or a large jump (as
-#         the virtual batteries do: the average over the round and the jump
-#         check move to targets.py with step 1), not only every round."""
-#         if self._last is not None and when - self._last >= REACT_INTERVAL:
-#             # The check of VirtualBatteries._async_measured, moved to
-#             # targets.py in step 1 of "Activating".
-#             if protection_needed(self._measurements, self._forecast, self.configs):
-#                 self.hass.async_create_task(self._async_run(when))
-#
-#     async def _async_step(self, now: datetime) -> None:
-#         await self._async_run(now)
-#
-#     async def _async_run(self, now: datetime) -> None:
-#         last, self._last = self._last, now
-#         if last is None:
-#             return
-#         data = self._forecast.data
-#         configs = self.configs
-#         full = {
-#             c.id: data.full_charge_now(c.id, now) if data else None for c in configs
-#         }
-#         socs = {
-#             c.id: self._batteries.states[c.id].soc for c in configs
-#         }
-#         if self._measurements.flow is None:
-#             # Grid unknown: the phase load is unknown; hand back control.
-#             for controller in self.controllers.values():
-#                 await controller.async_command(None, now)
-#             return
-#         # A full charge at the battery's full power (up to 100 %), given
-#         # to the steps below so the protections see it: it sets the
-#         # direction first (as virtual.step), then phase relief and peak
-#         # shaving work from that (a charge they only cut is no protection).
-#         fixed = {
-#             c.id: c.max_charge_w if socs[c.id] is not None and socs[c.id] < 100.0 else 0.0
-#             for c in configs
-#             if full[c.id]
-#         }
-#         # Steps 2-4: the same as the virtual batteries, on the load without
-#         # the real batteries (targets.load_without(flow, configs, states)).
-#         wanted, reasons = battery_targets(
-#             configs,
-#             socs,
-#             now,
-#             fixed=fixed,  # one_direction(fixed first) before the protections
-#             forecast=self._forecast,
-#             measurements=self._measurements,
-#             batteries=self._batteries,
-#         )
-#         # Step 5: the interceptor (the same input as for the virtual
-#         # batteries, built by targets.intercept_input), then step 6.
-#         proposed = dict(wanted)
-#         outcome = run_interceptor(
-#             self._forecast.interceptor,
-#             intercept_input(configs, socs, full, wanted, reasons, now, ...),
-#         )
-#         wanted, released = outcome.powers, outcome.released
-#         # Protection is not the interceptor's to undo (as virtual.step).
-#         for i, reason in reasons.items():
-#             if reason in ("phase_relief", "peak_shaving"):
-#                 wanted[i] = proposed[i]
-#         # Never one battery charging while another discharges: protection,
-#         # then a full charge sets the direction; else the net stands.
-#         wanted = one_direction(
-#             wanted,
-#             [i for i, r in reasons.items() if r in ("phase_relief", "peak_shaving")],
-#             [c.id for c in configs if full[c.id]],
-#         )
-#         # The phase caps after it (a full charge at full power included):
-#         # HomeBatteryAssist's own check always wins.
-#         wanted = phase_limited(wanted, now)
-#         # The system's max powers: a hard limit, also for protection.
-#         wanted = system_limited(wanted, self._forecast.rules)
-#         for config in configs:
-#             soc = socs[config.id]
-#             controller = self.controllers[config.id]
-#             if soc is None:
-#                 # Unknown state of charge: never act blind.
-#                 await controller.async_command(None, now)
-#                 continue
-#             if full[config.id]:
-#                 power = wanted.get(config.id, 0.0)  # set above, after one_direction
-#             else:
-#                 power = _within_soc(
-#                     config, soc, wanted.get(config.id, 0.0), self._forecast
-#                 )
-#             if config.id in released:  # the interceptor released it
-#                 await controller.async_command(None, now)
-#                 continue
-#             check = self._commands.checks.get(config.id) if self._commands else None
-#             if check is not None and check.problem:
-#                 # It does not follow (and nothing explains it): back to its
-#                 # own control rather than commanding on.
-#                 if controller.state.active:
-#                     self._decisions.async_log(
-#                         "battery", "control_released", name=config.name
-#                     )
-#                 await controller.async_command(None, now)
-#                 continue
-#             await controller.async_command(power, now)
-#             await controller.async_tick(now)
-#             if controller.errors:
-#                 self._decisions.async_log(
-#                     "battery", "control_failed", name=config.name
-#                 )
-#
-#
-# def _within_soc(
-#     config: BatteryConfig, soc: float, power_w: float, forecast: Any
-# ) -> float:
-#     """No discharging at or below the floor, no charging at or above max.
-#     A last safety check: the night and peak reserves are already in the
-#     virtual batteries' targets (``_reserve_floor``) and the interceptor's
-#     redistribution respects them (``BatteryProposal.floor_soc``)."""
-#     floor = max(config.min_soc, forecast.rules.reserve_soc)
-#     if power_w < 0 and soc <= floor:
-#         return 0.0
-#     if power_w > 0 and soc >= config.max_soc:
-#         return 0.0
-#     return power_w
+from __future__ import annotations
+
+import logging
+from dataclasses import replace
+from datetime import datetime, timedelta
+from typing import Any
+
+from homeassistant.core import HomeAssistant
+
+from ..devices.batteries import reader_for
+from ..devices.batteries.response import BatteryResponse
+from ..devices.batteries.virtual import (
+    PhaseDevice,
+    VirtualBatterySimulator,
+    limit_power,
+    without_batteries,
+)
+from ..explain import DecisionLog
+from ..measure.battery_monitor import (
+    BatteryConfig,
+    BatteryInput,
+    direct_link,
+    twinned_ids,
+)
+from .battery_controller import BatteryController
+from .reader_driver import LinkDriver, ReaderDriver
+
+_LOGGER = logging.getLogger(__name__)
+
+CONTROL_MODE_NOM = "nom"  # zero on the meter, whatever the plan says
+CONTROL_MODE_PLAN = "plan"  # the selected plan (arbitrage, full charges, ...)
+CONTROL_MODES = (CONTROL_MODE_NOM, CONTROL_MODE_PLAN)
+
+HOLD_TEST = "test"
+HOLD_NOT_FOLLOWING = "not_following"
+HOLD_METER = "meter"
+HOLD_UNKNOWN = "unknown"
+
+
+class ControlLoop(VirtualBatterySimulator):
+    """Turns zero on the meter (or the plan) into commands per real battery."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        batteries: BatteryInput,
+        measurements: Any,
+        forecast: Any,
+        decisions: DecisionLog,
+        *,
+        mode: str = CONTROL_MODE_NOM,
+        monitor: Any = None,  # CommandMonitor: does a battery follow?
+        tests: Any = None,  # ControlTest: a running test has the battery
+    ) -> None:
+        """Initialize: a controller per battery that may and can be controlled."""
+        super().__init__(hass, batteries, measurements, forecast, decisions)
+        self.mode = mode if mode in CONTROL_MODES else CONTROL_MODE_NOM
+        self._monitor = monitor
+        self._tests = tests
+        self.controllers: dict[str, BatteryController] = {}
+        self.writers: dict[str, str] = {}  # battery id -> how it is reached
+        twins = twinned_ids(batteries.configs)
+        for config in batteries.configs:
+            if config.virtual or not config.control or config.id in twins:
+                continue
+            link = direct_link(hass, config)
+            reader = reader_for(hass, config)
+            if link is not None and link.can_write:
+                driver: Any = LinkDriver(hass, link, config)
+                self.writers[config.id] = link.driver.name
+            elif link is None and reader is not None and reader.can_write:
+                driver = ReaderDriver(hass, reader, config)
+                self.writers[config.id] = reader.name
+            else:
+                decisions.async_log("battery", "control_not_possible", name=config.name)
+                continue
+            self.controllers[config.id] = BatteryController(
+                driver,
+                enabled=True,
+                limits=(config.max_charge_w, config.max_discharge_w),
+            )
+        self.holding: dict[str, str] = {}  # battery id -> why it is released now
+        self.sent: dict[str, float | None] = {}  # last power asked (None: held)
+        self._failed: set[str] = set()
+        self._busy = False
+
+    # -- what differs from the simulation ---------------------------------
+    @property
+    def virtual(self) -> list[BatteryConfig]:
+        """The batteries this loop drives (the name is the simulator's)."""
+        return [c for c in self._batteries.configs if c.id in self.controllers]
+
+    def _flow(self) -> Any:
+        """The measured grid without the controlled batteries: what the
+        house and the sun ask of them."""
+        flow = super()._flow()
+        if flow is None:
+            return None
+        states = self._batteries.states
+        if any(states[c.id].power_w is None for c in self.virtual):
+            return None  # the grid without them is not known now
+        phases = max(len(flow.phase_w), 1)
+        return without_batteries(
+            flow,
+            [
+                (
+                    PhaseDevice.from_config(c, phases).phase,
+                    states[c.id].power_w or 0.0,
+                )
+                for c in self.virtual
+            ],
+        )
+
+    def _follows_nom(self, data: Any) -> bool:  # type: ignore[override]
+        """Zero on the meter in mode ``nom``; else as the plan says."""
+        if self.mode == CONTROL_MODE_NOM:
+            return True
+        return VirtualBatterySimulator._follows_nom(data)
+
+    def step(self, now: datetime) -> None:
+        """One round. Direct zero on the meter works from what the battery
+        does, not from the previous command: a real battery takes a few
+        seconds, and adding the gap to a command it still ramps towards
+        would overshoot (the PD controller handles that itself)."""
+        super().step(now)
+        if self._direct:
+            self._commands = {}
+
+    def _response(self, battery_id: str) -> BatteryResponse:
+        """No simulated reaction: what a battery does is measured."""
+        if battery_id not in self._responses:
+            self._responses[battery_id] = BatteryResponse(0.0, 0.0)
+        return self._responses[battery_id]
+
+    def _apply(
+        self,
+        now: datetime,
+        elapsed: timedelta,
+        hours: float,
+        wanted: dict[str, float],
+        socs: dict[str, float],
+        full: dict[str, Any],
+    ) -> tuple[dict[str, float], dict[str, float]]:
+        """Send the powers (within each battery's limits); what they do is
+        their measured power."""
+        powers: dict[str, float] = {}
+        commands: dict[str, float] = {}
+        send: dict[str, tuple[float | None, str | None]] = {}
+        for config in self.virtual:
+            state = self._batteries.states[config.id]
+            limits = replace(config, max_soc=100.0) if full[config.id] else config
+            command, _soc = limit_power(
+                limits, socs[config.id], wanted[config.id], hours
+            )
+            commands[config.id] = command
+            powers[config.id] = state.power_w or 0.0
+            hold = self._hold_reason(config.id)
+            send[config.id] = (None if hold else command, hold)
+        if not self._busy:
+            self._busy = True
+            self.hass.async_create_task(self._async_send(now, send))
+        return powers, commands
+
+    def _hold_reason(self, battery_id: str) -> str | None:
+        """Why a battery is not commanded now (released), if so."""
+        if self._tests is not None and battery_id in getattr(self._tests, "runs", {}):
+            return HOLD_TEST
+        check = (
+            self._monitor.checks.get(battery_id) if self._monitor is not None else None
+        )
+        if check is not None and check.problem:
+            return HOLD_NOT_FOLLOWING
+        if self._meter_lost:
+            return HOLD_METER
+        state = self._batteries.states[battery_id]
+        if state.soc is None or state.power_w is None:
+            return HOLD_UNKNOWN
+        return None
+
+    async def _async_send(
+        self, now: datetime, send: dict[str, tuple[float | None, str | None]]
+    ) -> None:
+        try:
+            for battery_id, (power, hold) in send.items():
+                controller = self.controllers[battery_id]
+                name = next(
+                    c.name for c in self._batteries.configs if c.id == battery_id
+                )
+                was = self.holding.get(battery_id)
+                if hold is not None:
+                    if was != hold:
+                        self.holding[battery_id] = hold
+                        if hold != HOLD_TEST:  # a test is not ours to release
+                            await controller.async_release(hold)
+                        self._decisions.async_log(
+                            "battery",
+                            "control_held",
+                            name=name,
+                            reason=f"@control_{hold}",
+                        )
+                    self.sent[battery_id] = None
+                    continue
+                if was is not None:
+                    del self.holding[battery_id]
+                    self._decisions.async_log("battery", "control_resumed", name=name)
+                errors = controller.errors
+                await controller.async_command(power, now)
+                self.sent[battery_id] = power
+                if controller.errors > errors and battery_id not in self._failed:
+                    self._failed.add(battery_id)
+                    self._decisions.async_log("battery", "control_failed", name=name)
+                elif controller.errors == errors:
+                    self._failed.discard(battery_id)
+        except Exception:
+            _LOGGER.exception("Control round failed")
+        finally:
+            self._busy = False
+
+    # -- life cycle -------------------------------------------------------
+    def async_start(self) -> None:
+        """Start the rounds (only with a battery to control)."""
+        if not self.controllers:
+            return
+        super().async_start()
+        self._decisions.async_log(
+            "battery",
+            "control_started",
+            names=", ".join(f"{c.name} ({self.writers[c.id]})" for c in self.virtual),
+            mode=f"@control_mode_{self.mode}",
+        )
+
+    async def async_stop_all(self, _event: Any = None) -> None:
+        """Stop and hand every battery back to its own control."""
+        super().async_stop()
+        for battery_id, controller in self.controllers.items():
+            if self.holding.get(battery_id) == HOLD_TEST:
+                continue  # the test hands it back itself
+            try:
+                await controller.async_stop()
+            except Exception:
+                _LOGGER.exception("Releasing %s failed", battery_id)
+        if self.controllers:
+            self._decisions.async_log("battery", "control_stopped")
+            self.controllers = {}
+
+    def as_dict(self) -> dict[str, Any]:
+        """For diagnostics and the dashboard."""
+        return {
+            "mode": self.mode,
+            "batteries": {
+                battery_id: {
+                    "through": self.writers.get(battery_id),
+                    "sent": self.sent.get(battery_id),
+                    "held": self.holding.get(battery_id),
+                    "active": controller.state.active,
+                    "errors": controller.errors,
+                }
+                for battery_id, controller in self.controllers.items()
+            },
+        }

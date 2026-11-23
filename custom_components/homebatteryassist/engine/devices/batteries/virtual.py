@@ -888,6 +888,48 @@ class VirtualBatterySimulator:
         # protection (phase relief, peak shaving) — the owner's decision.
         wanted = system_limited(wanted, self._forecast.rules)
         wanted = self._hold_without_meter(wanted)
+        powers, commands = self._apply(now, elapsed, hours, wanted, socs, full)
+        # A round counts for the control quality when zero on the meter
+        # could do what it asked (no protection, limit or full battery).
+        placed = sum(asked[c.id] for c in self.virtual if not full[c.id])
+        free = (
+            nom
+            and self._nom_free
+            and abs(placed - self._nom_total) <= 1.0
+            and all(
+                reasons[i] == "zero_on_meter" and abs(commands[i] - asked[i]) <= 1.0
+                for i in powers
+            )
+        )
+        self._quality_round = sum(powers.values()) if free else None
+        # Protection or the interceptor set a power this round: next round
+        # zero on the meter starts from what it wants, not from that power.
+        self._protected_last = overruled or any(
+            r in ("phase_relief", "peak_shaving") for r in reasons.values()
+        )
+        self._commands = (
+            {c.id: commands[c.id] for c in self.virtual if not full[c.id]}
+            if nom
+            else {}
+        )
+        # A new round: the grid now (for jumps), and start the average anew.
+        flow = self._flow()
+        self._step_grid = flow.grid_w if flow is not None else None
+        self._samples = self._samples[-1:]
+
+    def _apply(
+        self,
+        now: datetime,
+        elapsed: timedelta,
+        hours: float,
+        wanted: dict[str, float],
+        socs: dict[str, float],
+        full: dict[str, Any],
+    ) -> tuple[dict[str, float], dict[str, float]]:
+        """Let the batteries do ``wanted``: (power they did, power they were
+        told) per battery. The simulation: told within their limits, then
+        what they do with it (at once, or with a delay and ramp), and their
+        state of charge moved (the control loop sends the commands instead)."""
         powers: dict[str, float] = {}
         commands: dict[str, float] = {}
         reacting: dict[str, float] = {}
@@ -940,33 +982,7 @@ class VirtualBatterySimulator:
                 self._response(config.id).hold(power, now)  # full / empty: stops
             powers[config.id] = power
             self._batteries.set_virtual(config.id, now, power, soc, now - elapsed)
-        # A round counts for the control quality when zero on the meter
-        # could do what it asked (no protection, limit or full battery).
-        placed = sum(asked[c.id] for c in self.virtual if not full[c.id])
-        free = (
-            nom
-            and self._nom_free
-            and abs(placed - self._nom_total) <= 1.0
-            and all(
-                reasons[i] == "zero_on_meter" and abs(commands[i] - asked[i]) <= 1.0
-                for i in powers
-            )
-        )
-        self._quality_round = sum(powers.values()) if free else None
-        # Protection or the interceptor set a power this round: next round
-        # zero on the meter starts from what it wants, not from that power.
-        self._protected_last = overruled or any(
-            r in ("phase_relief", "peak_shaving") for r in reasons.values()
-        )
-        self._commands = (
-            {c.id: commands[c.id] for c in self.virtual if not full[c.id]}
-            if nom
-            else {}
-        )
-        # A new round: the grid now (for jumps), and start the average anew.
-        flow = self._flow()
-        self._step_grid = flow.grid_w if flow is not None else None
-        self._samples = self._samples[-1:]
+        return powers, commands
 
     def _phase_relief(
         self,
@@ -1205,8 +1221,9 @@ class VirtualBatterySimulator:
             slot = next((s for s in plan.slots if s.start <= now < s.end), None)
             states = [s for s in self._batteries.plan_states() if s.soc is not None]
             capacity = sum(s.config.capacity_kwh for s in states)
+            mine = {c.id for c in self.virtual}
             virtual_capacity = sum(
-                s.config.capacity_kwh for s in states if s.config.virtual
+                s.config.capacity_kwh for s in states if s.config.id in mine
             )
             planned = slot.power_w if slot else 0.0
             if planned > 0 and slot is not None:
@@ -1224,7 +1241,7 @@ class VirtualBatterySimulator:
                 rest = [s for s in states if s.config.id not in charging_fully]
                 capacity = sum(s.config.capacity_kwh for s in rest)
                 virtual_capacity = sum(
-                    s.config.capacity_kwh for s in rest if s.config.virtual
+                    s.config.capacity_kwh for s in rest if s.config.id in mine
                 )
             total = planned * virtual_capacity / capacity if slot and capacity else 0.0
             # The real solar surplus instead of the forecast one: more is

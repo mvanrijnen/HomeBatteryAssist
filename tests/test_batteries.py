@@ -164,7 +164,8 @@ async def test_add_battery_manually(hass: HomeAssistant) -> None:
     assert subentry.title == "Venus"
     assert subentry.data[CONF_CAPACITY] == 5.12
     assert subentry.data[CONF_MAX_CHARGE_POWER] == 2500
-    assert not any("control" in key or "entity" in key for key in subentry.data)
+    assert subentry.data.get("control") is False  # not controlled unless chosen
+    assert not any("entity" in key for key in subentry.data)
 
 
 def _omnibattery_device(hass: HomeAssistant, phases: int = 3) -> None:

@@ -75,6 +75,7 @@ from .const import (
     CHARGE_ORDER_OPTIONS,
     CHARGE_SEQUENTIAL,
     CONF_BALANCE_INTERVAL,
+    CONF_BATTERY_CONTROL,
     CONF_BATTERY_METER,
     CONF_BATTERY_METER_ADDRESS,
     CONF_CAPACITY,
@@ -83,6 +84,8 @@ from .const import (
     CONF_COMMAND_CHECK_MINUTES,
     CONF_COMMAND_CHECK_W,
     CONF_CONSUMPTION_FORECASTER,
+    CONF_CONTROL_ENABLED,
+    CONF_CONTROL_MODE,
     CONF_CONTROL_TEST,
     CONF_CYCLE_COST,
     CONF_DEVICE_PHASE_SENSORS,
@@ -561,7 +564,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "sim_ramp_w_s",
     ),
     "command_check": ("command_check_w", "command_check_minutes"),
-    "control": ("control_test",),
+    "control": ("control_enabled", "control_mode", "control_test"),
     "export_limit": (
         "export_never",
         "export_limit_on",
@@ -1132,6 +1135,13 @@ async def _flat_settings_schema(
             CONF_CONTROL_TEST, default=bool(current.get(CONF_CONTROL_TEST, False))
         ): BooleanSelector(),
         vol.Required(
+            CONF_CONTROL_ENABLED,
+            default=bool(current.get(CONF_CONTROL_ENABLED, False)),
+        ): BooleanSelector(),
+        vol.Required(
+            CONF_CONTROL_MODE, default=current.get(CONF_CONTROL_MODE, "nom")
+        ): _select(["nom", "plan"], CONF_CONTROL_MODE),
+        vol.Required(
             CONF_EXPORT_NEVER,
             default=current.get(CONF_EXPORT_NEVER, DEFAULT_EXPORT_NEVER),
         ): BooleanSelector(),
@@ -1462,6 +1472,8 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
         user_input.get(CONF_COMMAND_CHECK_MINUTES, DEFAULT_COMMAND_CHECK_MINUTES)
     )
     options[CONF_CONTROL_TEST] = bool(user_input.get(CONF_CONTROL_TEST, False))
+    options[CONF_CONTROL_ENABLED] = bool(user_input.get(CONF_CONTROL_ENABLED, False))
+    options[CONF_CONTROL_MODE] = user_input.get(CONF_CONTROL_MODE, "nom")
     options[CONF_EXPORT_LIMIT] = bool(
         user_input.get(CONF_EXPORT_LIMIT, DEFAULT_EXPORT_LIMIT)
     )
@@ -2312,6 +2324,7 @@ def battery_schema(
         vol.Optional(CONF_DIRECT_UNIT, default=DEFAULT_DIRECT_UNIT): _number(
             0, 255, 1, ""
         ),
+        vol.Required(CONF_BATTERY_CONTROL, default=False): BooleanSelector(),
     }
     if three_phase and single_phase:
         schema[vol.Required(CONF_PHASE)] = SelectSelector(
@@ -2493,6 +2506,7 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         data[CONF_DIRECT_UNIT] = int(
             user_input.get(CONF_DIRECT_UNIT) or DEFAULT_DIRECT_UNIT
         )
+        data[CONF_BATTERY_CONTROL] = bool(user_input.get(CONF_BATTERY_CONTROL, False))
         return {
             **data,
             CONF_PHASE: user_input.get(CONF_PHASE, PHASE_NONE),

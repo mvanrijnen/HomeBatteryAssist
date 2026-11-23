@@ -347,12 +347,16 @@
             }
           },
           "control": {
-            "name": "Test control",
+            "name": "Control",
             "description": "Test controlling a battery by hand (buttons Test: charge / discharge / stop on each battery), with you present. Through the battery's direct connection when it has one, else through its integration. Always back to the battery's own control afterwards.",
             "data": {
+              "control_enabled": "Control on",
+              "control_mode": "Control mode",
               "control_test": "Test control on"
             },
             "data_description": {
+              "control_enabled": "HomeBatteryAssist controls the batteries marked Controlled by HomeBatteryAssist, every round, within their limits; on any problem a battery goes back to its own control. Off: it only reads and advises.",
+              "control_mode": "Zero on the meter: the batteries keep the grid at the target, whatever the plan says (a safe start). Following the plan: the selected plan (charging from the grid and supplying at expensive hours in arbitrage).",
               "control_test": "Off: the test buttons only explain that the test is off; nothing is sent to a battery."
             }
           }
@@ -626,6 +630,12 @@
     "direct_driver": {
       "options": {
         "none": "No direct connection (through its sensors)"
+      }
+    },
+    "control_mode": {
+      "options": {
+        "nom": "Zero on the meter",
+        "plan": "Following the plan"
       }
     }
   },
@@ -928,12 +938,16 @@
             }
           },
           "control": {
-            "name": "Test control",
+            "name": "Control",
             "description": "Test controlling a battery by hand (buttons Test: charge / discharge / stop on each battery), with you present. Through the battery's direct connection when it has one, else through its integration. Always back to the battery's own control afterwards.",
             "data": {
+              "control_enabled": "Control on",
+              "control_mode": "Control mode",
               "control_test": "Test control on"
             },
             "data_description": {
+              "control_enabled": "HomeBatteryAssist controls the batteries marked Controlled by HomeBatteryAssist, every round, within their limits; on any problem a battery goes back to its own control. Off: it only reads and advises.",
+              "control_mode": "Zero on the meter: the batteries keep the grid at the target, whatever the plan says (a safe start). Following the plan: the selected plan (charging from the grid and supplying at expensive hours in arbitrage).",
               "control_test": "Off: the test buttons only explain that the test is off; nothing is sent to a battery."
             }
           }
@@ -1174,7 +1188,8 @@
             "direct_driver": "Direct connection (optional)",
             "direct_address": "Address of the battery",
             "direct_port": "Port",
-            "direct_unit": "Unit id"
+            "direct_unit": "Unit id",
+            "control": "Controlled by HomeBatteryAssist"
           },
           "data_description": {
             "soc_sensor": "Sensor with the state of charge in %. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback).",
@@ -1192,7 +1207,8 @@
             "direct_driver": "HomeBatteryAssist reads the battery itself over its own connection (e.g. a Marstek Venus over Modbus TCP) instead of through another integration's sensors, and can control it over that connection (test control, later the control). Many batteries allow only one connection: switch off the integration that reads it now (e.g. Omnibattery) first. Choosing a driver here switches the connection on.",
             "direct_address": "IP address or host name of the battery.",
             "direct_port": "Modbus TCP: usually 502.",
-            "direct_unit": "Modbus unit id: usually 1."
+            "direct_unit": "Modbus unit id: usually 1.",
+            "control": "When the setting Control on is on, HomeBatteryAssist controls this battery itself (over its direct connection, else its integration). Switch off any other integration that controls it."
           }
         },
         "battery": {
@@ -1217,7 +1233,8 @@
             "direct_driver": "Direct connection (optional)",
             "direct_address": "Address of the battery",
             "direct_port": "Port",
-            "direct_unit": "Unit id"
+            "direct_unit": "Unit id",
+            "control": "Controlled by HomeBatteryAssist"
           },
           "data_description": {
             "soc_sensor": "Sensor with the state of charge in %. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback).",
@@ -1235,7 +1252,8 @@
             "direct_driver": "HomeBatteryAssist reads the battery itself over its own connection (e.g. a Marstek Venus over Modbus TCP) instead of through another integration's sensors, and can control it over that connection (test control, later the control). Many batteries allow only one connection: switch off the integration that reads it now (e.g. Omnibattery) first. Choosing a driver here switches the connection on.",
             "direct_address": "IP address or host name of the battery.",
             "direct_port": "Modbus TCP: usually 502.",
-            "direct_unit": "Modbus unit id: usually 1."
+            "direct_unit": "Modbus unit id: usually 1.",
+            "control": "When the setting Control on is on, HomeBatteryAssist controls this battery itself (over its direct connection, else its integration). Switch off any other integration that controls it."
           }
         }
       },

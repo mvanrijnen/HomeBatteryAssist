@@ -31,6 +31,8 @@ from homeassistant.util import dt as dt_util
 from .const import (
     CONF_COMMAND_CHECK_MINUTES,
     CONF_COMMAND_CHECK_W,
+    CONF_CONTROL_ENABLED,
+    CONF_CONTROL_MODE,
     CONF_CONTROL_TEST,
     CONF_EXPORT_LIMIT,
     CONF_EXPORT_LIMIT_COST,
@@ -70,6 +72,7 @@ from .const import (
     PRICES_CHECKED,
     SUBENTRY_PV_SOURCE,
 )
+from .engine.control.control_loop import CONTROL_MODE_NOM, ControlLoop
 from .engine.control.control_test import CONTROL_TEST_ALLOWED, ControlTest
 from .engine.control.export_limiter import ExportLimiter
 from .engine.control.interceptors import (
@@ -627,29 +630,29 @@ async def async_setup_entry(
             )
         )
 
-        # Battery control — WRITTEN OUT, NOT ACTIVE (engine/control/control_loop.py;
-        # see "Activating" there). Once active it runs next to the simulator, on
-        # the same targets, and releases every battery on unload:
-        #
-        # from .engine.control.control_loop import ControlLoop
-        # control = ControlLoop(
-        #     hass,
-        #     entry,
-        #     decisions,
-        #     batteries,
-        #     measurements,
-        #     forecast,
-        #     enabled=entry.options.get(CONF_CONTROL_ENABLED, False),
-        #     commands=commands,  # releases a battery that does not follow
-        # )
-        # control.async_start()
-        # entry.async_on_unload(control.async_stop)
-        # # Home Assistant stopping does not unload: release then too.
-        # entry.async_on_unload(
-        #     hass.bus.async_listen_once(
-        #         EVENT_HOMEASSISTANT_STOP, lambda _e: control.async_stop()
-        #     )
-        # )
+        # Battery control (engine/control/control_loop.py): only with the
+        # setting Control on, and only the batteries marked in their form.
+        # Runs next to the simulator on the same targets; releases every
+        # battery on unload and when Home Assistant stops.
+        control = None
+        if entry.options.get(CONF_CONTROL_ENABLED, False):
+            control = ControlLoop(
+                hass,
+                batteries,
+                measurements,
+                forecast,
+                decisions,
+                mode=entry.options.get(CONF_CONTROL_MODE, CONTROL_MODE_NOM),
+                monitor=commands,  # releases a battery that does not follow
+                tests=control_test,
+            )
+            control.async_start()
+            entry.async_on_unload(control.async_stop_all)
+            entry.async_on_unload(
+                hass.bus.async_listen_once(
+                    EVENT_HOMEASSISTANT_STOP, control.async_stop_all
+                )
+            )
 
         # The export limit (PV inverters): shown and explained; nothing is sent.
         options = entry.options

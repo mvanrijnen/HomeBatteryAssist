@@ -9,7 +9,7 @@ description: "HomeBatteryAssist: a Home Assistant integration (HACS) for home ba
 HomeBatteryAssist measures the energy flows of your home, forecasts consumption, prices and solar power, and works out what your batteries could best do: when to charge, from the sun or the grid, and when to supply the house. Every forecast is checked afterwards against what really happened, and every plan is explained in plain words.
 
 !!! warning "Alpha — under active development"
-    Settings, entities and behaviour can still change, and releases are alpha releases. **In this phase HomeBatteryAssist does not control any physical battery**: it reads, forecasts and advises. *Virtual batteries* follow its plans as a simulation. Controlling batteries itself is the goal; until then it stays read-only for safety and so it does not disturb the integration that controls your battery now; the control layer and a [test control](measuring.md#test-control-switched-off-for-now) per battery are already built, but not active.
+    Settings, entities and behaviour can still change, and releases are alpha releases. **In this phase HomeBatteryAssist reads, forecasts and advises**; *virtual batteries* follow its plans as a simulation. Controlling a battery itself is possible but **off by default** and not yet tested widely: the setting *Control on* and a [test control](measuring.md#test-control-switched-off-for-now) per battery, over a [direct connection](drivers.md#direct-battery-drivers). Switch off any other integration that controls the battery first.
 
 [Get started :material-arrow-right:](getting-started.md){ .md-button .md-button--primary } [Screenshots](screenshots.md){ .md-button } [GitHub](https://github.com/mvanrijnen/HomeBatteryAssist){ .md-button }
 

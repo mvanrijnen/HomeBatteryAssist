@@ -240,12 +240,14 @@ Where the consumption history and the forecast accuracy are kept.
 | **Storage** | JSON files in .storage (default), or a database: only what changed is written (less wear on an SD card). Changing it moves the data at the next start. |
 | **Database URL** | Only for MySQL / MariaDB or PostgreSQL, e.g. mysql://user:password@core-mariadb/homebatteryassist?charset=utf8mb4 or postgresql://user:password@host/homebatteryassist. The database must exist. |
 
-### Test control {#settings-control}
+### Control {#settings-control}
 
 Test controlling a battery by hand (buttons Test: charge / discharge / stop on each battery), with you present. Through the battery's direct connection when it has one, else through its integration. Always back to the battery's own control afterwards.
 
 | Field | Explanation |
 |---|---|
+| **Control on** | HomeBatteryAssist controls the batteries marked Controlled by HomeBatteryAssist, every round, within their limits; on any problem a battery goes back to its own control. Off: it only reads and advises. |
+| **Control mode** | Zero on the meter: the batteries keep the grid at the target, whatever the plan says (a safe start). Following the plan: the selected plan (charging from the grid and supplying at expensive hours in arbitrage). |
 | **Test control on** | Off: the test buttons only explain that the test is off; nothing is sent to a battery. |
 
 ## Devices and time slots {#devices}
@@ -309,6 +311,7 @@ Link a home battery through the entities of its own integration (for now read-on
 | **Address of the battery** | IP address or host name of the battery. |
 | **Port** | Modbus TCP: usually 502. |
 | **Unit id** | Modbus unit id: usually 1. |
+| **Controlled by HomeBatteryAssist** | When the setting Control on is on, HomeBatteryAssist controls this battery itself (over its direct connection, else its integration). Switch off any other integration that controls it. |
 
 ### Virtual battery {#device-virtual-battery}
 

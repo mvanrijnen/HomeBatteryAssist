@@ -39,6 +39,8 @@ SWITCHED_ON = re.compile(
 SWITCH_ALLOWED = (
     "engine/control/reader_driver.py",
     "engine/devices/batteries/direct/link.py",
+    # Created only when the user switched control on (``__init__.py``).
+    "engine/control/control_loop.py",
 )
 # Home Assistant actions that are allowed: notifications, reading prices and
 # reading the weather forecast.
@@ -117,17 +119,16 @@ def test_controller_off_by_default() -> None:
     assert READERS  # readers only read (their write methods are never called)
 
 
-def test_control_loop_is_only_comment() -> None:
-    """The control loop is written out as comment: no active code at all."""
-    import ast
+def test_control_off_unless_switched_on() -> None:
+    """The control loop only runs with the setting Control on, and only for
+    batteries marked in their form; both default off."""
+    from custom_components.homebatteryassist.engine.measure.battery_monitor import (
+        BatteryConfig,
+    )
 
-    tree = ast.parse((PACKAGE / "engine/control/control_loop.py").read_text("utf-8"))
-    assert len(tree.body) == 1  # the docstring
-    statement = tree.body[0]
-    assert isinstance(statement, ast.Expr)
-    # A string, not an expression that runs (e.g. __import__("x").run()).
-    assert isinstance(statement.value, ast.Constant)
-    assert isinstance(statement.value.value, str)
+    init = (PACKAGE / "__init__.py").read_text("utf-8")
+    assert "if entry.options.get(CONF_CONTROL_ENABLED, False):" in init
+    assert BatteryConfig.__dataclass_fields__["control"].default is False
 
 
 def test_control_test_switched_off() -> None:

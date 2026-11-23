@@ -347,12 +347,16 @@
             }
           },
           "control": {
-            "name": "Testbesturing",
+            "name": "Besturing",
             "description": "Een batterij met de hand testen (knoppen Test: laden / ontladen / stoppen bij elke batterij), terwijl je erbij bent. Via de directe verbinding van de batterij als ze die heeft, anders via haar integratie. Daarna altijd terug naar de eigen sturing van de batterij.",
             "data": {
+              "control_enabled": "Besturing aan",
+              "control_mode": "Besturingsmodus",
               "control_test": "Testbesturing aan"
             },
             "data_description": {
+              "control_enabled": "HomeBatteryAssist stuurt de batterijen met Aangestuurd door HomeBatteryAssist elke ronde aan, binnen hun grenzen; bij elk probleem gaat een batterij terug naar haar eigen sturing. Uit: alleen lezen en adviseren.",
+              "control_mode": "Nul op de meter: de batterijen houden het net op het doel, wat het plan ook zegt (een veilig begin). Volgens het plan: het gekozen plan (bij arbitrage laden uit het net en leveren in dure uren).",
               "control_test": "Uit: de testknoppen leggen alleen uit dat de test uit staat; er wordt niets naar een batterij gestuurd."
             }
           }
@@ -626,6 +630,12 @@
     "direct_driver": {
       "options": {
         "none": "Geen directe verbinding (via de sensoren)"
+      }
+    },
+    "control_mode": {
+      "options": {
+        "nom": "Nul op de meter",
+        "plan": "Volgens het plan"
       }
     }
   },
@@ -928,12 +938,16 @@
             }
           },
           "control": {
-            "name": "Testbesturing",
+            "name": "Besturing",
             "description": "Een batterij met de hand testen (knoppen Test: laden / ontladen / stoppen bij elke batterij), terwijl je erbij bent. Via de directe verbinding van de batterij als ze die heeft, anders via haar integratie. Daarna altijd terug naar de eigen sturing van de batterij.",
             "data": {
+              "control_enabled": "Besturing aan",
+              "control_mode": "Besturingsmodus",
               "control_test": "Testbesturing aan"
             },
             "data_description": {
+              "control_enabled": "HomeBatteryAssist stuurt de batterijen met Aangestuurd door HomeBatteryAssist elke ronde aan, binnen hun grenzen; bij elk probleem gaat een batterij terug naar haar eigen sturing. Uit: alleen lezen en adviseren.",
+              "control_mode": "Nul op de meter: de batterijen houden het net op het doel, wat het plan ook zegt (een veilig begin). Volgens het plan: het gekozen plan (bij arbitrage laden uit het net en leveren in dure uren).",
               "control_test": "Uit: de testknoppen leggen alleen uit dat de test uit staat; er wordt niets naar een batterij gestuurd."
             }
           }
@@ -1174,7 +1188,8 @@
             "direct_driver": "Directe verbinding (optioneel)",
             "direct_address": "Adres van de batterij",
             "direct_port": "Poort",
-            "direct_unit": "Unit-id"
+            "direct_unit": "Unit-id",
+            "control": "Aangestuurd door HomeBatteryAssist"
           },
           "data_description": {
             "soc_sensor": "Sensor met de vulling in %. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval).",
@@ -1192,7 +1207,8 @@
             "direct_driver": "HomeBatteryAssist leest de batterij zelf uit over een eigen verbinding (bijv. een Marstek Venus via Modbus TCP) in plaats van via de sensoren van een andere integratie, en kan haar over die verbinding aansturen (testbesturing, later de besturing). Veel batterijen staan maar één verbinding toe: zet de integratie die haar nu uitleest (bijv. Omnibattery) eerst uit. Een driver kiezen zet de verbinding aan.",
             "direct_address": "IP-adres of hostnaam van de batterij.",
             "direct_port": "Modbus TCP: meestal 502.",
-            "direct_unit": "Modbus unit-id: meestal 1."
+            "direct_unit": "Modbus unit-id: meestal 1.",
+            "control": "Als de instelling Besturing aan aan staat, stuurt HomeBatteryAssist deze batterij zelf aan (via de directe verbinding, anders via haar integratie). Zet een andere integratie die haar aanstuurt uit."
           }
         },
         "battery": {
@@ -1217,7 +1233,8 @@
             "direct_driver": "Directe verbinding (optioneel)",
             "direct_address": "Adres van de batterij",
             "direct_port": "Poort",
-            "direct_unit": "Unit-id"
+            "direct_unit": "Unit-id",
+            "control": "Aangestuurd door HomeBatteryAssist"
           },
           "data_description": {
             "soc_sensor": "Sensor met de vulling in %. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval).",
@@ -1235,7 +1252,8 @@
             "direct_driver": "HomeBatteryAssist leest de batterij zelf uit over een eigen verbinding (bijv. een Marstek Venus via Modbus TCP) in plaats van via de sensoren van een andere integratie, en kan haar over die verbinding aansturen (testbesturing, later de besturing). Veel batterijen staan maar één verbinding toe: zet de integratie die haar nu uitleest (bijv. Omnibattery) eerst uit. Een driver kiezen zet de verbinding aan.",
             "direct_address": "IP-adres of hostnaam van de batterij.",
             "direct_port": "Modbus TCP: meestal 502.",
-            "direct_unit": "Modbus unit-id: meestal 1."
+            "direct_unit": "Modbus unit-id: meestal 1.",
+            "control": "Als de instelling Besturing aan aan staat, stuurt HomeBatteryAssist deze batterij zelf aan (via de directe verbinding, anders via haar integratie). Zet een andere integratie die haar aanstuurt uit."
           }
         }
       },

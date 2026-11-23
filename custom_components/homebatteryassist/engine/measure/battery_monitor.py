@@ -37,6 +37,7 @@ from homeassistant.util import dt as dt_util
 
 from ...const import (
     BATTERY_METER_NONE,
+    CONF_BATTERY_CONTROL,
     CONF_BATTERY_METER,
     CONF_BATTERY_METER_ADDRESS,
     CONF_CAPACITY,
@@ -196,6 +197,8 @@ class BatteryConfig:
     direct_address: str = ""
     direct_port: int = DEFAULT_DIRECT_PORT
     direct_unit: int = DEFAULT_DIRECT_UNIT
+    # Controlled by HomeBatteryAssist (when the setting Control on is on).
+    control: bool = False
 
     @classmethod
     def from_subentry(cls, subentry: ConfigSubentry) -> BatteryConfig:
@@ -251,6 +254,7 @@ class BatteryConfig:
             direct_address="" if virtual else data.get(CONF_DIRECT_ADDRESS) or "",
             direct_port=int(data.get(CONF_DIRECT_PORT) or DEFAULT_DIRECT_PORT),
             direct_unit=int(data.get(CONF_DIRECT_UNIT) or DEFAULT_DIRECT_UNIT),
+            control=not virtual and bool(data.get(CONF_BATTERY_CONTROL, False)),
         )
 
     def as_twin_of(self, real: BatteryConfig) -> BatteryConfig:
