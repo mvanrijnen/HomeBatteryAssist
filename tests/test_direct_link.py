@@ -313,3 +313,40 @@ async def test_control_test_off_sends_nothing(
         assert log.keys[-1][0] == "control_test_blocked"
     finally:
         await link_.async_stop()
+
+
+async def test_an_earlier_refusal_does_not_stop_a_new_test(
+    hass: HomeAssistant, venus: FakeVenus
+) -> None:
+    """A discharge test the battery refused leaves the command check's
+    problem behind; the next test starts over instead of stopping at once."""
+    from custom_components.homebatteryassist.engine.evaluation.command_check import (
+        CommandCheck,
+    )
+
+    link_ = _link(hass)
+    await link_.async_start()
+    check = CommandCheck()
+    check.event = SimpleNamespace(reason=None, start=dt_util.utcnow())
+    assert check.problem
+    log = FakeLog()
+    batteries = SimpleNamespace(
+        configs=[CONFIG],
+        states={"b1": BatteryState(CONFIG, 40.0, 0.0)},
+        stats={"b1": {}},
+    )
+    test = ControlTest(
+        hass,
+        batteries,
+        log,
+        commands=SimpleNamespace(checks={"b1": check}),
+        allowed=True,
+    )
+    try:
+        await test.async_start("b1", charge=True)
+        await test._async_tick(dt_util.utcnow())
+        assert test.status("b1") == "charging"
+        assert not check.problem
+    finally:
+        await test.async_stop_all()
+        await link_.async_stop()

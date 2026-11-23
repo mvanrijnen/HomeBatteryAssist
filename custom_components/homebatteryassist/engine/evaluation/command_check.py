@@ -110,6 +110,13 @@ class CommandCheck:
         self._since: datetime | None = None  # not following since (before start)
         self._quiet: datetime | None = None  # following again since (in event)
 
+    def restart(self) -> None:
+        """Start over for a new command (e.g. a new test): an earlier
+        command that was not followed says nothing about this one."""
+        self.event = None
+        self._since = None
+        self._quiet = None
+
     @property
     def problem(self) -> bool:
         """Not following, and not explainable."""

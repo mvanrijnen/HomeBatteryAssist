@@ -224,6 +224,12 @@ class ControlTest:
             controller,
         )
         self.runs[battery_id] = run
+        # A new command: an earlier one not followed (e.g. a refused
+        # discharge test) must not stop this test at once.
+        if self._commands is not None and (
+            check := self._commands.checks.get(battery_id)
+        ):
+            check.restart()
         self._decisions.async_log(
             "battery",
             "control_test_started",

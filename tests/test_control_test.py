@@ -120,7 +120,9 @@ async def test_refused_when_full_or_empty(hass: HomeAssistant, reader) -> None:
 
 async def test_stops_when_not_followed(hass: HomeAssistant, reader) -> None:
     log = FakeLog()
-    commands = SimpleNamespace(checks={"b1": SimpleNamespace(problem=False)})
+    commands = SimpleNamespace(
+        checks={"b1": SimpleNamespace(problem=False, restart=lambda: None)}
+    )
     test = ControlTest(hass, _batteries(50), log, commands=commands, allowed=True)
     await test.async_start("b1", charge=False)
     assert reader.calls == [("set", -300.0)]
