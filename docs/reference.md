@@ -293,8 +293,8 @@ Link a home battery through the entities of its own integration (for now read-on
 | Field | Explanation |
 |---|---|
 | **Name** |  |
-| **State of charge sensor** | Sensor with the state of charge in %. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback). |
-| **Power sensor** | Sensor with the charge/discharge power (W) or current (A) of the battery. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback). |
+| **State of charge sensor** | Sensor with the state of charge in %. |
+| **Power sensor** | Sensor with the charge/discharge power (W) or current (A) of the battery. |
 | **Power sensor direction** | Is the power sensor positive while charging or while discharging? |
 | **Usable capacity** | Capacity of the battery in kWh (from the specifications). |
 | **Maximum charge power** |  |
@@ -307,10 +307,7 @@ Link a home battery through the entities of its own integration (for now read-on
 | **Temperature sensor (optional)** | Battery temperature; when warm the plans use less power (see the temperature settings). |
 | **Battery meter (optional)** | A meter on the battery's line that can be read directly, e.g. a kWh meter. Its power (+ into the battery = charging) is then used instead of the power sensor; for batteries whose integration does not give their own power, or as a check. |
 | **Address of the battery meter** | IP address or host name of that meter. |
-| **Direct connection (optional)** | HomeBatteryAssist reads the battery itself over its own connection (e.g. a Marstek Venus over Modbus TCP) instead of through another integration's sensors, and can control it over that connection (test control, later the control). Many batteries allow only one connection: switch off the integration that reads it now (e.g. Omnibattery) first. Choosing a driver here switches the connection on. |
-| **Address of the battery** | IP address or host name of the battery. |
-| **Port** | Modbus TCP: usually 502. |
-| **Unit id** | Modbus unit id: usually 1. |
+| **IP address of the battery** | IP address or host name of the battery. |
 | **Controlled by HomeBatteryAssist** | When the setting Control on is on, HomeBatteryAssist controls this battery itself (over its direct connection, else its integration). Switch off any other integration that controls it. |
 
 ### Virtual battery {#device-virtual-battery}

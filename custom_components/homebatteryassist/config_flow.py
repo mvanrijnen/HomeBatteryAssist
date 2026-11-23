@@ -2240,24 +2240,61 @@ def used_sensors(entry: ConfigEntry) -> set[str]:
     return used
 
 
-def battery_schema(
-    three_phase: bool, single_phase: bool = False, dutch: bool = False
-) -> vol.Schema:
-    """Reading and properties of a battery. ``single_phase``: a battery
-    on one phase (a plug-in battery): on a 3-phase connection its phase
-    must be chosen (spreading it over all phases under-counts the phase)."""
-    schema: dict[Any, Any] = {
-        vol.Required(CONF_NAME): TextSelector(),
-        # Not needed for a battery read over its direct connection.
-        vol.Optional(CONF_SOC_SENSOR): EntitySelector(
-            EntitySelectorConfig(
-                domain="sensor", device_class=SensorDeviceClass.BATTERY
+ADVANCED = "advanced"  # battery form: port and unit of a direct connection
+
+
+def connection_schema(dutch: bool = False) -> vol.Schema:
+    """How HomeBatteryAssist reads the battery: through the sensors of
+    another integration, or over a direct connection (a driver)."""
+    return vol.Schema(
+        {
+            vol.Required(CONF_DIRECT_DRIVER, default=DIRECT_NONE): SelectSelector(
+                SelectSelectorConfig(
+                    options=[
+                        SelectOptionDict(value=DIRECT_NONE, label=DIRECT_NONE),
+                        *(
+                            SelectOptionDict(
+                                value=d.key,
+                                label=f"{d.name}{untested(d.verified, dutch)}",
+                            )
+                            for d in BATTERY_DIRECT_DRIVERS
+                        ),
+                    ],
+                    mode=SelectSelectorMode.LIST,
+                    translation_key=CONF_DIRECT_DRIVER,
+                )
             )
-        ),
-        vol.Optional(CONF_POWER_SENSOR): PHASE_SENSOR_SELECTOR,
-        vol.Required(CONF_POWER_SIGN, default=SIGN_CHARGING_POSITIVE): _select(
-            SIGN_OPTIONS, CONF_POWER_SIGN
-        ),
+        }
+    )
+
+
+def battery_schema(
+    three_phase: bool,
+    single_phase: bool = False,
+    dutch: bool = False,
+    direct: bool = False,
+) -> vol.Schema:
+    """Reading and properties of a battery: ``direct`` = read over its own
+    connection (its address; port and unit tucked away), else through the
+    sensors of another integration. ``single_phase``: a battery on one phase
+    (a plug-in battery): on a 3-phase connection its phase must be chosen
+    (spreading it over all phases under-counts the phase)."""
+    schema: dict[Any, Any] = {vol.Required(CONF_NAME): TextSelector()}
+    if direct:
+        schema[vol.Required(CONF_DIRECT_ADDRESS)] = TextSelector()
+    else:
+        schema |= {
+            vol.Required(CONF_SOC_SENSOR): EntitySelector(
+                EntitySelectorConfig(
+                    domain="sensor", device_class=SensorDeviceClass.BATTERY
+                )
+            ),
+            vol.Required(CONF_POWER_SENSOR): PHASE_SENSOR_SELECTOR,
+            vol.Required(CONF_POWER_SIGN, default=SIGN_CHARGING_POSITIVE): _select(
+                SIGN_OPTIONS, CONF_POWER_SIGN
+            ),
+        }
+    schema |= {
         vol.Required(CONF_CAPACITY): _number(0.1, 1000, 0.01, "kWh"),
         vol.Required(CONF_MAX_CHARGE_POWER): _number(1, 50000, 1, "W"),
         vol.Required(CONF_MAX_DISCHARGE_POWER): _number(1, 50000, 1, "W"),
@@ -2273,6 +2310,43 @@ def battery_schema(
         vol.Required(
             CONF_FULL_CHARGE_INTERVAL, default=DEFAULT_FULL_CHARGE_INTERVAL
         ): _number(0, 90, 1, "d"),
+    }
+    if three_phase and single_phase:
+        schema[vol.Required(CONF_PHASE)] = SelectSelector(
+            SelectSelectorConfig(
+                options=list(PHASE_IDS),
+                mode=SelectSelectorMode.DROPDOWN,
+                translation_key=CONF_PHASE,
+            )
+        )
+    elif three_phase:
+        schema[vol.Required(CONF_PHASE, default=PHASE_NONE)] = phase_selector()
+    if direct:
+        # Its temperature comes from the battery itself.
+        schema[vol.Required(CONF_BATTERY_CONTROL, default=False)] = BooleanSelector()
+        schema[
+            vol.Optional(
+                ADVANCED,
+                default={
+                    CONF_DIRECT_PORT: DEFAULT_DIRECT_PORT,
+                    CONF_DIRECT_UNIT: DEFAULT_DIRECT_UNIT,
+                },
+            )
+        ] = section(
+            vol.Schema(
+                {
+                    vol.Required(CONF_DIRECT_PORT, default=DEFAULT_DIRECT_PORT): (
+                        _number(1, 65535, 1, "")
+                    ),
+                    vol.Required(CONF_DIRECT_UNIT, default=DEFAULT_DIRECT_UNIT): (
+                        _number(0, 255, 1, "")
+                    ),
+                }
+            ),
+            {"collapsed": True},
+        )
+        return vol.Schema(schema)
+    schema |= {
         vol.Optional(CONF_TEMPERATURE_SENSOR): EntitySelector(
             EntitySelectorConfig(
                 domain="sensor", device_class=SensorDeviceClass.TEMPERATURE
@@ -2299,43 +2373,7 @@ def battery_schema(
             )
         ),
         vol.Optional(CONF_BATTERY_METER_ADDRESS): TextSelector(),
-        # Optional direct connection: read (and controlled) by a direct
-        # driver over its own connection instead of through its sensors.
-        vol.Required(CONF_DIRECT_DRIVER, default=DIRECT_NONE): SelectSelector(
-            SelectSelectorConfig(
-                options=[
-                    SelectOptionDict(value=DIRECT_NONE, label=DIRECT_NONE),
-                    *(
-                        SelectOptionDict(
-                            value=d.key,
-                            label=f"{d.name}{untested(d.verified, dutch)}",
-                        )
-                        for d in BATTERY_DIRECT_DRIVERS
-                    ),
-                ],
-                mode=SelectSelectorMode.DROPDOWN,
-                translation_key=CONF_DIRECT_DRIVER,
-            )
-        ),
-        vol.Optional(CONF_DIRECT_ADDRESS): TextSelector(),
-        vol.Optional(CONF_DIRECT_PORT, default=DEFAULT_DIRECT_PORT): _number(
-            1, 65535, 1, ""
-        ),
-        vol.Optional(CONF_DIRECT_UNIT, default=DEFAULT_DIRECT_UNIT): _number(
-            0, 255, 1, ""
-        ),
-        vol.Required(CONF_BATTERY_CONTROL, default=False): BooleanSelector(),
     }
-    if three_phase and single_phase:
-        schema[vol.Required(CONF_PHASE)] = SelectSelector(
-            SelectSelectorConfig(
-                options=list(PHASE_IDS),
-                mode=SelectSelectorMode.DROPDOWN,
-                translation_key=CONF_PHASE,
-            )
-        )
-    elif three_phase:
-        schema[vol.Required(CONF_PHASE, default=PHASE_NONE)] = phase_selector()
     return vol.Schema(schema)
 
 
@@ -2358,6 +2396,7 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         self._candidates: dict[str, BatteryCandidate] = {}
         self._suggested_data: dict[str, Any] | None = None
         self._single_phase = False  # the recognised type is on one phase
+        self._driver = DIRECT_NONE  # how it is read: sensors or a direct driver
 
     def _current(self) -> ConfigSubentry | None:
         return (
@@ -2382,11 +2421,13 @@ class BatterySubentryFlow(ConfigSubentryFlow):
                 and self._suggested_data.get(CONF_PHASE) not in PHASE_IDS
             ):
                 self._suggested_data.pop(CONF_PHASE, None)
-            return await self.async_step_battery()
+            if candidate is None:
+                return await self.async_step_connection()
+            return await self.async_step_battery()  # through its sensors
 
         found = find_battery_candidates(self.hass, used_sensors(self._get_entry()))
         if not found:
-            return await self.async_step_battery()
+            return await self.async_step_connection()
         self._candidates = {c.device_id: c for c in found}
         dutch = (self.hass.config.language or "").startswith("nl")
         options = [
@@ -2420,13 +2461,37 @@ class BatterySubentryFlow(ConfigSubentryFlow):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> SubentryFlowResult:
-        """Change a battery."""
-        if user_input is None:
-            # A type on one phase (e.g. a Marstek Venus): its phase must be
-            # chosen, also when it was linked before this was asked.
-            model = _device_model(self.hass, self._get_reconfigure_subentry())
-            self._single_phase = bool(model and model.phases == 1)
-        return await self._async_step_battery("reconfigure", user_input)
+        """Change a battery: first how it is read, then its form."""
+        # A type on one phase (e.g. a Marstek Venus): its phase must be
+        # chosen, also when it was linked before this was asked.
+        current = self._get_reconfigure_subentry()
+        model = _device_model(self.hass, current)
+        self._single_phase = bool(model and model.phases == 1) or (
+            current.data.get(CONF_DIRECT_DRIVER, DIRECT_NONE) != DIRECT_NONE
+            and current.data.get(CONF_PHASE) in PHASE_IDS
+        )
+        return await self.async_step_connection()
+
+    async def async_step_connection(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """How HomeBatteryAssist reads the battery: its sensors or directly."""
+        if user_input is not None:
+            self._driver = user_input.get(CONF_DIRECT_DRIVER, DIRECT_NONE)
+            return await self.async_step_battery()
+        current = self._current()
+        driver = (
+            current.data.get(CONF_DIRECT_DRIVER, DIRECT_NONE)
+            if current
+            else DIRECT_NONE
+        )
+        return self.async_show_form(
+            step_id="connection",
+            data_schema=self.add_suggested_values_to_schema(
+                connection_schema((self.hass.config.language or "").startswith("nl")),
+                {CONF_DIRECT_DRIVER: driver},
+            ),
+        )
 
     async def async_step_battery(
         self, user_input: dict[str, Any] | None = None
@@ -2440,20 +2505,17 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         entry = self._get_entry()
         current = self._current()
         errors: dict[str, str] = {}
+        direct = self._driver != DIRECT_NONE
         if user_input is not None:
-            direct = user_input.get(CONF_DIRECT_DRIVER, DIRECT_NONE) != DIRECT_NONE
-            for key in BATTERY_SENSOR_KEYS:
-                if not user_input.get(key):
-                    if not direct:
-                        errors[key] = "sensor_required"
-                elif error := sensor_conflict(entry, user_input[key], current):
-                    errors[key] = error
-            if user_input.get(CONF_SOC_SENSOR) and user_input.get(
-                CONF_SOC_SENSOR
-            ) == user_input.get(CONF_POWER_SENSOR):
-                errors[CONF_POWER_SENSOR] = "sensor_in_use"
-            if direct and not (user_input.get(CONF_DIRECT_ADDRESS) or "").strip():
-                errors[CONF_DIRECT_ADDRESS] = "direct_address_required"
+            if direct:
+                if not (user_input.get(CONF_DIRECT_ADDRESS) or "").strip():
+                    errors[CONF_DIRECT_ADDRESS] = "direct_address_required"
+            else:
+                for key in BATTERY_SENSOR_KEYS:
+                    if error := sensor_conflict(entry, user_input[key], current):
+                        errors[key] = error
+                if user_input[CONF_SOC_SENSOR] == user_input[CONF_POWER_SENSOR]:
+                    errors[CONF_POWER_SENSOR] = "sensor_in_use"
             if user_input[CONF_MIN_SOC] >= user_input[CONF_MAX_SOC]:
                 errors[CONF_MAX_SOC] = "soc_range"
             if (
@@ -2463,13 +2525,20 @@ class BatterySubentryFlow(ConfigSubentryFlow):
             ):
                 errors[CONF_BATTERY_METER_ADDRESS] = "address_required"
             if not errors:
-                return self._async_finish(self._battery_data(user_input), current)
+                return self._async_finish(
+                    self._battery_data(user_input, self._driver), current
+                )
 
-        suggested = (
+        suggested = dict(
             user_input
             or self._suggested_data
-            or (dict(current.data) if current else None)
+            or (dict(current.data) if current else {})
         )
+        if direct and ADVANCED not in suggested:
+            suggested[ADVANCED] = {
+                CONF_DIRECT_PORT: suggested.get(CONF_DIRECT_PORT, DEFAULT_DIRECT_PORT),
+                CONF_DIRECT_UNIT: suggested.get(CONF_DIRECT_UNIT, DEFAULT_DIRECT_UNIT),
+            }
         return self.async_show_form(
             step_id=step_id,
             data_schema=self.add_suggested_values_to_schema(
@@ -2477,6 +2546,7 @@ class BatterySubentryFlow(ConfigSubentryFlow):
                     entry.data[CONF_PHASES] == 3,
                     self._single_phase,
                     (self.hass.config.language or "").startswith("nl"),
+                    direct,
                 ),
                 suggested,
             ),
@@ -2484,29 +2554,29 @@ class BatterySubentryFlow(ConfigSubentryFlow):
         )
 
     @staticmethod
-    def _battery_data(user_input: dict[str, Any]) -> dict[str, Any]:
+    def _battery_data(user_input: dict[str, Any], driver: str) -> dict[str, Any]:
+        """What is stored: only the fields of the chosen way of reading."""
         data = {**user_input}
-        address = (user_input.get(CONF_BATTERY_METER_ADDRESS) or "").strip()
-        if address:
-            data[CONF_BATTERY_METER_ADDRESS] = address
+        advanced = data.pop(ADVANCED, None) or {}
+        if driver != DIRECT_NONE:
+            data[CONF_DIRECT_DRIVER] = driver
+            data[CONF_DIRECT_ADDRESS] = str(user_input[CONF_DIRECT_ADDRESS]).strip()
+            data[CONF_DIRECT_PORT] = int(
+                advanced.get(CONF_DIRECT_PORT) or DEFAULT_DIRECT_PORT
+            )
+            data[CONF_DIRECT_UNIT] = int(
+                advanced.get(CONF_DIRECT_UNIT) or DEFAULT_DIRECT_UNIT
+            )
+            data[CONF_BATTERY_CONTROL] = bool(
+                user_input.get(CONF_BATTERY_CONTROL, False)
+            )
         else:
-            data.pop(CONF_BATTERY_METER_ADDRESS, None)
-        for key in BATTERY_SENSOR_KEYS:
-            if not data.get(key):
-                data.pop(key, None)
-        direct = (user_input.get(CONF_DIRECT_ADDRESS) or "").strip()
-        if direct:
-            data[CONF_DIRECT_ADDRESS] = direct
-        else:
-            data.pop(CONF_DIRECT_ADDRESS, None)
-        data[CONF_DIRECT_DRIVER] = user_input.get(CONF_DIRECT_DRIVER, DIRECT_NONE)
-        data[CONF_DIRECT_PORT] = int(
-            user_input.get(CONF_DIRECT_PORT) or DEFAULT_DIRECT_PORT
-        )
-        data[CONF_DIRECT_UNIT] = int(
-            user_input.get(CONF_DIRECT_UNIT) or DEFAULT_DIRECT_UNIT
-        )
-        data[CONF_BATTERY_CONTROL] = bool(user_input.get(CONF_BATTERY_CONTROL, False))
+            data[CONF_DIRECT_DRIVER] = DIRECT_NONE
+            address = (user_input.get(CONF_BATTERY_METER_ADDRESS) or "").strip()
+            if address:
+                data[CONF_BATTERY_METER_ADDRESS] = address
+            else:
+                data.pop(CONF_BATTERY_METER_ADDRESS, None)
         return {
             **data,
             CONF_PHASE: user_input.get(CONF_PHASE, PHASE_NONE),

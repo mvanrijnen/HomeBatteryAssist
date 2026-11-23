@@ -293,8 +293,8 @@ Koppel een thuisbatterij via de entiteiten van zijn eigen integratie (voorlopig 
 | Veld | Uitleg |
 |---|---|
 | **Naam** |  |
-| **Sensor vulling** | Sensor met de vulling in %. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval). |
-| **Sensor vermogen** | Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval). |
+| **Sensor vulling** | Sensor met de vulling in %. |
+| **Sensor vermogen** | Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij. |
 | **Richting vermogensensor** | Is de vermogensensor positief tijdens laden of tijdens ontladen? |
 | **Bruikbare capaciteit** | Capaciteit van de batterij in kWh (uit de specificaties). |
 | **Maximaal laadvermogen** |  |
@@ -307,10 +307,7 @@ Koppel een thuisbatterij via de entiteiten van zijn eigen integratie (voorlopig 
 | **Temperatuursensor (optioneel)** | Temperatuur van de batterij; bij warmte rekenen de plannen met minder vermogen (zie de temperatuurinstellingen). |
 | **Batterijmeter (optioneel)** | Een direct uit te lezen meter op de lijn van de batterij, bijvoorbeeld een kWh-meter. Het vermogen daarvan (+ de batterij in = laden) wordt dan gebruikt in plaats van de vermogenssensor; voor batterijen waarvan de integratie het eigen vermogen niet geeft, of als controle. |
 | **Adres van de batterijmeter** | IP-adres of hostnaam van die meter. |
-| **Directe verbinding (optioneel)** | HomeBatteryAssist leest de batterij zelf uit over een eigen verbinding (bijv. een Marstek Venus via Modbus TCP) in plaats van via de sensoren van een andere integratie, en kan haar over die verbinding aansturen (testbesturing, later de besturing). Veel batterijen staan maar één verbinding toe: zet de integratie die haar nu uitleest (bijv. Omnibattery) eerst uit. Een driver kiezen zet de verbinding aan. |
-| **Adres van de batterij** | IP-adres of hostnaam van de batterij. |
-| **Poort** | Modbus TCP: meestal 502. |
-| **Unit-id** | Modbus unit-id: meestal 1. |
+| **IP-adres van de batterij** | IP-adres of hostnaam van de batterij. |
 | **Aangestuurd door HomeBatteryAssist** | Als de instelling Besturing aan aan staat, stuurt HomeBatteryAssist deze batterij zelf aan (via de directe verbinding, anders via haar integratie). Zet een andere integratie die haar aanstuurt uit. |
 
 ### Virtuele batterij {#device-virtual-battery}

@@ -629,7 +629,7 @@
     },
     "direct_driver": {
       "options": {
-        "none": "Geen directe verbinding (via de sensoren)"
+        "none": "Via de sensoren van een andere integratie"
       }
     },
     "control_mode": {
@@ -1185,15 +1185,12 @@
             "temperature_sensor": "Temperatuursensor (optioneel)",
             "battery_meter": "Batterijmeter (optioneel)",
             "battery_meter_address": "Adres van de batterijmeter",
-            "direct_driver": "Directe verbinding (optioneel)",
-            "direct_address": "Adres van de batterij",
-            "direct_port": "Poort",
-            "direct_unit": "Unit-id",
+            "direct_address": "IP-adres van de batterij",
             "control": "Aangestuurd door HomeBatteryAssist"
           },
           "data_description": {
-            "soc_sensor": "Sensor met de vulling in %. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval).",
-            "power_sensor": "Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval).",
+            "soc_sensor": "Sensor met de vulling in %.",
+            "power_sensor": "Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij.",
             "power_sign": "Is de vermogensensor positief tijdens laden of tijdens ontladen?",
             "capacity_kwh": "Capaciteit van de batterij in kWh (uit de specificaties).",
             "min_soc": "De batterij wordt niet verder ontladen dan dit niveau.",
@@ -1204,11 +1201,21 @@
             "temperature_sensor": "Temperatuur van de batterij; bij warmte rekenen de plannen met minder vermogen (zie de temperatuurinstellingen).",
             "battery_meter": "Een direct uit te lezen meter op de lijn van de batterij, bijvoorbeeld een kWh-meter. Het vermogen daarvan (+ de batterij in = laden) wordt dan gebruikt in plaats van de vermogenssensor; voor batterijen waarvan de integratie het eigen vermogen niet geeft, of als controle.",
             "battery_meter_address": "IP-adres of hostnaam van die meter.",
-            "direct_driver": "HomeBatteryAssist leest de batterij zelf uit over een eigen verbinding (bijv. een Marstek Venus via Modbus TCP) in plaats van via de sensoren van een andere integratie, en kan haar over die verbinding aansturen (testbesturing, later de besturing). Veel batterijen staan maar één verbinding toe: zet de integratie die haar nu uitleest (bijv. Omnibattery) eerst uit. Een driver kiezen zet de verbinding aan.",
             "direct_address": "IP-adres of hostnaam van de batterij.",
-            "direct_port": "Modbus TCP: meestal 502.",
-            "direct_unit": "Modbus unit-id: meestal 1.",
             "control": "Als de instelling Besturing aan aan staat, stuurt HomeBatteryAssist deze batterij zelf aan (via de directe verbinding, anders via haar integratie). Zet een andere integratie die haar aanstuurt uit."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Geavanceerd",
+              "data": {
+                "direct_port": "Poort",
+                "direct_unit": "Unit-id"
+              },
+              "data_description": {
+                "direct_port": "Modbus TCP: meestal 502.",
+                "direct_unit": "Modbus unit-id: meestal 1."
+              }
+            }
           }
         },
         "battery": {
@@ -1230,15 +1237,12 @@
             "temperature_sensor": "Temperatuursensor (optioneel)",
             "battery_meter": "Batterijmeter (optioneel)",
             "battery_meter_address": "Adres van de batterijmeter",
-            "direct_driver": "Directe verbinding (optioneel)",
-            "direct_address": "Adres van de batterij",
-            "direct_port": "Poort",
-            "direct_unit": "Unit-id",
+            "direct_address": "IP-adres van de batterij",
             "control": "Aangestuurd door HomeBatteryAssist"
           },
           "data_description": {
-            "soc_sensor": "Sensor met de vulling in %. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval).",
-            "power_sensor": "Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij. Niet nodig met een directe verbinding (dan uit de batterij zelf gelezen; deze sensor is alleen de terugval).",
+            "soc_sensor": "Sensor met de vulling in %.",
+            "power_sensor": "Sensor met het laad-/ontlaadvermogen (W) of de stroom (A) van de batterij.",
             "power_sign": "Is de vermogensensor positief tijdens laden of tijdens ontladen?",
             "capacity_kwh": "Capaciteit van de batterij in kWh (uit de specificaties).",
             "min_soc": "De batterij wordt niet verder ontladen dan dit niveau.",
@@ -1249,11 +1253,28 @@
             "temperature_sensor": "Temperatuur van de batterij; bij warmte rekenen de plannen met minder vermogen (zie de temperatuurinstellingen).",
             "battery_meter": "Een direct uit te lezen meter op de lijn van de batterij, bijvoorbeeld een kWh-meter. Het vermogen daarvan (+ de batterij in = laden) wordt dan gebruikt in plaats van de vermogenssensor; voor batterijen waarvan de integratie het eigen vermogen niet geeft, of als controle.",
             "battery_meter_address": "IP-adres of hostnaam van die meter.",
-            "direct_driver": "HomeBatteryAssist leest de batterij zelf uit over een eigen verbinding (bijv. een Marstek Venus via Modbus TCP) in plaats van via de sensoren van een andere integratie, en kan haar over die verbinding aansturen (testbesturing, later de besturing). Veel batterijen staan maar één verbinding toe: zet de integratie die haar nu uitleest (bijv. Omnibattery) eerst uit. Een driver kiezen zet de verbinding aan.",
             "direct_address": "IP-adres of hostnaam van de batterij.",
-            "direct_port": "Modbus TCP: meestal 502.",
-            "direct_unit": "Modbus unit-id: meestal 1.",
             "control": "Als de instelling Besturing aan aan staat, stuurt HomeBatteryAssist deze batterij zelf aan (via de directe verbinding, anders via haar integratie). Zet een andere integratie die haar aanstuurt uit."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Geavanceerd",
+              "data": {
+                "direct_port": "Poort",
+                "direct_unit": "Unit-id"
+              },
+              "data_description": {
+                "direct_port": "Modbus TCP: meestal 502.",
+                "direct_unit": "Modbus unit-id: meestal 1."
+              }
+            }
+          }
+        },
+        "connection": {
+          "title": "Hoe leest HBA de batterij?",
+          "description": "Direct: HomeBatteryAssist leest (en kan aansturen) de batterij zelf over een eigen verbinding; zet de integratie die haar nu uitleest eerst uit (maar één verbinding). Via sensoren: de sensoren van een andere integratie (bijv. Omnibattery).",
+          "data": {
+            "direct_driver": "Verbinding"
           }
         }
       },

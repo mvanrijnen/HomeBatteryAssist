@@ -58,6 +58,14 @@ BATTERY_INPUT = {
 }
 
 
+async def _connection(hass: HomeAssistant, result: Any, driver: str = "none") -> Any:
+    """Past the step that asks how the battery is read."""
+    assert result["step_id"] == "connection"
+    return await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"direct_driver": driver}
+    )
+
+
 async def _entry(
     hass: HomeAssistant, data: dict[str, Any] | None = None, battery: bool = True
 ) -> MockConfigEntry:
@@ -147,12 +155,14 @@ def _set(hass: HomeAssistant, entity_id: str, value: str, unit: str) -> None:
 
 
 async def test_add_battery_manually(hass: HomeAssistant) -> None:
-    """Without detected batteries the flow goes straight to the battery form."""
+    """Without detected batteries the flow asks how it is read, then the form."""
     entry = await _entry(hass, battery=False)
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, SUBENTRY_BATTERY), context={"source": SOURCE_USER}
     )
+    result = await _connection(hass, result)
     assert result["step_id"] == "battery"
+    assert "direct_address" not in result["data_schema"].schema
     assert CONF_PHASE not in result["data_schema"].schema  # 1-phase connection
 
     result = await hass.config_entries.subentries.async_configure(
@@ -164,7 +174,7 @@ async def test_add_battery_manually(hass: HomeAssistant) -> None:
     assert subentry.title == "Venus"
     assert subentry.data[CONF_CAPACITY] == 5.12
     assert subentry.data[CONF_MAX_CHARGE_POWER] == 2500
-    assert subentry.data.get("control") is False  # not controlled unless chosen
+    assert "control" not in subentry.data  # only with a direct connection
     assert not any("entity" in key for key in subentry.data)
 
 
@@ -269,7 +279,7 @@ async def test_add_detected_omnibattery(hass: HomeAssistant) -> None:
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, SUBENTRY_BATTERY), context={"source": SOURCE_USER}
     )
-    assert result["step_id"] == "battery"
+    assert result["step_id"] == "connection"
 
 
 @pytest.mark.parametrize(
@@ -281,11 +291,6 @@ async def test_add_detected_omnibattery(hass: HomeAssistant) -> None:
             {CONF_POWER_SENSOR: "sensor.marstek_soc"},
             {CONF_POWER_SENSOR: "sensor_in_use"},
         ),
-        ({CONF_SOC_SENSOR: None}, {CONF_SOC_SENSOR: "sensor_required"}),
-        (
-            {"direct_driver": "marstek_venus_e_v3_modbus"},
-            {"direct_address": "direct_address_required"},
-        ),
     ],
 )
 async def test_battery_validation(
@@ -296,7 +301,7 @@ async def test_battery_validation(
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, SUBENTRY_BATTERY), context={"source": SOURCE_USER}
     )
-    assert result["step_id"] == "battery"
+    result = await _connection(hass, result)
     data = {k: v for k, v in {**BATTERY_INPUT, **changes}.items() if v is not None}
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], data
@@ -314,29 +319,35 @@ async def test_battery_read_directly(hass: HomeAssistant) -> None:
     result = await hass.config_entries.subentries.async_init(
         (entry.entry_id, SUBENTRY_BATTERY), context={"source": SOURCE_USER}
     )
+    result = await _connection(hass, result, "marstek_venus_e_v3_modbus")
+    schema = result["data_schema"].schema
+    # Only what a direct battery needs: no sensors, no battery meter.
+    assert CONF_SOC_SENSOR not in schema and "battery_meter" not in schema
     data = {
         k: v
         for k, v in BATTERY_INPUT.items()
-        if k not in (CONF_SOC_SENSOR, CONF_POWER_SENSOR)
+        if k not in (CONF_SOC_SENSOR, CONF_POWER_SENSOR, CONF_POWER_SIGN)
     }
+    # An address of spaces only is no address.
+    blank = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {**data, "direct_address": "  "}
+    )
+    assert blank["errors"] == {"direct_address": "direct_address_required"}
     with patch(
         "custom_components.homebatteryassist.engine.devices.batteries.direct.link.DirectLink.async_start",
         AsyncMock(),
     ) as start:
         result = await hass.config_entries.subentries.async_configure(
             result["flow_id"],
-            {
-                **data,
-                "direct_driver": "marstek_venus_e_v3_modbus",
-                "direct_address": " 192.0.2.158 ",
-            },
+            {**data, "direct_address": " 192.0.2.158 "},
         )
         assert result["type"] is FlowResultType.CREATE_ENTRY
         await hass.async_block_till_done()
     (subentry,) = entry.subentries.values()
     assert subentry.data["direct_address"] == "192.0.2.158"
     assert subentry.data["direct_port"] == 502 and subentry.data["direct_unit"] == 1
-    assert CONF_SOC_SENSOR not in subentry.data
+    assert subentry.data["direct_driver"] == "marstek_venus_e_v3_modbus"
+    assert CONF_SOC_SENSOR not in subentry.data and "battery_meter" not in subentry.data
     assert subentry.unique_id == "direct:192.0.2.158:1"
     assert start.await_count == 1
 
@@ -349,7 +360,8 @@ async def test_reconfigure_battery(hass: HomeAssistant) -> None:
         (entry.entry_id, SUBENTRY_BATTERY),
         context={"source": SOURCE_RECONFIGURE, "subentry_id": battery_id},
     )
-    assert result["step_id"] == "reconfigure"
+    result = await _connection(hass, result)
+    assert result["step_id"] == "battery"
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {**BATTERY_INPUT, CONF_CAPACITY: 10.24}
     )

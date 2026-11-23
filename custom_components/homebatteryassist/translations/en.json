@@ -629,7 +629,7 @@
     },
     "direct_driver": {
       "options": {
-        "none": "No direct connection (through its sensors)"
+        "none": "Through the sensors of another integration"
       }
     },
     "control_mode": {
@@ -1185,15 +1185,12 @@
             "temperature_sensor": "Temperature sensor (optional)",
             "battery_meter": "Battery meter (optional)",
             "battery_meter_address": "Address of the battery meter",
-            "direct_driver": "Direct connection (optional)",
-            "direct_address": "Address of the battery",
-            "direct_port": "Port",
-            "direct_unit": "Unit id",
+            "direct_address": "IP address of the battery",
             "control": "Controlled by HomeBatteryAssist"
           },
           "data_description": {
-            "soc_sensor": "Sensor with the state of charge in %. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback).",
-            "power_sensor": "Sensor with the charge/discharge power (W) or current (A) of the battery. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback).",
+            "soc_sensor": "Sensor with the state of charge in %.",
+            "power_sensor": "Sensor with the charge/discharge power (W) or current (A) of the battery.",
             "power_sign": "Is the power sensor positive while charging or while discharging?",
             "capacity_kwh": "Capacity of the battery in kWh (from the specifications).",
             "min_soc": "The battery is not discharged below this level.",
@@ -1204,11 +1201,21 @@
             "temperature_sensor": "Battery temperature; when warm the plans use less power (see the temperature settings).",
             "battery_meter": "A meter on the battery's line that can be read directly, e.g. a kWh meter. Its power (+ into the battery = charging) is then used instead of the power sensor; for batteries whose integration does not give their own power, or as a check.",
             "battery_meter_address": "IP address or host name of that meter.",
-            "direct_driver": "HomeBatteryAssist reads the battery itself over its own connection (e.g. a Marstek Venus over Modbus TCP) instead of through another integration's sensors, and can control it over that connection (test control, later the control). Many batteries allow only one connection: switch off the integration that reads it now (e.g. Omnibattery) first. Choosing a driver here switches the connection on.",
             "direct_address": "IP address or host name of the battery.",
-            "direct_port": "Modbus TCP: usually 502.",
-            "direct_unit": "Modbus unit id: usually 1.",
             "control": "When the setting Control on is on, HomeBatteryAssist controls this battery itself (over its direct connection, else its integration). Switch off any other integration that controls it."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Advanced",
+              "data": {
+                "direct_port": "Port",
+                "direct_unit": "Unit id"
+              },
+              "data_description": {
+                "direct_port": "Modbus TCP: usually 502.",
+                "direct_unit": "Modbus unit id: usually 1."
+              }
+            }
           }
         },
         "battery": {
@@ -1230,15 +1237,12 @@
             "temperature_sensor": "Temperature sensor (optional)",
             "battery_meter": "Battery meter (optional)",
             "battery_meter_address": "Address of the battery meter",
-            "direct_driver": "Direct connection (optional)",
-            "direct_address": "Address of the battery",
-            "direct_port": "Port",
-            "direct_unit": "Unit id",
+            "direct_address": "IP address of the battery",
             "control": "Controlled by HomeBatteryAssist"
           },
           "data_description": {
-            "soc_sensor": "Sensor with the state of charge in %. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback).",
-            "power_sensor": "Sensor with the charge/discharge power (W) or current (A) of the battery. Not needed with a direct connection (then read from the battery itself; this sensor is only the fallback).",
+            "soc_sensor": "Sensor with the state of charge in %.",
+            "power_sensor": "Sensor with the charge/discharge power (W) or current (A) of the battery.",
             "power_sign": "Is the power sensor positive while charging or while discharging?",
             "capacity_kwh": "Capacity of the battery in kWh (from the specifications).",
             "min_soc": "The battery is not discharged below this level.",
@@ -1249,11 +1253,28 @@
             "temperature_sensor": "Battery temperature; when warm the plans use less power (see the temperature settings).",
             "battery_meter": "A meter on the battery's line that can be read directly, e.g. a kWh meter. Its power (+ into the battery = charging) is then used instead of the power sensor; for batteries whose integration does not give their own power, or as a check.",
             "battery_meter_address": "IP address or host name of that meter.",
-            "direct_driver": "HomeBatteryAssist reads the battery itself over its own connection (e.g. a Marstek Venus over Modbus TCP) instead of through another integration's sensors, and can control it over that connection (test control, later the control). Many batteries allow only one connection: switch off the integration that reads it now (e.g. Omnibattery) first. Choosing a driver here switches the connection on.",
             "direct_address": "IP address or host name of the battery.",
-            "direct_port": "Modbus TCP: usually 502.",
-            "direct_unit": "Modbus unit id: usually 1.",
             "control": "When the setting Control on is on, HomeBatteryAssist controls this battery itself (over its direct connection, else its integration). Switch off any other integration that controls it."
+          },
+          "sections": {
+            "advanced": {
+              "name": "Advanced",
+              "data": {
+                "direct_port": "Port",
+                "direct_unit": "Unit id"
+              },
+              "data_description": {
+                "direct_port": "Modbus TCP: usually 502.",
+                "direct_unit": "Modbus unit id: usually 1."
+              }
+            }
+          }
+        },
+        "connection": {
+          "title": "How is the battery read?",
+          "description": "Directly: HomeBatteryAssist reads (and can control) the battery itself over its own connection; switch off the integration that reads it now first (one connection only). Through sensors: the sensors of another integration (e.g. Omnibattery).",
+          "data": {
+            "direct_driver": "Connection"
           }
         }
       },
