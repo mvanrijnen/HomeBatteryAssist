@@ -1,12 +1,12 @@
-"""Battery control — BUILT, NOT ACTIVE.
+"""Battery control per battery: safety layer 4, the controller layer.
 
-HomeBatteryAssist is read-only by decision of the project owner. This module
-is the control layer for the day that changes, built and tested beforehand so
-the safety is there before anything is ever controlled:
+(See docs/architecture.md#safety-layers.) Used by the control loop and the
+test control, only when the user switched them on; the safety is the same
+for both:
 
 - **Master switch** ``enabled`` (default False). While off, nothing is ever
-  sent to a battery; asking for a command raises ``ControlDisabled``. Nothing
-  in HomeBatteryAssist turns it on.
+  sent to a battery; asking for a command raises ``ControlDisabled``. Only
+  the control loop and the test control turn it on, when switched on.
 - **Always release**: on stop, reload, restart, on every error, and after a
   failed command, control is handed back to the battery's own logic
   (``driver.async_release``) before anything else.

@@ -803,6 +803,8 @@ class VirtualBatterySimulator:
             for c in self.virtual
             if full[c.id]
         )
+        # Safety layer 1 (target layer): spread over the batteries within
+        # their floors (reserves) and ceilings (docs: architecture.md#safety-layers).
         targets = self._targets(now, hours, [c for c in self.virtual if not full[c.id]])
         socs: dict[str, float] = {}
         wanted: dict[str, float] = {}
@@ -869,6 +871,7 @@ class VirtualBatterySimulator:
         # own final check (phase limits here, power and state of charge in
         # limit_power), which always wins.
         proposed = dict(wanted)
+        # Safety layer 2 (interceptor layer): the user's last say.
         wanted = self._intercept(wanted, socs, full, reasons, now)
         overruled = any(abs(wanted[i] - proposed[i]) > 1.0 for i in wanted)
         # Protection is not the interceptor's to undo: where phase relief or
@@ -883,6 +886,8 @@ class VirtualBatterySimulator:
             [i for i, r in reasons.items() if r in ("phase_relief", "peak_shaving")],
             [i for i in wanted if full.get(i)],
         )
+        # Safety layer 3 (final check layer): phases, system limits, and in
+        # _apply per battery its power and state of charge band.
         wanted = self._phase_limited(wanted, now)
         # The system's max charge / discharge power is a hard limit, also for
         # protection (phase relief, peak shaving) — the owner's decision.

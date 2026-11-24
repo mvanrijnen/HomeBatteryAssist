@@ -178,6 +178,28 @@ The **control loop** (`engine/control/control_loop.py`) runs only with the setti
 
 **Test control (built, switched off).** Each real battery has *Test: charge*, *Test: discharge* and *Test: stop* (buttons), a *Test power* and a *Test duration* (numbers) and a *Test control* status, to test controlling a battery by hand before any automatic control (`engine/control/control_test.py`, through `reader_driver.py`: `LinkDriver` over the battery's direct connection, else `ReaderDriver` through its integration). A test charges or discharges at the test power for the test duration and then always hands the battery back to its own control; it stops at once when the battery is full or at its lowest allowed state of charge, does not follow the command, on an error, by *Test: stop* and on reload. It is off unless the setting *Test control on* is on (default `CONTROL_TEST_ALLOWED = False`, checked by a test): a button only tells *Why* so, nothing is sent.
 
+## Safety layers {#safety-layers}
+
+Every power HomeBatteryAssist gives a battery — by the control, a full charge or a test — passes five layers in this order. Each layer may only make the power smaller or stop it, never bigger; a later layer always wins.
+
+```mermaid
+flowchart TD
+  T["Target<br/>zero on the meter · the plan · full charge"] --> L1
+  L1["1 · Target layer<br/>spread over the batteries<br/>reserves · state of charge band"] --> L2
+  L2["2 · Interceptor layer<br/>your last say (own module)"] --> L3
+  L3["3 · Final check layer<br/>phases · system limits · state of charge · power"] --> L4
+  L4["4 · Controller layer<br/>watchdog · pacing · release on error"] --> L5
+  L5["5 · Battery layer<br/>the battery's own BMS"] --> B(("Battery"))
+```
+
+| Layer | Where | What it guards |
+|---|---|---|
+| **1 · Target layer** | `virtual.py` `_targets` (control: the same) | Spreads the total over the batteries (`battery_distribution`), each between its floor and ceiling: floor = the highest of its *Minimum charge*, the *Reserve*, the *Night reserve* (from sunset to sunrise) and the *Peak reserve* (only peak shaving goes below it); ceiling = its *Maximum charge*, lower while the charge hysteresis holds it after a full charge. Never one battery charging while another discharges. Zero on the meter never discharges for excluded devices or a random short peak. |
+| **2 · Interceptor layer** | `engine/control/interceptors/` | Your own module gets the proposal per battery and may approve, limit (less, same direction), hold back or release it; nonsense or a failure counts as approved. It can never make a power bigger or turn it around, and it cannot undo phase protection or peak shaving. Built in: *none* (approves everything). |
+| **3 · Final check layer** | `virtual.py` `_phase_limited`, `system_limited`, `limit_power` | HomeBatteryAssist's own check, after the interceptor, always wins: the fuses per phase (current, with a margin), the system's max charge / discharge power, and per battery its max power and its state of charge band (never charging above its maximum, never discharging below its minimum). |
+| **4 · Controller layer** | `engine/control/battery_controller.py` | Per battery, what is actually sent: the device's limits again, at most one new command every few seconds and only a real change (deadband), the command repeated when the battery needs it, a **watchdog** (no new command for 2 minutes = release), and **release on every error**, stop, reload and restart. With the control: release while a test runs, while the battery does not follow its command, while its state or the grid measurement is unknown, and a pause of 10 minutes when charge and discharge alternate too often. |
+| **5 · Battery layer** | the battery itself | The battery's own protection (BMS): its own minimum and maximum state of charge (a Marstek Venus: 12–100 %), temperature and cell protection. HomeBatteryAssist sets its *Minimum charge* to at least this, so the plans count on what the battery really gives. |
+
 ## Meters
 
 One file per brand (`homewizard.py`, `sma.py`, `shelly.py`, `iammeter.py`), sharing `direct_reading.py` (reading about once a second, a value going stale). Meters can also be read through their own Home Assistant integration (`via_ha_integration.py`).

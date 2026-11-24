@@ -178,6 +178,28 @@ De **regellus** (`engine/control/control_loop.py`) draait alleen met de instelli
 
 **Testbesturing (gebouwd, uitgeschakeld).** Elke echte batterij heeft *Test: laden*, *Test: ontladen* en *Test: stoppen* (knoppen), een *Testvermogen* en een *Testduur* (getallen) en een status *Testbesturing*, om het aansturen van een batterij met de hand te testen vóór elke automatische besturing (`engine/control/control_test.py`, via `reader_driver.py`: `LinkDriver` over de directe verbinding van de batterij, anders `ReaderDriver` via haar integratie). Een test laadt of ontlaadt met het testvermogen gedurende de testduur en geeft de batterij daarna altijd terug aan haar eigen sturing; hij stopt meteen als de batterij vol is of op haar laagst toegestane laadniveau zit, de opdracht niet volgt, bij een fout, met *Test: stoppen* en bij herladen. Hij staat uit tenzij de instelling *Testbesturing aan* aan staat (standaard `CONTROL_TEST_ALLOWED = False`, bewaakt door een test): een knop meldt dat alleen in *Waarom*, er wordt niets verstuurd.
 
+## Beveiligingslagen {#safety-layers}
+
+Elk vermogen dat HomeBatteryAssist een batterij geeft — door de besturing, een volle lading of een test — gaat in deze volgorde door vijf lagen. Elke laag mag het vermogen alleen kleiner maken of stoppen, nooit groter; een latere laag wint altijd.
+
+```mermaid
+flowchart TD
+  T["Doel<br/>nul op de meter · het plan · volle lading"] --> L1
+  L1["1 · Doellaag<br/>verdeling over de batterijen<br/>reserves · bandbreedte laadniveau"] --> L2
+  L2["2 · Interceptorlaag<br/>jouw laatste woord (eigen module)"] --> L3
+  L3["3 · Eindcontrolelaag<br/>fasen · systeemgrenzen · laadniveau · vermogen"] --> L4
+  L4["4 · Controllerlaag<br/>watchdog · tempo · vrijgeven bij fout"] --> L5
+  L5["5 · Batterijlaag<br/>het eigen BMS van de batterij"] --> B(("Batterij"))
+```
+
+| Laag | Waar | Wat de laag bewaakt |
+|---|---|---|
+| **1 · Doellaag** | `virtual.py` `_targets` (besturing: hetzelfde) | Verdeelt het totaal over de batterijen (`battery_distribution`), elk tussen haar onder- en bovengrens: ondergrens = de hoogste van haar *Minimale vulling*, de *Reserve*, de *Nachtreserve* (van zonsondergang tot zonsopkomst) en de *Piekreserve* (alleen peak shaving gaat eronder); bovengrens = haar *Maximale vulling*, lager zolang de laadhysterese haar na een volle lading vasthoudt. Nooit de ene batterij laden terwijl een andere ontlaadt. Nul op de meter ontlaadt nooit voor uitgesloten apparaten of een willekeurige korte piek. |
+| **2 · Interceptorlaag** | `engine/control/interceptors/` | Jouw eigen module krijgt het voorstel per batterij en mag het goedkeuren, beperken (minder, zelfde richting), tegenhouden of vrijgeven; onzin of een fout telt als goedgekeurd. Ze kan een vermogen nooit groter maken of omdraaien, en fasebeveiliging of peak shaving niet ongedaan maken. Ingebouwd: *geen* (keurt alles goed). |
+| **3 · Eindcontrolelaag** | `virtual.py` `_phase_limited`, `system_limited`, `limit_power` | De eigen controle van HomeBatteryAssist, ná de interceptor, wint altijd: de zekeringen per fase (stroom, met een marge), het maximale laad- / ontlaadvermogen van het systeem, en per batterij haar maximale vermogen en haar bandbreedte voor het laadniveau (nooit laden boven haar maximum, nooit ontladen onder haar minimum). |
+| **4 · Controllerlaag** | `engine/control/battery_controller.py` | Per batterij wat er echt verstuurd wordt: nogmaals de grenzen van het apparaat, hoogstens één nieuwe opdracht per paar seconden en alleen bij een echte wijziging (dode zone), de opdracht herhaald als de batterij dat nodig heeft, een **watchdog** (2 minuten geen nieuwe opdracht = vrijgeven), en **vrijgeven bij elke fout**, stop, herladen en herstart. Bij de besturing: vrijgeven zolang er een test loopt, de batterij haar opdracht niet volgt, haar stand of de netmeting onbekend is, en 10 minuten pauze als laden en ontladen te vaak wisselen. |
+| **5 · Batterijlaag** | de batterij zelf | De eigen beveiliging van de batterij (BMS): haar eigen minimale en maximale laadniveau (een Marstek Venus: 12–100 %), temperatuur- en celbeveiliging. Zet in HomeBatteryAssist de *Minimale vulling* minstens hierop, zodat de plannen rekenen met wat de batterij echt geeft. |
+
 ## Meters {#meters}
 
 Eén bestand per merk (`homewizard.py`, `sma.py`, `shelly.py`, `iammeter.py`), die samen `direct_reading.py` gebruiken (ongeveer eens per seconde lezen, een waarde die verouderd raakt). Meters kunnen ook via hun eigen Home Assistant-integratie gelezen worden (`via_ha_integration.py`).
