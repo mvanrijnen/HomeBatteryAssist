@@ -859,6 +859,9 @@ const STYLE = `
   .chart .axis { fill: var(--secondary-text-color); font-size: 11px; }
   .chart .line { fill: none; stroke-width: 1.4; stroke-linejoin: round; }
   .chart .line.dashed { stroke-dasharray: 4 3; stroke-width: 1.2; }
+  .chart .area { stroke: none; fill-opacity: 0.22; }
+  .legend .unit { opacity: .7; margin-right: 4px; }
+  .legend .group { margin-right: 18px; }
   .chart .line.thin { stroke-width: 0.8; stroke-dasharray: 1 3; opacity: 0.8; }
   .chart .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
   .chart .head h3 { margin: 0; }
@@ -1827,19 +1830,40 @@ class HomeBatteryAssistPanel extends HTMLElement {
       const last = x(fill.points[fill.points.length - 1][0]).toFixed(1);
       svg += `<path class="fill-area" clip-path="url(#clip-${id})" d="M${first},${H - B} L${pts.join(" L")} L${last},${H - B} Z"/>`;
     }
+    // Axis labels in the colour of their series (when a chart asks for it).
+    const leftColor = series.find((s) => s.axis !== "right" && s.axisColor)?.axisColor;
+    const rightColor = series.find((s) => s.axis === "right" && s.axisColor)?.axisColor;
     const steps = 4;
     for (let i = 0; i <= steps; i++) {
       const v = yMin + ((yMax - yMin) / steps) * i;
       svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>`;
-      if (hasLeft) svg += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${esc(yFmt ? yFmt(v) : this._axisPower(v))}</text>`;
+      if (hasLeft) svg += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end"${leftColor ? ` style="fill:${leftColor}"` : ""}>${esc(yFmt ? yFmt(v) : this._axisPower(v))}</text>`;
       if (right) {
         const rv = right.min + ((right.max - right.min) / steps) * i;
-        svg += `<text class="axis" x="${W - R + 6}" y="${y(v) + 4}" text-anchor="start">${esc(right.fmt ? right.fmt(rv) : rv.toFixed(2))}</text>`;
+        svg += `<text class="axis" x="${W - R + 6}" y="${y(v) + 4}" text-anchor="start"${rightColor ? ` style="fill:${rightColor}"` : ""}>${esc(right.fmt ? right.fmt(rv) : rv.toFixed(2))}</text>`;
       }
     }
     if (yMin < 0) svg += `<line class="zero" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
     for (const [v, label] of ticks) {
       svg += `<text class="axis" x="${x(v)}" y="${H - 6}" text-anchor="middle">${esc(label)}</text>`;
+    }
+    // Filled areas (e.g. a power under temperature lines): down to the zero
+    // line, per unbroken run of points, behind every line.
+    for (const s of series.filter((s) => s.area)) {
+      const sy = yOf(s);
+      const base = (s.axis === "right" && right ? yr(Math.max(right.min, 0)) : y(Math.max(yMin, 0))).toFixed(1);
+      let run = [];
+      const flush = () => {
+        if (run.length > 1) svg += `<path class="area" d="M${run[0][0]},${base} L${run.map((q) => q.join(",")).join(" L")} L${run[run.length - 1][0]},${base} Z" fill="${s.color}" clip-path="url(#clip-${id})"/>`;
+        run = [];
+      };
+      let prev = null;
+      for (const [px, py] of s.points) {
+        if (py == null || (prev !== null && gapLimit && px - prev > gapLimit)) flush();
+        if (py != null) run.push([x(px).toFixed(1), sy(py).toFixed(1)]);
+        prev = py == null ? null : px;
+      }
+      flush();
     }
     for (const s of series) {
       let d = "";
@@ -2528,12 +2552,14 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const ticks = this._hourTicks(xMin, xMax, step, lang, true);
     const degrees = (v) => (v == null ? "–" : `${v.toFixed(1).replace(".", lang.startsWith("nl") ? "," : ".")} °C`);
     const axisDeg = (v) => `${Math.round(v)} °C`;
+    // Power (W, left) as an orange area; temperatures (°C, right) as lines
+    // in cool colours; each axis in the colour of its unit.
     const outdoorColor = "#039be5";
-    const roomColor = "#e53935";
+    const roomColor = "#ab47bc";
     const heatColor = "#fb8c00";
     const series = [
-      ...(temp.learned ? [{ points: rows.map(([ts, , , w]) => [ts, w]), color: heatColor, label: t.tempPower }] : []),
-      { points: rows.map(([ts, out]) => [ts, out]), color: outdoorColor, label: t.tempOutdoor, axis: "right", fmt: degrees, axisFmt: axisDeg },
+      ...(temp.learned ? [{ points: rows.map(([ts, , , w]) => [ts, w]), color: heatColor, label: t.tempPower, area: true, axisColor: heatColor }] : []),
+      { points: rows.map(([ts, out]) => [ts, out]), color: outdoorColor, label: t.tempOutdoor, axis: "right", fmt: degrees, axisFmt: axisDeg, axisColor: outdoorColor },
       ...(rows.some((r) => r[2] != null)
         ? [{ points: rows.map(([ts, , room]) => [ts, room]), color: roomColor, dashed: true, label: t.tempRoom, axis: "right", fmt: degrees, axisFmt: axisDeg }]
         : []),
@@ -2552,9 +2578,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
       .map(([day, v]) => `${day}: ${v.toFixed(1).replace(".", lang.startsWith("nl") ? "," : ".")} kWh`)
       .join(" · ");
     const note = temp.learned ? t.tempKwh.replace("{days}", kwh || "–") : t.tempLearning;
-    const legend = `<div class="legend">${series
-      .map((s) => `<span><i style="${s.dashed ? `background:none;border-top:2px dashed ${s.color};height:0` : `background:${s.color}`}"></i>${esc(s.label)}</span>`)
-      .join("")}</div>`;
+    // The legend grouped per unit: W (the area), °C (the lines).
+    const item = (s) =>
+      `<span><i style="${s.dashed ? `background:none;border-top:2px dashed ${s.color};height:0` : s.area ? `background:${s.color};opacity:.55;height:9px` : `background:${s.color}`}"></i>${esc(s.label)}</span>`;
+    const group = (unit, list) => (list.length ? `<span class="group"><b class="unit">${unit}</b>${list.map(item).join("")}</span>` : "");
+    const legend = `<div class="legend">${group("W", series.filter((s) => s.axis !== "right"))}${group("°C", series.filter((s) => s.axis === "right"))}</div>`;
     return `<div class="chart wide"><h3>${esc(t.tempTitle)}</h3>${chart}${legend}<div class="muted small">${esc(note)}</div></div>`;
   }
 
