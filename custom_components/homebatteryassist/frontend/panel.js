@@ -706,6 +706,12 @@ const STYLE = `
   .fd { position: relative; max-width: 640px; margin: 8px auto 4px; aspect-ratio: 520 / 460; }
   .fd svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .fd-totals { text-align: center; }
+  .fd-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 8px; margin-top: 6px; }
+  .fd-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border-radius: 12px; font-size: 13px;
+    border: 1px solid var(--divider-color); border-left: 3px solid var(--fd-color); text-align: left; line-height: 1.25; }
+  .fd-chip ha-icon { --mdc-icon-size: 18px; color: var(--fd-color); }
+  .fd-chip b { font-weight: 500; }
+  .fd-chip small { display: block; font-size: 11px; color: var(--secondary-text-color); }
   .card > .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
   .fd-flow { font-size: 12px; font-weight: 600; text-anchor: middle; paint-order: stroke; stroke: var(--card-background-color, #1c1c1c); stroke-width: 3px; }
   .fd-line { fill: none; stroke-width: 2; opacity: .45; }
@@ -1350,19 +1356,27 @@ class HomeBatteryAssistPanel extends HTMLElement {
             zoneWh != null ? [["", zoneWh, expected.zones]] : [], t.fdPartOfHouse)
         : "",
     ];
-    // Totals of today in one line.
+    // Totals of today: one chip per part, with its icon and colour.
+    const chip = (icon, color, name, value, sub) =>
+      `<span class="fd-chip" style="--fd-color:${color}"><ha-icon icon="${icon}"></ha-icon><span><b>${esc(name)}</b> ${esc(value)}${
+        sub ? `<small>${esc(sub)}</small>` : ""
+      }</span></span>`;
     const totals = hasHistory
       ? [
-          `${t.house} ${kwh(today.house)}${expected.house != null ? ` (${t.fdExpected} ${kwh(expected.house)})` : ""}`,
-          pv !== null ? `${t.pv} ${kwh(today.pv)}${expected.pv != null ? ` (${t.fdExpected} ${kwh(expected.pv)})` : ""}` : "",
-          `${t.grid} → ${kwh(today.imported)} ← ${kwh(today.exported)}`,
-          battery !== null ? `${t.batteries} ↓ ${kwh(today.charged)} ↑ ${kwh(today.discharged)}` : "",
-          zones.length && today.zones ? `${zones.map((z) => z.name).join(", ")} ${kwh(Object.values(today.zones).reduce((a, v) => a + v, 0))}` : "",
-          excluded !== null ? `${(s.excluded_names || []).join(", ") || t.fdExcluded} ${kwh(today.excluded)}` : "",
-        ].filter(Boolean).join(" · ")
+          chip("mdi:home", "var(--primary-color)", t.house, kwh(today.house), expected.house != null ? `${t.fdExpected} ${kwh(expected.house)}` : ""),
+          pv !== null ? chip("mdi:solar-power", "#ff9800", t.pv, kwh(today.pv), expected.pv != null ? `${t.fdExpected} ${kwh(expected.pv)}` : "") : "",
+          chip("mdi:transmission-tower", "#488fc2", t.grid, `→ ${kwh(today.imported)} ${t.fdImport.replace(/^[←→]\s*/, "")}`, `← ${kwh(today.exported)} ${t.fdExport.replace(/^[←→]\s*/, "")}`),
+          battery !== null
+            ? chip("mdi:home-battery", "#4db6ac", t.batteries, `↓ ${kwh(today.charged)} ${t.fdCharge.replace(/^[↑↓]\s*/, "")}`, `↑ ${kwh(today.discharged)} ${t.fdDischarge.replace(/^[↑↓]\s*/, "")}`)
+            : "",
+          zones.length && today.zones
+            ? chip("mdi:hvac", "#e53935", zones.map((z) => z.name).join(", "), kwh(Object.values(today.zones).reduce((a, v) => a + v, 0)), t.fdPartOfHouse)
+            : "",
+          excluded !== null ? chip("mdi:ev-station", "#ce93d8", (s.excluded_names || []).join(", ") || t.fdExcluded, kwh(today.excluded), "") : "",
+        ].filter(Boolean).join("")
       : "";
     return `<div class="card"><div class="head"><h2>${esc(t.fdTitle)}</h2>${this._fdNav(t, days)}</div><div class="fd"><svg viewBox="0 0 520 460" preserveAspectRatio="xMidYMid meet">${svg}</svg>${nodes.join("")}</div>
-      ${totals ? `<div class="muted small fd-totals">${esc(t.fdTodayTotal)}: ${esc(totals)}</div>` : ""}</div>`;
+      ${totals ? `<div class="fd-totals"><div class="muted small">${esc(t.fdTodayTotal)}</div><div class="fd-chips">${totals}</div></div>` : ""}</div>`;
   }
 
   // The batteries together: the total sensors, else (only virtual
