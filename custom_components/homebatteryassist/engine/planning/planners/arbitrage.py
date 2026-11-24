@@ -1,4 +1,4 @@
-"""Built-in planners: arbitrage and full arbitrage.
+"""Built-in planners: arbitrage own use and arbitrage with export.
 
 - ``arbitrage`` (for own use): cost-optimal; may also charge from the grid when
   cheap, and discharges to cover the own consumption when expensive, but never
@@ -510,7 +510,7 @@ class ArbitragePlanner(Planner):
 
     key = "arbitrage"
     verified = True
-    name = "Arbitrage"
+    name = "Arbitrage own use"
     allow_export = False
 
     def plan(self, data: PlannerInput) -> PlannerResult:
@@ -575,5 +575,5 @@ class ArbitrageFullPlanner(ArbitragePlanner):
 
     key = "arbitrage_full"
     verified = False
-    name = "Full arbitrage"
+    name = "Arbitrage with export"
     allow_export = True

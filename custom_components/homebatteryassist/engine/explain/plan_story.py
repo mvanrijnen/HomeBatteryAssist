@@ -71,7 +71,7 @@ TEXT = {
         "modes": {
             "nom": "nul op de meter",
             "arbitrage": "arbitrage",
-            "arbitrage_full": "arbitrage volledig",
+            "arbitrage_full": "arbitrage met teruglevering",
             "time_slots": "tijdvakken",
             "manual": "handmatig",
         },
@@ -123,7 +123,7 @@ TEXT = {
         "modes": {
             "nom": "zero on the meter",
             "arbitrage": "arbitrage",
-            "arbitrage_full": "full arbitrage",
+            "arbitrage_full": "arbitrage with export",
             "time_slots": "time slots",
             "manual": "manual",
         },

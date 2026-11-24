@@ -449,8 +449,8 @@
     "plan_mode": {
       "options": {
         "nom": "Zero on the meter (NOM)",
-        "arbitrage": "Arbitrage (cost optimal)",
-        "arbitrage_full": "Full arbitrage (also export) (not tested)",
+        "arbitrage": "Arbitrage own use (cost optimal, no battery energy to the grid)",
+        "arbitrage_full": "Arbitrage with export (also battery energy to the grid) (not tested)",
         "time_slots": "Time slots (not tested)",
         "manual": "Manual (fixed power) (not tested)"
       }

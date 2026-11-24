@@ -17,8 +17,8 @@ description: "Veelgestelde vragen over HomeBatteryAssist, de Home Assistant-inte
 
 ??? question "Welke planmodus moet ik kiezen?"
     - **Nul op de meter**: de batterij slaat je zonne-overschot op en levert het huis stroom bij een tekort; hij laadt nooit bewust uit het net en levert niet bewust terug. Eenvoudig en voorspelbaar.
-    - **Arbitrage**: kostenoptimaal voor eigen gebruik; laadt ook uit het net als dat goedkoper is dan later stroom afnemen (bijv. 's nachts voor de avondpiek). Daarvoor zijn dynamische prijzen nodig.
-    - **Arbitrage volledig** (niet getest): als arbitrage, maar levert ook terug aan het net als de terugleverprijs dat de moeite waard maakt.
+    - **Arbitrage eigen gebruik**: kostenoptimaal voor eigen gebruik; laadt ook uit het net als dat goedkoper is dan later stroom afnemen (bijv. 's nachts voor de avondpiek). Daarvoor zijn dynamische prijzen nodig.
+    - **Arbitrage met teruglevering** (niet getest): als arbitrage, maar levert ook terug aan het net als de terugleverprijs dat de moeite waard maakt.
 
     Alle modi worden altijd doorgerekend: het tabblad **Rendement** laat zien wat elke modus zou opleveren, zodat je kunt vergelijken voordat je kiest. Met *Besturing aan* is de gekozen planningsmodule ook wat de aangestuurde batterijen doen.
 

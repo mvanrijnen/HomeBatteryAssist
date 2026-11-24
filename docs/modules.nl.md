@@ -8,7 +8,7 @@ De verwisselbare onderdelen van de lagen van HomeBatteryAssist zijn *modules* (a
 
 | Soort | Wat het doet | Ingebouwd | Eigen modules in | Kiezen in de instellingen |
 |---|---|---|---|---|
-| **Planner** | Bepaalt per tijdvak hoeveel de batterijen laden of ontladen | Nul op de meter, Arbitrage, Arbitrage volledig, Tijdvakken, Handmatig | `/config/homebatteryassist/planners/` | Modus batterijplan |
+| **Planner** | Bepaalt per tijdvak hoeveel de batterijen laden of ontladen | Nul op de meter, Arbitrage eigen gebruik, Arbitrage met teruglevering, Tijdvakken, Handmatig | `/config/homebatteryassist/planners/` | Modus batterijplan |
 | **Verbruiksvoorspeller** | Voorspelt het huisverbruik per tijdvak | Profiel per weekdag en uur (standaard), Zelfde tijd in de afgelopen weken | `/config/homebatteryassist/forecasters/` | Verbruiksvoorspeller |
 | **Tarief** | Maakt van de prijzen van de bron wat een kWh je echt kost en oplevert | Zoals de prijsbron ze geeft (standaard), Marktprijs + opslag + energiebelasting, plus btw (niet getest) | `/config/homebatteryassist/tariffs/` | Tarief |
 | **Bron voor PV-voorspelling** | Leest een zonvoorspelling | Integraties voor zonvoorspelling (Forecast.Solar, Solcast, …) | `/config/homebatteryassist/pv_forecasts/` | PV-voorspelling |

@@ -17,8 +17,8 @@ description: "Frequently asked questions about HomeBatteryAssist, the Home Assis
 
 ??? question "Which plan mode should I choose?"
     - **Zero on the meter**: the battery stores your solar surplus and supplies the house when there is a shortage; it never charges from or supplies to the grid on purpose. Simple and predictable.
-    - **Arbitrage**: cost-optimal for your own use; may also charge from the grid when that is cheaper than using the grid later (e.g. at night for the evening peak). Needs dynamic prices.
-    - **Full arbitrage** (not tested): like arbitrage, but may also supply the grid when the export price makes that worthwhile.
+    - **Arbitrage own use**: cost-optimal for your own use; may also charge from the grid when that is cheaper than using the grid later (e.g. at night for the evening peak). Needs dynamic prices.
+    - **Arbitrage with export** (not tested): like arbitrage, but may also supply the grid when the export price makes that worthwhile.
 
     All modes are always calculated: the **Return** tab shows what each would bring, so you can compare before choosing. With *Control on*, the chosen planner module is also what the controlled batteries do.
 

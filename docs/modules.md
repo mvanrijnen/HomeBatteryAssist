@@ -8,7 +8,7 @@ The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [dr
 
 | Kind | What it does | Built-in | Own modules in | Choose in the settings |
 |---|---|---|---|---|
-| **Planner** | Decides per slot how much the batteries charge or discharge | Zero on the meter, Arbitrage, Full arbitrage, Time slots, Manual | `/config/homebatteryassist/planners/` | Battery plan mode |
+| **Planner** | Decides per slot how much the batteries charge or discharge | Zero on the meter, Arbitrage own use, Arbitrage with export, Time slots, Manual | `/config/homebatteryassist/planners/` | Battery plan mode |
 | **Consumption forecaster** | Predicts the house consumption per slot | Weekday and hour profile (default), Same time in the last weeks | `/config/homebatteryassist/forecasters/` | Consumption forecaster |
 | **Tariff** | Turns the source's prices into what a kWh really costs and earns | As the price source gives them (default), Market price + surcharge + energy tax, plus VAT (not tested) | `/config/homebatteryassist/tariffs/` | Tariff |
 | **PV forecast source** | Reads a solar forecast | Solar forecast integrations (Forecast.Solar, Solcast, …) | `/config/homebatteryassist/pv_forecasts/` | PV forecast |

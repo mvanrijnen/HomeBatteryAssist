@@ -449,8 +449,8 @@
     "plan_mode": {
       "options": {
         "nom": "Nul op de meter (NOM)",
-        "arbitrage": "Arbitrage (kostenoptimaal)",
-        "arbitrage_full": "Arbitrage volledig (ook terugleveren) (niet getest)",
+        "arbitrage": "Arbitrage eigen gebruik (kostenoptimaal, geen batterijstroom naar het net)",
+        "arbitrage_full": "Arbitrage met teruglevering (ook batterijstroom naar het net) (niet getest)",
         "time_slots": "Tijdvakken (niet getest)",
         "manual": "Handmatig (vast vermogen) (niet getest)"
       }
