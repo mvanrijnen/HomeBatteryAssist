@@ -693,7 +693,7 @@ async def async_setup_entry(
                     source = "test"
                 elif (
                     (check is not None and check.problem)
-                    or held in ("not_following", "meter", "unknown")
+                    or held in ("not_following", "meter", "unknown", "oscillating")
                     or (link is not None and not link.available)
                 ):
                     source = "incident"

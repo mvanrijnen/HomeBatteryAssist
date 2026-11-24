@@ -53,6 +53,7 @@ from ..measure.battery_monitor import (
     twinned_ids,
 )
 from .battery_controller import BatteryController
+from .pd_controller import PdController, PdSettings
 from .reader_driver import LinkDriver, ReaderDriver
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,6 +65,18 @@ HOLD_TEST = "test"
 HOLD_NOT_FOLLOWING = "not_following"
 HOLD_METER = "meter"
 HOLD_UNKNOWN = "unknown"
+HOLD_OSCILLATING = "oscillating"
+
+# Zero on the meter on a real battery: from the previous command, a part of
+# what the meter shows per round (the battery's own reading comes seconds
+# late and must not steer). The direction only turns for a real need.
+REAL_NOM = PdSettings(kp=0.5, kd=0.0, max_step_w=1000.0, hysteresis_w=100.0)
+# Safety: the direction turning this often within the window = oscillating:
+# the batteries go back to their own control for OSCILLATION_PAUSE.
+OSCILLATION_FLIPS = 4
+OSCILLATION_WINDOW = timedelta(minutes=1)
+OSCILLATION_PAUSE = timedelta(minutes=10)
+FLIP_W = 100.0  # a command at least this big counts for its direction
 
 
 class ControlLoop(VirtualBatterySimulator):
@@ -110,6 +123,18 @@ class ControlLoop(VirtualBatterySimulator):
         self.sent: dict[str, float | None] = {}  # last power asked (None: held)
         self._failed: set[str] = set()
         self._busy = False
+        # Zero on the meter as an integrating controller on the meter alone:
+        # never "direct" from the battery's measured power (a real battery's
+        # reading lags; steering on it turned the direction every round).
+        self._direct = False
+        self._pd = PdController(
+            REAL_NOM
+            if getattr(forecast, "nom_control", "direct") != "pd"
+            else replace(forecast.pd_settings, kd=0.0)
+        )
+        self._flips: list[datetime] = []
+        self._direction = 0
+        self._paused_until: datetime | None = None
 
     # -- what differs from the simulation ---------------------------------
     @property
@@ -144,15 +169,6 @@ class ControlLoop(VirtualBatterySimulator):
         data = getattr(self._forecast, "data", None)
         return CONTROL_MODE_NOM if self._follows_nom(data) else CONTROL_MODE_PLAN
 
-    def step(self, now: datetime) -> None:
-        """One round. Direct zero on the meter works from what the battery
-        does, not from the previous command: a real battery takes a few
-        seconds, and adding the gap to a command it still ramps towards
-        would overshoot (the PD controller handles that itself)."""
-        super().step(now)
-        if self._direct:
-            self._commands = {}
-
     def _response(self, battery_id: str) -> BatteryResponse:
         """No simulated reaction: what a battery does is measured."""
         if battery_id not in self._responses:
@@ -173,6 +189,7 @@ class ControlLoop(VirtualBatterySimulator):
         powers: dict[str, float] = {}
         commands: dict[str, float] = {}
         send: dict[str, tuple[float | None, str | None]] = {}
+        self._watch_direction(now, sum(wanted.values()))
         for config in self.virtual:
             state = self._batteries.states[config.id]
             limits = replace(config, max_soc=100.0) if full[config.id] else config
@@ -181,15 +198,37 @@ class ControlLoop(VirtualBatterySimulator):
             )
             commands[config.id] = command
             powers[config.id] = state.power_w or 0.0
-            hold = self._hold_reason(config.id)
+            hold = self._hold_reason(config.id, now)
             send[config.id] = (None if hold else command, hold)
         if not self._busy:
             self._busy = True
             self.hass.async_create_task(self._async_send(now, send))
         return powers, commands
 
-    def _hold_reason(self, battery_id: str) -> str | None:
+    def _watch_direction(self, now: datetime, total_w: float) -> None:
+        """The safety net: the total command turning direction too often
+        (charge <-> discharge) pauses the control (released) for a while."""
+        direction = (total_w > FLIP_W) - (total_w < -FLIP_W)
+        if direction and self._direction and direction != self._direction:
+            self._flips.append(now)
+        if direction:
+            self._direction = direction
+        self._flips = [t for t in self._flips if now - t <= OSCILLATION_WINDOW]
+        if len(self._flips) >= OSCILLATION_FLIPS and self._paused_until is None:
+            self._paused_until = now + OSCILLATION_PAUSE
+            self._flips.clear()
+            self._pd.reset()
+            self._commands = {}
+
+    def _hold_reason(self, battery_id: str, now: datetime) -> str | None:
         """Why a battery is not commanded now (released), if so."""
+        if self._paused_until is not None:
+            if now < self._paused_until:
+                return HOLD_OSCILLATING
+            self._paused_until = None
+            self._direction = 0
+            self._pd.reset()
+            self._commands = {}
         if self._tests is not None and battery_id in getattr(self._tests, "runs", {}):
             return HOLD_TEST
         check = (

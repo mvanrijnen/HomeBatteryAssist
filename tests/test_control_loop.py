@@ -113,16 +113,16 @@ async def test_zero_on_the_meter(
     assert [c.id for c in loop.virtual] == ["b1"]
     loop._quiet_until = loop._last = T0
     try:
-        # The house asks 600 W: discharge 600 W.
+        # The house asks 600 W: discharge, half of it in the first round.
         loop.step(T0 + timedelta(seconds=5))
         await hass.async_block_till_done()
-        assert venus.registers[42010] == 2 and venus.registers[42021] == 600
-        # The battery does it: the grid is 0, the house still asks 600 W.
-        batteries.states["b1"] = BatteryState(CONTROLLED, 60.0, -600.0)
-        measurements.flow = _flow(600.0, -600.0)
+        assert venus.registers[42010] == 2 and venus.registers[42021] == 300
+        # The battery does it: the meter still shows 300 W: half of that more.
+        batteries.states["b1"] = BatteryState(CONTROLLED, 60.0, -300.0)
+        measurements.flow = _flow(600.0, -300.0)
         loop.step(T0 + timedelta(seconds=10))
         await hass.async_block_till_done()
-        assert loop.sent["b1"] == -600
+        assert loop.sent["b1"] == -450
         # A test takes the battery: the loop leaves it alone.
         tests.runs["b1"] = object()
         loop.step(T0 + timedelta(seconds=15))
@@ -159,3 +159,72 @@ async def test_not_controlled_unless_marked(
         assert venus.writes == []
     finally:
         await link.async_stop()
+
+
+class _Controller:
+    """Records the powers sent; a battery that takes them a round later."""
+
+    def __init__(self) -> None:
+        self.sent: list[float | None] = []
+        self.errors = 0
+        self.state = SimpleNamespace(active=False)
+
+    async def async_command(self, power, now=None) -> None:
+        self.sent.append(power)
+
+    async def async_release(self, reason="") -> None:
+        self.sent.append(None)
+
+    async def async_stop(self) -> None:
+        pass
+
+
+async def test_stable_with_a_lagging_battery(hass: HomeAssistant) -> None:
+    """The battery does a command a round later and reports its power a round
+    after that (as a Marstek Venus): zero on the meter settles at what the
+    house asks, without turning the direction every round."""
+    batteries = SimpleNamespace(
+        configs=[CONTROLLED],
+        states={"b1": BatteryState(CONTROLLED, 60.0, 0.0)},
+        plan_states=lambda: [],
+        price_now=lambda: None,
+    )
+    measurements = SimpleNamespace(
+        flow=_flow(600.0, 0.0),
+        max_current=25,
+        spike=SimpleNamespace(ignore_w=0.0),
+        has_pv=False,
+        pv_known=True,
+        async_add_listener=lambda listener: lambda: None,
+    )
+    loop = ControlLoop(hass, batteries, measurements, _forecast(), FakeLog())
+    controller = _Controller()
+    loop.controllers = {"b1": controller}
+    loop._quiet_until = loop._last = T0
+    doing = [0.0, 0.0]  # what the battery does now, and a round before
+    for i in range(1, 41):
+        # The meter sees what the battery does now; its own reading lags.
+        measurements.flow = _flow(600.0, doing[0])
+        batteries.states["b1"] = BatteryState(CONTROLLED, 60.0, doing[1])
+        loop.step(T0 + i * timedelta(seconds=5))
+        await hass.async_block_till_done()
+        command = controller.sent[-1] or 0.0
+        doing = [command, doing[0]]  # it reacts a round later
+    tail = [p for p in controller.sent[-10:] if p is not None]
+    assert tail and all(-700 < p < -500 for p in tail), controller.sent
+    assert not any(p > 50 for p in controller.sent[5:])  # never charging
+
+
+async def test_oscillation_pauses_control(hass: HomeAssistant) -> None:
+    """Turning charge <-> discharge too often releases the batteries."""
+    batteries = SimpleNamespace(
+        configs=[CONTROLLED],
+        states={"b1": BatteryState(CONTROLLED, 60.0, 0.0)},
+    )
+    log = FakeLog()
+    loop = ControlLoop(hass, batteries, SimpleNamespace(), _forecast(), log)
+    loop.controllers = {"b1": _Controller()}
+    for i, total in enumerate([600, -600, 600, -600, 600]):
+        loop._watch_direction(T0 + timedelta(seconds=5 * i), total)
+    assert loop._hold_reason("b1", T0 + timedelta(seconds=30)) == "oscillating"
+    assert loop._hold_reason("b1", T0 + timedelta(minutes=11)) is None

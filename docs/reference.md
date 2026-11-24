@@ -408,6 +408,9 @@ What HomeBatteryAssist creates (names as shown in Home Assistant).
 | Max export | Sensor |
 | Control quality | Sensor |
 | Direct connection | Sensor |
+| House consumption today | Sensor |
+| Expected consumption today | Sensor |
+| Expected consumption tomorrow | Sensor |
 | Recalculate | Button |
 | Test: charge | Button |
 | Test: discharge | Button |

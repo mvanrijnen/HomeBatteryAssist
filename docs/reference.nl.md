@@ -408,6 +408,9 @@ Wat HomeBatteryAssist aanmaakt (namen zoals in Home Assistant).
 | Max. teruglevering | Sensor |
 | Regelkwaliteit | Sensor |
 | Directe verbinding | Sensor |
+| Huisverbruik vandaag | Sensor |
+| Verwacht verbruik vandaag | Sensor |
+| Verwacht verbruik morgen | Sensor |
 | Herbereken | Knop |
 | Test: laden | Knop |
 | Test: ontladen | Knop |
