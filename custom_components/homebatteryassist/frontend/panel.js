@@ -271,8 +271,8 @@ const TEXT = {
       empty: "empty (minimum)",
       full: "full (maximum)",
       min_soc_guard: "charged back to the minimum",
-      plan_charge: "plan: charge (cheap)",
-      plan_discharge: "plan: deliver (expensive)",
+      plan_charge: "plan: charge",
+      plan_discharge: "plan: deliver",
       plan_idle: "plan: wait",
       test: "test by hand",
       not_following: "does not follow",
@@ -617,8 +617,8 @@ const TEXT = {
       empty: "leeg (ondergrens)",
       full: "vol (bovengrens)",
       min_soc_guard: "bijgeladen tot ondergrens",
-      plan_charge: "plan: laden (goedkoop)",
-      plan_discharge: "plan: leveren (duur)",
+      plan_charge: "plan: laden",
+      plan_discharge: "plan: leveren",
       plan_idle: "plan: wachten",
       test: "test (handmatig)",
       not_following: "volgt niet",
@@ -763,11 +763,12 @@ const STYLE = `
     .log-cards { display: block; }
     .log-card { padding: 6px 0; border-bottom: 1px solid var(--divider-color); font-size: 13px; }
     .log-card .l1 { display: flex; justify-content: space-between; gap: 8px; }
+    .log-card .l1 > :last-child { white-space: nowrap; }
     .log-card .l2 { color: var(--secondary-text-color); font-size: 12px; margin-top: 2px; }
     .log-card.off-plan .l1 { color: var(--warning-color, #ff9800); }
     .log-card.incident .l1 { color: var(--error-color, #db4437); }
     .log-nav { flex-wrap: wrap; }
-    .chart .axis { font-size: 14px; }
+    .chart .axis { font-size: 16px; }
     .legend { flex-wrap: wrap; gap: 4px 12px; font-size: 12px; }
   }
   .content { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
@@ -891,6 +892,7 @@ const STYLE = `
   .chart .area { stroke: none; fill-opacity: 0.22; }
   .legend .unit { opacity: .7; margin-right: 4px; }
   .legend .group { margin-right: 18px; }
+  .legend .group > span { margin-right: 12px; }
   .chart .line.thin { stroke-width: 0.8; stroke-dasharray: 1 3; opacity: 0.8; }
   .chart .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
   .chart .head h3 { margin: 0; }
