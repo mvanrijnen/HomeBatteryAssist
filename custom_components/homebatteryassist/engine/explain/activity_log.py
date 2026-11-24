@@ -12,7 +12,10 @@ current period, or starts a new one when something changed:
   measurement is gone);
 - ``plan``: what the selected plan said for that moment (``charge``,
   ``discharge``, ``idle``; None without a plan), and ``follows`` whether the
-  battery did that.
+  battery did that;
+- ``reasons``: why, in minutes per reason (``REASONS``; e.g. the house
+  asks for power, a short peak ignored, empty, the control held), so one
+  period can hold several reasons without splitting into many lines.
 
 Per period: start, end, energy (kWh), highest power, and the average price
 of that energy. Shown in the dashboard tab *Log* (websocket
@@ -38,6 +41,25 @@ SAVE_DELAY = 300  # s
 
 KINDS = ("charge_pv", "charge_grid", "discharge", "idle")
 SOURCES = ("hba_nom", "hba_plan", "test", "own", "incident")
+REASONS = (
+    "house_demand",  # zero on the meter: the house asks for power
+    "solar_surplus",  # charging from a solar surplus
+    "balanced",  # zero on the meter: nothing needed
+    "spike",  # a short peak the spike filter ignores (not discharged for)
+    "empty",  # at its minimum state of charge
+    "full",  # at its maximum state of charge
+    "plan_charge",  # the plan: charge (cheap hours)
+    "plan_discharge",  # the plan: discharge (expensive hours)
+    "plan_idle",  # the plan: wait
+    "test",  # a test by hand
+    "not_following",  # does not follow its command
+    "meter",  # the grid measurement is gone
+    "unknown",  # its state of charge or power is unknown
+    "oscillating",  # paused: charge and discharge turned too often
+    "connection",  # its direct connection is gone
+    "released",  # controlled, but released now (start, stop, restart)
+    "not_controlled",  # HomeBatteryAssist does not control this battery
+)
 
 
 def direction(kind: str) -> str:
@@ -55,7 +77,7 @@ class ActivityLog:
         look: Callable[[], list[dict[str, Any]]],
     ) -> None:
         """``look``: per real battery now ``{"id", "name", "power_w",
-        "pv_surplus_w", "source", "plan", "price"}``."""
+        "pv_surplus_w", "source", "plan", "price", "reason"}``."""
         self.hass = hass
         self._look = look
         self._store: Store[dict[str, Any]] = Store(
@@ -137,6 +159,12 @@ class ActivityLog:
             self.periods.append(period)
             self._open[look["id"]] = period
         period["kwh"] = round(period["kwh"] + wh / 1000, 4)
+        reason = look.get("reason")
+        if reason:
+            reasons = period.setdefault("reasons", {})
+            reasons[reason] = round(
+                reasons.get(reason, 0.0) + span.total_seconds() / 60, 1
+            )
         period["max_w"] = round(max(period["max_w"], abs(power)), 1)
         if price is not None and kind != "idle":
             period["cost"] = round(period["cost"] + wh / 1000 * price, 5)

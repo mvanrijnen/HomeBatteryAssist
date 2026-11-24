@@ -49,6 +49,19 @@ async def test_periods(hass: HomeAssistant) -> None:
     assert log.recent(1, T0 + timedelta(days=2)) == []
 
 
+async def test_reasons(hass: HomeAssistant) -> None:
+    """Reasons add up in minutes within one period, never split it."""
+    log = ActivityLog(hass, "e1", list)
+    for i in range(1, 9):
+        look = {**_look(-600, "hba_nom"), "reason": "house_demand"}
+        if i in (4, 5):
+            look["reason"] = "spike"
+        log.add(T0 + i * MINUTE, look, MINUTE)
+    log.add(T0 + 9 * MINUTE, _look(-600, "hba_nom"), MINUTE)  # no reason
+    (period,) = log.recent(7, T0 + 10 * MINUTE)
+    assert period["reasons"] == {"house_demand": 6.0, "spike": 2.0}
+
+
 async def test_websocket(hass, hass_ws_client) -> None:
     """The dashboard's call answers (also before the first forecast)."""
     from types import SimpleNamespace

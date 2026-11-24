@@ -262,7 +262,26 @@ const TEXT = {
     logTitle: "Activity log",
     logHelp: "What each real battery did, per period: who decided it (HomeBatteryAssist's control, a test, the battery's own control, or an incident) and whether it was what the plan said. Kept 30 days.",
     logEmpty: "Nothing logged yet (a line is added every minute).",
-    logCols: ["From", "To", "Battery", "Activity", "kWh", "Max W", "Price", "By", "Plan"],
+    logCols: ["From", "To", "Battery", "Activity", "kWh", "Max W", "Price", "By", "Plan", "Reason"],
+    logReasons: {
+      house_demand: "the house asks for power",
+      solar_surplus: "solar surplus",
+      balanced: "grid in balance",
+      spike: "short peak ignored",
+      empty: "empty (minimum)",
+      full: "full (maximum)",
+      plan_charge: "plan: charge (cheap)",
+      plan_discharge: "plan: deliver (expensive)",
+      plan_idle: "plan: wait",
+      test: "test by hand",
+      not_following: "does not follow",
+      meter: "grid measurement gone",
+      unknown: "state unknown",
+      oscillating: "paused (oscillating)",
+      connection: "connection gone",
+      released: "released (start/stop)",
+      not_controlled: "not controlled by HBA",
+    },
     logKinds: { charge_pv: "Charge (solar)", charge_grid: "Charge (grid)", discharge: "Discharge", idle: "Idle" },
     logSources: { hba_nom: "HBA: zero on the meter", hba_plan: "HBA: plan", test: "Test (by hand)", own: "Own control", incident: "Incident" },
     logPlan: { charge: "charge", discharge: "discharge", idle: "idle" },
@@ -588,7 +607,26 @@ const TEXT = {
     logTitle: "Activiteitenlog",
     logHelp: "Wat elke echte batterij deed, per periode: wie het besliste (de besturing van HomeBatteryAssist, een test, de eigen sturing van de batterij, of een incident) en of het was wat het plan zei. 30 dagen bewaard.",
     logEmpty: "Nog niets gelogd (elke minuut komt er een regel bij).",
-    logCols: ["Van", "Tot", "Batterij", "Activiteit", "kWh", "Max W", "Prijs", "Door", "Plan"],
+    logCols: ["Van", "Tot", "Batterij", "Activiteit", "kWh", "Max W", "Prijs", "Door", "Plan", "Reden"],
+    logReasons: {
+      house_demand: "huis vraagt stroom",
+      solar_surplus: "zonne-overschot",
+      balanced: "net in balans",
+      spike: "korte piek genegeerd",
+      empty: "leeg (ondergrens)",
+      full: "vol (bovengrens)",
+      plan_charge: "plan: laden (goedkoop)",
+      plan_discharge: "plan: leveren (duur)",
+      plan_idle: "plan: wachten",
+      test: "test (handmatig)",
+      not_following: "volgt niet",
+      meter: "netmeting weg",
+      unknown: "stand onbekend",
+      oscillating: "gepauzeerd (slingert)",
+      connection: "verbinding weg",
+      released: "losgelaten (start/stop)",
+      not_controlled: "niet door HBA aangestuurd",
+    },
     logKinds: { charge_pv: "Laden (zon)", charge_grid: "Laden (net)", discharge: "Ontladen", idle: "Rust" },
     logSources: { hba_nom: "HBA: nul op de meter", hba_plan: "HBA: plan", test: "Test (handmatig)", own: "Eigen sturing", incident: "Incident" },
     logPlan: { charge: "laden", discharge: "ontladen", idle: "rust" },
@@ -2966,8 +3004,17 @@ class HomeBatteryAssistPanel extends HTMLElement {
       p.price == null ? "" : `${p.price.toFixed(3)}${unit ? ` ${unit}` : ""}`,
       t.logSources[p.source] || p.source,
       p.plan == null ? "" : `${p.follows ? "✓" : "✗"} ${t.logPlan[p.plan] || p.plan}`,
+      this._logReasons(t, p.reasons),
       p,
     ]);
+  }
+
+  // Reasons of a period, most minutes first; with minutes when there are more.
+  _logReasons(t, reasons) {
+    const list = Object.entries(reasons || {}).sort((a, b) => b[1] - a[1]);
+    const name = (k) => t.logReasons[k] || k;
+    if (list.length <= 1) return list.length ? name(list[0][0]) : "";
+    return list.map(([k, m]) => `${name(k)} (${Math.round(m)} min)`).join(", ");
   }
 
   _activityLog(t) {
@@ -2979,9 +3026,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const head = `<tr>${t.logCols.map((c) => `<th>${esc(c)}</th>`).join("")}</tr>`;
     const body = rows
       .map((r) => {
-        const p = r[9];
+        const p = r[10];
         const cls = p.source === "incident" ? "incident" : p.follows === false ? "off-plan" : "";
-        return `<tr class="${cls}">${r.slice(0, 9).map((v, i) => `<td class="${i >= 4 && i <= 6 ? "num" : ""}">${esc(v)}</td>`).join("")}</tr>`;
+        return `<tr class="${cls}">${r.slice(0, 10).map((v, i) => `<td class="${i >= 4 && i <= 6 ? "num" : ""}">${esc(v)}</td>`).join("")}</tr>`;
       })
       .join("");
     const table = rows.length
@@ -2994,7 +3041,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
   _activityCsv() {
     const t = this._t;
     const quote = (v) => `"${String(v).replace(/"/g, '""')}"`;
-    const lines = [t.logCols, ...this._activityRows(t).map((r) => r.slice(0, 9))].map((r) => r.map(quote).join(";"));
+    const lines = [t.logCols, ...this._activityRows(t).map((r) => r.slice(0, 10))].map((r) => r.map(quote).join(";"));
     const blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);

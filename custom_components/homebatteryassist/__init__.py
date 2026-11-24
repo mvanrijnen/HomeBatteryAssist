@@ -681,6 +681,7 @@ async def async_setup_entry(
                 else "idle"
             )
             price = batteries.price_now()
+            spike = getattr(getattr(measurements, "spike", None), "ignore_w", 0.0)
             looks = []
             for config in batteries.configs:
                 if config.virtual:
@@ -715,9 +716,53 @@ async def async_setup_entry(
                         "source": source,
                         "plan": planned,
                         "price": price,
+                        "reason": _activity_reason(
+                            config, state, source, held, link, spike
+                        ),
                     }
                 )
             return looks
+
+        def _activity_reason(config, state, source, held, link, spike) -> str | None:
+            """Why the battery does what it does now (activity log)."""
+            if source == "test":
+                return "test"
+            if source == "incident":
+                if link is not None and not link.available:
+                    return "connection"
+                return held or "not_following"
+            if source == "own":
+                controlled = control is not None and config.id in control.controllers
+                return (held or "released") if controlled else "not_controlled"
+            power = state.power_w if state else None
+            soc = state.soc if state else None
+            if power is None:
+                return None
+            if (
+                soc is not None
+                and power <= ACTIVITY_IDLE_W
+                and soc <= config.min_soc + 0.5
+            ):
+                return "empty"
+            if (
+                soc is not None
+                and power >= -ACTIVITY_IDLE_W
+                and soc >= config.max_soc - 0.5
+            ):
+                return "full"
+            if spike > ACTIVITY_IDLE_W:
+                return "spike"
+            if source == "hba_plan":
+                if power > ACTIVITY_IDLE_W:
+                    return "plan_charge"
+                if power < -ACTIVITY_IDLE_W:
+                    return "plan_discharge"
+                return "plan_idle"
+            if power > ACTIVITY_IDLE_W:
+                return "solar_surplus"
+            if power < -ACTIVITY_IDLE_W:
+                return "house_demand"
+            return "balanced"
 
         activity = ActivityLog(hass, entry.entry_id, _activity_look)
         await activity.async_start()
