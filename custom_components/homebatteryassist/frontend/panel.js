@@ -267,6 +267,7 @@ const TEXT = {
     logSources: { hba_nom: "HBA: zero on the meter", hba_plan: "HBA: plan", test: "Test (by hand)", own: "Own control", incident: "Incident" },
     logPlan: { charge: "charge", discharge: "discharge", idle: "idle" },
     logDays: "days",
+    logDay: "day",
     logCsv: "CSV",
     compareShow: "Return overview ▾",
     compareHide: "Hide overview ▴",
@@ -592,6 +593,7 @@ const TEXT = {
     logSources: { hba_nom: "HBA: nul op de meter", hba_plan: "HBA: plan", test: "Test (handmatig)", own: "Eigen sturing", incident: "Incident" },
     logPlan: { charge: "laden", discharge: "ontladen", idle: "rust" },
     logDays: "dagen",
+    logDay: "dag",
     logCsv: "CSV",
     compareShow: "Rendement overzicht ▾",
     compareHide: "Overzicht verbergen ▴",
@@ -2971,7 +2973,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
   _activityLog(t) {
     const days = this._logDays || 7;
     const pick = [1, 7, 30]
-      .map((d) => `<button data-log-days="${d}" class="${d === days ? "active" : ""}">${d} ${esc(t.logDays)}</button>`)
+      .map((d) => `<button data-log-days="${d}" class="${d === days ? "active" : ""}">${d} ${esc(d === 1 ? t.logDay : t.logDays)}</button>`)
       .join("");
     const rows = this._activityRows(t);
     const head = `<tr>${t.logCols.map((c) => `<th>${esc(c)}</th>`).join("")}</tr>`;

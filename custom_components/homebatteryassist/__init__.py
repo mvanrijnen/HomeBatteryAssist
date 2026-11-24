@@ -697,7 +697,12 @@ async def async_setup_entry(
                     or (link is not None and not link.available)
                 ):
                     source = "incident"
-                elif control is not None and config.id in control.controllers:
+                elif (
+                    control is not None
+                    and config.id in control.controllers
+                    and config.id not in control.holding
+                    and control.sent.get(config.id) is not None
+                ):
                     source = f"hba_{control.mode}"
                 else:
                     source = "own"

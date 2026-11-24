@@ -47,6 +47,7 @@ TEXT = {
         "charge_pv": "zonnestroom die anders naar het net gaat (levert {price} per kWh op)",
         "grid_only_save": "de batterijen bewaren hun energie voor {when} (stroom dan {price} per kWh)",
         "grid_only_wait": "de batterijen wachten op goedkopere stroom om te laden ({when})",
+        "grid_only_wait_sun": "de batterijen zijn leeg tot ze weer laden met zon ({when})",
         "grid_only_empty": "de batterijen zijn zo leeg als ingesteld",
         "grid_only_none": "laden of ontladen loont dan niet",
         "fixed_manual": "zo ingesteld (handmatig)",
@@ -62,6 +63,7 @@ TEXT = {
         "charge_pv": "solar power that would otherwise go to the grid (earns {price} per kWh)",
         "grid_only_save": "the batteries keep their energy for {when} (power then {price} per kWh)",
         "grid_only_wait": "the batteries wait for cheaper power to charge ({when})",
+        "grid_only_wait_sun": "the batteries are empty until they charge with solar power again ({when})",
         "grid_only_empty": "the batteries are as empty as allowed",
         "grid_only_none": "charging or discharging does not pay off then",
         "fixed_manual": "set like this (manual)",
@@ -189,7 +191,12 @@ def _reason(
             (s for s in slots if s.start >= end and s.power_w > ACTIVE_W), None
         )
         if following is not None:
-            return text["grid_only_wait"].format(when=_when(following.start, lang))
+            # Zero on the meter never charges from the grid; nor does a
+            # charge that takes nothing from the grid: empty until the sun.
+            sun = mode == MODE_NOM or following.grid_w <= ACTIVE_W
+            return text["grid_only_wait_sun" if sun else "grid_only_wait"].format(
+                when=_when(following.start, lang)
+            )
         return text["grid_only_empty"]
     use = next((s for s in slots if s.start >= end and s.power_w < -ACTIVE_W), None)
     if use is not None and mode != MODE_NOM:
