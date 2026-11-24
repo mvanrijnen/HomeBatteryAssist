@@ -114,3 +114,16 @@ def test_switched_off() -> None:
     sim, batteries, logged = _sim({"A": 5.0, "B": 50.0}, guard=False)
     powers = _powers(sim, batteries)
     assert powers["A"] <= 0.0 and not sim.guarding and not logged
+
+
+def test_raised_minimum_not_charged_from_the_grid() -> None:
+    """Far below a minimum it was never at (a raised setting): no guard;
+    once seen at its minimum, sinking far below it is guarded."""
+    sim, batteries, logged = _sim({"A": 5.0, "B": 50.0})
+    _powers(sim, batteries)
+    assert not sim.guarding and not logged
+    batteries.set_virtual("A", T0, 0.0, 10.0)
+    sim.step(T0 + timedelta(seconds=10))
+    batteries.set_virtual("A", T0, 0.0, 5.0)
+    sim.step(T0 + timedelta(seconds=15))
+    assert sim.guarding == {"A"}

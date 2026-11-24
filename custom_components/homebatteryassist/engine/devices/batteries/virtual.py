@@ -115,6 +115,9 @@ SOC_SNAP = 0.001
 GUARD_BELOW = 1.0  # %
 GUARD_ABOVE = 1.0  # %
 GUARD_W = 500.0
+# Further below than this, never seen at its minimum since the start: a
+# raised minimum (a setting), not standby use: no charge from the grid for it.
+GUARD_NEAR = 3.0  # %
 
 
 def limit_power(
@@ -316,6 +319,10 @@ class VirtualBatterySimulator:
         # Batteries charged back up to their minimum (sank below it, e.g. by
         # standby use): from GUARD_BELOW under it until GUARD_ABOVE over it.
         self.guarding: set[str] = set()
+        # Batteries seen at or above their minimum since the start: only
+        # these (or ones just below it) count as sunk by standby use. A
+        # minimum raised in the settings is not charged up from the grid.
+        self._guard_seen: set[str] = set()
         self._unsub: CALLBACK_TYPE | None = None
         self.limited_phases: list[int] = []  # phases that limit right now
         self._limit_logged = False
@@ -970,7 +977,15 @@ class VirtualBatterySimulator:
                         name=config.name,
                         soc=f"{soc:.0f}%" if soc is not None else "?",
                     )
-            elif on and soc is not None and soc < config.min_soc - GUARD_BELOW:
+            elif soc is not None and soc >= config.min_soc - GUARD_BELOW:
+                self._guard_seen.add(config.id)
+            elif (
+                on
+                and soc is not None
+                and (
+                    config.id in self._guard_seen or soc >= config.min_soc - GUARD_NEAR
+                )
+            ):
                 self.guarding.add(config.id)
                 self._decisions.async_log(
                     "battery",
