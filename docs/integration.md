@@ -4,7 +4,7 @@ description: "HomeBatteryAssist next to Omnibattery, Marstek and price or solar 
 
 # Working with other integrations
 
-HomeBatteryAssist is built to control batteries itself. In this phase of development it controls nothing yet, for safety and so it can run next to any battery or energy integration (e.g. Omnibattery) without interfering.
+HomeBatteryAssist can control batteries itself, but by default it does not: the setting *Control on* and *Controlled by HomeBatteryAssist* per battery switch it on (alpha, see [Safety layers](architecture.md#safety-layers)). While it is off, it runs next to any battery or energy integration (e.g. Omnibattery) without interfering.
 
 ## Sensors
 
@@ -14,9 +14,9 @@ The sensors have a fixed meaning and can be used by other integrations and add-o
 
 **Plan explanation.** The sensor *Plan explanation* says in its state what the batteries do now, until when, the price now and the price thresholds (short: a state holds at most 255 characters); its attributes hold the full *Now* line with the reason, *Power* (batteries the plans give less power because they are warm), the next change, the plan in one line, the sun, the cheapest published price and the thresholds as numbers (*Using pays above*, *Charging pays below*; arbitrage only) — handy for a Markdown card. See [Planning](planning.md#explanation).
 
-**Does not follow its command.** Each real battery has a problem sensor that is on while the battery does not follow the command of the integration that controls it, without an explanation (see [Measuring](measuring.md#does-the-battery-follow-its-command)); attributes: the command, the battery's power, the reason when explained, and since when.
+**Does not follow its command.** Each real battery has a problem sensor that is on while the battery does not follow its command (from HomeBatteryAssist's control or from the integration that controls it), without an explanation (see [Measuring](measuring.md#does-the-battery-follow-its-command)); attributes: the command, the battery's power, the reason when explained, and since when.
 
-**Test control.** Each real battery's device also has the [test control](architecture.md#control-layer-built-not-active) (buttons *Test: charge / discharge / stop*, *Test power*, *Test duration*, status *Test control*; see [Measuring](measuring.md#test-control-switched-off-for-now)). It is off unless the setting *Test control on* is on: until then the buttons send nothing. A battery with a [direct connection](drivers.md#direct-battery-drivers) also has the diagnostic sensor *Direct connection* (connecting / connected / error, with what it reads).
+**Test control.** Each real battery's device also has the [test control](architecture.md#safety-layers) (buttons *Test: charge / discharge / charge full / stop*, *Test power*, *Test duration*, status *Test control*; see [Measuring](measuring.md#test-control-switched-off-for-now)). It is off unless the setting *Test control on* is on: until then the buttons send nothing. The test goes over the battery's direct connection when it has one, else through its integration. A battery with a [direct connection](drivers.md#direct-battery-drivers) also has the diagnostic sensor *Direct connection* (connecting / connected / error / stopped, with what it reads).
 
 ## Actions
 
@@ -42,6 +42,7 @@ Under **Settings → Repairs** HomeBatteryAssist reports: sensors it uses that H
 ## Why did it do that? Logging
 
 - **Last decision** sensor: a short explanation in your language of the latest decision or notable change; the `recent` attribute holds the last 10. The dashboard shows them too.
+- **Control decisions** (with *Control on*): when control of a battery starts, is held, resumes, fails, stops or is not possible, *Why* says so; the dashboard tab *Log* shows per period what each real battery did, who decided it and why.
 - **Diagnostics**: Settings → Devices & services → HomeBatteryAssist → ⋮ → *Download diagnostics* gives the configuration and the state of each module, useful when reporting an issue.
 - **Technical logging** per module, e.g. in `configuration.yaml`:
 

@@ -4,7 +4,7 @@ description: "HomeBatteryAssist naast Omnibattery, Marstek en integraties voor p
 
 # Samenwerken met andere integraties {#working-with-other-integrations}
 
-HomeBatteryAssist is gebouwd om batterijen zelf aan te sturen. In deze fase van de ontwikkeling stuurt het nog niets aan, uit veiligheid en zodat het kan naast elke batterij- of energie-integratie draaien (bijvoorbeeld Omnibattery) zonder die in de weg te zitten.
+HomeBatteryAssist kan batterijen zelf aansturen, maar doet dat standaard niet: de instelling *Besturing aan* en *Aangestuurd door HomeBatteryAssist* per batterij zetten het aan (alfa, zie [Beveiligingslagen](architecture.md#safety-layers)). Zolang het uit staat, draait het naast elke batterij- of energie-integratie (bijvoorbeeld Omnibattery) zonder die in de weg te zitten.
 
 ## Sensoren {#sensors}
 
@@ -14,9 +14,9 @@ De sensoren hebben een vaste betekenis en kunnen door andere integraties en add-
 
 **Uitleg plan.** De sensor *Uitleg plan* zegt in zijn state wat de batterijen nu doen, tot wanneer, de prijs nu en de drempelprijzen (kort: een state bevat hooguit 255 tekens); zijn attributen bevatten de volledige *Nu*-regel met de reden, *Vermogen* (batterijen die de plannen minder vermogen geven omdat ze warm zijn), de volgende verandering, het plan in één regel, de zon, de goedkoopste gepubliceerde prijs en de drempels als getallen (*Gebruiken loont boven*, *Laden loont onder*; alleen bij arbitrage) — handig voor een Markdown-kaart. Zie [Planning](planning.md#explanation).
 
-**Volgt opdracht niet.** Elke echte batterij heeft een probleem-sensor die aan staat zolang de batterij de opdracht van de integratie die haar aanstuurt niet volgt, zonder verklaring (zie [Meten](measuring.md#does-the-battery-follow-its-command)); attributen: de opdracht, het vermogen van de batterij, de reden als het verklaarbaar is, en sinds wanneer.
+**Volgt opdracht niet.** Elke echte batterij heeft een probleem-sensor die aan staat zolang de batterij haar opdracht (van de besturing van HomeBatteryAssist of van de integratie die haar aanstuurt) niet volgt, zonder verklaring (zie [Meten](measuring.md#does-the-battery-follow-its-command)); attributen: de opdracht, het vermogen van de batterij, de reden als het verklaarbaar is, en sinds wanneer.
 
-**Testbesturing.** Het apparaat van elke echte batterij heeft ook de [testbesturing](architecture.md#control-layer-built-not-active) (knoppen *Test: laden / ontladen / stoppen*, *Testvermogen*, *Testduur*, status *Testbesturing*; zie [Meten](measuring.md#test-control-switched-off-for-now)). Die staat uit tenzij de instelling *Testbesturing aan* aan staat: tot dan versturen de knoppen niets. Een batterij met een [directe verbinding](drivers.md#direct-battery-drivers) heeft ook de diagnostische sensor *Directe verbinding* (verbinden / verbonden / fout, met wat ze leest).
+**Testbesturing.** Het apparaat van elke echte batterij heeft ook de [testbesturing](architecture.md#safety-layers) (knoppen *Test: laden / ontladen / vol laden / stoppen*, *Testvermogen*, *Testduur*, status *Testbesturing*; zie [Meten](measuring.md#test-control-switched-off-for-now)). Die staat uit tenzij de instelling *Testbesturing aan* aan staat: tot dan versturen de knoppen niets. De test gaat over de directe verbinding van de batterij als ze die heeft, anders via haar integratie. Een batterij met een [directe verbinding](drivers.md#direct-battery-drivers) heeft ook de diagnostische sensor *Directe verbinding* (verbinden / verbonden / fout / gestopt, met wat ze leest).
 
 ## Acties {#actions}
 
@@ -42,6 +42,7 @@ Onder **Instellingen → Reparaties** meldt HomeBatteryAssist: sensoren die het 
 ## Waarom deed het dat? Logging {#why-did-it-do-that-logging}
 
 - Sensor **Laatste beslissing**: een korte uitleg in jouw taal van de laatste beslissing of opvallende verandering; het attribuut `recent` bevat de laatste 10. Het dashboard toont ze ook.
+- **Besturingsbeslissingen** (met *Besturing aan*): als de besturing van een batterij begint, wordt vastgehouden, hervat, mislukt, stopt of niet mogelijk is, zegt *Waarom* dat; het dashboardtabblad *Log* laat per periode zien wat elke echte batterij deed, wie het besliste en waarom.
 - **Diagnostiek**: Instellingen → Apparaten & diensten → HomeBatteryAssist → ⋮ → *Diagnostische gegevens downloaden* geeft de configuratie en de toestand van elke module, handig als je een probleem meldt.
 - **Technische logging** per module, bijvoorbeeld in `configuration.yaml`:
 

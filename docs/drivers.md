@@ -10,11 +10,11 @@ Drivers are part of the integration: a new driver is added to the code and share
 
 ## Rules
 
-- For now a driver **only reads**: Home Assistant states and registries, a read-only local API, or data a device broadcasts anyway. It never changes a setting and never opens a connection that could compete with the device's own integration (e.g. a Marstek Venus allows only one Modbus TCP client).
-- Battery drivers already *describe* how a battery is controlled (write methods); in this phase of development HomeBatteryAssist does not call them yet.
+- Reading goes through Home Assistant states and registries, a read-only local API, or data a device broadcasts anyway. A driver never changes a device setting by itself.
+- A battery driver also describes how the battery is controlled (write methods). HomeBatteryAssist only calls them through a battery's controller (control loop or test control, both off by default). A direct driver connects only when a battery chooses it; many batteries allow only one connection (a Marstek Venus allows one Modbus TCP client).
 - Mark a driver **verified** only after testing it on a real installation. Until then every list where it can be chosen shows it as **(not tested)** — built-in modules, drivers, recognised devices and your own modules alike (a test checks the labels against the flags).
 
-## Batteries — `engine/devices/batteries/`
+## Batteries — `engine/devices/batteries/` {#batteries--enginedevicesbatteries}
 
 A battery driver has two parts (`base.py`):
 
@@ -35,7 +35,7 @@ One battery type can be read through several integrations; the model and the rea
 
 ### Direct battery drivers
 
-Next to the readers (which go through another integration), every brand can have a **direct driver**: HomeBatteryAssist's own connection to the battery, to read it and to control it itself instead of e.g. Omnibattery. A driver is off (`enabled = False`) until a battery chooses it: setting *Direct connection* in the battery's form (driver, the battery's address, port, unit id). Only then does it connect (`direct/link.py`: a reading every 5 s, waiting longer after each failure instead of reconnecting at once). The battery's state of charge and power then come from the battery itself (its sensors are only the fallback, and are not needed), the diagnostic sensor *Direct connection* shows the connection and what it reads (the command in the registers included), and the [test control](measuring.md#test-control-switched-off-for-now) goes through the same connection. **Many batteries allow only one connection: switch off the integration that reads the battery now (e.g. Omnibattery) first.** All direct drivers are *(not tested)*.
+Next to the readers (which go through another integration), every brand can have a **direct driver**: HomeBatteryAssist's own connection to the battery, to read it and to control it itself instead of e.g. Omnibattery. A driver is off (`enabled = False`) until a battery chooses it: setting *Direct connection* in the battery's form (driver, the battery's address, port, unit id). Only then does it connect (`direct/link.py`: a reading every 5 s, waiting longer after each failure instead of reconnecting at once). The battery's state of charge and power then come from the battery itself (its sensors are only the fallback, and are not needed), the diagnostic sensor *Direct connection* shows the connection and what it reads (the command in the registers included), and the [test control](measuring.md#test-control-switched-off-for-now) goes through the same connection. **Many batteries allow only one connection: switch off the integration that reads the battery now (e.g. Omnibattery) first.** The Marstek Venus driver has been tested on a device; the other direct drivers are *(not tested)*.
 
 Generic bases in `direct/` (a brand only adds its specifics): `modbus_driver.py` (a register map as data, read in blocks that never cross undefined registers; own small Modbus TCP client in `engine/devices/transports/modbus_tcp.py`), `http_driver.py` (local JSON API) and `mqtt_driver.py` (through Home Assistant's MQTT integration).
 
@@ -47,12 +47,11 @@ Generic bases in `direct/` (a brand only adds its specifics): `modbus_driver.py`
 | Zendure | `zendure/solarflow_direct_http.py` | SolarFlow 800, 800 Plus, 800 Pro, 1600 AC+, 2400 AC+, 2400 Pro | local HTTP |
 | Sessy | `sessy/sessy_direct_http.py` | Sessy home battery | local HTTP |
 | Indevolt | `indevolt/flex_direct_http.py` | SolidFlex/PowerFlex 1200, 2000, 3000, SolidFlex 3600, BK1600 | local HTTP |
-| Victron | `victron/gx_direct_modbus.py` | ESS (MultiPlus-II / Quattro) through the GX, unit 100 | Modbus TCP |
 | Hoymiles | `hoymiles/smiles_direct_mqtt.py` | MS-A2, HiBattery 1920 AC, 4020 X, 4020 AC | MQTT |
 
-None is verified on a device yet. The device facts (registers, endpoints, scales, signs, control sequences) were taken from Omnibattery's drivers (GPL-3.0) and, where available, the vendors' own documentation — facts only; the code is HomeBatteryAssist's own. Each driver also states how it must be controlled (`refresh_s`, `min_interval_s`, `deadband_w`, `idle_is_release`, limits), which the control layer enforces — see [Architecture](architecture.md#control-layer-built-not-active).
+The device facts (registers, endpoints, scales, signs, control sequences) were taken from Omnibattery's drivers (GPL-3.0) and, where available, the vendors' own documentation — facts only; the code is HomeBatteryAssist's own. Each driver also states how it must be controlled (`refresh_s`, `min_interval_s`, `deadband_w`, `idle_is_release`, limits), which the control layer enforces on every command of the control loop and the test control — see [Architecture](architecture.md#control-layer-built-not-active).
 
-## Meters — `engine/devices/meters/`
+## Meters — `engine/devices/meters/` {#meters--enginedevicesmeters}
 
 One file per brand, sharing `direct_reading.py` (reading about once a second; a value older than 10 s counts as unknown; HomeWizard API v2, pushed per telegram: 25 s):
 
@@ -64,7 +63,7 @@ One file per brand, sharing `direct_reading.py` (reading about once a second; a 
 | `shelly.py` | Shelly Pro 3EM / 3EM / EM / Pro EM, local API | from the API documentation |
 | `iammeter.py` | Iammeter WEM3080 / WEM3080T, local API | from the API documentation |
 
-Besides the power per phase every meter driver also reads the **current, voltage and power factor per phase** when the meter gives them (SMA Home Manager: current, voltage and power factor, verified; HomeWizard P1: current and voltage; Shelly 3EM: current, voltage and power factor; IAMMETER: current and voltage), for the phase protection: the main fuse sees current, not power. `discovery.py` finds these meters in Home Assistant and creates the right reader; `__init__.py` lists them (`DRIVERS`). Meters can also be read through the sensors of their own integration (`via_ha_integration.py`, HomeWizard P1 recognised; Victron GX recognised, not tested). `template.py` is an example of a new meter. The same drivers serve every role: the grid connection, a PV source (a kWh meter on the inverter's line) and a battery (a kWh meter on the battery's line, see below). The role is a setting; the folder follows brand and type.
+Besides the power per phase every meter driver also reads the **current, voltage and power factor per phase** when the meter gives them (SMA Home Manager: current, voltage and power factor, verified; HomeWizard P1: current and voltage; Shelly 3EM: current, voltage and power factor; IAMMETER: current and voltage), for the phase protection: the main fuse sees current, not power. `discovery.py` finds these meters in Home Assistant and creates the right reader; `__init__.py` lists them (`DRIVERS`). Meters can also be read through the sensors of their own integration (`via_ha_integration.py`, HomeWizard P1 recognised). `template.py` is an example of a new meter. The same drivers serve every role: the grid connection, a PV source (a kWh meter on the inverter's line) and a battery (a kWh meter on the battery's line, see below). The role is a setting; the folder follows brand and type.
 
 ## PV inverters — `engine/devices/inverters/`
 
@@ -74,7 +73,6 @@ How an inverter's power could be limited for the [export limit](planning.md#expo
 - `sma_modbus.py` — older SMA types (Sunny Boy TL-21, Sunny Tripower TL-10/-20/-30) **without** a Home Manager: register **40023** = limit in % × 100 of WMax (unit 3). The fallback is set in the inverter's web interface (*Use fallback setting*); otherwise it keeps the last limit.
 - `sma_storage_x.py` — SMA Sunny Tripower Storage X / Sunny Island X without a Home Manager: 40210 = 1077 (manual in W), 40212 = limit in W, fallback 41193 = 2507 with timeout 41195 (unit 3).
 - `sunspec_modbus.py` — **any inverter with SunSpec Modbus** (SMA, Fronius, SolarEdge, Kostal, Huawei, ABB / FIMER, ...): the vendor-neutral register map. It starts at 40000 (`SunS`), followed by a chain of models whose addresses differ per device, so the driver walks the chain. The limit goes through model **123** (*Immediate Controls*): `WMaxLimPct` (offset 3, % of `WMax` from model 121, scaled by `WMaxLimPct_SF`), `WMaxLimPct_RvrtTms` (offset 5: after 60 s without a new write the inverter returns to full power by itself) and `WMaxLim_Ena` (offset 7, 1 = on). Address `host[:port][/unit]`; the unit id differs per brand (SMA 126, Fronius and SolarEdge 1). Newer devices with model 704 (SunSpec 2018 / IEEE 1547) are not covered yet. From the SunSpec specification. With a Sunny Home Manager the SHM driver applies, not this one.
-- `victron_gx_feed_in.py` — a **Victron ESS**: the GX limits the feed-in of the whole system itself (register 2706 on unit 100, in units of 100 W, -1 = no limit; in Home Assistant the number *max feed-in power* of the Victron GX integration), so this limits the **export**. Not tested.
 
 All from the manufacturers' documentation and users' reports, *not verified on a device*.
 
@@ -97,5 +95,5 @@ All from the manufacturers' documentation and users' reports, *not verified on a
 
 ## Supported now
 
-- **Batteries**: Marstek Venus E v3 (model); read through Omnibattery or Marstek Modbus (verified). A **Victron ESS** (MultiPlus-II / Quattro with a GX) is recognised through Home Assistant's *Victron GX* integration (`integrations/victron_gx_integration.py`: state of charge and battery power of the system, + charging, on the DC side; ESS limits and minimum SoC as starting values; enter the capacity yourself) — not tested. Any other battery can be linked manually through its entities.
+- **Batteries**: Marstek Venus E v3 (model); read through Omnibattery or Marstek Modbus (verified). Any other battery can be linked manually through its entities.
 - **Meters**: see the table above.

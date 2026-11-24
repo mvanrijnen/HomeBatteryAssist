@@ -11,6 +11,10 @@ Home Assistant's test harness does not run on native Windows; use WSL there.
 
 CI (`.github/workflows/validate.yml`) runs hassfest, HACS validation, ruff and pytest.
 
+## Documentation site
+
+`docs/` is also a bilingual MkDocs Material site (`mkdocs.yml`). Build it locally with `pip install -r requirements_docs.txt && mkdocs serve`. Every page exists in English (`page.md`, also read on GitHub) and Dutch (`page.nl.md`); change both together, and give Dutch headings the English anchor (`## Uitleg {#explanation}`). `docs/reference*.md` is generated from the translations: run `python scripts/docs_reference.py` after changing a text (CI fails when it is stale).
+
 ## Where things are
 
 All backend logic is in `engine/`, in layers: see [Architecture](architecture.md) for the layers and the folder map; `CLAUDE.md` has a detailed map of the code.

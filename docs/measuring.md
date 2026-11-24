@@ -24,7 +24,7 @@ New meters are added as [drivers](drivers.md).
 
 ## Batteries
 
-Batteries are linked **read-only** through the entities of their own integration. Batteries of **Omnibattery** and **Marstek Modbus** are recognised and filled in, and their *battery driver* adds temperature, voltages, cell voltages, cycles, energy of today and measured efficiency; any other battery can be linked manually.
+Batteries are linked through the entities of their own integration, or optionally over a [direct connection](drivers.md#direct-battery-drivers) (then state of charge and power come from the battery itself). HomeBatteryAssist only reads them unless you switch on control (*Control on* and *Controlled by HomeBatteryAssist* in the battery's form; off by default). Batteries of **Omnibattery** and **Marstek Modbus** are recognised and filled in, and their *battery driver* adds temperature, voltages, cell voltages, cycles, energy of today and measured efficiency; any other battery can be linked manually.
 
 Optionally a battery gets an **external meter** on its line (e.g. a HomeWizard kWh meter, read directly): its power is then used instead of the power sensor — see [Drivers](drivers.md).
 
@@ -41,7 +41,7 @@ The battery card also shows the **cell difference** now (highest − lowest cell
 
 ### Does the battery follow its command?
 
-Whoever controls a battery tells it to charge or discharge at a power — in this phase its own integration (e.g. Omnibattery), later HomeBatteryAssist. The battery driver reads that **command** (for Omnibattery and Marstek Modbus: RS485 control mode, force mode and the charge/discharge power) and HomeBatteryAssist checks every 15 seconds whether the battery follows it: at least half of the commanded power (or of its maximum power, when lower), in that direction.
+Whoever controls a battery tells it to charge or discharge at a power — its own integration (e.g. Omnibattery), or HomeBatteryAssist itself when it controls the battery. The battery driver reads that **command** (for Omnibattery and Marstek Modbus: RS485 control mode, force mode and the charge/discharge power) and HomeBatteryAssist checks every 15 seconds whether the battery follows it: at least half of the commanded power (or of its maximum power, when lower), in that direction.
 
 - Not following for **2 minutes** (setting *Tell after*, section *Battery follows its command*; commands from **100 W**, setting *Check commands from*) is told in *Why*, so starting up and ramping are no message.
 - **Explained** — the battery is full or almost full (charging: from 5 % below its maximum its BMS lowers the charge power itself), cold (charging below 5 °C, with a temperature sensor), at its minimum (discharging), charging/discharging is switched off on the battery, or its hysteresis holds charging back after a full charge — *Why* says so with the reason. That is no problem: no alarm, no notification.
@@ -51,9 +51,9 @@ The battery card shows the command it has now (*Command*: charge / discharge at 
 
 What a battery does by its own control (charging, supplying, stopping) is explained as periods in *Why*, compared with the plan — see [Planning](planning.md#explanation).
 
-### Test control (switched off for now)
+### Test control (off by default) {#test-control-switched-off-for-now}
 
-To test controlling a battery by hand — before HomeBatteryAssist ever controls it automatically — each real battery's device has a **test control**. **It is off by default**: the buttons send nothing; *Why* only says that the test control is switched off. Switch it on with the setting *Test control on* (section *Test control*), only while you are there.
+To test controlling a battery by hand — e.g. before switching on *Control on* — each real battery's device has a **test control**. **It is off by default**: the buttons send nothing; *Why* only says that the test control is switched off. Switch it on with the setting *Test control on* (section *Control*), only while you are there.
 
 | Entity | What it is |
 |---|---|
@@ -67,7 +67,7 @@ To test controlling a battery by hand — before HomeBatteryAssist ever controls
 Once switched on, a test:
 
 1. **checks first**: the state of charge must be known, a charge test does not start when the battery is full, a discharge test not at or below its lowest allowed state of charge (max(min SoC, reserve SoC));
-2. **sends the command over the battery's [direct connection](drivers.md#direct-battery-drivers)** when it has one — for a Marstek Venus: RS485 control on, the charge or discharge power and the force mode in its registers — **or else through the battery's own integration** — for Omnibattery: the battery's manual mode with the charge or discharge power — through the safety layer that every future control uses (a watchdog, always handing back, at most one new command every 5 s, power limits);
+2. **sends the command over the battery's [direct connection](drivers.md#direct-battery-drivers)** when it has one — for a Marstek Venus: RS485 control on, the charge or discharge power and the force mode in its registers — **or else through the battery's own integration** — for Omnibattery: the battery's manual mode with the charge or discharge power — through the safety layer the control (*Control on*) uses too (a watchdog, always handing back, at most one new command every 5 s, power limits);
 3. **stops by itself** when the time is up, when the battery becomes full or reaches its lowest allowed state of charge, when it [does not follow the command](#does-the-battery-follow-its-command), when a command fails, by *Test: stop* and when HomeBatteryAssist stops or reloads;
 4. **always hands the battery back** to its own control (direct: power 0, force mode off, RS485 control off; through Omnibattery: Omnibattery takes over again), and tells in *Why* why it stopped and how much was charged and discharged.
 
@@ -85,7 +85,7 @@ To compare HomeBatteryAssist with the integration that controls your battery now
 
 - it takes the real battery's properties (capacity, power, state-of-charge limits, round-trip efficiency as its loss, phase, full charges); its own fields are then not used;
 - it **starts at the real battery's state of charge** (also when an existing virtual battery is made a twin); the button **Sync with the real battery** sets it to the real state of charge again at any moment (*Why* says so). It is not synced by itself, so both run on their own from the same start;
-- it is **planned in the real battery's place**: the real battery is left out of the plan (and of *plan followed*), and keeps its own control;
+- it is **planned in the real battery's place**: the real battery is left out of the plan (and of *plan followed*), and keeps its own control (HomeBatteryAssist does not control a battery that has a twin, even with *Control on*);
 - it acts on the grid **as it would be without the real battery**: the real battery's power is taken off the grid and its phase, so where the real battery already stores the solar surplus, the twin sees that surplus too. Its value is counted the same way, the real battery's on the grid as measured.
 
 The sensor **Difference with the real battery today** on the twin = its value today − the real battery's (positive: HomeBatteryAssist's plan did better), with attributes for both values, both states of charge and how much more the twin stored since midnight (energy still inside is worth something tomorrow, so look at both). The overview then shows only the twin (its card with the real battery's state of charge and power and the difference today; the phases with *with the twin instead*): HomeBatteryAssist is linked with the twin only. A real battery can have one twin. Other virtual batteries go on as extra what-if batteries on top.

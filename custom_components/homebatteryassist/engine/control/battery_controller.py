@@ -17,7 +17,8 @@ for both:
 - **Throttle**: at most one new command every ``MIN_INTERVAL_S`` (for every
   battery; a driver may ask for longer with ``driver.min_interval_s``) and
   only when it differs by ``driver.deadband_w`` (slowly ramping batteries,
-  write wear); going idle or changing direction is never held back.
+  write wear); going idle is never held back, a change of direction is
+  throttled like any other change (no flapping around 0 W).
 - **Idle = release** for batteries where 0 W is not idle
   (``driver.idle_is_release``, e.g. a Huawei inverter that still limits PV).
 - **Limits** of the driver and of the caller are always enforced.

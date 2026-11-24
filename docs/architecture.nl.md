@@ -4,7 +4,7 @@ HomeBatteryAssist is in lagen opgebouwd. Gegevens stromen één kant op, van de 
 
 | # | Laag | Wat ze doet | Map |
 |---|---|---|---|
-| 1 | **Apparaten** | Praat met de fysieke apparaten — voorlopig alleen lezen | `engine/devices/` |
+| 1 | **Apparaten** | Leest de fysieke apparaten, en stuurt batterijen aan als je de besturing aanzet | `engine/devices/` |
 | 2 | **Externe bronnen** | Prijzen, PV-voorspellingen, tarieven | `engine/sources/` |
 | 3 | **Meten** | Het huis *nu*: verbruik, net per fase, batterijtoestanden en tellers | `engine/measure/` |
 | 4 | **Historie** | Het verleden: verbruik per interval, import van oudere gegevens | `engine/history/` |
@@ -18,7 +18,7 @@ HomeBatteryAssist is in lagen opgebouwd. Gegevens stromen één kant op, van de 
 
 ## In één oogopslag {#at-a-glance}
 
-Hoe de lagen samenhangen: gegevens komen bovenaan binnen en stromen naar beneden. Gestippelde pijlen: berichten voor *Waarom*, en de besturing die gebouwd is maar nog niet actief (gestreept vak).
+Hoe de lagen samenhangen: gegevens komen bovenaan binnen en stromen naar beneden. Gestippelde pijlen: berichten voor *Waarom*, en de besturing (alleen met *Besturing aan*, gestreept vak).
 
 ```mermaid
 flowchart TB
@@ -32,7 +32,7 @@ flowchart TB
     PLA["6 · Planning<br/>planners, eindcontrole,<br/>volladingen"]
     EVA["7 · Evaluatie<br/>nauwkeurigheid, plancontrole,<br/>live controles"]
     EXP["8 · Uitleg<br/>Waarom, meldingen"]
-    CTL["Besturing<br/>gebouwd, niet actief"]
+    CTL["Besturing<br/>alleen met Besturing aan"]
   end
   OUT["Home Assistant: HomeBatteryAssist<br/>sensoren, dashboard, acties, meldingen"]
   INT --> DEV
@@ -84,7 +84,7 @@ flowchart LR
   L2 --> L5["Live controles<br/>meer / minder zon dan voorspeld,<br/>batterij volgt opdracht"]
   L4 -.-> L6["Waarom, meldingen,<br/>probleem-sensoren"]
   L5 -.-> L6
-  L2 -.-> L7["Regellus<br/>gebouwd, niet actief"]
+  L2 -.-> L7["Regellus<br/>alleen met Besturing aan"]
   L7 -.-> L8["Batterij<br/>via haar integratie of een directe driver"]
   classDef off stroke-dasharray: 6 4
   class L7,L8 off
@@ -107,46 +107,57 @@ custom_components/homebatteryassist/
 ├── strings.json, translations/
 └── engine/
     ├── coordinator.py     one cycle through the layers
-    ├── control/           battery_controller.py — built, not active;
-    │                      control_loop.py — written out as comment;
+    ├── db_store.py        storage of the big stores (JSON file or a database)
+    ├── control/           control_loop.py (the control loop, only with Control on),
+    │                      battery_controller.py (safety layer 4), control_test.py,
+    │                      reader_driver.py (LinkDriver / ReaderDriver), pd_controller.py,
+    │                      export_limiter.py (prepared, sends nothing),
     │                      interceptors/ (base.py, template.py, pass_through.py)
     ├── units.py           unit conversion
     ├── own_modules.py     loading own modules from /config
     ├── devices/           1  drivers
     │   ├── batteries/     base.py, template.py, virtual.py (simulation), recognition.py,
+    │   │                  control_quality.py, response.py,
     │   │                  integrations/ (entity_reader.py, omnibattery_integration.py,
     │   │                  marstek_modbus_integration.py),
     │   │                  direct/ (base.py, modbus_driver.py, http_driver.py, mqtt_driver.py
     │   │                  — chosen per battery, direct/link.py),
     │   │                  one folder per brand: models (brand → range → type) + direct driver:
     │   │                  marstek/, anker/, huawei/, zendure/, sessy/, indevolt/, hoymiles/
+    │   ├── inverters/     prepared, not used: base.py, template.py, sunspec_modbus.py,
+    │   │                  sma_home_manager.py, sma_modbus.py, sma_storage_x.py
     │   ├── transports/    modbus_tcp.py (own small Modbus TCP client)
-    │   └── meters/        base.py, template.py, homewizard.py, sma.py, shelly.py,
-    │                      iammeter.py, direct_reading.py, discovery.py,
+    │   └── meters/        base.py, template.py, homewizard.py, homewizard_v2.py, sma.py,
+    │                      shelly.py, iammeter.py, direct_reading.py, discovery.py,
     │                      via_ha_integration.py
     ├── sources/           2  modules
     │   ├── prices/        base.py, template.py, price_points.py, dyntarnl.py,
     │   │                  ha_price_actions.py, sensor_attributes.py, regional.py,
-    │   │                  price_forecasts.py, in_development/ (tibber.py)
+    │   │                  block_tariff.py, price_forecasts.py, in_development/ (tibber.py)
     │   ├── pv_forecasts/  base.py, template.py, solar_forecast_integrations.py,
     │   │                  energy_dashboard_platform.py
-    │   ├── tariffs/       base.py, template.py, as_price_source.py
+    │   ├── tariffs/       base.py, template.py, as_price_source.py, market_plus_costs.py
     │   └── weather/       base.py, template.py, ha_weather_entity.py, knmi_integration.py,
     │                      weerlive_api.py, open_meteo.py (optional)
     ├── measure/           3  house_measurement.py, battery_monitor.py, heating_zones.py,
+    │                         recorder_check.py,
     │                         spike_filters/ (base.py, template.py, short_peaks.py)
     ├── history/           4  consumption_history.py, history_import.py, chart_series.py,
     │                         temperature_import.py, spikes.py
-    ├── forecast/          5  planning_window.py, consumption_forecast.py,
+    ├── forecast/          5  planning_window.py, consumption_forecast.py, intraday.py,
     │                         user_adjustments.py, phase_shares.py, temperature_effect.py,
     │                         forecasters/ (base.py, template.py, weekday_hour_profile.py,
     │                                       same_time_last_weeks.py)
     ├── planning/          6  battery_plan.py (final check), full_charge.py, phase_limit.py,
-    │                         battery_distribution.py, time_slots.py,
+    │                         battery_distribution.py, time_slots.py, export_limit.py,
+    │                         ev_advice.py,
     │                         planners/ (base.py, template.py, zero_on_meter.py, arbitrage.py)
     ├── evaluation/        7  forecast_accuracy.py, plan_check.py, unexpected_surplus.py,
+    │                         command_check.py, battery_temperature.py, price_surprise.py,
     │                         pv_corrections/ (base.py, template.py, hour_and_level.py, lead_time.py)
-    └── explain/           8  messages.py, plan_story.py, decision_log.py, notifications.py
+    └── explain/           8  messages.py, plan_story.py, plan_phases.py, plan_summary.py,
+                              decision_log.py, activity_log.py, notifications.py, money.py,
+                              input_report.py
 ```
 
 ## Batterijen: model en lezer {#batteries-model-and-reader}
@@ -158,11 +169,11 @@ Een batterijdriver bestaat uit twee delen:
 
 Eén batterijtype kan dus via meerdere integraties gelezen worden. De **virtuele batterij** (`virtual.py`) is een gesimuleerd apparaat dat het plan volgt.
 
-## Regellaag (gebouwd, niet actief) {#control-layer-built-not-active}
+## Regellaag {#control-layer-built-not-active}
 
-In deze fase van de ontwikkeling stuurt HomeBatteryAssist nog geen batterijen aan. De regellaag (`engine/control/battery_controller.py`) is vooraf gebouwd, zodat de beveiliging op orde is voordat er iets aangestuurd wordt:
+HomeBatteryAssist stuurt batterijen alleen aan als je dat aanzet (instelling *Besturing aan*, en per batterij *Aangestuurd door HomeBatteryAssist*; beide standaard uit). Elke opdracht gaat door een controller per batterij (`engine/control/battery_controller.py`), zo gebouwd dat de beveiliging op orde is voordat er iets verstuurd wordt:
 
-- een **hoofdschakelaar**, standaard uit — zolang die uit staat wordt er niets verstuurd, en niets in HomeBatteryAssist zet hem aan;
+- een **hoofdschakelaar**, standaard uit: zolang die uit staat wordt er niets verstuurd; alleen de regellus en de testbesturing zetten hem aan, en alleen als jij die hebt aangezet;
 - **altijd vrijgeven**: de regie gaat terug naar de eigen logica van de batterij bij stoppen, herladen, herstarten en elke fout;
 - een **watchdog**: komt er 2 minuten geen nieuw commando, dan wordt de regie vrijgegeven;
 - **verversen** van het laatste commando voor batterijen die anders uit externe aansturing vallen;
@@ -170,13 +181,15 @@ In deze fase van de ontwikkeling stuurt HomeBatteryAssist nog geen batterijen aa
 - **rust = vrijgeven** voor batterijen waarbij 0 W geen rust is (bijv. een Huawei-omvormer blijft dan PV begrenzen);
 - de **grenzen** van het apparaat en van de aanroeper worden altijd afgedwongen.
 
-Een test (`tests/test_read_only.py`) faalt zodra code buiten de drivers en deze laag een schrijfmethode aanroept, een controller aanmaakt, een directe driver inschakelt of een Home Assistant-actie aanroept die een apparaat verandert.
+Een test (`tests/test_read_only.py`) faalt zodra code buiten de drivers en de regellaag een schrijfmethode aanroept, een controller aanmaakt, een directe driver inschakelt of een Home Assistant-actie aanroept die een apparaat verandert, of zodra een schakelaar standaard aan staat.
 
 Elke [directe driver](drivers.md#direct-battery-drivers) geeft zijn eigen eisen voor aansturing aan; de controller dwingt die af.
 
-De **regellus** (`engine/control/control_loop.py`) draait alleen met de instelling *Besturing aan* (onderdeel *Besturing*, standaard uit), en alleen voor batterijen met *Aangestuurd door HomeBatteryAssist* in hun formulier (standaard uit). Het is de simulator van de virtuele batterijen op de aangestuurde echte batterijen, dus hij heeft elke ronde dezelfde doelen (standaard 5 s, direct bij een grote sprong of overbelasting): nul op de meter (nooit voor uitgesloten apparaten of willekeurige korte pieken) of het plan, zoals de actieve planningsmodule zegt (één keuze: *Nul op de meter* of *Arbitrage*), volle ladingen, verdeeld over de batterijen, fasebeveiliging en peak shaving, de interceptor, grenzen voor het laadniveau en het systeem. Nul op de meter op een echte batterij stuurt alleen op de meter: elke ronde de helft van wat de meter toont bovenop de vorige opdracht (de eigen vermogensmeting van een batterij komt seconden te laat en mag niet sturen), de richting draait alleen om bij minstens 100 W; wisselen laden en ontladen toch 4 keer binnen een minuut, dan pauzeert de besturing 10 minuten (batterijen vrijgegeven). Hij werkt op het gemeten net zonder de aangestuurde batterijen, en geeft elke batterij haar vermogen via haar controller, over haar directe verbinding of anders haar integratie. Een batterij gaat terug naar haar eigen sturing zolang er een test op loopt, ze haar opdracht niet volgt, haar laadniveau of vermogen onbekend is of de netmeting weg is, en bij stoppen; *Waarom* meldt elke wissel.
+De **regellus** (`engine/control/control_loop.py`) draait alleen met de instelling *Besturing aan* (onderdeel *Besturing*, standaard uit), en alleen voor batterijen met *Aangestuurd door HomeBatteryAssist* in hun formulier (standaard uit). Het is de simulator van de virtuele batterijen op de aangestuurde echte batterijen, dus hij heeft elke ronde dezelfde doelen (standaard 5 s, direct bij een grote sprong of overbelasting): nul op de meter (nooit voor uitgesloten apparaten of willekeurige korte pieken) of het plan, zoals de actieve planningsmodule zegt (één keuze: *Nul op de meter* of *Arbitrage*), volle ladingen, verdeeld over de batterijen, fasebeveiliging en peak shaving, de interceptor, grenzen voor het laadniveau en het systeem. Nul op de meter op een echte batterij stuurt alleen op de meter: elke ronde de helft van wat de meter toont bovenop de vorige opdracht (de eigen vermogensmeting van een batterij komt seconden te laat en mag niet sturen), de richting draait alleen om bij minstens 100 W; wisselen laden en ontladen toch 4 keer binnen een minuut, dan pauzeert de besturing 10 minuten (batterijen vrijgegeven). Hij werkt op het gemeten net zonder de aangestuurde batterijen, en geeft elke batterij haar vermogen via haar controller, over haar directe verbinding of anders haar integratie. Een batterij gaat terug naar haar eigen sturing zolang er een test op loopt, ze haar opdracht niet volgt, haar laadniveau of vermogen onbekend is of de netmeting weg is, en bij stoppen; *Waarom* meldt elke wissel (*control_started*, *control_held*, *control_resumed*, *control_failed*, *control_stopped*), en *control_not_possible* als een batterij aangestuurd moet worden maar niet te bereiken is om te schrijven.
 
-**Testbesturing (gebouwd, uitgeschakeld).** Elke echte batterij heeft *Test: laden*, *Test: ontladen* en *Test: stoppen* (knoppen), een *Testvermogen* en een *Testduur* (getallen) en een status *Testbesturing*, om het aansturen van een batterij met de hand te testen vóór elke automatische besturing (`engine/control/control_test.py`, via `reader_driver.py`: `LinkDriver` over de directe verbinding van de batterij, anders `ReaderDriver` via haar integratie). Een test laadt of ontlaadt met het testvermogen gedurende de testduur en geeft de batterij daarna altijd terug aan haar eigen sturing; hij stopt meteen als de batterij vol is of op haar laagst toegestane laadniveau zit, de opdracht niet volgt, bij een fout, met *Test: stoppen* en bij herladen. Hij staat uit tenzij de instelling *Testbesturing aan* aan staat (standaard `CONTROL_TEST_ALLOWED = False`, bewaakt door een test): een knop meldt dat alleen in *Waarom*, er wordt niets verstuurd.
+**Activiteitenlog.** Elke minuut wordt elke echte batterij bekeken (`engine/explain/activity_log.py`): wat ze deed (laden uit de zon of uit het net, ontladen, rust), wie besliste (HomeBatteryAssist met nul op de meter of het plan, een test, de eigen sturing van de batterij, of een incident zoals haar opdracht niet volgen of een verbroken verbinding), of dat klopt met het plan, en waarom, als reden per periode met de minuten per reden. De periodes worden 30 dagen bewaard, getoond in het dashboardtabblad *Log* en zijn als CSV te exporteren.
+
+**Testbesturing (standaard uit).** Elke echte batterij heeft *Test: laden*, *Test: ontladen* en *Test: stoppen* (knoppen), een *Testvermogen* en een *Testduur* (getallen) en een status *Testbesturing*, om het aansturen van een batterij met de hand te testen vóór elke automatische besturing (`engine/control/control_test.py`, via `reader_driver.py`: `LinkDriver` over de directe verbinding van de batterij, anders `ReaderDriver` via haar integratie). Een test laadt of ontlaadt met het testvermogen gedurende de testduur en geeft de batterij daarna altijd terug aan haar eigen sturing; hij stopt meteen als de batterij vol is of op haar laagst toegestane laadniveau zit, de opdracht niet volgt, bij een fout, met *Test: stoppen* en bij herladen. Hij staat uit tenzij de instelling *Testbesturing aan* aan staat (standaard `CONTROL_TEST_ALLOWED = False`, bewaakt door een test): een knop meldt dat alleen in *Waarom*, er wordt niets verstuurd.
 
 ## Beveiligingslagen {#safety-layers}
 
@@ -202,4 +215,4 @@ flowchart TD
 
 ## Meters {#meters}
 
-Eén bestand per merk (`homewizard.py`, `sma.py`, `shelly.py`, `iammeter.py`), die samen `direct_reading.py` gebruiken (ongeveer eens per seconde lezen, een waarde die verouderd raakt). Meters kunnen ook via hun eigen Home Assistant-integratie gelezen worden (`via_ha_integration.py`).
+Eén bestand per merk (`homewizard.py`, `homewizard_v2.py`, `sma.py`, `shelly.py`, `iammeter.py`), die samen `direct_reading.py` gebruiken (ongeveer eens per seconde gelezen of gepusht, een waarde die na 10 s verouderd raakt; 25 s bij HomeWizard API v2). Meters kunnen ook via hun eigen Home Assistant-integratie gelezen worden (`via_ha_integration.py`).

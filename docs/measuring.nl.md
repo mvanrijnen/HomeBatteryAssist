@@ -24,7 +24,7 @@ Nieuwe meters worden toegevoegd als [drivers](drivers.md).
 
 ## Batterijen {#batteries}
 
-Batterijen worden **alleen-lezen** gekoppeld via de entiteiten van hun eigen integratie. Batterijen van **Omnibattery** en **Marstek Modbus** worden herkend en ingevuld, en hun *batterijdriver* voegt temperatuur, spanningen, celspanningen, cycli, de energie van vandaag en het gemeten rendement toe; elke andere batterij kun je handmatig koppelen.
+Batterijen worden gekoppeld via de entiteiten van hun eigen integratie, of optioneel over een [directe verbinding](drivers.md#direct-battery-drivers) (dan komen laadniveau en vermogen uit de batterij zelf). HomeBatteryAssist leest ze alleen, tenzij je de besturing aanzet (*Besturing aan* en *Aangestuurd door HomeBatteryAssist* in het batterijformulier; standaard uit). Batterijen van **Omnibattery** en **Marstek Modbus** worden herkend en ingevuld, en hun *batterijdriver* voegt temperatuur, spanningen, celspanningen, cycli, de energie van vandaag en het gemeten rendement toe; elke andere batterij kun je handmatig koppelen.
 
 Een batterij kan optioneel een **externe meter** op zijn groep krijgen (bijv. een HomeWizard kWh-meter, rechtstreeks uitgelezen): het vermogen daarvan wordt dan gebruikt in plaats van de vermogenssensor — zie [Drivers](drivers.md).
 
@@ -41,7 +41,7 @@ De batterijkaart toont ook het **celverschil** nu (hoogste − laagste celspanni
 
 ### Volgt de batterij haar opdracht? {#does-the-battery-follow-its-command}
 
-Wie een batterij aanstuurt, draagt haar op om met een vermogen te laden of ontladen — in deze fase haar eigen integratie (bijv. Omnibattery), later HomeBatteryAssist. De batterijdriver leest die **opdracht** uit (bij Omnibattery en Marstek Modbus: RS485-besturing, force mode en het laad-/ontlaadvermogen) en HomeBatteryAssist controleert elke 15 seconden of de batterij die volgt: minstens de helft van het opgedragen vermogen (of van haar maximale vermogen, als dat lager is), in die richting.
+Wie een batterij aanstuurt, draagt haar op om met een vermogen te laden of ontladen — haar eigen integratie (bijv. Omnibattery), of HomeBatteryAssist zelf als die de batterij aanstuurt. De batterijdriver leest die **opdracht** uit (bij Omnibattery en Marstek Modbus: RS485-besturing, force mode en het laad-/ontlaadvermogen) en HomeBatteryAssist controleert elke 15 seconden of de batterij die volgt: minstens de helft van het opgedragen vermogen (of van haar maximale vermogen, als dat lager is), in die richting.
 
 - Volgt ze de opdracht **2 minuten** niet (instelling *Melden na*, sectie *Batterij volgt opdracht*; opdrachten vanaf **100 W**, instelling *Opdrachten controleren vanaf*), dan meldt *Waarom* dat; opstarten en oplopen geven dus geen bericht.
 - **Verklaarbaar** — de batterij is vol of bijna vol (bij laden: vanaf 5 % onder haar maximum verlaagt haar BMS zelf het laadvermogen), koud (bij laden onder 5 °C, met een temperatuursensor), zit op haar minimum (bij ontladen), laden/ontladen staat uit op de batterij, of haar hysterese houdt laden tegen na volladen — dan zegt *Waarom* dat met de reden. Dat is geen probleem: geen alarm, geen melding.
@@ -51,9 +51,9 @@ De batterijkaart toont de opdracht die ze nu heeft (*Opdracht*: laden / ontladen
 
 Wat een batterij door zijn eigen aansturing doet (laden, leveren, stoppen) wordt als periodes uitgelegd in *Waarom*, vergeleken met het plan — zie [Planning](planning.md#explanation).
 
-### Testbesturing (staat voorlopig uit) {#test-control-switched-off-for-now}
+### Testbesturing (standaard uit) {#test-control-switched-off-for-now}
 
-Om het aansturen van een batterij met de hand te testen — voordat HomeBatteryAssist haar ooit automatisch aanstuurt — heeft het apparaat van elke echte batterij een **testbesturing**. **Standaard staat die uit**: de knoppen versturen niets; *Waarom* meldt alleen dat de testbesturing uit staat. Zet hem aan met de instelling *Testbesturing aan* (onderdeel *Testbesturing*), alleen terwijl je erbij bent.
+Om het aansturen van een batterij met de hand te testen — bijv. voordat je *Besturing aan* aanzet — heeft het apparaat van elke echte batterij een **testbesturing**. **Standaard staat die uit**: de knoppen versturen niets; *Waarom* meldt alleen dat de testbesturing uit staat. Zet hem aan met de instelling *Testbesturing aan* (sectie *Besturing*), alleen terwijl je erbij bent.
 
 | Entiteit | Wat het is |
 |---|---|
@@ -67,7 +67,7 @@ Om het aansturen van een batterij met de hand te testen — voordat HomeBatteryA
 Staat hij eenmaal aan, dan doet een test het volgende:
 
 1. **eerst controleren**: het laadniveau moet bekend zijn, een laadtest start niet als de batterij vol is, een ontlaadtest niet op of onder haar laagst toegestane laadniveau (max(min. laadniveau, reserve));
-2. **de opdracht over de [directe verbinding](drivers.md#direct-battery-drivers) van de batterij sturen** als ze die heeft — bij een Marstek Venus: RS485-besturing aan, het laad- of ontlaadvermogen en de geforceerde modus in haar registers — **en anders via de eigen integratie van de batterij** — bij Omnibattery: de handmatige modus van de batterij met het laad- of ontlaadvermogen — via de beveiligingslaag die elke toekomstige besturing gebruikt (een watchdog, altijd teruggeven, hoogstens één nieuwe opdracht per 5 s, vermogensgrenzen);
+2. **de opdracht over de [directe verbinding](drivers.md#direct-battery-drivers) van de batterij sturen** als ze die heeft — bij een Marstek Venus: RS485-besturing aan, het laad- of ontlaadvermogen en de geforceerde modus in haar registers — **en anders via de eigen integratie van de batterij** — bij Omnibattery: de handmatige modus van de batterij met het laad- of ontlaadvermogen — via de beveiligingslaag die ook de besturing (*Besturing aan*) gebruikt (een watchdog, altijd teruggeven, hoogstens één nieuwe opdracht per 5 s, vermogensgrenzen);
 3. **vanzelf stoppen** als de tijd om is, als de batterij vol raakt of haar laagst toegestane laadniveau bereikt, als ze [de opdracht niet volgt](#does-the-battery-follow-its-command), als een opdracht mislukt, met *Test: stoppen* en als HomeBatteryAssist stopt of herlaadt;
 4. **de batterij altijd teruggeven** aan haar eigen sturing (direct: vermogen 0, geforceerde modus uit, RS485-besturing uit; via Omnibattery: Omnibattery neemt het weer over), en in *Waarom* vertellen waarom hij stopte en hoeveel er geladen en ontladen is.
 
@@ -85,7 +85,7 @@ Om HomeBatteryAssist te vergelijken met de integratie die je batterij nu aanstuu
 
 - hij neemt de eigenschappen van de echte batterij over (capaciteit, vermogen, grenzen voor het laadniveau, rendement als verlies, fase, volledige ladingen); zijn eigen velden worden dan niet gebruikt;
 - hij **begint op het laadniveau van de echte batterij** (ook als een bestaande virtuele batterij een tweeling wordt); de knop **Gelijkzetten met echte batterij** zet hem op elk moment weer op het echte laadniveau (*Waarom* meldt het). Hij wordt niet vanzelf gelijkgezet, zodat beide vanaf dezelfde start hun eigen gang gaan;
-- hij wordt **in de plaats van de echte batterij gepland**: de echte batterij valt buiten het plan (en buiten *plan gevolgd*) en houdt haar eigen sturing;
+- hij wordt **in de plaats van de echte batterij gepland**: de echte batterij valt buiten het plan (en buiten *plan gevolgd*) en houdt haar eigen sturing (HomeBatteryAssist stuurt een batterij met een tweeling niet aan, ook niet met *Besturing aan*);
 - hij werkt op het net **zoals het zonder de echte batterij zou zijn**: het vermogen van de echte batterij gaat van het net en haar fase af, dus waar de echte batterij het zonne-overschot al opslaat, ziet de tweeling dat overschot ook. Zijn opbrengst wordt net zo geteld, die van de echte batterij op het net zoals gemeten.
 
 De sensor **Verschil met echte batterij vandaag** op de tweeling = zijn opbrengst vandaag − die van de echte batterij (positief: het plan van HomeBatteryAssist deed het beter), met attributen voor beide opbrengsten, beide laadniveaus en hoeveel meer de tweeling sinds middernacht heeft opgeslagen (energie die er nog in zit is morgen wat waard, kijk dus naar allebei). Het overzicht toont dan alleen de tweeling (zijn kaart met het laadniveau en vermogen van de echte batterij en het verschil vandaag; de fasen met *met de tweeling ervoor in de plaats*): HomeBatteryAssist is alleen met de tweeling gekoppeld. Een echte batterij kan één tweeling hebben. Andere virtuele batterijen draaien als extra wat-als-batterijen bovenop.

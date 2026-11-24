@@ -10,7 +10,7 @@ The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [dr
 |---|---|---|---|---|
 | **Planner** | Decides per slot how much the batteries charge or discharge | Zero on the meter, Arbitrage, Full arbitrage, Time slots, Manual | `/config/homebatteryassist/planners/` | Battery plan mode |
 | **Consumption forecaster** | Predicts the house consumption per slot | Weekday and hour profile (default), Same time in the last weeks | `/config/homebatteryassist/forecasters/` | Consumption forecaster |
-| **Tariff** | Turns the source's prices into what a kWh really costs and earns | As the price source gives them (default) | `/config/homebatteryassist/tariffs/` | Tariff |
+| **Tariff** | Turns the source's prices into what a kWh really costs and earns | As the price source gives them (default), Market price + surcharge + energy tax, plus VAT (not tested) | `/config/homebatteryassist/tariffs/` | Tariff |
 | **PV forecast source** | Reads a solar forecast | Solar forecast integrations (Forecast.Solar, Solcast, …) | `/config/homebatteryassist/pv_forecasts/` | PV forecast |
 | **PV correction** | Adjusts the PV forecast with what was learned from past forecasts and measured PV | Per lead time, hour and level (default), Per lead time (the original) | `/config/homebatteryassist/pv_corrections/` | PV correction (section *Solar forecast*) |
 | **Spike filter** | Recognises short consumption peaks while they happen | Short peaks above a threshold | `/config/homebatteryassist/spike_filters/` | Spike filter (section *Short peaks*) |
@@ -19,7 +19,7 @@ The swappable parts of HomeBatteryAssist's layers are *modules* (devices are [dr
 
 The built-in modules live in the integration and are updated with it; your own modules live in their own folder under `/config`, so an update never touches them.
 
-The **price sources** (`engine/sources/prices/`: [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (verified), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, a block tariff (`block_tariff.py`, fixed prices per time block from a setting), or any sensor with prices in its attributes) are modules too; new ones are added to the code for now (`template.py`). Sources still in development (e.g. Tibber) are kept apart in `in_development/` and not offered.
+The **price sources** (`engine/sources/prices/`: [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (verified), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, a block tariff (`block_tariff.py`, fixed prices per time block from a setting), or any sensor with prices in its attributes) are modules too; new ones are added to the code for now (`template.py`). Sources still in development (e.g. Tibber) are kept apart in `in_development/` and not offered. Next to the price source you can choose an **extra price forecast** that predicts the market price days ahead (`price_forecasts.py`): EpexPredictor and stroomprijsprognose.nl (both verified), or the sensors of Energy Price Forecast EU, WattWanneer, Wattcast and EnerPrice (not tested). It is first brought to the level of the price source and is only used after that source's prices; the published prices keep coming from the price source.
 
 ## HomeBatteryAssist keeps the final say
 
@@ -36,7 +36,7 @@ Whatever a module returns, HomeBatteryAssist checks it before it is used:
 
 If a chosen module fails, the explanation (*Why*) says so once, the log has the details, and the built-in fallback is used: zero on the meter for a planner, the profile for a forecaster, the source's prices for a tariff. The dashboard's overview shows which planner, forecaster and tariff are active, and marks a fallback.
 
-For now everything is **advice**: in this phase of development no module controls a battery or any other device.
+Modules never talk to a device. With *Control on*, the planner module in use (*Zero on the meter* or *Arbitrage*) and the interceptor decide what the controlled batteries do, always through HomeBatteryAssist's final check and each battery's controller ([safety layers](architecture.md#safety-layers)); otherwise everything is advice.
 
 ## Comparing
 
@@ -54,7 +54,7 @@ For now everything is **advice**: in this phase of development no module control
    |---|---|
    | Planner | `engine/planning/planners/template.py` (charge in the cheapest hours); `zero_on_meter.py`, `arbitrage.py` |
    | Consumption forecaster | `engine/forecast/forecasters/template.py` (average of the last day); `weekday_hour_profile.py`, `same_time_last_weeks.py` |
-   | Tariff | `engine/sources/tariffs/template.py` (a dynamic contract from the market price — fill in your own numbers); `as_price_source.py` |
+   | Tariff | `engine/sources/tariffs/template.py` (a dynamic contract from the market price — fill in your own numbers); `as_price_source.py`, `market_plus_costs.py` |
    | PV forecast source | `engine/sources/pv_forecasts/template.py` (a sensor with a `wh_hours` attribute); `solar_forecast_integrations.py` |
    | PV correction | `engine/evaluation/pv_corrections/template.py` (less in the morning, e.g. a tree); `hour_and_level.py`, `lead_time.py` |
    | Spike filter | `engine/measure/spike_filters/template.py` (never discharge above a level during the day); `short_peaks.py` |
@@ -139,7 +139,7 @@ class Interceptor:
 
 Called every round of the batteries (default every 5 s, at once on a large jump or an overload) with HomeBatteryAssist's proposal. `data.batteries` holds per battery its name, phase, state of charge, power now, temperature, capacity and limits, whether a full charge runs, the proposed power (`proposed_w`, + charge / − discharge) and why (`reason`: `plan`, `zero_on_meter`, `full_charge`, `phase_relief`, `peak_shaving`); besides that the grid (net and per phase, the phase limit), house, solar, excluded devices, the random short peak now, the plan mode and the coming slots of the plan (prices, export prices, planned power, 8 hours).
 
-Return `InterceptResult(decisions, redistribute=True)` with a `Decision(battery_id, action, power_w, reason)` for the batteries you do not approve: `REJECT` (0 W, HomeBatteryAssist keeps control), `LIMIT` (at most `power_w`, same direction) or `RELEASE` (back to the battery's own control). With `redistribute` the approved batteries may take over what the others no longer do (up to their limits; for discharging not below `floor_soc`: the minimum raised by the reserves in force). The `reason` shows in *Why* and on the overview. Quick, no I/O. For now the interceptor acts on the virtual batteries, so you see what it would do before anything is controlled.
+Return `InterceptResult(decisions, redistribute=True)` with a `Decision(battery_id, action, power_w, reason)` for the batteries you do not approve: `REJECT` (0 W, HomeBatteryAssist keeps control), `LIMIT` (at most `power_w`, same direction) or `RELEASE` (back to the battery's own control). With `redistribute` the approved batteries may take over what the others no longer do (up to their limits; for discharging not below `floor_soc`: the minimum raised by the reserves in force). The `reason` shows in *Why* and on the overview. Quick, no I/O. The interceptor acts on the virtual batteries and, with *Control on*, on the controlled real batteries in the same round, so with control off you see what it would do first.
 
 ### Weather source — `engine/sources/weather/base.py`
 

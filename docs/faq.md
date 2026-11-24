@@ -7,10 +7,10 @@ description: "Frequently asked questions about HomeBatteryAssist, the Home Assis
 ## About HomeBatteryAssist {#about}
 
 ??? question "Does HomeBatteryAssist control my battery?"
-    **Only when you switch it on.** By default it reads, forecasts and advises, and the integration that controls your battery (e.g. Omnibattery) keeps doing so undisturbed; *virtual batteries* follow the plan as a simulation. With a [direct connection](drivers.md#direct-battery-drivers) to the battery, the setting *Control on* and *Controlled by HomeBatteryAssist* in the battery's form, it controls the battery itself (zero on the meter, or the plan), with its safety: release on every error, a watchdog, limits. Switch off the other integration first. Each battery also has a [test control](measuring.md#test-control-switched-off-for-now) (*Test: charge / discharge / charge full / stop*), off by default too. Not yet tested widely.
+    **Only when you switch it on.** By default it reads, forecasts and advises, and the integration that controls your battery (e.g. Omnibattery) keeps doing so undisturbed; *virtual batteries* follow the plan as a simulation. With the setting *Control on* and *Controlled by HomeBatteryAssist* in the battery's form, it controls the battery itself — over its [direct connection](drivers.md#direct-battery-drivers), or else through its integration — following the active planner module (zero on the meter, or the plan), with its safety: release on every error, a watchdog, limits. Switch off the other integration first. Each battery also has a [test control](measuring.md#test-control-switched-off-for-now) (*Test: charge / discharge / charge full / stop*), off by default too. Not yet tested widely.
 
 ??? question "Can it run next to Omnibattery or my battery's own app?"
-    Yes. HomeBatteryAssist reads the battery through the entities of its integration and never opens its own connection to it, so nothing competes. Grid meters are only read directly when that is passive or through a read-only interface that allows any number of clients (HomeWizard P1 API, SMA Speedwire multicast).
+    Yes, as long as control is off and the battery has no direct connection: then HomeBatteryAssist reads the battery through the entities of its integration and opens no connection of its own, so nothing competes. A direct connection or *Control on* is for when HomeBatteryAssist takes over: switch the other integration off first (some batteries allow only one connection). Grid meters are only read directly when that is passive or through a read-only interface that allows any number of clients (HomeWizard P1 API, SMA Speedwire multicast).
 
 ??? question "What is a virtual battery?"
     A simulated battery that runs live next to your real ones and follows the chosen plan mode, with the real measurements of your home: phase protection, peak shaving and losses included. It has the same sensors and dashboard card as a real battery. Use it to see what a (bigger or extra) battery would do and bring, or to try a plan mode safely. Its name always ends with "(virtual)". Made the [twin](measuring.md#twin-of-a-real-battery) of your real battery, it runs in its place, so you can compare HomeBatteryAssist's plan with your battery's own control day by day.
@@ -18,9 +18,9 @@ description: "Frequently asked questions about HomeBatteryAssist, the Home Assis
 ??? question "Which plan mode should I choose?"
     - **Zero on the meter**: the battery stores your solar surplus and supplies the house when there is a shortage; it never charges from or supplies to the grid on purpose. Simple and predictable.
     - **Arbitrage**: cost-optimal for your own use; may also charge from the grid when that is cheaper than using the grid later (e.g. at night for the evening peak). Needs dynamic prices.
-    - **Full arbitrage**: like arbitrage, but may also supply the grid when the export price makes that worthwhile.
+    - **Full arbitrage** (not tested): like arbitrage, but may also supply the grid when the export price makes that worthwhile.
 
-    All modes are always calculated: the **Return** tab shows what each would bring, so you can compare before choosing.
+    All modes are always calculated: the **Return** tab shows what each would bring, so you can compare before choosing. With *Control on*, the chosen planner module is also what the controlled batteries do.
 
 ## Plans and forecasts {#plans}
 
@@ -28,13 +28,13 @@ description: "Frequently asked questions about HomeBatteryAssist, the Home Assis
     Read **Why** on the Overview tab: it tells what the plan does until when, and why. Common reasons: the battery is as empty as set (minimum or reserve), charging does not pay now (the price difference is too small after losses and wear), the energy is kept for a more expensive moment later, or a phase is at its limit.
 
 ??? question "Why did the planned charging move or disappear?"
-    The plan is recalculated every 15 minutes (and when new prices arrive). New prices, a changed consumption or solar forecast, or another **plan mode** change it. Zero on the meter never charges from the grid — after switching from arbitrage to zero on the meter, a night charge disappears. *Why* explains each new plan.
+    The plan is recalculated every 15 minutes by default (setting *Recalculate every*), and when new prices arrive. New prices, a changed consumption or solar forecast, or another **plan mode** change it. Zero on the meter never charges from the grid — after switching from arbitrage to zero on the meter, a night charge disappears. *Why* explains each new plan.
 
 ??? question "Why does arbitrage keep energy for days?"
     When later prices are expected to be higher (e.g. the weekend), the energy is worth more then, and there is little sun to refill the battery. Prices further ahead are often *estimates* (dashed in the charts); when the published prices differ, the plan adapts.
 
 ??? question "What happens when there is suddenly more or less sun than forecast?"
-    The batteries follow the solar surplus that is really there, not the forecast. More sun: the surplus is stored on top of the plan (never from the grid), unless the plan exports the solar surplus because storing does not pay. Less sun: a charge the plan expected from the sun is only made as far as the sun is really there — the grid never fills in, however small the shortage; a planned charge from the grid goes on. The batteries react at once; *Why* tells it after 5 minutes, and the plan is recalculated every quarter of an hour with the real state of charge. The threshold (300 W) and the wait (5 min) are settings. See [Planning: when the sun differs from the forecast](planning.md#when-the-sun-differs-from-the-forecast).
+    The batteries follow the solar surplus that is really there, not the forecast. More sun: the surplus is stored on top of the plan (never from the grid), unless the plan exports the solar surplus because storing does not pay. Less sun: a charge the plan expected from the sun is only made as far as the sun is really there — the grid never fills in, however small the shortage; a planned charge from the grid goes on. The batteries react at once; *Why* tells it after 5 minutes, and the plan is recalculated every quarter of an hour (by default) with the real state of charge. The threshold (300 W) and the wait (5 min) are settings. See [Planning: when the sun differs from the forecast](planning.md#when-the-sun-differs-from-the-forecast).
 
 ??? question "What are the dashed lines in the charts?"
     Forecasts and estimates: the expected consumption and solar power, the planned state of charge and, for prices, estimated (not yet published) prices. Solid lines are measured or published values.

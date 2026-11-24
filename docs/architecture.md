@@ -4,7 +4,7 @@ HomeBatteryAssist is built in layers. Data flows one way, from the devices to th
 
 | # | Layer | What it does | Folder |
 |---|---|---|---|
-| 1 | **Devices** | Talks to the physical devices — for now read-only | `engine/devices/` |
+| 1 | **Devices** | Reads the physical devices, and controls batteries when you switch control on | `engine/devices/` |
 | 2 | **External sources** | Prices, PV forecasts, tariffs | `engine/sources/` |
 | 3 | **Measuring** | The house *now*: consumption, grid per phase, battery states and counters | `engine/measure/` |
 | 4 | **History** | The past: consumption per interval, import of older data | `engine/history/` |
@@ -18,7 +18,7 @@ HomeBatteryAssist is built in layers. Data flows one way, from the devices to th
 
 ## At a glance
 
-How the layers hang together: data comes in at the top and flows down. Dotted arrows: messages for *Why*, and the control that is built but not active yet (dashed box).
+How the layers hang together: data comes in at the top and flows down. Dotted arrows: messages for *Why*, and the control (only with *Control on*, dashed box).
 
 ```mermaid
 flowchart TB
@@ -32,7 +32,7 @@ flowchart TB
     PLA["6 · Planning<br/>planners, final check,<br/>full charges"]
     EVA["7 · Evaluation<br/>accuracy, plan check,<br/>live checks"]
     EXP["8 · Explanation<br/>Why, notifications"]
-    CTL["Control<br/>built, not active"]
+    CTL["Control<br/>only with Control on"]
   end
   OUT["Home Assistant: HomeBatteryAssist<br/>sensors, dashboard, actions, notifications"]
   INT --> DEV
@@ -84,7 +84,7 @@ flowchart LR
   L2 --> L5["Live checks<br/>more / less sun than forecast,<br/>battery follows its command"]
   L4 -.-> L6["Why, notifications,<br/>problem sensors"]
   L5 -.-> L6
-  L2 -.-> L7["Control loop<br/>built, not active"]
+  L2 -.-> L7["Control loop<br/>only with Control on"]
   L7 -.-> L8["Battery<br/>via its integration or a direct driver"]
   classDef off stroke-dasharray: 6 4
   class L7,L8 off
@@ -107,46 +107,57 @@ custom_components/homebatteryassist/
 ├── strings.json, translations/
 └── engine/
     ├── coordinator.py     one cycle through the layers
-    ├── control/           battery_controller.py — built, not active;
-    │                      control_loop.py — written out as comment;
+    ├── db_store.py        storage of the big stores (JSON file or a database)
+    ├── control/           control_loop.py (the control loop, only with Control on),
+    │                      battery_controller.py (safety layer 4), control_test.py,
+    │                      reader_driver.py (LinkDriver / ReaderDriver), pd_controller.py,
+    │                      export_limiter.py (prepared, sends nothing),
     │                      interceptors/ (base.py, template.py, pass_through.py)
     ├── units.py           unit conversion
     ├── own_modules.py     loading own modules from /config
     ├── devices/           1  drivers
     │   ├── batteries/     base.py, template.py, virtual.py (simulation), recognition.py,
+    │   │                  control_quality.py, response.py,
     │   │                  integrations/ (entity_reader.py, omnibattery_integration.py,
     │   │                  marstek_modbus_integration.py),
     │   │                  direct/ (base.py, modbus_driver.py, http_driver.py, mqtt_driver.py
     │   │                  — chosen per battery, direct/link.py),
     │   │                  one folder per brand: models (brand → range → type) + direct driver:
     │   │                  marstek/, anker/, huawei/, zendure/, sessy/, indevolt/, hoymiles/
+    │   ├── inverters/     prepared, not used: base.py, template.py, sunspec_modbus.py,
+    │   │                  sma_home_manager.py, sma_modbus.py, sma_storage_x.py
     │   ├── transports/    modbus_tcp.py (own small Modbus TCP client)
-    │   └── meters/        base.py, template.py, homewizard.py, sma.py, shelly.py,
-    │                      iammeter.py, direct_reading.py, discovery.py,
+    │   └── meters/        base.py, template.py, homewizard.py, homewizard_v2.py, sma.py,
+    │                      shelly.py, iammeter.py, direct_reading.py, discovery.py,
     │                      via_ha_integration.py
     ├── sources/           2  modules
     │   ├── prices/        base.py, template.py, price_points.py, dyntarnl.py,
     │   │                  ha_price_actions.py, sensor_attributes.py, regional.py,
-    │   │                  price_forecasts.py, in_development/ (tibber.py)
+    │   │                  block_tariff.py, price_forecasts.py, in_development/ (tibber.py)
     │   ├── pv_forecasts/  base.py, template.py, solar_forecast_integrations.py,
     │   │                  energy_dashboard_platform.py
-    │   ├── tariffs/       base.py, template.py, as_price_source.py
+    │   ├── tariffs/       base.py, template.py, as_price_source.py, market_plus_costs.py
     │   └── weather/       base.py, template.py, ha_weather_entity.py, knmi_integration.py,
     │                      weerlive_api.py, open_meteo.py (optional)
     ├── measure/           3  house_measurement.py, battery_monitor.py, heating_zones.py,
+    │                         recorder_check.py,
     │                         spike_filters/ (base.py, template.py, short_peaks.py)
     ├── history/           4  consumption_history.py, history_import.py, chart_series.py,
     │                         temperature_import.py, spikes.py
-    ├── forecast/          5  planning_window.py, consumption_forecast.py,
+    ├── forecast/          5  planning_window.py, consumption_forecast.py, intraday.py,
     │                         user_adjustments.py, phase_shares.py, temperature_effect.py,
     │                         forecasters/ (base.py, template.py, weekday_hour_profile.py,
     │                                       same_time_last_weeks.py)
     ├── planning/          6  battery_plan.py (final check), full_charge.py, phase_limit.py,
-    │                         battery_distribution.py, time_slots.py,
+    │                         battery_distribution.py, time_slots.py, export_limit.py,
+    │                         ev_advice.py,
     │                         planners/ (base.py, template.py, zero_on_meter.py, arbitrage.py)
     ├── evaluation/        7  forecast_accuracy.py, plan_check.py, unexpected_surplus.py,
+    │                         command_check.py, battery_temperature.py, price_surprise.py,
     │                         pv_corrections/ (base.py, template.py, hour_and_level.py, lead_time.py)
-    └── explain/           8  messages.py, plan_story.py, decision_log.py, notifications.py
+    └── explain/           8  messages.py, plan_story.py, plan_phases.py, plan_summary.py,
+                              decision_log.py, activity_log.py, notifications.py, money.py,
+                              input_report.py
 ```
 
 ## Batteries: model and reader
@@ -158,11 +169,11 @@ A battery driver has two parts:
 
 So one battery type can be read through several integrations. The **virtual battery** (`virtual.py`) is a simulated device that follows the plan.
 
-## Control layer (built, not active)
+## Control layer {#control-layer-built-not-active}
 
-In this phase of development HomeBatteryAssist does not control batteries yet. The control layer (`engine/control/battery_controller.py`) is built beforehand, so the safety is in place before anything is controlled:
+HomeBatteryAssist controls batteries only when you switch it on (setting *Control on*, and per battery *Controlled by HomeBatteryAssist*; both off by default). Every command goes through a controller per battery (`engine/control/battery_controller.py`), built so the safety is in place before anything is sent:
 
-- a **master switch**, off by default — nothing is sent while it is off, and nothing in HomeBatteryAssist turns it on;
+- a **master switch**, off by default: nothing is sent while it is off; only the control loop and the test control turn it on, and only when you switched them on;
 - **always release** control to the battery's own logic on stop, reload, restart and every error;
 - a **watchdog**: without a new command for 2 minutes, control is released;
 - **refresh** the last command for batteries that drop out of external control otherwise;
@@ -170,13 +181,15 @@ In this phase of development HomeBatteryAssist does not control batteries yet. T
 - **idle = release** for batteries where 0 W is not idle (e.g. a Huawei inverter keeps limiting PV);
 - the **limits** of the device and of the caller are always enforced.
 
-A test (`tests/test_read_only.py`) fails as soon as code outside the drivers and this layer calls a write method, creates a controller, enables a direct driver or calls a Home Assistant action that changes a device.
+A test (`tests/test_read_only.py`) fails as soon as code outside the drivers and the control layer calls a write method, creates a controller, enables a direct driver or calls a Home Assistant action that changes a device, or as soon as any switch is on by default.
 
 Each [direct driver](drivers.md#direct-battery-drivers) states its own control needs; the controller enforces them.
 
-The **control loop** (`engine/control/control_loop.py`) runs only with the setting *Control on* (section *Control*, default off), and only for batteries marked *Controlled by HomeBatteryAssist* in their form (default off). It is the virtual battery simulator on the controlled real batteries, so it has the same targets every round (default 5 s, at once on a large jump or an overload): zero on the meter (never for excluded devices or random short peaks) or the plan, as the active planner module says (one choice: *Zero on the meter* or *Arbitrage*), full charges, spread over the batteries, phase protection and peak shaving, the interceptor, state of charge and system limits. Zero on the meter on a real battery steers on the meter alone: each round half of what the meter shows on top of the previous command (a battery's own power reading comes seconds late and must not steer), the direction only turning for at least 100 W; if charge and discharge still alternate 4 times within a minute, the control pauses for 10 minutes (batteries released). It works on the measured grid without the controlled batteries, and gives each battery its power through its controller, over its direct connection or else its integration. A battery goes back to its own control while a test runs on it, while it does not follow its command, while its state of charge or power is unknown, or while the grid measurement is gone, and on stop; *Why* tells each change (*control_started*, *control_held*, *control_resumed*, *control_failed*, *control_stopped*).
+The **control loop** (`engine/control/control_loop.py`) runs only with the setting *Control on* (section *Control*, default off), and only for batteries marked *Controlled by HomeBatteryAssist* in their form (default off). It is the virtual battery simulator on the controlled real batteries, so it has the same targets every round (default 5 s, at once on a large jump or an overload): zero on the meter (never for excluded devices or random short peaks) or the plan, as the active planner module says (one choice: *Zero on the meter* or *Arbitrage*), full charges, spread over the batteries, phase protection and peak shaving, the interceptor, state of charge and system limits. Zero on the meter on a real battery steers on the meter alone: each round half of what the meter shows on top of the previous command (a battery's own power reading comes seconds late and must not steer), the direction only turning for at least 100 W; if charge and discharge still alternate 4 times within a minute, the control pauses for 10 minutes (batteries released). It works on the measured grid without the controlled batteries, and gives each battery its power through its controller, over its direct connection or else its integration. A battery goes back to its own control while a test runs on it, while it does not follow its command, while its state of charge or power is unknown, or while the grid measurement is gone, and on stop; *Why* tells each change (*control_started*, *control_held*, *control_resumed*, *control_failed*, *control_stopped*), and *control_not_possible* when a battery is set to be controlled but cannot be reached for writing.
 
-**Test control (built, switched off).** Each real battery has *Test: charge*, *Test: discharge* and *Test: stop* (buttons), a *Test power* and a *Test duration* (numbers) and a *Test control* status, to test controlling a battery by hand before any automatic control (`engine/control/control_test.py`, through `reader_driver.py`: `LinkDriver` over the battery's direct connection, else `ReaderDriver` through its integration). A test charges or discharges at the test power for the test duration and then always hands the battery back to its own control; it stops at once when the battery is full or at its lowest allowed state of charge, does not follow the command, on an error, by *Test: stop* and on reload. It is off unless the setting *Test control on* is on (default `CONTROL_TEST_ALLOWED = False`, checked by a test): a button only tells *Why* so, nothing is sent.
+**Activity log.** Every minute each real battery is looked at (`engine/explain/activity_log.py`): what it did (charging from the sun or from the grid, discharging, idle), who decided (HomeBatteryAssist with zero on the meter or the plan, a test, the battery's own control, or an incident such as not following its command or a lost connection), whether that matches the plan, and why, as a reason per period with the minutes per reason. The periods are kept for 30 days, shown in the dashboard tab *Log* and can be exported as CSV.
+
+**Test control (off by default).** Each real battery has *Test: charge*, *Test: discharge* and *Test: stop* (buttons), a *Test power* and a *Test duration* (numbers) and a *Test control* status, to test controlling a battery by hand before any automatic control (`engine/control/control_test.py`, through `reader_driver.py`: `LinkDriver` over the battery's direct connection, else `ReaderDriver` through its integration). A test charges or discharges at the test power for the test duration and then always hands the battery back to its own control; it stops at once when the battery is full or at its lowest allowed state of charge, does not follow the command, on an error, by *Test: stop* and on reload. It is off unless the setting *Test control on* is on (default `CONTROL_TEST_ALLOWED = False`, checked by a test): a button only tells *Why* so, nothing is sent.
 
 ## Safety layers {#safety-layers}
 
@@ -202,4 +215,4 @@ flowchart TD
 
 ## Meters
 
-One file per brand (`homewizard.py`, `sma.py`, `shelly.py`, `iammeter.py`), sharing `direct_reading.py` (reading about once a second, a value going stale). Meters can also be read through their own Home Assistant integration (`via_ha_integration.py`).
+One file per brand (`homewizard.py`, `homewizard_v2.py`, `sma.py`, `shelly.py`, `iammeter.py`), sharing `direct_reading.py` (read about once a second or pushed, a value going stale after 10 s; 25 s for HomeWizard API v2). Meters can also be read through their own Home Assistant integration (`via_ha_integration.py`).

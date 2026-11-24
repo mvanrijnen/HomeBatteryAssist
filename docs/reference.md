@@ -62,7 +62,7 @@ Select for each phase the sensor that measures the power (W) on that phase, typi
 | **Price forecast sensor** | Used with the price source 'Price sensor': a sensor of another integration with the price forecast in its attributes. |
 | **PV forecast** | Integrations providing a solar forecast (e.g. Forecast.Solar, Solcast). Selected forecasts are added up to the total for your home. |
 | **Recalculate every** | How often the forecasts are recalculated automatically. |
-| **Battery plan mode** | How HomeBatteryAssist would control the batteries (advice only for now). All modes are always calculated for comparison. Own planner modules from /config/homebatteryassist/planners appear here too (after a reload). |
+| **Battery plan mode** | How HomeBatteryAssist plans the batteries: advice, and with Control on what the controlled batteries do. All modes are always calculated for comparison. Own planner modules from /config/homebatteryassist/planners appear here too (after a reload). |
 | **Price source** | Where the power prices come from. Sources found in Home Assistant are listed (* = not yet tested on a real installation); 'Price sensor' uses the sensor chosen below. |
 | **Extra price forecast** | Optional: a second source that reaches further ahead (e.g. a multi-day forecast), used after the prices of the price source; always counted as estimated. |
 | **Block tariff** | Only for the price source *Block tariff*: fixed prices per time block, one rule per line: an optional day range (mon-fri, sat,sun), a time block (23:00-07:00, past midnight allowed) and the price per kWh; a line with only a price is the price at any other time. A later line wins where they overlap. Example: '0,30' / '23:00-07:00 0,22' / 'mon-fri 17:00-21:00 0,40'. |
@@ -117,7 +117,7 @@ How the plans weigh costs and prices, and the fixed modes.
 | **Manual power** | Used in the plan mode “Manual”: the batteries always charge (positive) or discharge (negative) at this power, within their limits. |
 | **Charge hysteresis** | Once full, the batteries only charge again after their state of charge dropped this much below the maximum (fewer small top-ups). 0 = off. |
 | **Vacation mode** | While on, the measured house consumption is not used to learn the usual consumption (the forecast keeps using the normal days). |
-| **Interceptor** | Your last say per battery before a command goes out: approve, limit (less, same direction), hold back or release. HomeBatteryAssist's own check comes after it and always wins. None by default; own interceptors from /config/homebatteryassist/interceptors appear here too (after a reload). For now it acts on the virtual batteries. |
+| **Interceptor** | Your last say per battery before a command goes out: approve, limit (less, same direction), hold back or release. HomeBatteryAssist's own check comes after it and always wins. None by default; own interceptors from /config/homebatteryassist/interceptors appear here too (after a reload). It acts on the virtual batteries and, with Control on, on the controlled real batteries. |
 | **Correct within the day** | When the house used clearly more or less today than forecast so far, the rest of today counts on that too: gradually from 03:00, fully from 12:00, at most 30 %. Tomorrow starts from the normal forecast again. |
 
 ### Limits and reserve {#settings-limits}

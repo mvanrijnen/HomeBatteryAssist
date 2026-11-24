@@ -1,4 +1,4 @@
-"""Direct drivers: Marstek Venus over Modbus TCP (not tested).
+"""Direct drivers: Marstek Venus over Modbus TCP (E v3 tested live 2026-11-23; the others not tested).
 
 One driver per hardware version; the battery does not report its own model,
 so the user has to pick it:
@@ -416,8 +416,10 @@ class MarstekVenusEV2Modbus(MarstekVenusModbus):
 
 
 class MarstekVenusEV3Modbus(MarstekVenusModbus):
-    """Marstek Venus E v3 over Modbus TCP (not tested)."""
+    """Marstek Venus E v3 over Modbus TCP (tested on a device: reading,
+    charging, discharging, release, zero on the meter)."""
 
+    verified = True
     key = "marstek_venus_e_v3_modbus"
     name = "Marstek Venus E v3 (Modbus TCP)"
     models = (MarstekVenusEV3,)

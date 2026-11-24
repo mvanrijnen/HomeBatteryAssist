@@ -4,7 +4,7 @@ description: "What HomeBatteryAssist needs as input: grid meter, batteries, pric
 
 # Inputs: what HomeBatteryAssist needs
 
-HomeBatteryAssist makes **no forecasts of its own**: it reads measurements and forecasts from other integrations and combines them. This page lists every input in one place: what it is for, whether it is needed, where it comes from, and what happens without it.
+HomeBatteryAssist reads measurements, prices and PV/weather forecasts from other integrations and forecasts the house consumption itself from them. This page lists every input in one place: what it is for, whether it is needed, where it comes from, and what happens without it.
 
 ## At a glance {#at-a-glance}
 
@@ -24,11 +24,11 @@ HomeBatteryAssist makes **no forecasts of its own**: it reads measurements and f
 
 ## Grid meter {#grid-meter}
 
-**Required.** The power per phase (W, + import / − export): from a meter read directly (HomeWizard P1, SMA Home Manager, Shelly, IAMMETER), through the sensors of its integration, or your own sensors (one signed sensor, or import and return apart). Optional per phase: **current** (A) and **voltage** (V), and a power factor if the meter sends it; with them the phase protection works on the real current (see [Current per phase](measuring.md#current-per-phase)). Without a grid value the house consumption is unknown and the virtual batteries do nothing.
+**Required.** The power per phase (W, + import / − export): from a meter read directly (HomeWizard P1, SMA Home Manager, Shelly, IAMMETER), through the sensors of its integration, or your own sensors (one signed sensor, or import and return apart). Optional per phase: **current** (A) and **voltage** (V), and a power factor if the meter sends it; with them the phase protection works on the real current (see [Current per phase](measuring.md#current-per-phase)). Without a grid value the house consumption is unknown, the virtual batteries do nothing and controlled batteries go back to their own control.
 
 ## Batteries {#batteries}
 
-Per battery from **its own integration** (read-only): **state of charge** (%) and **power** (W, with its sign: + charging or + discharging, set in the battery form). Capacity, maximum charge/discharge power, min/max state of charge and efficiency are prefilled from a recognised battery and can be changed. Without batteries HomeBatteryAssist measures and forecasts, but makes no battery plan; a [virtual battery](measuring.md#virtual-batteries) needs no integration at all.
+Per battery from **its own integration**, or from a [direct connection](drivers.md#direct-battery-drivers) to the battery (then its sensors are optional): **state of charge** (%) and **power** (W, with its sign: + charging or + discharging, set in the battery form). Capacity, maximum charge/discharge power, min/max state of charge and efficiency are prefilled from a recognised battery and can be changed. Without batteries HomeBatteryAssist measures and forecasts, but makes no battery plan; a [virtual battery](measuring.md#virtual-batteries) needs no integration at all.
 
 ## Prices {#prices}
 

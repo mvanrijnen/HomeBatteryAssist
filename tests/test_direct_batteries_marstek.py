@@ -112,7 +112,8 @@ COMMON = {
 def test_drivers_disabled_and_unverified() -> None:
     for cls in DRIVERS:
         assert not cls.enabled
-        assert not cls.verified
+        # Only the Venus E v3 is tested on a device (2026-11-23).
+        assert cls.verified == (cls.key == "marstek_venus_e_v3_modbus")
         assert cls.can_write
         assert "Omnibattery" in cls.source
         assert cls.models and cls.key and cls.name

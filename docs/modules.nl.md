@@ -10,7 +10,7 @@ De verwisselbare onderdelen van de lagen van HomeBatteryAssist zijn *modules* (a
 |---|---|---|---|---|
 | **Planner** | Bepaalt per tijdvak hoeveel de batterijen laden of ontladen | Nul op de meter, Arbitrage, Arbitrage volledig, Tijdvakken, Handmatig | `/config/homebatteryassist/planners/` | Modus batterijplan |
 | **Verbruiksvoorspeller** | Voorspelt het huisverbruik per tijdvak | Profiel per weekdag en uur (standaard), Zelfde tijd in de afgelopen weken | `/config/homebatteryassist/forecasters/` | Verbruiksvoorspeller |
-| **Tarief** | Maakt van de prijzen van de bron wat een kWh je echt kost en oplevert | Zoals de prijsbron ze geeft (standaard) | `/config/homebatteryassist/tariffs/` | Tarief |
+| **Tarief** | Maakt van de prijzen van de bron wat een kWh je echt kost en oplevert | Zoals de prijsbron ze geeft (standaard), Marktprijs + opslag + energiebelasting, plus btw (niet getest) | `/config/homebatteryassist/tariffs/` | Tarief |
 | **Bron voor PV-voorspelling** | Leest een zonvoorspelling | Integraties voor zonvoorspelling (Forecast.Solar, Solcast, …) | `/config/homebatteryassist/pv_forecasts/` | PV-voorspelling |
 | **PV-correctie** | Past de PV-voorspelling aan met wat is geleerd van eerdere voorspellingen en gemeten PV | Per vooruitzicht, uur en niveau (standaard), Per vooruitzicht (oorspronkelijk) | `/config/homebatteryassist/pv_corrections/` | PV-correctie (sectie *Zonvoorspelling*) |
 | **Piekfilter** | Herkent korte verbruikspieken terwijl ze gebeuren | Korte pieken boven een drempel | `/config/homebatteryassist/spike_filters/` | Piekfilter (sectie *Korte pieken*) |
@@ -19,7 +19,7 @@ De verwisselbare onderdelen van de lagen van HomeBatteryAssist zijn *modules* (a
 
 De ingebouwde modules zitten in de integratie en worden mee bijgewerkt; je eigen modules staan in hun eigen map onder `/config`, dus een update komt er nooit aan.
 
-De **prijsbronnen** (`engine/sources/prices/`: [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (geverifieerd), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, een bloktarief (`block_tariff.py`, vaste prijzen per tijdsblok uit een instelling), of elke sensor met prijzen in zijn attributen) zijn ook modules; nieuwe worden voorlopig aan de code toegevoegd (`template.py`). Bronnen die nog in ontwikkeling zijn (bijv. Tibber) staan apart in `in_development/` en worden niet aangeboden.
+De **prijsbronnen** (`engine/sources/prices/`: [DynTarNL](https://github.com/mvanrijnen/ha-dyntarNL) (geverifieerd), Nord Pool, EnergyZero, easyEnergy, ENTSO-e, EPEX Spot, Frank Energie, Zonneplan, Amber Electric, PVPC, Essent, Pure Energie, een bloktarief (`block_tariff.py`, vaste prijzen per tijdsblok uit een instelling), of elke sensor met prijzen in zijn attributen) zijn ook modules; nieuwe worden voorlopig aan de code toegevoegd (`template.py`). Bronnen die nog in ontwikkeling zijn (bijv. Tibber) staan apart in `in_development/` en worden niet aangeboden. Naast de prijsbron kun je een **extra prijsvoorspelling** kiezen die de marktprijs dagen vooruit voorspelt (`price_forecasts.py`): EpexPredictor en stroomprijsprognose.nl (beide geverifieerd), of de sensoren van Energy Price Forecast EU, WattWanneer, Wattcast en EnerPrice (niet getest). Die wordt eerst op het niveau van de prijsbron gebracht en alleen gebruikt na de prijzen van die bron; de gepubliceerde prijzen blijven van de prijsbron komen.
 
 ## HomeBatteryAssist houdt het laatste woord {#homebatteryassist-keeps-the-final-say}
 
@@ -36,7 +36,7 @@ Wat een module ook teruggeeft, HomeBatteryAssist controleert het voordat het wor
 
 Als een gekozen module faalt, meldt de uitleg (*Waarom*) dat één keer, staan de details in het logboek, en wordt de ingebouwde terugvaloptie gebruikt: nul op de meter voor een planner, het profiel voor een voorspeller, de prijzen van de bron voor een tarief. Het overzicht van het dashboard laat zien welke planner, voorspeller en welk tarief actief zijn, en markeert een terugval.
 
-Voorlopig is alles **advies**: in deze fase van de ontwikkeling stuurt geen enkele module een batterij of een ander apparaat aan.
+Modules praten nooit met een apparaat. Met *Besturing aan* bepalen de gebruikte planningsmodule (*Nul op de meter* of *Arbitrage*) en de onderschepper wat de aangestuurde batterijen doen, altijd via de eindcontrole van HomeBatteryAssist en de controller van elke batterij ([beveiligingslagen](architecture.md#safety-layers)); anders is alles advies.
 
 ## Vergelijken {#comparing}
 
@@ -54,7 +54,7 @@ Voorlopig is alles **advies**: in deze fase van de ontwikkeling stuurt geen enke
    |---|---|
    | Planner | `engine/planning/planners/template.py` (laden in de goedkoopste uren); `zero_on_meter.py`, `arbitrage.py` |
    | Verbruiksvoorspeller | `engine/forecast/forecasters/template.py` (gemiddelde van de laatste dag); `weekday_hour_profile.py`, `same_time_last_weeks.py` |
-   | Tarief | `engine/sources/tariffs/template.py` (een dynamisch contract op basis van de marktprijs — vul je eigen getallen in); `as_price_source.py` |
+   | Tarief | `engine/sources/tariffs/template.py` (een dynamisch contract op basis van de marktprijs — vul je eigen getallen in); `as_price_source.py`, `market_plus_costs.py` |
    | Bron voor PV-voorspelling | `engine/sources/pv_forecasts/template.py` (een sensor met een attribuut `wh_hours`); `solar_forecast_integrations.py` |
    | PV-correctie | `engine/evaluation/pv_corrections/template.py` (minder in de ochtend, bijv. door een boom); `hour_and_level.py`, `lead_time.py` |
    | Piekfilter | `engine/measure/spike_filters/template.py` (overdag nooit ontladen boven een niveau); `short_peaks.py` |
@@ -139,7 +139,7 @@ class Interceptor:
 
 Wordt elke ronde van de batterijen aangeroepen (standaard elke 5 s, direct bij een grote sprong of overbelasting) met het voorstel van HomeBatteryAssist. `data.batteries` bevat per batterij de naam, fase, het laadniveau, het vermogen nu, de temperatuur, capaciteit en grenzen, of er een vollading loopt, het voorgestelde vermogen (`proposed_w`, + laden / − ontladen) en waarom (`reason`: `plan`, `zero_on_meter`, `full_charge`, `phase_relief`, `peak_shaving`); daarnaast het net (netto en per fase, de fasegrens), huis, zon, uitgesloten apparaten, de willekeurige korte piek nu, de planmodus en de komende tijdvakken van het plan (prijzen, terugleverprijzen, gepland vermogen, 8 uur).
 
-Geef `InterceptResult(decisions, redistribute=True)` terug met een `Decision(battery_id, action, power_w, reason)` voor de batterijen die je niet goedkeurt: `REJECT` (0 W, HomeBatteryAssist houdt de regie), `LIMIT` (hoogstens `power_w`, dezelfde richting) of `RELEASE` (terug naar de eigen regeling van de batterij). Met `redistribute` mogen de goedgekeurde batterijen overnemen wat de andere niet meer doen (tot hun grenzen; bij ontladen niet onder `floor_soc`: het minimum, verhoogd met de reserves die gelden). De `reason` verschijnt in *Waarom* en op het overzicht. Snel, geen I/O. Voorlopig werkt de onderschepper op de virtuele batterijen, zodat je ziet wat hij zou doen voordat er iets wordt aangestuurd.
+Geef `InterceptResult(decisions, redistribute=True)` terug met een `Decision(battery_id, action, power_w, reason)` voor de batterijen die je niet goedkeurt: `REJECT` (0 W, HomeBatteryAssist houdt de regie), `LIMIT` (hoogstens `power_w`, dezelfde richting) of `RELEASE` (terug naar de eigen regeling van de batterij). Met `redistribute` mogen de goedgekeurde batterijen overnemen wat de andere niet meer doen (tot hun grenzen; bij ontladen niet onder `floor_soc`: het minimum, verhoogd met de reserves die gelden). De `reason` verschijnt in *Waarom* en op het overzicht. Snel, geen I/O. De onderschepper werkt op de virtuele batterijen en, met *Besturing aan*, in dezelfde ronde op de aangestuurde echte batterijen, zodat je met de besturing uit eerst ziet wat hij zou doen.
 
 ### Weerbron — `engine/sources/weather/base.py` {#weather-source--enginesourcesweatherbasepy}
 

@@ -17,7 +17,7 @@ You need:
 
 Useful, but optional (you can add them later):
 
-- [ ] **Your battery's own integration**, e.g. **Omnibattery** or **Marstek Modbus**. HomeBatteryAssist is built to control the battery itself in the end; during development it only reads it, for safety and so it does not disturb that integration, which keeps controlling the battery for now. No battery yet? Add a *virtual battery* to see what one would bring.
+- [ ] **Your battery's own integration**, e.g. **Omnibattery** or **Marstek Modbus**. By default HomeBatteryAssist only reads the battery, and that integration keeps controlling it. HomeBatteryAssist can also control it itself (setting *Control on*, off by default, alpha) — then switch the other integration off first. No battery yet? Add a *virtual battery* to see what one would bring.
 - [ ] **A price integration with dynamic prices**, e.g. **DynTarNL** (recommended in the Netherlands), Nord Pool, EnergyZero or easyEnergy. Needed for arbitrage and for the costs.
 - [ ] **A solar forecast** in the Energy dashboard (e.g. Solcast or Forecast.Solar), if you have solar panels.
 - [ ] **A weather source** (a weather entity, the KNMI integration, Weerlive or Open-Meteo), if you heat or cool electrically.
@@ -92,7 +92,7 @@ On the integration page you add the parts of your home with the **+** buttons. E
 
 ![Integration page](screenshots/config-integration.jpg){ width="700" }
 
-1. **+ Add battery** — pick your battery from the list (Omnibattery and Marstek Modbus batteries are recognised and filled in), or link one by its sensors. Check the capacity, the minimum state of charge and **the phase** it is connected to.
+1. **+ Add battery** — pick your battery from the list (Omnibattery and Marstek Modbus batteries are recognised and filled in), or link one by its sensors. Check the capacity, the minimum state of charge and **the phase** it is connected to. Optional: read the battery over its own [direct connection](drivers.md#direct-battery-drivers) instead of through sensors (*How is the battery read?*, with its IP address), and *Controlled by HomeBatteryAssist* (off by default; only works with the setting *Control on*).
 2. **+ Add PV source** — the power of your solar inverter(s), so the house consumption is right.
 3. **+ Add excluded device** — big loads you do not want in the consumption forecast and the battery should not supply, such as an **EV charger**.
 4. **+ Add heating/cooling** *(optional)* — a heat pump or air conditioner; with a room temperature sensor the forecast learns how it follows the weather.
@@ -129,6 +129,7 @@ Open **HomeBatteryAssist** in the sidebar.
 - **Return** — what each plan mode would bring compared with no battery.
 - **Batteries** — your batteries in detail.
 - **Accuracy** — how good each forecast turned out to be.
+- **Log** — what each real battery did, per period: who decided it, whether it was the plan, and why.
 
 See [Dashboard](dashboard.md) and the [Screenshots](screenshots.md).
 

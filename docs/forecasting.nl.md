@@ -8,7 +8,7 @@ HomeBatteryAssist voorspelt het verbruik zelf, maar haalt prijzen en zonvoorspel
 
 ## Planningsvenster {#planning-window}
 
-Elke voorspelling bepaalt eerst hoe ver vooruit hij kan rekenen: begrensd door je instelling (1–7 dagen) en door hoe ver de prijs- en zonvoorspellingen reiken. Voorbij dat venster wordt niets berekend.
+Elke voorspelling bepaalt eerst hoe ver vooruit hij kan rekenen: begrensd door je instelling (1–7 dagen) en door hoe ver de prijs- en zonvoorspellingen reiken. Voorbij dat venster wordt niets gepland (alleen arbitrage kijkt tot 36 uur verder in de zonvoorspelling om energie te waarderen die de volgende zon toch bijvult; zie [Planmodi](planning.md#plan-modes)).
 
 ## Verbruik {#consumption}
 
@@ -73,7 +73,7 @@ De terugleverprijs is de kale marktprijs (EPEX, standaard), de terugleverprijs �
 
 ### Tarief {#tariff}
 
-Een **tarief**-[module](modules.md) zet deze prijzen om in wat een kWh echt kost en oplevert — bijvoorbeeld voor een contract met terugleverkosten of eigen toeslagen. Het ingebouwde tarief *Zoals de prijsbron ze geeft* gebruikt ze zoals ze zijn. Voor een bron met kale marktprijzen (Nord Pool, EnergyZero, easyEnergy: zonder energiebelasting en opslag) kies je het ingebouwde tarief *Marktprijs + opslag + energiebelasting, plus btw* (niet getest) en vul je de bedragen in onder *Tariefkosten* (in euro per kWh, bijv. 0,0916; voor periodes zonder marktprijs, zoals een langere geschatte voorspelling, is de marktprijs de prijs van de bron min het gebruikelijke verschil tussen die twee, zodat er nooit twee keer btw bij komt); anders ziet arbitrage de verliezen van een rondje laden/ontladen te goedkoop. Het sjabloon laat een dynamisch contract zien dat is opgebouwd uit de marktprijs.
+Een **tarief**-[module](modules.md) zet deze prijzen om in wat een kWh echt kost en oplevert — bijvoorbeeld voor een contract met terugleverkosten of eigen toeslagen. Het ingebouwde tarief *Zoals de prijsbron en de terugleverinstellingen ze geven* gebruikt ze zoals ze zijn. Voor een bron met kale marktprijzen (Nord Pool, EnergyZero, easyEnergy: zonder energiebelasting en opslag) kies je het ingebouwde tarief *Marktprijs + opslag + energiebelasting, plus btw* (niet getest) en vul je de bedragen in onder *Tariefkosten* (per kWh in de valuta van Home Assistant, bijv. 0,0916; voor periodes zonder marktprijs, zoals een langere geschatte voorspelling, is de marktprijs de prijs van de bron min het gebruikelijke verschil tussen die twee, zodat er nooit twee keer btw bij komt); anders ziet arbitrage de verliezen van een rondje laden/ontladen te goedkoop. Het sjabloon laat een dynamisch contract zien dat is opgebouwd uit de marktprijs.
 
 ## PV {#pv}
 

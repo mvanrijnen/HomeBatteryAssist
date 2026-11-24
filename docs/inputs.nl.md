@@ -4,7 +4,7 @@ description: "Wat HomeBatteryAssist nodig heeft als invoer: netmeter, batterijen
 
 # Invoer: wat HomeBatteryAssist nodig heeft {#inputs-what-homebatteryassist-needs}
 
-HomeBatteryAssist maakt **zelf geen voorspellingen**: het leest metingen en voorspellingen uit andere integraties en combineert die. Deze pagina zet alle invoer op één plek: waarvoor ze dient, of ze nodig is, waar ze vandaan komt en wat er gebeurt zonder.
+HomeBatteryAssist leest metingen, prijzen en zon-/weervoorspellingen uit andere integraties en voorspelt daarmee zelf het huisverbruik. Deze pagina zet alle invoer op één plek: waarvoor ze dient, of ze nodig is, waar ze vandaan komt en wat er gebeurt zonder.
 
 ## In één oogopslag {#at-a-glance}
 
@@ -24,11 +24,11 @@ HomeBatteryAssist maakt **zelf geen voorspellingen**: het leest metingen en voor
 
 ## Netmeter {#grid-meter}
 
-**Verplicht.** Het vermogen per fase (W, + afname / − teruglevering): van een rechtstreeks uitgelezen meter (HomeWizard P1, SMA Home Manager, Shelly, IAMMETER), via de sensoren van zijn integratie, of je eigen sensoren (één sensor met teken, of afname en teruglevering apart). Optioneel per fase: **stroom** (A) en **spanning** (V), en een arbeidsfactor als de meter die stuurt; daarmee werkt de fasebeveiliging op de echte stroom (zie [Stroom per fase](measuring.md#current-per-phase)). Zonder netwaarde is het huisverbruik onbekend en doen de virtuele batterijen niets.
+**Verplicht.** Het vermogen per fase (W, + afname / − teruglevering): van een rechtstreeks uitgelezen meter (HomeWizard P1, SMA Home Manager, Shelly, IAMMETER), via de sensoren van zijn integratie, of je eigen sensoren (één sensor met teken, of afname en teruglevering apart). Optioneel per fase: **stroom** (A) en **spanning** (V), en een arbeidsfactor als de meter die stuurt; daarmee werkt de fasebeveiliging op de echte stroom (zie [Stroom per fase](measuring.md#current-per-phase)). Zonder netwaarde is het huisverbruik onbekend, doen de virtuele batterijen niets en gaan aangestuurde batterijen terug naar hun eigen sturing.
 
 ## Batterijen {#batteries}
 
-Per batterij van **haar eigen integratie** (alleen lezen): **laadniveau** (%) en **vermogen** (W, met het teken: + laden of + ontladen, in te stellen in het batterijformulier). Capaciteit, maximaal laad-/ontlaadvermogen, min/max laadniveau en rendement worden ingevuld bij een herkende batterij en kunnen worden aangepast. Zonder batterijen meet en voorspelt HomeBatteryAssist wel, maar maakt het geen batterijplan; een [virtuele batterij](measuring.md#virtual-batteries) heeft helemaal geen integratie nodig.
+Per batterij van **haar eigen integratie**, of van een [directe verbinding](drivers.md#direct-battery-drivers) met de batterij (dan zijn haar sensoren optioneel): **laadniveau** (%) en **vermogen** (W, met het teken: + laden of + ontladen, in te stellen in het batterijformulier). Capaciteit, maximaal laad-/ontlaadvermogen, min/max laadniveau en rendement worden ingevuld bij een herkende batterij en kunnen worden aangepast. Zonder batterijen meet en voorspelt HomeBatteryAssist wel, maar maakt het geen batterijplan; een [virtuele batterij](measuring.md#virtual-batteries) heeft helemaal geen integratie nodig.
 
 ## Prijzen {#prices}
 

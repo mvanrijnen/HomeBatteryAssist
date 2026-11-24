@@ -17,7 +17,7 @@ Je hebt nodig:
 
 Handig, maar niet verplicht (kun je later toevoegen):
 
-- [ ] **De eigen integratie van je batterij**, bijv. **Omnibattery** of **Marstek Modbus**. Uiteindelijk gaat HomeBatteryAssist de batterij zelf aansturen; tijdens de ontwikkeling leest het hem alleen uit, uit veiligheid en om die integratie niet te verstoren, zodat die hem voorlopig blijft aansturen. Nog geen batterij? Voeg een *virtuele batterij* toe om te zien wat er een zou opleveren.
+- [ ] **De eigen integratie van je batterij**, bijv. **Omnibattery** of **Marstek Modbus**. Standaard leest HomeBatteryAssist de batterij alleen uit, en blijft die integratie hem aansturen. HomeBatteryAssist kan hem ook zelf aansturen (instelling *Besturing aan*, standaard uit, alfa) — zet de andere integratie dan eerst uit. Nog geen batterij? Voeg een *virtuele batterij* toe om te zien wat er een zou opleveren.
 - [ ] **Een prijsintegratie met dynamische prijzen**, bijv. **DynTarNL** (aanbevolen in Nederland), Nord Pool, EnergyZero of easyEnergy. Nodig voor arbitrage en voor de kosten.
 - [ ] **Een zonvoorspelling** in het Energie-dashboard (bijv. Solcast of Forecast.Solar), als je zonnepanelen hebt.
 - [ ] **Een weerbron** (een weer-entiteit, de KNMI-integratie, Weerlive of Open-Meteo), als je elektrisch verwarmt of koelt.
@@ -92,7 +92,7 @@ Op de integratiepagina voeg je de onderdelen van je huis toe met de **+**-knoppe
 
 ![Integratiepagina](screenshots/config-integration.jpg){ width="700" }
 
-1. **+ Batterij toevoegen** — kies je batterij uit de lijst (batterijen van Omnibattery en Marstek Modbus worden herkend en ingevuld), of koppel er een via zijn sensoren. Controleer de capaciteit, de minimale vulling en **de fase** waarop hij is aangesloten.
+1. **+ Batterij toevoegen** — kies je batterij uit de lijst (batterijen van Omnibattery en Marstek Modbus worden herkend en ingevuld), of koppel er een via zijn sensoren. Controleer de capaciteit, de minimale vulling en **de fase** waarop hij is aangesloten. Optioneel: lees de batterij uit over haar eigen [directe verbinding](drivers.md#direct-battery-drivers) in plaats van via sensoren (*Hoe leest HBA de batterij?*, met haar IP-adres), en *Aangestuurd door HomeBatteryAssist* (standaard uit; werkt alleen met de instelling *Besturing aan*).
 2. **+ PV-bron toevoegen** — het vermogen van je omvormer(s), zodat het huisverbruik klopt.
 3. **+ Uitgesloten apparaat toevoegen** — grote verbruikers die je niet in de verbruiksvoorspelling wilt en waarvoor de batterij niet moet ontladen, zoals een **laadpaal**.
 4. **+ Verwarming/koeling toevoegen** *(optioneel)* — een warmtepomp of airco; met een sensor voor de kamertemperatuur leert de voorspelling hoe die het weer volgt.
@@ -129,6 +129,7 @@ Open **HomeBatteryAssist** in de zijbalk.
 - **Rendement** — wat elke planmodus zou opleveren ten opzichte van geen batterij.
 - **Batterijen** — je batterijen in detail.
 - **Nauwkeurigheid** — hoe goed elke voorspelling uitkwam.
+- **Log** — wat elke echte batterij deed, per periode: wie het besliste, of het het plan was, en waarom.
 
 Zie [Dashboard](dashboard.md) en de [Screenshots](screenshots.md).
 

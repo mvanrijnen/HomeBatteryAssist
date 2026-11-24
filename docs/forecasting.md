@@ -8,7 +8,7 @@ HomeBatteryAssist forecasts consumption itself, but takes prices and PV forecast
 
 ## Planning window
 
-Every forecast first determines how far ahead it can calculate: limited by your setting (1–7 days) and by how far the price and PV forecasts reach. Nothing is calculated beyond that window.
+Every forecast first determines how far ahead it can calculate: limited by your setting (1–7 days) and by how far the price and PV forecasts reach. Nothing is planned beyond that window (only arbitrage looks up to 36 h further in the PV forecast to value energy the next sun refills anyway; see [Plan modes](planning.md#plan-modes)).
 
 ## Consumption
 
@@ -69,11 +69,11 @@ When a source publishes prices that the plan only had as estimates, and a publis
 
 Every calculation (plans, comparisons and the realised value of the batteries) assumes there is **no net metering** (in the Netherlands it ends on 1 January 2027). Imported energy costs the import price; exported energy earns only the export price, so charging from solar power costs what that power would have earned, and discharging saves the import price only for energy the house would otherwise have bought.
 
-The export price is the bare market price (EPEX, default), the export price — from the price source when it has one, otherwise from one or more sensors — or import price × factor (default 0.25; 1.0 equals net metering). On a dynamic contract the supplier usually deducts a purchase fee from the market price for exported energy (e.g. Essent about € 0.025/kWh); with DynTarNL as price source, *Export price from the price source* gives exactly that. From DynTarNL 1.2.0 the export prices are read directly — the published ones from *export price now* (attribute `prices`), then the forecast ones (`forecast_export`, when DynTarNL's forecasts are on) after the last published hour; negative export prices are kept (exporting costs money then). Older DynTarNL versions work too: the market price minus the purchase fee DynTarNL reports.
+The export price is the bare market price (EPEX, default), the export price — from the price source when it has one, otherwise from one or more sensors — or import price × factor (default 0.25; 1.0 equals net metering). On a dynamic contract the supplier usually deducts a purchase fee from the market price for exported energy (e.g. Essent about € 0.025/kWh); with DynTarNL as price source, *Export price from the price source or sensor(s)* gives exactly that. From DynTarNL 1.2.0 the export prices are read directly — the published ones from *export price now* (attribute `prices`), then the forecast ones (`forecast_export`, when DynTarNL's forecasts are on) after the last published hour; negative export prices are kept (exporting costs money then). Older DynTarNL versions work too: the market price minus the purchase fee DynTarNL reports.
 
 ### Tariff
 
-A **tariff** [module](modules.md) turns these prices into what a kWh really costs and earns — for example for a contract with export costs or own surcharges. The built-in tariff *As the price source gives them* uses them as they are. For a source with bare market prices (Nord Pool, EnergyZero, easyEnergy: no energy tax or supplier surcharge) choose the built-in tariff *Market price + surcharge + energy tax, plus VAT* (not tested) and fill in the amounts under *Tariff costs* (in euro per kWh, e.g. 0.0916; for periods without a market price, such as a longer estimated forecast, the market price is the source's price minus the usual difference between the two, so VAT is never added twice); otherwise arbitrage sees the losses of a round trip too cheaply. The template shows a dynamic contract built from the market price.
+A **tariff** [module](modules.md) turns these prices into what a kWh really costs and earns — for example for a contract with export costs or own surcharges. The built-in tariff *As the price source and export settings give them* uses them as they are. For a source with bare market prices (Nord Pool, EnergyZero, easyEnergy: no energy tax or supplier surcharge) choose the built-in tariff *Market price + surcharge + energy tax, plus VAT* (not tested) and fill in the amounts under *Tariff costs* (per kWh in Home Assistant's currency, e.g. 0.0916; for periods without a market price, such as a longer estimated forecast, the market price is the source's price minus the usual difference between the two, so VAT is never added twice); otherwise arbitrage sees the losses of a round trip too cheaply. The template shows a dynamic contract built from the market price.
 
 ## PV
 

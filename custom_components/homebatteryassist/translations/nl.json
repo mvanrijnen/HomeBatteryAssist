@@ -80,7 +80,7 @@
           "price_forecast_entity": "Bij de prijsbron 'Prijssensor': een sensor van een andere integratie met de prijsvoorspelling in zijn attributen.",
           "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
-          "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Alle modi worden altijd ter vergelijking doorgerekend. Eigen planningsmodules uit /config/homebatteryassist/planners verschijnen hier ook (na herladen).",
+          "plan_mode": "Hoe HomeBatteryAssist de batterijen plant: advies, en met Besturing aan wat de aangestuurde batterijen doen. Alle modi worden altijd ter vergelijking doorgerekend. Eigen planningsmodules uit /config/homebatteryassist/planners verschijnen hier ook (na herladen).",
           "price_source": "Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest.",
           "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld.",
           "price_blocks": "Alleen voor de prijsbron *Bloktarief*: vaste prijzen per tijdsblok, één regel per blok: optioneel de dagen (ma-vr, za,zo), een tijdsblok (23:00-07:00, over middernacht mag) en de prijs per kWh; een regel met alleen een prijs is de prijs op alle andere tijden. Een latere regel wint waar ze overlappen. Voorbeeld: '0,30' / '23:00-07:00 0,22' / 'ma-vr 17:00-21:00 0,40'.",
@@ -162,7 +162,7 @@
               "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
               "charge_hysteresis": "Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit.",
               "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken).",
-              "interceptor": "Jouw laatste woord per batterij voordat een opdracht uitgaat: goedkeuren, beperken (minder, zelfde richting), tegenhouden of vrijgeven. De eigen controle van HomeBatteryAssist komt erna en gaat altijd voor. Standaard geen; eigen onderscheppers uit /config/homebatteryassist/interceptors staan hier ook (na herladen). Voorlopig werkt hij op de virtuele batterijen.",
+              "interceptor": "Jouw laatste woord per batterij voordat een opdracht uitgaat: goedkeuren, beperken (minder, zelfde richting), tegenhouden of vrijgeven. De eigen controle van HomeBatteryAssist komt erna en gaat altijd voor. Standaard geen; eigen onderscheppers uit /config/homebatteryassist/interceptors staan hier ook (na herladen). Hij werkt op de virtuele batterijen en, met Besturing aan, op de aangestuurde echte batterijen.",
               "intraday_correction": "Gebruikte het huis vandaag tot nu toe duidelijk meer of minder dan voorspeld, dan rekent de rest van vandaag daar ook mee: geleidelijk vanaf 03:00, volledig vanaf 12:00, hooguit 30 %. Morgen begint weer bij de gewone voorspelling."
             }
           },
@@ -663,7 +663,7 @@
           "price_forecast_entity": "Bij de prijsbron 'Prijssensor': een sensor van een andere integratie met de prijsvoorspelling in zijn attributen.",
           "pv_forecast_entries": "Integrations die een zonne-opwekvoorspelling leveren (bijv. Forecast.Solar, Solcast). Gekozen voorspellingen worden opgeteld tot het totaal van je woning.",
           "forecast_interval": "Hoe vaak de voorspellingen automatisch opnieuw worden berekend.",
-          "plan_mode": "Hoe HomeBatteryAssist de batterijen zou aansturen (voorlopig alleen advies). Alle modi worden altijd ter vergelijking doorgerekend. Eigen planningsmodules uit /config/homebatteryassist/planners verschijnen hier ook (na herladen).",
+          "plan_mode": "Hoe HomeBatteryAssist de batterijen plant: advies, en met Besturing aan wat de aangestuurde batterijen doen. Alle modi worden altijd ter vergelijking doorgerekend. Eigen planningsmodules uit /config/homebatteryassist/planners verschijnen hier ook (na herladen).",
           "price_source": "Waar de stroomprijzen vandaan komen. In Home Assistant gevonden bronnen staan in de lijst (* = nog niet getest op een echte installatie); 'Prijssensor' gebruikt de sensor die je hieronder kiest.",
           "price_extension": "Optioneel: een tweede bron die verder vooruit kijkt (bijv. een meerdaagse voorspelling), gebruikt na de prijzen van de prijsbron; telt altijd als voorspeld.",
           "price_blocks": "Alleen voor de prijsbron *Bloktarief*: vaste prijzen per tijdsblok, één regel per blok: optioneel de dagen (ma-vr, za,zo), een tijdsblok (23:00-07:00, over middernacht mag) en de prijs per kWh; een regel met alleen een prijs is de prijs op alle andere tijden. Een latere regel wint waar ze overlappen. Voorbeeld: '0,30' / '23:00-07:00 0,22' / 'ma-vr 17:00-21:00 0,40'.",
@@ -745,7 +745,7 @@
               "manual_power_w": "Gebruikt in de planmodus “Handmatig”: de batterijen laden (positief) of ontladen (negatief) altijd met dit vermogen, binnen hun grenzen.",
               "charge_hysteresis": "Eenmaal vol laden de batterijen pas weer als hun laadniveau zoveel onder het maximum is gezakt (minder kleine bijlaadmomenten). 0 = uit.",
               "vacation": "Zolang aan, wordt het gemeten huisverbruik niet gebruikt om het gewone verbruik te leren (de voorspelling blijft de normale dagen gebruiken).",
-              "interceptor": "Jouw laatste woord per batterij voordat een opdracht uitgaat: goedkeuren, beperken (minder, zelfde richting), tegenhouden of vrijgeven. De eigen controle van HomeBatteryAssist komt erna en gaat altijd voor. Standaard geen; eigen onderscheppers uit /config/homebatteryassist/interceptors staan hier ook (na herladen). Voorlopig werkt hij op de virtuele batterijen.",
+              "interceptor": "Jouw laatste woord per batterij voordat een opdracht uitgaat: goedkeuren, beperken (minder, zelfde richting), tegenhouden of vrijgeven. De eigen controle van HomeBatteryAssist komt erna en gaat altijd voor. Standaard geen; eigen onderscheppers uit /config/homebatteryassist/interceptors staan hier ook (na herladen). Hij werkt op de virtuele batterijen en, met Besturing aan, op de aangestuurde echte batterijen.",
               "intraday_correction": "Gebruikte het huis vandaag tot nu toe duidelijk meer of minder dan voorspeld, dan rekent de rest van vandaag daar ook mee: geleidelijk vanaf 03:00, volledig vanaf 12:00, hooguit 30 %. Morgen begint weer bij de gewone voorspelling."
             }
           },
