@@ -732,6 +732,7 @@ const STYLE = `
   .fd-node.fd-zone { --fd-color: #e53935; }
   @media (max-width: 600px) { .fd-circle { width: 64px; height: 64px; } .fd-circle ha-icon { --mdc-icon-size: 16px; } .fd-circle b { font-size: 11px; } .fd-node { transform: translate(-50%, -32px); width: 112px; } .fd-info table { font-size: 9px; } .fd-name { font-size: 10px; } }
   .toolbar .version { font-size: 12px; opacity: .7; margin-left: 8px; }
+  .toolbar .stage { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-left: 6px; padding: 1px 6px; border-radius: 8px; background: var(--warning-color, #ff9800); color: #000; vertical-align: middle; }
   .toolbar button { display: flex; align-items: center; gap: 6px; font: inherit; font-size: 14px; cursor: pointer;
     color: inherit; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.4);
     border-radius: 18px; padding: 6px 14px; }
@@ -895,6 +896,9 @@ const STYLE = `
 const FLOW_LEAD = 6 * 3600e3; // the flow chart shows this much history before now
 const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+// The development stage, shown beside the version (empty from the first stable release).
+const STAGE = "alpha";
 
 // The integration's version: the panel is loaded as panel.js?v=<version>.
 const VERSION = (() => {
@@ -3080,7 +3084,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       }
     }
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
-      <div class="toolbar"><span class="menu"></span><span class="title">${esc(t.title)}${VERSION ? `<span class="version">v${esc(VERSION)}</span>` : ""}</span>
+      <div class="toolbar"><span class="menu"></span><span class="title">${esc(t.title)}${VERSION ? `<span class="version">v${esc(VERSION)}</span>` : ""}${STAGE ? `<span class="stage">${esc(STAGE)}</span>` : ""}</span>
         ${this._status ? `<button class="ev-open" title="${esc(t.evTitle)}"><ha-icon icon="mdi:car-electric"></ha-icon><span class="label">${esc(t.evButton)}</span></button>` : ""}
         ${this._status ? `<button class="adj-open" title="${esc(t.adjTitle)}"><ha-icon icon="mdi:calendar-plus"></ha-icon><span class="label">${esc(t.adjButton)}${(this._status.adjustments || []).length ? ` (${this._status.adjustments.length})` : ""}</span></button>` : ""}
         ${this._status ? `<button class="recalc" ${this._busy ? "disabled" : ""}>
