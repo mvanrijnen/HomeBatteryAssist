@@ -148,6 +148,15 @@
           "stopped": "mdi:lan-disconnect",
           "connecting": "mdi:lan-pending"
         }
+      },
+      "house_energy_today": {
+        "default": "mdi:home-lightning-bolt"
+      },
+      "expected_consumption_today": {
+        "default": "mdi:home-lightning-bolt-outline"
+      },
+      "expected_consumption_tomorrow": {
+        "default": "mdi:home-clock-outline"
       }
     },
     "button": {

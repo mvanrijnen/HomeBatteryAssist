@@ -1919,6 +1919,15 @@
           "error": "Error",
           "stopped": "Stopped"
         }
+      },
+      "house_energy_today": {
+        "name": "House consumption today"
+      },
+      "expected_consumption_today": {
+        "name": "Expected consumption today"
+      },
+      "expected_consumption_tomorrow": {
+        "name": "Expected consumption tomorrow"
       }
     },
     "button": {

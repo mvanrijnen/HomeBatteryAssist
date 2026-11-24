@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -63,6 +63,7 @@ async def async_setup_entry(
         ExportLimitSensor(entry),
         PlanningHorizonSensor(entry),
         ConsumptionForecastSensor(entry),
+        *(HouseDaySensor(entry, kind) for kind in HOUSE_DAY_KINDS),
         *(
             ForecastAccuracySensor(entry, kind)
             for kind in ("consumption", "pv", "price")
@@ -510,6 +511,72 @@ class ConsumptionForecastSensor(
                 for s in slots
             ],
         }
+
+
+HOUSE_DAY_KINDS = (
+    "house_energy_today",  # measured so far today
+    "expected_consumption_today",  # measured so far + forecast rest of today
+    "expected_consumption_tomorrow",  # the forecast of tomorrow (local day)
+)
+
+
+class HouseDaySensor(
+    HomeBatteryAssistEntity, CoordinatorEntity[ForecastCoordinator], SensorEntity
+):
+    """House consumption per local day (kWh): measured today, expected today,
+    expected tomorrow; updated every forecast cycle."""
+
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_native_unit_of_measurement = UnitOfEnergy.KILO_WATT_HOUR
+    _attr_suggested_display_precision = 1
+
+    def __init__(self, entry: HomeBatteryAssistConfigEntry, kind: str) -> None:
+        """Initialize."""
+        CoordinatorEntity.__init__(self, entry.runtime_data.forecast)
+        HomeBatteryAssistEntity.__init__(self, entry, kind)
+        self._entry = entry
+        self._kind = kind
+        if kind == "house_energy_today":
+            self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+
+    def _measured_today(self, now: datetime) -> float | None:
+        history = self._entry.runtime_data.history
+        start = dt_util.start_of_local_day(dt_util.as_local(now))
+        try:
+            energy = history.day_energy(dt_util.as_utc(start), now, now)
+        except Exception:
+            return None
+        house = energy.get("house")
+        return None if house is None else house / 1000
+
+    def _forecast(self, start: datetime, end: datetime) -> float:
+        total = 0.0
+        for s in self.coordinator.data.consumption:
+            a, b = max(s.start, start), min(s.end, end)
+            if b > a:
+                total += s.power_w * (b - a).total_seconds() / 3_600_000
+        return total
+
+    @property
+    def native_value(self) -> float | None:
+        """kWh."""
+        now = dt_util.utcnow()
+        today = dt_util.start_of_local_day(dt_util.as_local(now))
+        tomorrow = dt_util.start_of_local_day(today + timedelta(hours=26))
+        if self._kind == "expected_consumption_tomorrow":
+            after = dt_util.start_of_local_day(tomorrow + timedelta(hours=26))
+            slots = self.coordinator.data.consumption
+            if not slots or slots[-1].end < dt_util.as_utc(after):
+                return None  # the forecast does not reach the end of tomorrow
+            return round(
+                self._forecast(dt_util.as_utc(tomorrow), dt_util.as_utc(after)), 2
+            )
+        measured = self._measured_today(now)
+        if measured is None:
+            return None
+        if self._kind == "house_energy_today":
+            return round(measured, 2)
+        return round(measured + self._forecast(now, dt_util.as_utc(tomorrow)), 2)
 
 
 class BatteryForecastSensor(

@@ -1919,6 +1919,15 @@
           "error": "Fout",
           "stopped": "Gestopt"
         }
+      },
+      "house_energy_today": {
+        "name": "Huisverbruik vandaag"
+      },
+      "expected_consumption_today": {
+        "name": "Verwacht verbruik vandaag"
+      },
+      "expected_consumption_tomorrow": {
+        "name": "Verwacht verbruik morgen"
       }
     },
     "button": {
