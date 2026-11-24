@@ -742,35 +742,6 @@ const STYLE = `
   .toolbar button ha-icon { --mdc-icon-size: 18px; }
   @media (max-width: 600px) { .toolbar .adj-open .label, .toolbar .ev-open .label { display: none; } }
   .log-cards { display: none; }
-  /* Phone: everything fits the width (no sideways page), round icon buttons,
-     tables scroll in their own box, the log as compact blocks, readable charts. */
-  @media (max-width: 600px) {
-    .toolbar { padding: 0 6px; gap: 6px; font-size: 17px; }
-    .toolbar .title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .toolbar .version { display: none; }
-    .toolbar .stage { font-size: 9px; padding: 1px 4px; margin-left: 4px; }
-    .toolbar button { padding: 6px; border-radius: 50%; flex: none; }
-    .toolbar button .label { display: none; }
-    .content { padding: 8px; gap: 10px; }
-    .content > *, .card { min-width: 0; }
-    .card { padding: 12px; }
-    .tabs button { padding: 10px 10px; }
-    table.compare, table.acc, table.daytotals, table.prices { display: block; overflow-x: auto; max-width: 100%; }
-    table.compare td, table.compare th, table.acc td, table.acc th { white-space: nowrap; }
-    table.compare tr > :first-child, table.acc tr > :first-child {
-      position: sticky; left: 0; z-index: 1; background: var(--card-background-color); }
-    .log-wide { display: none; }
-    .log-cards { display: block; }
-    .log-card { padding: 6px 0; border-bottom: 1px solid var(--divider-color); font-size: 13px; }
-    .log-card .l1 { display: flex; justify-content: space-between; gap: 8px; }
-    .log-card .l1 > :last-child { white-space: nowrap; }
-    .log-card .l2 { color: var(--secondary-text-color); font-size: 12px; margin-top: 2px; }
-    .log-card.off-plan .l1 { color: var(--warning-color, #ff9800); }
-    .log-card.incident .l1 { color: var(--error-color, #db4437); }
-    .log-nav { flex-wrap: wrap; }
-    .chart .axis { font-size: 16px; }
-    .legend { flex-wrap: wrap; gap: 4px 12px; font-size: 12px; }
-  }
   .content { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
   .tabs { display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; border-bottom: 1px solid var(--divider-color); }
   .tabs button { font: inherit; font-size: 14px; cursor: pointer; background: none; border: none; white-space: nowrap;
@@ -927,6 +898,41 @@ const STYLE = `
   .reach .bar { height: 12px; }
   .legend { display: flex; gap: 16px; font-size: 13px; color: var(--secondary-text-color); margin-top: 4px; }
   .legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  /* Phone: everything fits the width (no sideways page), round icon buttons,
+     tables scroll in their own box, the log as compact blocks, readable charts. */
+  @media (max-width: 600px) {
+    .toolbar { padding: 0 6px; gap: 6px; font-size: 17px; }
+    .toolbar .title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .toolbar .version { display: none; }
+    .toolbar .stage { font-size: 9px; padding: 1px 4px; margin-left: 4px; }
+    .toolbar button { padding: 6px; border-radius: 50%; flex: none; }
+    .toolbar button .label { display: none; }
+    .content { padding: 8px; gap: 10px; }
+    .content > *, .card { min-width: 0; }
+    .card { padding: 12px; }
+    .tabs button { padding: 10px 10px; }
+    table.compare, table.acc, table.daytotals, table.prices { display: block; overflow-x: auto; max-width: 100%; }
+    table.compare td, table.compare th, table.acc td, table.acc th { white-space: nowrap; }
+    table.compare tr > :first-child, table.acc tr > :first-child {
+      position: sticky; left: 0; z-index: 1; background: var(--card-background-color); }
+    .log-wide { display: none; }
+    .log-cards { display: block; }
+    .log-card { padding: 6px 0; border-bottom: 1px solid var(--divider-color); font-size: 13px; }
+    .log-card .l1 { display: flex; justify-content: space-between; gap: 8px; }
+    .log-card .l1 > :last-child { white-space: nowrap; }
+    .log-card .l2 { color: var(--secondary-text-color); font-size: 12px; margin-top: 2px; }
+    .log-card.off-plan .l1 { color: var(--warning-color, #ff9800); }
+    .log-card.incident .l1 { color: var(--error-color, #db4437); }
+    .log-nav { flex-wrap: wrap; }
+    .chart .axis { font-size: 16px; }
+    .chart .line { stroke-width: 2.4; }
+    .chart .line.thin { stroke-width: 1.4; }
+    .chart .line.dashed { stroke-width: 2; stroke-dasharray: 6 4; }
+    .chart .grid { stroke-opacity: .6; }
+    .chart h3, .chart .head h3 { font-size: 15px; }
+    .legend i { width: 16px; height: 4px; }
+    .legend { flex-wrap: wrap; gap: 4px 12px; font-size: 12px; }
+  }
 `;
 
 const FLOW_LEAD = 6 * 3600e3; // the flow chart shows this much history before now
@@ -1878,7 +1884,9 @@ class HomeBatteryAssistPanel extends HTMLElement {
       }
     }
     if (yMin < 0) svg += `<line class="zero" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
-    for (const [v, label] of ticks) {
+    // On a phone at most 5 time labels (they would overlap at the larger text).
+    const shown = phone && ticks.length > 5 ? ticks.filter((_, i) => i % Math.ceil(ticks.length / 5) === 0) : ticks;
+    for (const [v, label] of shown) {
       svg += `<text class="axis" x="${x(v)}" y="${H - 6}" text-anchor="middle">${esc(label)}</text>`;
     }
     // Filled areas (e.g. a power under temperature lines): down to the zero
@@ -1916,7 +1924,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       svg += `<text class="axis" x="${x(v) + 4}" y="${T + 10}">${esc(label)}</text>`;
     }
     svg += `<g class="hover" style="display:none"><line class="cursor" y1="${T}" y2="${H - B}"/>
-      ${series.map((s, i) => `<circle r="3.5" data-i="${i}" style="fill:${s.color}"/>`).join("")}</g>`;
+      ${series.map((s, i) => `<circle r="${phone ? 6 : 3.5}" data-i="${i}" style="fill:${s.color}"/>`).join("")}</g>`;
     this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt, yFmt, right, fill: !!(fill && fill.points.length > 1) };
     const chart = `<svg data-chart="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"${
       scroll ? ` style="width:${W}px;max-width:none"` : ""
