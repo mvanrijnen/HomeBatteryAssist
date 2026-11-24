@@ -52,6 +52,7 @@ from ..measure.battery_monitor import (
     direct_link,
     twinned_ids,
 )
+from ..measure.house_measurement import covers, nom_balance
 from .battery_controller import BatteryController
 from .pd_controller import PdController, PdSettings
 from .reader_driver import LinkDriver, ReaderDriver
@@ -135,6 +136,10 @@ class ControlLoop(VirtualBatterySimulator):
         self._flips: list[datetime] = []
         self._direction = 0
         self._paused_until: datetime | None = None
+        # A planned discharge on the meter alone too (as zero on the meter):
+        # its own integrating controller and last command.
+        self._plan_pd = PdController(self._pd.settings)
+        self._plan_command: float | None = None
 
     # -- what differs from the simulation ---------------------------------
     @property
@@ -162,6 +167,30 @@ class ControlLoop(VirtualBatterySimulator):
                 for c in self.virtual
             ],
         )
+
+    def _plan_discharge(
+        self, planned_w: float, flow: Any, slot: Any, hours: float
+    ) -> float:
+        """A planned discharge on a real battery: steered on the meter from
+        the previous command (the battery's own reading lags; the simple
+        limit from it flipped between 0 W and the planned power), never into
+        the grid unless the plan chose to, and at most the planned power
+        unless using the batteries pays at this price (``covers``)."""
+        if planned_w >= 0 or self.holding:
+            self._plan_pd.reset()
+            self._plan_command = None
+            return super()._plan_discharge(planned_w, flow, slot, hours)
+        ideal = min(nom_balance(flow, min(slot.grid_w, 0.0)), 0.0)
+        states = self._batteries.states
+        actual = sum(states[c.id].power_w or 0.0 for c in self.virtual)
+        interval = getattr(self._forecast, "react_interval", None)
+        scale = hours * 3600 / interval.total_seconds() if interval else 1.0
+        new = self._plan_pd.step(ideal, actual, self._plan_command, scale)
+        new = min(new, 0.0)
+        if not covers(slot):
+            new = max(new, planned_w)
+        self._plan_command = new
+        return new
 
     @property
     def mode(self) -> str:

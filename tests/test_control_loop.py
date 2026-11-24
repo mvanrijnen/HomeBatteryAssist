@@ -228,3 +228,83 @@ async def test_oscillation_pauses_control(hass: HomeAssistant) -> None:
         loop._watch_direction(T0 + timedelta(seconds=5 * i), total)
     assert loop._hold_reason("b1", T0 + timedelta(seconds=30)) == "oscillating"
     assert loop._hold_reason("b1", T0 + timedelta(minutes=11)) is None
+
+
+def _plan_data(power_w: float, price: float, use_above: float | None):
+    """Arbitrage selected; one slot around T0 that discharges for the house."""
+    data = _Data()
+    data.plan_mode = "arbitrage"
+    slot = SimpleNamespace(
+        start=T0 - timedelta(hours=1),
+        end=T0 + timedelta(hours=2),
+        power_w=power_w,
+        grid_w=0.0,
+        price=price,
+        use_above=use_above,
+        export_price=None,
+    )
+    data.selected_plan = SimpleNamespace(strategy="arbitrage", slots=[slot])
+    return data
+
+
+async def _run_plan(hass, data, house_w: float) -> list[float | None]:
+    batteries = SimpleNamespace(
+        configs=[CONTROLLED],
+        states={"b1": BatteryState(CONTROLLED, 60.0, 0.0)},
+        plan_states=lambda: [BatteryState(CONTROLLED, 60.0, 0.0)],
+        price_now=lambda: None,
+    )
+    measurements = SimpleNamespace(
+        flow=_flow(house_w, 0.0),
+        max_current=25,
+        spike=SimpleNamespace(ignore_w=0.0),
+        has_pv=False,
+        pv_known=True,
+        async_add_listener=lambda listener: lambda: None,
+    )
+    forecast = _forecast()
+    forecast.data = data
+    loop = ControlLoop(hass, batteries, measurements, forecast, FakeLog())
+    controller = _Controller()
+    loop.controllers = {"b1": controller}
+    loop._quiet_until = loop._last = T0
+    doing = [0.0, 0.0]
+    for i in range(1, 41):
+        measurements.flow = _flow(house_w, doing[0])
+        batteries.states["b1"] = BatteryState(CONTROLLED, 60.0, doing[1])
+        loop.step(T0 + i * timedelta(seconds=5))
+        await hass.async_block_till_done()
+        command = controller.sent[-1] or 0.0
+        doing = [command, doing[0]]
+    return controller.sent
+
+
+async def test_plan_discharge_stable_with_a_lagging_battery(
+    hass: HomeAssistant,
+) -> None:
+    """A planned discharge of 640 W while the house uses 400 W: limited to
+    the need on the meter, without flipping between 0 W and the plan."""
+    sent = await _run_plan(hass, _plan_data(-640.0, 0.30, 0.35), 400.0)
+    tail = [p for p in sent[-10:] if p is not None]
+    assert tail and all(-450 < p < -350 for p in tail), sent
+    assert not any(p is not None and p > -1 for p in sent[10:]), sent
+
+
+async def test_plan_discharge_at_most_planned_when_not_worth_it(
+    hass: HomeAssistant,
+) -> None:
+    """The house uses 1500 W, the price is below the plan's use-above
+    threshold: no more than the planned 640 W."""
+    sent = await _run_plan(hass, _plan_data(-640.0, 0.30, 0.35), 1500.0)
+    tail = [p for p in sent[-10:] if p is not None]
+    assert tail and all(-645 < p < -600 for p in tail), sent
+
+
+async def test_plan_discharge_covers_the_house_when_it_pays(
+    hass: HomeAssistant,
+) -> None:
+    """The house uses 1500 W and the price is above the plan's use-above
+    threshold: the whole need is covered, above the planned 640 W."""
+    sent = await _run_plan(hass, _plan_data(-640.0, 0.40, 0.35), 1500.0)
+    tail = [p for p in sent[-10:] if p is not None]
+    assert tail and all(-1600 < p < -1400 for p in tail), sent

@@ -907,7 +907,7 @@ def nom_balance(flow: PowerFlow, target_w: float, ignore_w: float = 0.0) -> floa
 
 
 def planned_discharge(
-    planned_w: float, flow: PowerFlow, planned_grid_w: float
+    planned_w: float, flow: PowerFlow, planned_grid_w: float, cover: bool = False
 ) -> float:
     """A planned discharge (W, < 0) as far as it is needed now.
 
@@ -916,12 +916,30 @@ def planned_discharge(
     battery energy into the grid. So a discharge goes no further than the
     grid the plan expected for this slot (``planned_grid_w``: 0 or more = no
     export; less = an export the plan chose), never for excluded devices
-    (``nom_balance``). A charge (>= 0) is returned as it is.
+    (``nom_balance``). ``cover``: the house uses more than forecast and
+    using the batteries pays at this price (``covers``): the real need is
+    covered, also above the planned power. A charge (>= 0) is returned as it
+    is.
     """
     if planned_w >= 0:
         return planned_w
-    need = nom_balance(flow, min(planned_grid_w, 0.0))
-    return max(planned_w, min(need, 0.0))
+    need = min(nom_balance(flow, min(planned_grid_w, 0.0)), 0.0)
+    return need if cover else max(planned_w, need)
+
+
+def covers(slot: Any) -> bool:
+    """A plan slot that discharges for the house (no export) at a price at
+    which using the batteries pays (``use_above``, the plan's own threshold):
+    a larger need than forecast is covered too."""
+    price = getattr(slot, "price", None)
+    use_above = getattr(slot, "use_above", None)
+    return (
+        getattr(slot, "power_w", 0.0) < 0
+        and getattr(slot, "grid_w", 0.0) >= -1.0
+        and price is not None
+        and use_above is not None
+        and price >= use_above
+    )
 
 
 # Solar power clearly more or less than forecast: a difference of at least

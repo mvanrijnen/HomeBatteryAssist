@@ -127,3 +127,21 @@ def test_raised_minimum_not_charged_from_the_grid() -> None:
     batteries.set_virtual("A", T0, 0.0, 5.0)
     sim.step(T0 + timedelta(seconds=15))
     assert sim.guarding == {"A"}
+
+
+def test_planned_discharge_cover() -> None:
+    from custom_components.homebatteryassist.engine.measure.house_measurement import (
+        covers,
+        planned_discharge,
+    )
+
+    flow = PowerFlow(
+        grid_w=1500, pv_w=0, excluded_w=0, battery_w=0, house_w=1500, phase_w=(1500,)
+    )
+    assert planned_discharge(-640, flow, 0.0) == -640
+    assert planned_discharge(-640, flow, 0.0, cover=True) == -1500
+    slot = SimpleNamespace(power_w=-640, grid_w=0.0, price=0.40, use_above=0.35)
+    assert covers(slot)
+    assert not covers(SimpleNamespace(**{**vars(slot), "price": 0.30}))
+    assert not covers(SimpleNamespace(**{**vars(slot), "grid_w": -500.0}))
+    assert not covers(SimpleNamespace(**{**vars(slot), "use_above": None}))

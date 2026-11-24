@@ -69,6 +69,7 @@ from ...explain import DecisionLog
 from ...measure.battery_monitor import BatteryConfig, BatteryInput, twinned_ids
 from ...measure.house_measurement import (
     MeasurementInput,
+    covers,
     nom_balance,
     plan_balance,
     planned_discharge,
@@ -962,6 +963,14 @@ class VirtualBatterySimulator:
         self._step_grid = flow.grid_w if flow is not None else None
         self._samples = self._samples[-1:]
 
+    def _plan_discharge(
+        self, planned_w: float, flow: Any, slot: Any, hours: float
+    ) -> float:
+        """A planned discharge as far as the house needs it now (never into
+        the grid unless the plan chose to), and the whole need when using the
+        batteries pays at this price (``covers``)."""
+        return planned_discharge(planned_w, flow, slot.grid_w, covers(slot))
+
     def _guard_min_soc(self) -> set[str]:
         """The batteries to charge back to their minimum now: below it by
         more than GUARD_BELOW, until GUARD_ABOVE over it (told in *Why*)."""
@@ -1349,7 +1358,7 @@ class VirtualBatterySimulator:
             # A planned discharge only as far as it is needed now: never
             # battery energy into the grid that the plan did not choose.
             if flow is not None and slot is not None:
-                total = planned_discharge(total, flow, slot.grid_w)
+                total = self._plan_discharge(total, flow, slot, hours)
             self._pd.reset()  # zero on the meter starts anew later
             self._commands = {}
             self._nom_free = False

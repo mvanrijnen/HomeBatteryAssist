@@ -123,7 +123,7 @@ def _optimise(data: PlannerInput, allow_export: bool, penalty: float = 0.0) -> _
     # Value of energy left at the end: what it saves later, at the average
     # price, minus what using it then costs (wear, the minimum gain), as a
     # discharge now pays them too; else with flat prices nothing is used.
-    avg_price = sum(s.price for s in slots) / count
+    avg_price = sum(s.price for s in slots) / count if count else 0.0
     # (Not the cycle limit's steering penalty: that is for discharging now.)
     # Energy kept for after the window counts on prices not even estimated
     # yet: as uncertain as the most uncertain slot (else keeping it would
