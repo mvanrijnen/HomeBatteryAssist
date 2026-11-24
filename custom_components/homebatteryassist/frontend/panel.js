@@ -741,6 +741,35 @@ const STYLE = `
   .toolbar button:disabled { opacity: .6; cursor: default; }
   .toolbar button ha-icon { --mdc-icon-size: 18px; }
   @media (max-width: 600px) { .toolbar .adj-open .label, .toolbar .ev-open .label { display: none; } }
+  .log-cards { display: none; }
+  /* Phone: everything fits the width (no sideways page), round icon buttons,
+     tables scroll in their own box, the log as compact blocks, readable charts. */
+  @media (max-width: 600px) {
+    .toolbar { padding: 0 6px; gap: 6px; font-size: 17px; }
+    .toolbar .title { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .toolbar .version { display: none; }
+    .toolbar .stage { font-size: 9px; padding: 1px 4px; margin-left: 4px; }
+    .toolbar button { padding: 6px; border-radius: 50%; flex: none; }
+    .toolbar button .label { display: none; }
+    .content { padding: 8px; gap: 10px; }
+    .content > *, .card { min-width: 0; }
+    .card { padding: 12px; }
+    .tabs button { padding: 10px 10px; }
+    table.compare, table.acc, table.daytotals, table.prices { display: block; overflow-x: auto; max-width: 100%; }
+    table.compare td, table.compare th, table.acc td, table.acc th { white-space: nowrap; }
+    table.compare tr > :first-child, table.acc tr > :first-child {
+      position: sticky; left: 0; z-index: 1; background: var(--card-background-color); }
+    .log-wide { display: none; }
+    .log-cards { display: block; }
+    .log-card { padding: 6px 0; border-bottom: 1px solid var(--divider-color); font-size: 13px; }
+    .log-card .l1 { display: flex; justify-content: space-between; gap: 8px; }
+    .log-card .l2 { color: var(--secondary-text-color); font-size: 12px; margin-top: 2px; }
+    .log-card.off-plan .l1 { color: var(--warning-color, #ff9800); }
+    .log-card.incident .l1 { color: var(--error-color, #db4437); }
+    .log-nav { flex-wrap: wrap; }
+    .chart .axis { font-size: 14px; }
+    .legend { flex-wrap: wrap; gap: 4px 12px; font-size: 12px; }
+  }
   .content { max-width: 1200px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
   .tabs { display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; border-bottom: 1px solid var(--divider-color); }
   .tabs button { font: inherit; font-size: 14px; cursor: pointer; background: none; border: none; white-space: nowrap;
@@ -1793,8 +1822,11 @@ class HomeBatteryAssistPanel extends HTMLElement {
     // horizontal scrollbar) at that scale, so it stays readable.
     const hours = (xMax - xMin) / 3600e3;
     const scroll = id === "forecast" && hours > FLOW_SCROLL_HOURS;
-    const W = scroll ? Math.round((1232 * hours) / FLOW_SCROLL_HOURS) : wide ? 1232 : 600,
-      H = id === "forecast" ? 300 : 190, L = 58, R = rightSeries.length ? 58 : 8, T = 8, B = 24;
+    // On a phone (narrow screen) a narrower, higher canvas: scaled down to
+    // the screen, the text stays readable.
+    const phone = !scroll && window.matchMedia?.("(max-width: 600px)").matches;
+    const W = scroll ? Math.round((1232 * hours) / FLOW_SCROLL_HOURS) : phone ? 520 : wide ? 1232 : 600,
+      H = id === "forecast" ? 300 : phone ? 260 : 190, L = 58, R = rightSeries.length ? 58 : 8, T = 8, B = 24;
     const all = series.filter((s) => s.axis !== "right").flatMap((s) => s.points.map((p) => p[1])).filter((v) => v != null);
     const yMax = this._niceMax(Math.max(...all, 0));
     const low = Math.min(...all, 0);
@@ -3065,8 +3097,20 @@ class HomeBatteryAssistPanel extends HTMLElement {
         return `<tr class="${cls}">${r.slice(0, 10).map((v, i) => `<td class="${i >= 4 && i <= 6 ? "num" : ""}">${esc(v)}</td>`).join("")}</tr>`;
       })
       .join("");
+    const clock = (text) => String(text).split(", ").pop();
+    const cards = rows
+      .map((r) => {
+        const p = r[10];
+        const cls = p.source === "incident" ? "incident" : p.follows === false ? "off-plan" : "";
+        const amount = [r[4] ? `${r[4]} kWh` : "", r[5] ? `max ${r[5]} W` : ""].filter(Boolean).join(" · ");
+        const second = [r[7], r[8], r[9]].filter(Boolean).join(" · ");
+        return `<div class="log-card ${cls}"><div class="l1"><span><b>${esc(r[0])}–${esc(clock(r[1]))}</b> · ${esc(r[3])}</span><span>${esc(amount)}</span></div>${
+          second ? `<div class="l2">${esc(second)}</div>` : ""
+        }</div>`;
+      })
+      .join("");
     const table = rows.length
-      ? `<div class="acc-wrap"><table class="log">${head}${body}</table></div>`
+      ? `<div class="acc-wrap log-wide"><table class="log">${head}${body}</table></div><div class="log-cards">${cards}</div>`
       : `<div class="muted">${esc(t.logEmpty)}</div>`;
     return `<div class="card"><div class="head"><h2>${esc(t.logTitle)}</h2><span class="log-nav">${pick}<button class="log-csv">${esc(t.logCsv)}</button></span></div>
       ${table}<div class="muted small">${esc(t.logHelp)}</div></div>`;
@@ -3118,13 +3162,16 @@ class HomeBatteryAssistPanel extends HTMLElement {
         ${this._status ? `<button class="ev-open" title="${esc(t.evTitle)}"><ha-icon icon="mdi:car-electric"></ha-icon><span class="label">${esc(t.evButton)}</span></button>` : ""}
         ${this._status ? `<button class="adj-open" title="${esc(t.adjTitle)}"><ha-icon icon="mdi:calendar-plus"></ha-icon><span class="label">${esc(t.adjButton)}${(this._status.adjustments || []).length ? ` (${this._status.adjustments.length})` : ""}</span></button>` : ""}
         ${this._status ? `<button class="recalc" ${this._busy ? "disabled" : ""}>
-          <ha-icon icon="mdi:refresh"></ha-icon>${esc(this._busy ? t.recalculating : t.recalculate)}</button>` : ""}</div>
+          <ha-icon icon="mdi:refresh"></ha-icon><span class="label">${esc(this._busy ? t.recalculating : t.recalculate)}</span></button>` : ""}</div>
       <div class="content">${body}</div>`;
     const menu = document.createElement("ha-menu-button");
     menu.hass = this._hass;
     menu.narrow = this._narrow;
     this.shadowRoot.querySelector(".menu").appendChild(menu);
     this.shadowRoot.querySelector(".recalc")?.addEventListener("click", () => this._recalculate());
+    // The active tab in view (on a phone the row of tabs scrolls sideways).
+    const active = this.shadowRoot.querySelector(".tabs button.active");
+    if (active) active.parentElement.scrollLeft = Math.max(active.offsetLeft - 24, 0);
     this.shadowRoot
       .querySelectorAll("button[data-mode]")
       .forEach((button) => button.addEventListener("click", () => this._setMode(button.dataset.mode)));
