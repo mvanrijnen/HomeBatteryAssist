@@ -707,6 +707,17 @@ const STYLE = `
   .fd svg { position: absolute; inset: 0; width: 100%; height: 100%; }
   .fd-totals { text-align: center; }
   .fd-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 8px; margin-top: 6px; }
+  /* Wide: today's totals in a column to the right of the diagram; narrow: below it. */
+  .fd-wrap { display: flex; align-items: center; justify-content: center; gap: 16px; }
+  .fd-wrap .fd { flex: 1 1 auto; min-width: 0; margin-left: 0; margin-right: 0; }
+  .fd-wrap .fd-totals { flex: 0 0 220px; text-align: left; }
+  .fd-wrap .fd-chips { flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
+  @media (max-width: 900px) {
+    .fd-wrap { flex-direction: column; align-items: stretch; }
+    .fd-wrap .fd { margin: 8px auto 4px; width: 100%; }
+    .fd-wrap .fd-totals { flex: none; text-align: center; }
+    .fd-wrap .fd-chips { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+  }
   .fd-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border-radius: 12px; font-size: 13px;
     border: 1px solid var(--divider-color); border-left: 3px solid var(--fd-color); text-align: left; line-height: 1.25; }
   .fd-chip ha-icon { --mdc-icon-size: 18px; color: var(--fd-color); }
@@ -1375,8 +1386,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
           excluded !== null ? chip("mdi:ev-station", "#ce93d8", (s.excluded_names || []).join(", ") || t.fdExcluded, kwh(today.excluded), "") : "",
         ].filter(Boolean).join("")
       : "";
-    return `<div class="card"><div class="head"><h2>${esc(t.fdTitle)}</h2>${this._fdNav(t, days)}</div><div class="fd"><svg viewBox="0 0 520 460" preserveAspectRatio="xMidYMid meet">${svg}</svg>${nodes.join("")}</div>
-      ${totals ? `<div class="fd-totals"><div class="muted small">${esc(t.fdTodayTotal)}</div><div class="fd-chips">${totals}</div></div>` : ""}</div>`;
+    return `<div class="card"><div class="head"><h2>${esc(t.fdTitle)}</h2>${this._fdNav(t, days)}</div><div class="fd-wrap"><div class="fd"><svg viewBox="0 0 520 460" preserveAspectRatio="xMidYMid meet">${svg}</svg>${nodes.join("")}</div>
+      ${totals ? `<div class="fd-totals"><div class="muted small">${esc(t.fdTodayTotal)}</div><div class="fd-chips">${totals}</div></div>` : ""}</div></div>`;
   }
 
   // The batteries together: the total sensors, else (only virtual
