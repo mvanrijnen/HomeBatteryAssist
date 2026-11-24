@@ -308,3 +308,58 @@ async def test_plan_discharge_covers_the_house_when_it_pays(
     sent = await _run_plan(hass, _plan_data(-640.0, 0.40, 0.35), 1500.0)
     tail = [p for p in sent[-10:] if p is not None]
     assert tail and all(-1600 < p < -1400 for p in tail), sent
+
+
+async def test_plan_solar_charge_stable_with_a_lagging_battery(
+    hass: HomeAssistant,
+) -> None:
+    """The plan stores the solar surplus (1200 W of 1600 W sun, house
+    400 W); the battery lags: the charge settles at the surplus instead of
+    switching between 0 W and full power every round (seen live 2026-11-24)."""
+    data = _plan_data(1200.0, 0.25, None)
+    data.selected_plan.slots[0].grid_w = 0.0
+    data.consumption_at = lambda now: SimpleNamespace(power_w=400.0)
+    data.pv_at = lambda now: 1600.0
+    batteries = SimpleNamespace(
+        configs=[CONTROLLED],
+        states={"b1": BatteryState(CONTROLLED, 60.0, 0.0)},
+        plan_states=lambda: [BatteryState(CONTROLLED, 60.0, 0.0)],
+        price_now=lambda: None,
+    )
+
+    def flow(battery_w: float) -> PowerFlow:
+        grid = 400.0 - 1600.0 + battery_w
+        return PowerFlow(
+            grid_w=grid,
+            pv_w=1600.0,
+            excluded_w=0,
+            battery_w=battery_w,
+            house_w=400.0,
+            phase_w=(0.0, 0.0, grid),
+        )
+
+    measurements = SimpleNamespace(
+        flow=flow(0.0),
+        max_current=25,
+        spike=SimpleNamespace(ignore_w=0.0),
+        has_pv=True,
+        pv_known=True,
+        async_add_listener=lambda listener: lambda: None,
+    )
+    forecast = _forecast()
+    forecast.data = data
+    forecast.pv_entries = ["x"]
+    loop = ControlLoop(hass, batteries, measurements, forecast, FakeLog())
+    controller = _Controller()
+    loop.controllers = {"b1": controller}
+    loop._quiet_until = loop._last = T0
+    doing = [0.0, 0.0]
+    for i in range(1, 41):
+        measurements.flow = flow(doing[0])
+        batteries.states["b1"] = BatteryState(CONTROLLED, 60.0, doing[1])
+        loop.step(T0 + i * timedelta(seconds=5))
+        await hass.async_block_till_done()
+        command = controller.sent[-1] or 0.0
+        doing = [command, doing[0]]
+    tail = [p for p in controller.sent[-10:] if p is not None]
+    assert tail and all(1100 < p < 1300 for p in tail), controller.sent

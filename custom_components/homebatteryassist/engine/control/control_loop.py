@@ -31,6 +31,7 @@ On stop (unload, Home Assistant stopping) every battery is released.
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import Any
@@ -52,7 +53,7 @@ from ..measure.battery_monitor import (
     direct_link,
     twinned_ids,
 )
-from ..measure.house_measurement import covers, nom_balance
+from ..measure.house_measurement import STORES_ALL_W, covers, nom_balance
 from .battery_controller import BatteryController
 from .pd_controller import PdController, PdSettings
 from .reader_driver import LinkDriver, ReaderDriver
@@ -168,27 +169,53 @@ class ControlLoop(VirtualBatterySimulator):
             ],
         )
 
-    def _plan_discharge(
-        self, planned_w: float, flow: Any, slot: Any, hours: float
+    def _plan_live(
+        self,
+        planned_w: float,
+        flow: Any,
+        slot: Any,
+        hours: float,
+        expected_w: float | None,
     ) -> float:
-        """A planned discharge on a real battery: steered on the meter from
-        the previous command (the battery's own reading lags; the simple
-        limit from it flipped between 0 W and the planned power), never into
-        the grid unless the plan chose to, and at most the planned power
-        unless using the batteries pays at this price (``covers``)."""
-        if planned_w >= 0 or self.holding:
+        """The plan on a real battery, where it depends on what the meter
+        shows, steered on the meter from the previous command (a battery's
+        own power reading lags: working out the surplus or the need from it
+        switched the command between 0 W and the full power every round):
+
+        - a discharge: never into the grid unless the plan chose to, at most
+          the planned power unless using the batteries pays now (``covers``);
+        - a charge with solar power: the grid part the plan chose stays
+          fixed, on top the real surplus (all of it when the plan stores the
+          whole forecast surplus, else at most the planned power).
+
+        A charge without a known solar surplus is a fixed power: as planned."""
+        fixed_charge = planned_w >= 0 and (expected_w is None or slot is None)
+        if self.holding or fixed_charge:
             self._plan_pd.reset()
             self._plan_command = None
-            return super()._plan_discharge(planned_w, flow, slot, hours)
-        ideal = min(nom_balance(flow, min(slot.grid_w, 0.0)), 0.0)
+            return super()._plan_live(planned_w, flow, slot, hours, expected_w)
+        if planned_w < 0:
+            ideal = min(nom_balance(flow, min(slot.grid_w, 0.0)), 0.0)
+            low, high = (-math.inf if covers(slot) else planned_w), 0.0
+        else:
+            sun = min(planned_w, max(expected_w or 0.0, 0.0))
+            grid_part = planned_w - sun
+            # Zero on the meter around the grid part: the real surplus on
+            # top of it. No surplus left: the grid part alone, a fixed power
+            # (steering towards it from the lagging reading would overshoot).
+            ideal = nom_balance(flow, grid_part)
+            if ideal <= grid_part:
+                self._plan_pd.reset()
+                self._plan_command = grid_part
+                return grid_part
+            stores_all = planned_w >= max(expected_w or 0.0, 0.0) - STORES_ALL_W
+            low, high = grid_part, (math.inf if stores_all else planned_w)
         states = self._batteries.states
         actual = sum(states[c.id].power_w or 0.0 for c in self.virtual)
         interval = getattr(self._forecast, "react_interval", None)
         scale = hours * 3600 / interval.total_seconds() if interval else 1.0
         new = self._plan_pd.step(ideal, actual, self._plan_command, scale)
-        new = min(new, 0.0)
-        if not covers(slot):
-            new = max(new, planned_w)
+        new = min(max(new, low), high)
         self._plan_command = new
         return new
 

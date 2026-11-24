@@ -963,13 +963,33 @@ class VirtualBatterySimulator:
         self._step_grid = flow.grid_w if flow is not None else None
         self._samples = self._samples[-1:]
 
-    def _plan_discharge(
-        self, planned_w: float, flow: Any, slot: Any, hours: float
+    def _plan_live(
+        self,
+        planned_w: float,
+        flow: Any,
+        slot: Any,
+        hours: float,
+        expected_w: float | None,
     ) -> float:
-        """A planned discharge as far as the house needs it now (never into
-        the grid unless the plan chose to), and the whole need when using the
-        batteries pays at this price (``covers``)."""
-        return planned_discharge(planned_w, flow, slot.grid_w, covers(slot))
+        """The plan's power for now with what really happens: the real solar
+        surplus instead of the forecast one (``plan_balance``; more is stored
+        on top, less is not taken from the grid), and a planned discharge as
+        far as the house needs it now (never into the grid unless the plan
+        chose to; the whole need when using the batteries pays at this
+        price, ``covers``)."""
+        total = planned_w
+        if expected_w is not None:
+            total = plan_balance(
+                total,
+                # The surplus that is really left: what real batteries
+                # (by their own control) store is not there twice.
+                min(solar_surplus_w(flow), max(-flow.grid_w, 0.0)),
+                expected_w,
+                self._forecast.pv_deviation_w,
+            )
+        if slot is None:
+            return total
+        return planned_discharge(total, flow, slot.grid_w, covers(slot))
 
     def _guard_min_soc(self) -> set[str]:
         """The batteries to charge back to their minimum now: below it by
@@ -1340,25 +1360,18 @@ class VirtualBatterySimulator:
             # The PV forecast of the hour now (not of the hour in which the
             # last cycle ran).
             pv_now = data.pv_at(now) if self._forecast.pv_entries else None
-            if (
-                flow is not None
+            # The solar surplus the plan counted on now (None: not known).
+            expected = (
+                pv_now - forecast_slot.power_w
+                if flow is not None
                 and self._measurements.has_pv
                 and self._measurements.pv_known
                 and pv_now is not None
                 and forecast_slot is not None
-            ):
-                total = plan_balance(
-                    total,
-                    # The surplus that is really left: what real batteries
-                    # (by their own control) store is not there twice.
-                    min(solar_surplus_w(flow), max(-flow.grid_w, 0.0)),
-                    pv_now - forecast_slot.power_w,
-                    self._forecast.pv_deviation_w,
-                )
-            # A planned discharge only as far as it is needed now: never
-            # battery energy into the grid that the plan did not choose.
-            if flow is not None and slot is not None:
-                total = self._plan_discharge(total, flow, slot, hours)
+                else None
+            )
+            if flow is not None:
+                total = self._plan_live(total, flow, slot, hours, expected)
             self._pd.reset()  # zero on the meter starts anew later
             self._commands = {}
             self._nom_free = False
