@@ -327,6 +327,26 @@ const TEXT = {
     navFwd: "Forward",
     navEnd: "To the end of the forecast",
     spans: { today: "Today", tomorrow: "Today + tomorrow", all: "Whole forecast" },
+    reviewOpen: "Look back",
+    reviewOpenTitle: "An earlier day: what happened against what was forecast",
+    reviewLive: "Live",
+    reviewOlder: "A day earlier",
+    reviewNewer: "A day later",
+    leadAhead: "Forecast well before",
+    leadAheadTitle: "The forecast made 6–24 hours before (what the plan was mostly built on)",
+    leadLate: "Forecast shortly before",
+    leadLateTitle: "The last forecast, shortly before the moment itself",
+    reviewForecast: "forecast",
+    reviewPlanned: "Battery planned",
+    reviewPriceEst: "Price (estimated then)",
+    reviewMore: "More than forecast",
+    reviewLess: "Less than forecast",
+    reviewNone: "No history for this day.",
+    reviewLoading: "Loading…",
+    reviewFollowed: "plan followed",
+    reviewAvgPrice: "Average price",
+    reviewEstimated: "estimated",
+    reviewInfo: "Solid: what happened; dashed: what was forecast for it then. The coloured area shows where the house used more (red) or less (green) than forecast.",
     now: "now",
     accuracy: "Average deviation (shortest lead time): {mae} ({mape}%)",
     notVerified: "Not checked yet: measured slots are compared with the forecast as time passes.",
@@ -673,6 +693,26 @@ const TEXT = {
     navFwd: "Vooruit",
     navEnd: "Naar het einde van de voorspelling",
     spans: { today: "Vandaag", tomorrow: "Vandaag + morgen", all: "Hele voorspelling" },
+    reviewOpen: "Terugkijken",
+    reviewOpenTitle: "Een eerdere dag: wat er gebeurde tegenover wat er voorspeld was",
+    reviewLive: "Live",
+    reviewOlder: "Een dag eerder",
+    reviewNewer: "Een dag later",
+    leadAhead: "Voorspelling ruim vooraf",
+    leadAheadTitle: "De voorspelling van 6–24 uur vooraf (waar het plan vooral op rekende)",
+    leadLate: "Voorspelling vlak vooraf",
+    leadLateTitle: "De laatste voorspelling, vlak voor het moment zelf",
+    reviewForecast: "voorspeld",
+    reviewPlanned: "Batterij gepland",
+    reviewPriceEst: "Prijs (toen geschat)",
+    reviewMore: "Meer dan voorspeld",
+    reviewLess: "Minder dan voorspeld",
+    reviewNone: "Geen historie voor deze dag.",
+    reviewLoading: "Laden…",
+    reviewFollowed: "plan gevolgd",
+    reviewAvgPrice: "Gemiddelde prijs",
+    reviewEstimated: "geschat",
+    reviewInfo: "Doorgetrokken: wat er gebeurde; gestippeld: wat er toen voor voorspeld was. Het gekleurde vlak laat zien waar het huis meer (rood) of minder (groen) verbruikte dan voorspeld.",
     now: "nu",
     accuracy: "Gemiddelde afwijking (kortste vooruitzicht): {mae} ({mape}%)",
     notVerified: "Nog niet gecontroleerd: gemeten tijdvakken worden in de loop van de tijd met de voorspelling vergeleken.",
@@ -721,6 +761,7 @@ const STYLE = `
   .fd-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 8px; border-radius: 12px; font-size: 13px;
     border: 1px solid var(--divider-color); border-left: 3px solid var(--fd-color); text-align: left; line-height: 1.25; }
   .fd-chip ha-icon { --mdc-icon-size: 18px; color: var(--fd-color); }
+  .review-chips { margin: 8px 0 4px; }
   .fd-chip b { font-weight: 500; }
   .fd-chip small { display: block; font-size: 11px; color: var(--secondary-text-color); }
   .card > .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
@@ -1848,7 +1889,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
   _chart(id, series, xMin, xMax, ticks, gapLimit, markers = [], xFmt = (v) => this._time(new Date(v).toISOString()), yFmt = null, bands = [], fill = null) {
     // Full-width charts get a wider canvas so they are as high as the others.
     // The full-width flow chart gets a wider and higher canvas.
-    const wide = id === "forecast" || id === "soc" || id === "temperature";
+    const wide = id === "forecast" || id === "soc" || id === "temperature" || id === "review";
     const rightSeries = series.filter((s) => s.axis === "right");
     const hasLeft = series.some((s) => s.axis !== "right");
     // The flow chart over more than FLOW_SCROLL_HOURS: wider than the card (a
@@ -1913,6 +1954,18 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const shown = phone && ticks.length > 5 ? ticks.filter((_, i) => i % Math.ceil(ticks.length / 5) === 0) : ticks;
     for (const [v, label] of shown) {
       svg += `<text class="axis" x="${x(v)}" y="${H - 6}" text-anchor="middle">${esc(label)}</text>`;
+    }
+    // Rectangles of a series ([from, to, value 1, value 2, colour]), e.g. the
+    // difference between measured and forecast, behind every line.
+    for (const s of series.filter((s) => s.rects)) {
+      const sy = yOf(s);
+      for (const [a, b, v1, v2, color] of s.rects) {
+        const x1 = Math.max(x(a), L);
+        const x2 = Math.min(x(b), W - R);
+        const y1 = Math.min(sy(v1), sy(v2));
+        const h = Math.abs(sy(v1) - sy(v2));
+        if (x2 > x1 && h > 0.5) svg += `<rect x="${x1.toFixed(1)}" y="${y1.toFixed(1)}" width="${(x2 - x1).toFixed(1)}" height="${h.toFixed(1)}" fill="${color}" fill-opacity="0.28" clip-path="url(#clip-${id})"/>`;
+      }
     }
     // Filled areas (e.g. a power under temperature lines): down to the zero
     // line, per unbroken run of points, behind every line.
@@ -1998,7 +2051,139 @@ class HomeBatteryAssistPanel extends HTMLElement {
           `<button data-nav="${key}" title="${esc(title)}" class="${key === "now" && this._flowEnd === null ? "active" : ""}">${esc(label)}</button>`,
       )
       .join("");
-    return `<div class="nav">${nav}<span style="width:8px"></span>${spans}</div>`;
+    if (this._review) return this._reviewNav(t);
+    return `<div class="nav">${nav}<span style="width:8px"></span>${spans}<span style="width:8px"></span><button data-review="open" title="${esc(t.reviewOpenTitle)}">⟲ ${esc(t.reviewOpen)}</button></div>`;
+  }
+
+  // Looking back at an earlier day (``homebatteryassist/day_review``).
+  _reviewNav(t) {
+    const r = this._review;
+    const lang = this._hass?.language || "en";
+    const day = new Date(`${r.day}T12:00:00`);
+    const label = day.toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "short" });
+    const first = r.data?.first_day;
+    const today = this._localDay(0);
+    const lead = ["ahead", "late"]
+      .map((k) => `<button data-lead="${k}" class="${r.lead === k ? "active" : ""}" title="${esc(k === "ahead" ? t.leadAheadTitle : t.leadLateTitle)}">${esc(k === "ahead" ? t.leadAhead : t.leadLate)}</button>`)
+      .join("");
+    return `<div class="nav">
+      <button data-review="older" title="${esc(t.reviewOlder)}" ${first && r.day <= first ? "disabled" : ""}>◀</button>
+      <button class="active" disabled>${esc(label)}</button>
+      <button data-review="newer" title="${esc(t.reviewNewer)}" ${r.day >= today ? "disabled" : ""}>▶</button>
+      <button data-review="live">${esc(t.reviewLive)}</button><span style="width:8px"></span>${lead}</div>`;
+  }
+
+  // A local day as YYYY-MM-DD, ``offset`` days from today.
+  _localDay(offset) {
+    const d = new Date(Date.now() + offset * 864e5);
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone: this._tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+    return parts;
+  }
+
+  _shiftDay(day, offset) {
+    const d = new Date(`${day}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + offset);
+    return d.toISOString().slice(0, 10);
+  }
+
+  async _loadReview() {
+    const r = this._review;
+    if (!r || r.busy) return;
+    r.busy = true;
+    r.data = null;
+    this._render();
+    try {
+      r.data = await this._hass.callWS({ type: "homebatteryassist/day_review", day: r.day, lead: r.lead });
+    } catch (err) {
+      console.warn("HomeBatteryAssist: day review not available", err);
+      r.data = { failed: true };
+    }
+    r.busy = false;
+    this._render();
+  }
+
+  _reviewBlock(t, lang) {
+    const r = this._review;
+    const d = r.data;
+    if (!d) return `<div class="muted">${esc(t.reviewLoading)}</div>`;
+    if (d.failed || !d.measured?.length) return `<div class="muted">${esc(t.reviewNone)}</div>`;
+    const primary = "var(--primary-color)";
+    const pvColor = "#ffd600";
+    const batteryColor = "#00c853";
+    const gridColor = "#ff1744";
+    const priceColor = "var(--primary-text-color)";
+    const unit = d.price_unit || "";
+    const priceFmt = (v) => `${Number(v).toFixed(3)}${unit ? ` ${unit}` : ""}`;
+    const money = new Intl.NumberFormat(lang, { style: "currency", currency: this._hass?.config?.currency || "EUR", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const axisFmt = (v) => money.format(Number(v));
+    // Step lines over slots: [start, value] for each slot of ``minutes``.
+    const steps = (rows, value, minutes) => {
+      const pts = [];
+      for (let i = 0; i < rows.length; i++) {
+        const v = value(rows[i]);
+        const next = rows[i + 1]?.[0];
+        const end = next && next - rows[i][0] <= minutes * 60e3 ? next : rows[i][0] + minutes * 60e3;
+        if (v == null) { pts.push([rows[i][0], null]); continue; }
+        pts.push([rows[i][0], v], [end - 1, v]);
+      }
+      return pts;
+    };
+    const m = d.measured;
+    const step = m.length > 1 ? (m[1][0] - m[0][0]) / 60e3 : 15;
+    const hf = d.house_forecast || [];
+    const hfStep = hf.length > 1 ? (hf[1][0] - hf[0][0]) / 60e3 : 15;
+    const rects = hf
+      .filter(([, f, a]) => f != null && a != null)
+      .map(([ts, f, a]) => [ts, ts + hfStep * 60e3, f, a, a > f ? "#e53935" : "#43a047"]);
+    const series = [
+      { points: steps(m, (row) => row[1], step), color: primary, label: t.houseMeasured, rects },
+      { points: steps(hf, (row) => row[1], hfStep), color: primary, dashed: true, label: `${t.houseMeasured} (${t.reviewForecast})` },
+      ...(m.some((row) => row[2]) || d.pv_forecast?.length
+        ? [
+            { points: steps(m, (row) => row[2], step), color: pvColor, label: t.pvMeasured },
+            { points: steps(d.pv_forecast || [], (row) => row[1], 60), color: pvColor, dashed: true, label: `${t.pvMeasured} (${t.reviewForecast})` },
+          ]
+        : []),
+      { points: steps(m, (row) => row[5], step), color: gridColor, label: t.gridMeasured, thin: false },
+      ...(m.some((row) => row[3]) || d.battery_plan?.length
+        ? [
+            { points: steps(m, (row) => row[3], step), color: batteryColor, label: t.batteryLine },
+            { points: steps(d.battery_plan || [], (row) => row[1], 15), color: batteryColor, dashed: true, label: t.reviewPlanned },
+          ]
+        : []),
+      ...(d.prices?.length
+        ? [
+            { points: steps(d.prices, (row) => row[2], 15), color: priceColor, label: t.priceImport, axis: "right", fmt: priceFmt, axisFmt },
+            { points: steps(d.prices, (row) => row[1], 15), color: priceColor, dashed: true, label: t.reviewPriceEst, axis: "right", fmt: priceFmt, axisFmt },
+          ]
+        : []),
+    ];
+    const ticks = this._hourTicks(d.start, d.end, 3, lang);
+    const chart = this._chart("review", series, d.start, d.end, ticks, 2 * 3600e3);
+    const item = (color, label, dashed = false) =>
+      `<span><i style="${dashed ? `background:none;border-top:2px dashed ${color};height:0` : `background:${color}`}"></i>${esc(label)}</span>`;
+    const legend = `<div class="legend" style="flex-wrap:wrap">${series.map((x) => item(x.color, x.label, x.dashed)).join("")}${[
+      ["#e53935", t.reviewMore],
+      ["#43a047", t.reviewLess],
+    ].map(([c, l]) => `<span><i style="background:${c};opacity:.45;height:9px"></i>${esc(l)}</span>`).join("")}</div>`;
+    // The day in chips (as the energy flows).
+    const nl = lang.startsWith("nl");
+    const kwh = (v) => (v == null ? "–" : `${v.toFixed(1).replace(".", nl ? "," : ".")} kWh`);
+    const pct = (vs) => (vs && vs[0] ? ` (${vs[1] >= vs[0] ? "+" : ""}${Math.round(((vs[1] - vs[0]) / vs[0]) * 100)}%)` : "");
+    const chip = (icon, color, name, value, sub) =>
+      `<span class="fd-chip" style="--fd-color:${color}"><ha-icon icon="${icon}"></ha-icon><span><b>${esc(name)}</b> ${esc(value)}${sub ? `<small>${esc(sub)}</small>` : ""}</span></span>`;
+    const tot = d.totals || {};
+    const followed = d.followed?.real ?? d.followed?.virtual;
+    const chips = [
+      chip("mdi:home", primary, t.house, `${kwh(tot.house)}${pct(d.house_vs)}`, d.house_vs ? `${t.reviewForecast} ${kwh(d.house_vs[0])}` : ""),
+      tot.pv || d.pv_vs ? chip("mdi:solar-power", "#ff9800", t.pv, `${kwh(tot.pv)}${pct(d.pv_vs)}`, d.pv_vs ? `${t.reviewForecast} ${kwh(d.pv_vs[0])}` : "") : "",
+      chip("mdi:transmission-tower", "#488fc2", t.grid, `→ ${kwh(tot.imported)} ${t.fdImport.replace(/^[←→]\s*/, "")}`, `← ${kwh(tot.exported)} ${t.fdExport.replace(/^[←→]\s*/, "")}`),
+      tot.charged || tot.discharged
+        ? chip("mdi:home-battery", "#4db6ac", t.batteries, `↓ ${kwh(tot.charged)} · ↑ ${kwh(tot.discharged)}`, followed != null ? `${t.reviewFollowed} ${Math.round(followed)}%` : "")
+        : "",
+      d.price_vs ? chip("mdi:currency-eur", "var(--primary-text-color)", t.reviewAvgPrice, priceFmt(d.price_vs[1]), `${t.reviewEstimated} ${priceFmt(d.price_vs[0])}`) : "",
+    ].filter(Boolean).join("");
+    return `${chart}${legend}<div class="fd-chips review-chips">${chips}</div><div class="muted small">${esc(t.reviewInfo)}</div>`;
   }
 
   _dayNav(t, weeks, lang) {
@@ -2056,6 +2241,23 @@ class HomeBatteryAssistPanel extends HTMLElement {
         this._dayWeek = button.dataset.day === "all" ? null : Number(button.dataset.day);
         this._hover = null;
         this._scheduleRender();
+      });
+    }
+    for (const button of this.shadowRoot.querySelectorAll(".nav button[data-review]")) {
+      button.addEventListener("click", () => {
+        const what = button.dataset.review;
+        if (what === "live") this._review = null;
+        else if (what === "open") this._review = { day: this._localDay(-1), lead: "ahead" };
+        else this._review.day = this._shiftDay(this._review.day, what === "older" ? -1 : 1);
+        this._hover = null;
+        if (this._review) this._loadReview();
+        else this._scheduleRender();
+      });
+    }
+    for (const button of this.shadowRoot.querySelectorAll(".nav button[data-lead]")) {
+      button.addEventListener("click", () => {
+        this._review.lead = button.dataset.lead;
+        this._loadReview();
       });
     }
     for (const button of this.shadowRoot.querySelectorAll(".nav button[data-nav]")) {
@@ -2592,9 +2794,13 @@ class HomeBatteryAssistPanel extends HTMLElement {
 
     const info = t.daysOfData.replace("{days}", Math.round(h.days_covered)) + (h.imported ? ` · ${t.imported}` : "");
     return `<div class="card"><h2>${esc(t.consumption)} · ${esc(info)}</h2><div class="charts">
-      <div class="chart wide"><div class="head"><h3>${esc(t.flowTitle)}</h3>${this._flowNav(t)}</div>${forecastChart}${forecastLegend}
+      <div class="chart wide"><div class="head"><h3>${esc(t.flowTitle)}</h3>${this._flowNav(t)}</div>${
+        this._review
+          ? this._reviewBlock(t, lang)
+          : `${forecastChart}${forecastLegend}
         <div class="muted">${esc(accText)}</div>
-        ${h.battery_forecast?.length ? `<div class="muted">${esc(this._planText(h, t))} · ${esc(t.batteryNote)}</div>` : ""}</div>
+        ${h.battery_forecast?.length ? `<div class="muted">${esc(this._planText(h, t))} · ${esc(t.batteryNote)}</div>` : ""}`
+      }</div>
       ${socChart ? `<div class="chart wide"><h3>${esc(t.socTitle)}</h3>${socChart}</div>` : ""}
       ${this._temperatureChart(h, t, lang)}
       <div class="chart"><h3>${esc(t.last7)}</h3>${week}${weekLegend}<div class="muted small">${esc(t.last7Info)}</div></div>
