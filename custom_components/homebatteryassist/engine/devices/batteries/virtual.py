@@ -110,6 +110,13 @@ VOLTAGE_MAX = 253.0
 SOC_SNAP = 0.001
 
 
+# Guarding the minimum: below min - GUARD_BELOW a battery charges at
+# GUARD_W (at most its max) until min + GUARD_ABOVE.
+GUARD_BELOW = 1.0  # %
+GUARD_ABOVE = 1.0  # %
+GUARD_W = 500.0
+
+
 def limit_power(
     config: BatteryConfig,
     soc: float,
@@ -306,6 +313,9 @@ class VirtualBatterySimulator:
         self._forecast = forecast
         self._last: datetime | None = None
         self._full_w = 0.0  # virtual batteries charging fully now (W)
+        # Batteries charged back up to their minimum (sank below it, e.g. by
+        # standby use): from GUARD_BELOW under it until GUARD_ABOVE over it.
+        self.guarding: set[str] = set()
         self._unsub: CALLBACK_TYPE | None = None
         self.limited_phases: list[int] = []  # phases that limit right now
         self._limit_logged = False
@@ -803,9 +813,16 @@ class VirtualBatterySimulator:
             for c in self.virtual
             if full[c.id]
         )
+        # Below its minimum (standby use): charged back, like a full charge
+        # outside the spreading (setting *Guard the minimum charge*).
+        guard = self._guard_min_soc() - {i for i, f in full.items() if f}
         # Safety layer 1 (target layer): spread over the batteries within
         # their floors (reserves) and ceilings (docs: architecture.md#safety-layers).
-        targets = self._targets(now, hours, [c for c in self.virtual if not full[c.id]])
+        targets = self._targets(
+            now,
+            hours,
+            [c for c in self.virtual if not full[c.id] and c.id not in guard],
+        )
         socs: dict[str, float] = {}
         wanted: dict[str, float] = {}
         for config in self.virtual:
@@ -815,7 +832,11 @@ class VirtualBatterySimulator:
             )
             # Forced full charge: max power up to 100 %, above the normal max.
             wanted[config.id] = (
-                config.max_charge_w if full[config.id] else targets(config, soc)
+                config.max_charge_w
+                if full[config.id]
+                else min(config.max_charge_w, GUARD_W)
+                if config.id in guard
+                else targets(config, soc)
             )
         cap = self._forecast.rules.max_charge_w
         if cap > 0:
@@ -835,13 +856,21 @@ class VirtualBatterySimulator:
         asked = dict(wanted)  # before protections and limits
         nom = self._follows_nom(data)
         reasons = {
-            c.id: "full_charge" if full[c.id] else "zero_on_meter" if nom else "plan"
+            c.id: "full_charge"
+            if full[c.id]
+            else "min_soc_guard"
+            if c.id in guard
+            else "zero_on_meter"
+            if nom
+            else "plan"
             for c in self.virtual
         }
+        # A full charge or a charge back to the minimum sets the direction.
+        setters = [i for i in reasons if reasons[i] in ("full_charge", "min_soc_guard")]
         # A full charge sets the direction before the protections, so they
         # work from what the batteries will do (a discharge the full charge
         # would stop afterwards does not relieve a phase or the peak).
-        wanted = one_direction(wanted, [i for i in wanted if full.get(i)])
+        wanted = one_direction(wanted, setters)
         before = dict(wanted)
         wanted = self._phase_relief(wanted, socs, full, now, hours)
         # Protecting a phase: the batteries relief changed, and those whose
@@ -884,7 +913,7 @@ class VirtualBatterySimulator:
         wanted = one_direction(
             wanted,
             [i for i, r in reasons.items() if r in ("phase_relief", "peak_shaving")],
-            [i for i in wanted if full.get(i)],
+            setters,
         )
         # Safety layer 3 (final check layer): phases, system limits, and in
         # _apply per battery its power and state of charge band.
@@ -913,7 +942,11 @@ class VirtualBatterySimulator:
             r in ("phase_relief", "peak_shaving") for r in reasons.values()
         )
         self._commands = (
-            {c.id: commands[c.id] for c in self.virtual if not full[c.id]}
+            {
+                c.id: commands[c.id]
+                for c in self.virtual
+                if not full[c.id] and c.id not in guard
+            }
             if nom
             else {}
         )
@@ -921,6 +954,33 @@ class VirtualBatterySimulator:
         flow = self._flow()
         self._step_grid = flow.grid_w if flow is not None else None
         self._samples = self._samples[-1:]
+
+    def _guard_min_soc(self) -> set[str]:
+        """The batteries to charge back to their minimum now: below it by
+        more than GUARD_BELOW, until GUARD_ABOVE over it (told in *Why*)."""
+        on = getattr(self._forecast, "min_soc_guard", True)
+        for config in self.virtual:
+            soc = self._batteries.states[config.id].soc
+            if config.id in self.guarding:
+                if not on or soc is None or soc >= config.min_soc + GUARD_ABOVE:
+                    self.guarding.discard(config.id)
+                    self._decisions.async_log(
+                        "battery",
+                        "min_soc_guard_ended",
+                        name=config.name,
+                        soc=f"{soc:.0f}%" if soc is not None else "?",
+                    )
+            elif on and soc is not None and soc < config.min_soc - GUARD_BELOW:
+                self.guarding.add(config.id)
+                self._decisions.async_log(
+                    "battery",
+                    "min_soc_guard_started",
+                    name=config.name,
+                    soc=f"{soc:.0f}%",
+                    minimum=f"{config.min_soc:.0f}%",
+                    target=f"{config.min_soc + GUARD_ABOVE:.0f}%",
+                )
+        return set(self.guarding)
 
     def _apply(
         self,

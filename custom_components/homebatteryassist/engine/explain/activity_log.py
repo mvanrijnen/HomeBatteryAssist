@@ -48,6 +48,7 @@ REASONS = (
     "spike",  # a short peak the spike filter ignores (not discharged for)
     "empty",  # at its minimum state of charge
     "full",  # at its maximum state of charge
+    "min_soc_guard",  # charged back above its minimum (sank below it)
     "plan_charge",  # the plan: charge (cheap hours)
     "plan_discharge",  # the plan: discharge (expensive hours)
     "plan_idle",  # the plan: wait

@@ -180,7 +180,8 @@
               "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee",
               "peak_reserve_soc": "Piekreserve laadniveau",
               "phase_margin": "Veiligheidsmarge per fase",
-              "charge_order": "Meerdere batterijen laden"
+              "charge_order": "Meerdere batterijen laden",
+              "min_soc_guard": "Ondergrens bewaken"
             },
             "data_description": {
               "reserve_soc": "De plannen gaan nooit onder dit laadniveau (bijv. als noodreserve), bovenop het eigen minimum van elke batterij. Fasebeveiliging mag het nog wel gebruiken. 0 = uit.",
@@ -193,7 +194,8 @@
               "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
               "peak_reserve_soc": "Onder dit laadniveau ontladen de batterijen alleen nog voor netafname boven de piekgrens, zodat er energie blijft voor pieken. Alleen met een piekgrens. 0 = uit.",
               "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie.",
-              "charge_order": "Parallel: ze laden tegelijk (volladen nooit tegelijk). Na elkaar: de leegste eerst, de volgende alleen voor wat de eerste op vol vermogen niet kan opnemen, of zolang de zon ze allemaal dekt. Een batterij laadt minder efficiënt bij een laag vermogen."
+              "charge_order": "Parallel: ze laden tegelijk (volladen nooit tegelijk). Na elkaar: de leegste eerst, de volgende alleen voor wat de eerste op vol vermogen niet kan opnemen, of zolang de zon ze allemaal dekt. Een batterij laadt minder efficiënt bij een laag vermogen.",
+              "min_soc_guard": "Een batterij die meer dan 1% onder haar minimale vulling is gezakt (bijv. door haar eigen stand-by verbruik) wordt bijgeladen tot 1% erboven, van het net als er geen zon is. Batterijen die HomeBatteryAssist aanstuurt en virtuele batterijen."
             }
           },
           "spikes": {
@@ -763,7 +765,8 @@
               "peak_include_excluded": "Piekgrens telt uitgesloten apparaten mee",
               "peak_reserve_soc": "Piekreserve laadniveau",
               "phase_margin": "Veiligheidsmarge per fase",
-              "charge_order": "Meerdere batterijen laden"
+              "charge_order": "Meerdere batterijen laden",
+              "min_soc_guard": "Ondergrens bewaken"
             },
             "data_description": {
               "reserve_soc": "De plannen gaan nooit onder dit laadniveau (bijv. als noodreserve), bovenop het eigen minimum van elke batterij. Fasebeveiliging mag het nog wel gebruiken. 0 = uit.",
@@ -776,7 +779,8 @@
               "peak_include_excluded": "Aan: het verbruik van uitgesloten apparaten (bijv. een laadpaal) telt mee voor de piekgrens.",
               "peak_reserve_soc": "Onder dit laadniveau ontladen de batterijen alleen nog voor netafname boven de piekgrens, zodat er energie blijft voor pieken. Alleen met een piekgrens. 0 = uit.",
               "phase_margin": "Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie.",
-              "charge_order": "Parallel: ze laden tegelijk (volladen nooit tegelijk). Na elkaar: de leegste eerst, de volgende alleen voor wat de eerste op vol vermogen niet kan opnemen, of zolang de zon ze allemaal dekt. Een batterij laadt minder efficiënt bij een laag vermogen."
+              "charge_order": "Parallel: ze laden tegelijk (volladen nooit tegelijk). Na elkaar: de leegste eerst, de volgende alleen voor wat de eerste op vol vermogen niet kan opnemen, of zolang de zon ze allemaal dekt. Een batterij laadt minder efficiënt bij een laag vermogen.",
+              "min_soc_guard": "Een batterij die meer dan 1% onder haar minimale vulling is gezakt (bijv. door haar eigen stand-by verbruik) wordt bijgeladen tot 1% erboven, van het net als er geen zon is. Batterijen die HomeBatteryAssist aanstuurt en virtuele batterijen."
             }
           },
           "spikes": {

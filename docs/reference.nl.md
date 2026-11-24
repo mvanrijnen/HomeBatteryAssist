@@ -137,6 +137,7 @@ Reserve, vermogensgrenzen, piekgrens en fasemarge.
 | **Piekreserve laadniveau** | Onder dit laadniveau ontladen de batterijen alleen nog voor netafname boven de piekgrens, zodat er energie blijft voor pieken. Alleen met een piekgrens. 0 = uit. |
 | **Veiligheidsmarge per fase** | Deel van de hoofdzekering dat de batterijen op elke fase altijd vrijlaten (voor alle fasen hetzelfde). Bij 3x25A en 10% houden de batterijen elke fase onder 22,5 A, in het plan en in de simulatie. |
 | **Meerdere batterijen laden** | Parallel: ze laden tegelijk (volladen nooit tegelijk). Na elkaar: de leegste eerst, de volgende alleen voor wat de eerste op vol vermogen niet kan opnemen, of zolang de zon ze allemaal dekt. Een batterij laadt minder efficiënt bij een laag vermogen. |
+| **Ondergrens bewaken** | Een batterij die meer dan 1% onder haar minimale vulling is gezakt (bijv. door haar eigen stand-by verbruik) wordt bijgeladen tot 1% erboven, van het net als er geen zon is. Batterijen die HomeBatteryAssist aanstuurt en virtuele batterijen. |
 
 ### Korte pieken {#settings-spikes}
 

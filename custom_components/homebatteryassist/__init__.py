@@ -738,6 +738,8 @@ async def async_setup_entry(
             soc = state.soc if state else None
             if power is None:
                 return None
+            if control is not None and config.id in control.guarding:
+                return "min_soc_guard"
             if (
                 soc is not None
                 and power <= ACTIVITY_IDLE_W

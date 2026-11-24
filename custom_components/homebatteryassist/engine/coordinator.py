@@ -60,6 +60,7 @@ from ..const import (
     CONF_MIN_BATTERY_POWER,
     CONF_MIN_DISCHARGE_PRICE,
     CONF_MIN_MARGIN,
+    CONF_MIN_SOC_GUARD,
     CONF_NIGHT_RESERVE_SOC,
     CONF_NOM_CONTROL,
     CONF_NOM_TARGET,
@@ -116,6 +117,7 @@ from ..const import (
     DEFAULT_MANUAL_POWER,
     DEFAULT_MAX_CYCLES,
     DEFAULT_MIN_BATTERY_POWER,
+    DEFAULT_MIN_SOC_GUARD,
     DEFAULT_PEAK_LIMIT,
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
@@ -491,6 +493,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         # ended (pruned): intent, not a deviation the intraday step follows.
         self._adjusted_today: set[datetime] = set()
         self.full_charge_solar: bool = opts.get(CONF_FULL_CHARGE_SOLAR, True)
+        self.min_soc_guard: bool = bool(
+            opts.get(CONF_MIN_SOC_GUARD, DEFAULT_MIN_SOC_GUARD)
+        )
         self.charge_order: str = opts.get(CONF_CHARGE_ORDER, CHARGE_SEQUENTIAL)
         # Batteries planned with less power for their temperature (by id),
         # and those told so in *Why* (id -> name).

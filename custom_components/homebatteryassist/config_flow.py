@@ -130,6 +130,7 @@ from .const import (
     CONF_MIN_DISCHARGE_PRICE,
     CONF_MIN_MARGIN,
     CONF_MIN_SOC,
+    CONF_MIN_SOC_GUARD,
     CONF_NIGHT_RESERVE_SOC,
     CONF_NOM_CONTROL,
     CONF_NOM_TARGET,
@@ -228,6 +229,7 @@ from .const import (
     DEFAULT_MAX_SOC,
     DEFAULT_MIN_BATTERY_POWER,
     DEFAULT_MIN_SOC,
+    DEFAULT_MIN_SOC_GUARD,
     DEFAULT_PEAK_LIMIT,
     DEFAULT_PHASE_MARGIN,
     DEFAULT_PLANNING_HORIZON,
@@ -541,6 +543,7 @@ SETTINGS_SECTIONS: dict[str, tuple[str, ...]] = {
         "peak_include_excluded",
         "peak_reserve_soc",
         "phase_margin",
+        "min_soc_guard",
     ),
     "spikes": (
         "spike_no_discharge",
@@ -1211,6 +1214,10 @@ async def _flat_settings_schema(
             default=current.get(CONF_PHASE_MARGIN, DEFAULT_PHASE_MARGIN),
         ): _number(0, 50, 1, "%"),
         vol.Required(
+            CONF_MIN_SOC_GUARD,
+            default=current.get(CONF_MIN_SOC_GUARD, DEFAULT_MIN_SOC_GUARD),
+        ): BooleanSelector(),
+        vol.Required(
             CONF_FULL_CHARGE_WINDOW,
             default=current.get(CONF_FULL_CHARGE_WINDOW, DEFAULT_FULL_CHARGE_WINDOW),
         ): NumberSelector(
@@ -1364,6 +1371,9 @@ def settings_from_input(user_input: Mapping[str, Any]) -> dict[str, Any]:
             user_input.get(CONF_FULL_CHARGE_WINDOW, DEFAULT_FULL_CHARGE_WINDOW)
         ),
         CONF_PHASE_MARGIN: int(user_input.get(CONF_PHASE_MARGIN, DEFAULT_PHASE_MARGIN)),
+        CONF_MIN_SOC_GUARD: bool(
+            user_input.get(CONF_MIN_SOC_GUARD, DEFAULT_MIN_SOC_GUARD)
+        ),
     }
     if user_input.get(CONF_PRICE_FORECAST):
         options[CONF_PRICE_FORECAST] = user_input[CONF_PRICE_FORECAST]

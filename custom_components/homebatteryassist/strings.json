@@ -180,7 +180,8 @@
               "peak_include_excluded": "Peak limit includes excluded devices",
               "peak_reserve_soc": "Peak reserve state of charge",
               "phase_margin": "Safety margin per phase",
-              "charge_order": "Charging several batteries"
+              "charge_order": "Charging several batteries",
+              "min_soc_guard": "Guard the minimum charge"
             },
             "data_description": {
               "reserve_soc": "The plans never go below this state of charge (e.g. as backup reserve), on top of each battery's own minimum. Phase protection may still use it. 0 = off.",
@@ -193,7 +194,8 @@
               "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit.",
               "peak_reserve_soc": "Below this state of charge the batteries only discharge for grid import above the peak limit, so energy stays for peaks. Only with a peak limit. 0 = off.",
               "phase_margin": "Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation.",
-              "charge_order": "Parallel: they charge at the same time (full charges never at the same time). One after the other: the emptiest first, the next only for what the first cannot take at its full power, or while the sun covers them all. A battery charges less efficiently at low power."
+              "charge_order": "Parallel: they charge at the same time (full charges never at the same time). One after the other: the emptiest first, the next only for what the first cannot take at its full power, or while the sun covers them all. A battery charges less efficiently at low power.",
+              "min_soc_guard": "A battery that sank more than 1% below its minimum charge (e.g. by its own standby use) is charged back to 1% above it, from the grid if there is no sun. Batteries controlled by HomeBatteryAssist and virtual batteries."
             }
           },
           "spikes": {
@@ -763,7 +765,8 @@
               "peak_include_excluded": "Peak limit includes excluded devices",
               "peak_reserve_soc": "Peak reserve state of charge",
               "phase_margin": "Safety margin per phase",
-              "charge_order": "Charging several batteries"
+              "charge_order": "Charging several batteries",
+              "min_soc_guard": "Guard the minimum charge"
             },
             "data_description": {
               "reserve_soc": "The plans never go below this state of charge (e.g. as backup reserve), on top of each battery's own minimum. Phase protection may still use it. 0 = off.",
@@ -776,7 +779,8 @@
               "peak_include_excluded": "When on, the consumption of excluded devices (e.g. an EV charger) counts for the peak limit.",
               "peak_reserve_soc": "Below this state of charge the batteries only discharge for grid import above the peak limit, so energy stays for peaks. Only with a peak limit. 0 = off.",
               "phase_margin": "Part of the main fuse rating that the batteries always leave free on every phase (the same for all phases). With 3x25A and 10% the batteries keep each phase below 22.5 A, in the plan and in the simulation.",
-              "charge_order": "Parallel: they charge at the same time (full charges never at the same time). One after the other: the emptiest first, the next only for what the first cannot take at its full power, or while the sun covers them all. A battery charges less efficiently at low power."
+              "charge_order": "Parallel: they charge at the same time (full charges never at the same time). One after the other: the emptiest first, the next only for what the first cannot take at its full power, or while the sun covers them all. A battery charges less efficiently at low power.",
+              "min_soc_guard": "A battery that sank more than 1% below its minimum charge (e.g. by its own standby use) is charged back to 1% above it, from the grid if there is no sun. Batteries controlled by HomeBatteryAssist and virtual batteries."
             }
           },
           "spikes": {
