@@ -596,6 +596,8 @@ async def async_setup_entry(
             hass, entry.entry_id, forecast.outdoor_temperature
         )
         await temperatures.async_load()
+        # The plans charge a battery at no more than it limited itself to lately.
+        forecast.charge_limit = temperatures.charge_limit_w
         commands = CommandMonitor(
             hass,
             batteries,

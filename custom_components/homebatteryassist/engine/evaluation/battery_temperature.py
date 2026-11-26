@@ -17,8 +17,17 @@ the command check (``CommandMonitor``, every 15 s):
   temperature follows the outdoor temperature (at rest) and how much it warms
   up while in use.
 
-Only recorded for now (diagnostics); the plans do not use it yet (backlog:
-plan per slot with the power that fits the expected battery temperature).
+- **The charge limit now**: the lowest power a battery charged at while it
+  was limited (as above), over the last ``LIMIT_KEEP``; forgotten once it
+  charges clearly above it at full command again. The plans charge it at no
+  more than that (``ForecastCoordinator._derated``): on a cold night a Venus
+  E v3 charged at about 800 W instead of 2500 W, and a plan counting on
+  2500 W filled it too late. The battery's own temperature reading does not
+  tell it well (it charged at 1600 W and at 800 W at the same reading), so
+  the plans use what it did, not the bands.
+
+The bands and hours are recorded for diagnostics (backlog: plan per slot
+with the power that fits the expected battery temperature).
 """
 
 from __future__ import annotations
@@ -34,6 +43,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from ...const import DOMAIN
+from ..db_store import SaveThrottle
 from ..devices.batteries import BatteryCommand
 from ..measure.battery_monitor import BatteryConfig
 from .command_check import reason_for
@@ -47,6 +57,7 @@ NEAR_LIMIT = 5.0  # % from the minimum / maximum: the BMS tapers there anyway
 MAX_GAP = timedelta(seconds=60)  # a longer gap between looks counts as this
 KEEP = timedelta(days=60)  # hours kept
 SAVE_DELAY = 600  # seconds
+LIMIT_KEEP = timedelta(hours=24)  # a charge limit seen is used this long
 
 
 def band_of(celsius: float) -> int:
@@ -75,6 +86,9 @@ class BatteryTemperature:
     )
     # {"start", "temp_c", "outdoor_c", "kwh"} per finished hour
     hours: list[dict[str, Any]] = field(default_factory=list)
+    # The lowest charge power while limited (W) and when last seen limited.
+    limit_w: float | None = None
+    limit_at: datetime | None = None
     _hour: _Hour | None = None
     _last: datetime | None = None
     _last_command: float | None = None
@@ -132,9 +146,33 @@ class BatteryTemperature:
         )
         band["n"] += 1
         band["max_w"] = round(max(band["max_w"], given), 1)
-        if given < LIMITED_SHARE * asked:
+        limited = given < LIMITED_SHARE * asked
+        if limited:
             band["limited"] += 1
             band["given_w"] = round(band["given_w"] + given, 1)
+        if charging:
+            self._charge_limit(when, given, asked, limited)
+
+    def _charge_limit(
+        self, when: datetime, given: float, asked: float, limited: bool
+    ) -> None:
+        """Remember the lowest charge power while limited (``LIMIT_KEEP``);
+        forget it once the battery charges at the full command above it."""
+        if limited and given >= MIN_ASK_W:
+            old = self.limit_at is None or when - self.limit_at > LIMIT_KEEP
+            if old or self.limit_w is None or given < self.limit_w:
+                self.limit_w = round(given, 1)
+            self.limit_at = when
+        elif not limited and self.limit_w is not None and asked > self.limit_w:
+            self.limit_w = self.limit_at = None
+
+    def charge_limit_w(self, now: datetime) -> float | None:
+        """The charge power it was limited to lately (None: not limited)."""
+        if self.limit_w is None or self.limit_at is None:
+            return None
+        if now - self.limit_at > LIMIT_KEEP:
+            return None
+        return self.limit_w
 
     def _add_hour(
         self,
@@ -203,6 +241,8 @@ class BatteryTemperature:
                 )
             out[direction] = rows
         temps = [h["temp_c"] for h in self.hours]
+        out["charge_limit_w"] = self.limit_w
+        out["charge_limit_at"] = self.limit_at.isoformat() if self.limit_at else None
         out["hours"] = len(self.hours)
         out["temp_min_c"] = min(temps, default=None)
         out["temp_max_c"] = max(temps, default=None)
@@ -210,7 +250,10 @@ class BatteryTemperature:
 
     def as_dict(self) -> dict[str, Any]:
         """For the store."""
-        return {"bands": self.bands, "hours": self.hours}
+        data: dict[str, Any] = {"bands": self.bands, "hours": self.hours}
+        if self.limit_w is not None and self.limit_at is not None:
+            data["limit"] = {"w": self.limit_w, "at": self.limit_at.isoformat()}
+        return data
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> BatteryTemperature:
@@ -234,6 +277,14 @@ class BatteryTemperature:
             for h in data.get("hours") or []
             if isinstance(h, dict) and isinstance(h.get("start"), str)
         ]
+        limit = data.get("limit")
+        if isinstance(limit, dict):
+            try:
+                at = dt_util.parse_datetime(str(limit["at"]))
+                if at is not None:
+                    result.limit_w, result.limit_at = float(limit["w"]), at
+            except (KeyError, TypeError, ValueError):
+                pass
         return result
 
 
@@ -250,6 +301,7 @@ class TemperatureLearning:
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}.battery_temperature"
         )
+        self._save = SaveThrottle(hass, self._store, self._data, SAVE_DELAY)
         self._outdoor = outdoor
         self.batteries: dict[str, BatteryTemperature] = {}
 
@@ -300,7 +352,12 @@ class TemperatureLearning:
             temperature_c,
             outdoor,
         )
-        self._store.async_delay_save(self._data, SAVE_DELAY)
+        self._save()
+
+    def charge_limit_w(self, battery_id: str) -> float | None:
+        """The charge power a battery was limited to lately (None: not)."""
+        battery = self.batteries.get(battery_id)
+        return battery.charge_limit_w(dt_util.utcnow()) if battery else None
 
     def summary(self) -> dict[str, Any]:
         """Per battery id what was observed (diagnostics)."""

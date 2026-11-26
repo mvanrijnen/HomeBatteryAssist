@@ -324,6 +324,41 @@ def _markers(hass: HomeAssistant) -> _Markers:
     return hass.data[key]
 
 
+class SaveThrottle:
+    """Asks a store to save at most once per ``delay`` seconds.
+
+    Home Assistant's ``Store.async_delay_save`` moves the write on at every
+    call, so a store that changes more often than its delay (the activity log
+    every minute, the battery temperature learning every 15 s) was only
+    written when Home Assistant stopped. This asks once, and again only after
+    that write is due; the write takes the data as it is then. A stop still
+    writes the latest data (the store's final write)."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        store: Any,
+        data_func: Callable[[], Any],
+        delay: float,
+    ) -> None:
+        """Initialize."""
+        self._hass = hass
+        self._store = store
+        self._data_func = data_func
+        self._delay = delay
+        self._due: float | None = None
+
+    @callback
+    def __call__(self) -> None:
+        """The data changed: save it within ``delay``."""
+        now = self._hass.loop.time()
+        if self._due is not None and now < self._due:
+            return
+        # A second after the write, so the write has happened by then.
+        self._due = now + self._delay + 1
+        self._store.async_delay_save(self._data_func, self._delay)
+
+
 class HbaStore:
     """A store in its JSON file or in a database (see the module docstring)."""
 

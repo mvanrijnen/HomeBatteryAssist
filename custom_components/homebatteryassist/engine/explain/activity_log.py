@@ -33,6 +33,8 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
+from ..db_store import SaveThrottle
+
 STORAGE_VERSION = 1
 SAMPLE = timedelta(minutes=1)
 KEEP = timedelta(days=30)
@@ -84,6 +86,7 @@ class ActivityLog:
         self._store: Store[dict[str, Any]] = Store(
             hass, STORAGE_VERSION, f"homebatteryassist.{entry_id}.activity"
         )
+        self._save = SaveThrottle(hass, self._store, self._data, SAVE_DELAY)
         self.periods: list[dict[str, Any]] = []
         self._open: dict[str, dict[str, Any]] = {}  # battery id -> its period
         self._unsub: CALLBACK_TYPE | None = None
@@ -114,7 +117,7 @@ class ActivityLog:
             self.add(now, look, SAMPLE)
         cutoff = (now - KEEP).isoformat()
         self.periods = [p for p in self.periods if p["end"] >= cutoff]
-        self._store.async_delay_save(self._data, SAVE_DELAY)
+        self._save()
 
     def add(self, now: datetime, look: dict[str, Any], span: timedelta) -> None:
         """One look at one battery, standing for ``span`` up to ``now``."""

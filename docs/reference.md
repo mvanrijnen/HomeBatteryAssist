@@ -218,7 +218,7 @@ Whether each battery does what it is told (in this phase by its own integration,
 | Field | Explanation |
 |---|---|
 | **Check commands from** | A command to charge or discharge at least this power is checked: the battery should move at least half of it (or of its maximum power) in that direction. Default 100 W. |
-| **Tell after** | Why tells it (and notifies, with 'A battery does not follow its command') once it lasts this long, so starting up and ramping are no message. Full, almost full (from 5 % below the maximum), cold (below 5 °C, with a temperature sensor), empty, charging/discharging switched off and the battery's hysteresis are explained, not reported as a problem. Default 2 min. |
+| **Tell after** | Why tells it (and notifies, with 'A battery does not follow its command') once it lasts this long, so starting up and ramping are no message. Full, almost full (from 5 % below the maximum), cold (below 5 °C, with a temperature sensor), empty, charging/discharging switched off, the battery's hysteresis and a battery that gives a steady part of the power itself (at least 20 %, e.g. when cold) are explained, not reported as a problem. Default 2 min. |
 
 ### Export limit (PV inverters) {#settings-export-limit}
 

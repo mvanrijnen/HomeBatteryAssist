@@ -15,8 +15,12 @@ command).
 
 When it is explainable — full (charging), at its minimum (discharging),
 charging/discharging switched off on the battery, the battery's hysteresis
-after a full charge — *Why* says so with the reason, and it is not a problem:
-no alarm, no notification. Otherwise it is a problem: *Why*
+after a full charge, or it moves a steady part of it in the right direction
+(its own management limits the power, e.g. when it is cold: a Venus E v3
+charged at about 1600 W and 800 W instead of 2500 W on cold nights) — *Why*
+says so with the reason, and it is not a problem: no alarm, no notification,
+and the control loop keeps the battery (it does not hand it back to its own
+control, which discharged it meanwhile). Otherwise it is a problem: *Why*
 ``battery_not_following`` (notification kind ``battery_command``), the
 battery's problem sensor on, and ``_ended`` once it follows again.
 """
@@ -47,6 +51,11 @@ SOC_MARGIN = 1.0  # % from the limit that counts as full / empty
 # about 95 %), and below about 5 °C it limits the charge current: no problem.
 TAPER_MARGIN = 5.0
 COLD_C = 5.0
+# A battery that moves at least this share of what it is told (and at least
+# LIMITED_MIN_W), in the right direction, limits its power itself (its BMS:
+# cold, warm, cell voltages): explainable, not a problem.
+LIMITED_SHARE = 0.2
+LIMITED_MIN_W = 100.0
 
 
 def follows(command_w: float, actual_w: float, max_w: float = 0.0) -> bool:
@@ -59,13 +68,29 @@ def follows(command_w: float, actual_w: float, max_w: float = 0.0) -> bool:
     return moved >= FOLLOW_SHARE * target
 
 
+def limits_itself(
+    command_w: float, actual_w: float | None, config: BatteryConfig
+) -> bool:
+    """Whether the battery moves a part of its command (``LIMITED_SHARE`` of
+    it, or of its maximum power when that is lower) in the right direction:
+    it limits the power itself."""
+    if actual_w is None or command_w == 0:
+        return False
+    most = config.max_charge_w if command_w > 0 else config.max_discharge_w
+    target = min(abs(command_w), most) if most > 0 else abs(command_w)
+    moved = actual_w if command_w > 0 else -actual_w
+    return moved >= max(LIMITED_MIN_W, LIMITED_SHARE * target)
+
+
 def reason_for(
     command: BatteryCommand,
     soc: float | None,
     config: BatteryConfig,
     temperature_c: float | None = None,
+    actual_w: float | None = None,
 ) -> str | None:
-    """Why a battery cannot follow its command, if that is explainable."""
+    """Why a battery cannot follow its command, if that is explainable
+    (``actual_w``: its power now, to see whether it limits it itself)."""
     if command.power_w > 0:
         if not command.charge_allowed:
             return "charge_off"
@@ -77,11 +102,15 @@ def reason_for(
             return "tapering"
         if temperature_c is not None and temperature_c < COLD_C:
             return "cold"
+        if limits_itself(command.power_w, actual_w, config):
+            return "limited"
     elif command.power_w < 0:
         if not command.discharge_allowed:
             return "discharge_off"
         if soc is not None and soc <= config.min_soc + SOC_MARGIN:
             return "empty"
+        if limits_itself(command.power_w, actual_w, config):
+            return "limited"
     return None
 
 
@@ -171,7 +200,7 @@ class CommandCheck:
             self._since = None
             return self._maybe_end(when)
         assert command is not None and actual_w is not None
-        reason = reason_for(command, soc, config, temperature_c)
+        reason = reason_for(command, soc, config, temperature_c, actual_w)
         self._quiet = None
         if self.event is not None:
             self.event.seen = when

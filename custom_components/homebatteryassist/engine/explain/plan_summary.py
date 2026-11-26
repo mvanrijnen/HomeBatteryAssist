@@ -64,6 +64,7 @@ TEXT = {
         "short_charging": "Dit laden loont tot {charge}.",
         "short_using": "Leveren loont vanaf {use}.",
         "power_warm": "{name} is warm ({temperature}): laden met hooguit {charge} W in plaats van {max_charge} W.",
+        "power_limited": "{name} laadt nu met hooguit {charge} W in plaats van {max_charge} W (beperkt door de batterij zelf).",
         "power_warm_both": "{name} is warm ({temperature}): laden met hooguit {charge} W in plaats van {max_charge} W, ontladen met hooguit {discharge} W in plaats van {max_discharge} W.",
         "next": "{when}: {kind} tot {end} ({energy}): {reason}.",
         "plan_part": {
@@ -111,6 +112,7 @@ TEXT = {
         "short_charging": "This charge pays up to {charge}.",
         "short_using": "Supplying pays from {use}.",
         "power_warm": "{name} is warm ({temperature}): charging at {charge} W at most instead of {max_charge} W.",
+        "power_limited": "{name} charges at {charge} W at most now instead of {max_charge} W (limited by the battery itself).",
         "power_warm_both": "{name} is warm ({temperature}): charging at {charge} W at most instead of {max_charge} W, discharging at {discharge} W at most instead of {max_discharge} W.",
         "next": "{when}: {kind} until {end} ({energy}): {reason}.",
         "plan_part": {
@@ -132,10 +134,20 @@ ORDER = ("now", "power", "next", "plan", "sun", "cheapest")
 
 
 def _power_line(limits: Sequence[Mapping[str, Any]], lang: str) -> str | None:
-    """The batteries planned with less power for their temperature."""
+    """The batteries planned with less power for their temperature, or for
+    the charge power they limited themselves to lately."""
     text = TEXT[lang]
     parts = []
     for info in limits:
+        if info.get("reason") == "limited":
+            parts.append(
+                text["power_limited"].format(
+                    name=info["name"],
+                    charge=info["charge_w"],
+                    max_charge=info["max_charge_w"],
+                )
+            )
+            continue
         both = info["discharge_w"] < info["max_discharge_w"]
         temperature = f"{info['temperature_c']:.1f} °C"
         if lang == "nl":

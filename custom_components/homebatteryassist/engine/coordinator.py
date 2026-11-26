@@ -253,6 +253,8 @@ from .sources.weather import (
 from .units import state_to_celsius
 
 DERATE_END_C = 1.0  # °C below the limit: told as ended
+# A charge limit the battery set itself counts below this share of its maximum.
+LIMITED_PLAN = 0.9
 _LOGGER = logging.getLogger(__name__)
 
 PRICE_LOG_DAYS = timedelta(days=8)  # published prices kept for the chart
@@ -501,6 +503,9 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         # and those told so in *Why* (id -> name).
         self.power_limits: dict[str, dict[str, Any]] = {}
         self._derating_told: dict[str, str] = {}
+        # Battery id -> the charge power it limited itself to lately (W, or
+        # None): set to ``TemperatureLearning.charge_limit_w`` at setup.
+        self.charge_limit: Callable[[str], float | None] | None = None
         self.temperature = {
             "limit": float(opts.get(CONF_TEMP_LIMIT, 40)),
             "band": float(opts.get(CONF_TEMP_BAND, 10)),
@@ -1431,7 +1436,8 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
 
     def _derated(self, state: BatteryState) -> Any:
         """The battery with its power reduced when it is warm (temperature
-        sensor); other batteries as they are."""
+        sensor), and its charge power at most what it limited itself to
+        lately (``charge_limit``: e.g. cold); other batteries as they are."""
         sensor = state.config.temperature_sensor
         temp = self.hass.states.get(sensor) if sensor else None
         celsius = state_to_celsius(temp)  # °F sensors converted
@@ -1439,15 +1445,26 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             # No own sensor: the battery's driver may know the temperature.
             celsius = battery_telemetry(self.hass, state.config).temperature_c
         t = self.temperature
-        if celsius is None or celsius <= t["limit"] or t["band"] <= 0:
+        warm = 1.0
+        if celsius is not None and celsius > t["limit"] and t["band"] > 0:
+            warm = max(
+                t["min"], 1 - (celsius - t["limit"]) / t["band"] * (1 - t["min"])
+            )
+        limited = 1.0
+        charge_limit = getattr(self, "charge_limit", None)
+        most = state.config.max_charge_w
+        limit_w = charge_limit(state.config.id) if charge_limit else None
+        if limit_w is not None and most > 0 and limit_w < LIMITED_PLAN * most:
+            limited = max(limit_w / most, 0.05)
+        if warm >= 1 and limited >= 1:
             return state
-        factor = max(t["min"], 1 - (celsius - t["limit"]) / t["band"] * (1 - t["min"]))
         return SimpleNamespace(
             soc=state.soc,
             config=state.config,
-            charge_factor=factor,
-            discharge_factor=factor if t["discharge"] else 1.0,
+            charge_factor=min(warm, limited),
+            discharge_factor=warm if t["discharge"] else 1.0,
             temperature_c=celsius,
+            reason="limited" if limited < warm else "warm",
         )
 
     def _tell_derating(self, batteries: list[Any]) -> None:
@@ -1462,10 +1479,11 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             if charge >= 1 and discharge >= 1:
                 continue
             config = battery.config
+            celsius = getattr(battery, "temperature_c", None)
             limits[config.id] = {
                 "name": config.name,
-                "reason": "warm",
-                "temperature_c": round(battery.temperature_c, 1),
+                "reason": getattr(battery, "reason", "warm"),
+                "temperature_c": round(celsius, 1) if celsius is not None else None,
                 "charge_w": round(config.max_charge_w * charge),
                 "max_charge_w": round(config.max_charge_w),
                 "discharge_w": round(config.max_discharge_w * discharge),
@@ -1473,8 +1491,18 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
             }
         told = self._derating_told
         for battery_id, info in limits.items():
-            if battery_id not in told:
-                told[battery_id] = info["name"]
+            if told.get(battery_id) == info["reason"]:
+                continue
+            told[battery_id] = info["reason"]
+            if info["reason"] == "limited":
+                self._decisions.async_log(
+                    "battery",
+                    "battery_charge_limited",
+                    name=info["name"],
+                    charge=info["charge_w"],
+                    max_charge=info["max_charge_w"],
+                )
+            else:
                 key = (
                     "battery_warm_both"
                     if info["discharge_w"] < info["max_discharge_w"]
@@ -1494,6 +1522,15 @@ class ForecastCoordinator(DataUpdateCoordinator[ForecastData]):
         for battery in batteries:
             config = battery.config
             if config.id in limits or config.id not in told:
+                continue
+            if told[config.id] == "limited":
+                del told[config.id]
+                self._decisions.async_log(
+                    "battery",
+                    "battery_charge_limited_ended",
+                    name=config.name,
+                    power=round(config.max_charge_w),
+                )
                 continue
             celsius = getattr(battery, "temperature_c", None)
             if celsius is None:
