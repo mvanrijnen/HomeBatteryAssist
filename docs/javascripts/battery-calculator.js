@@ -35,9 +35,9 @@
         "Export price when discharging", "Export price at a solar surplus", "Cost of 1 kWh from the battery (grid)",
         "Cost of 1 kWh from the battery (solar)",
       ],
-      table: "Per buy price when charging",
-      tableInfo: "Charging from the grid at this all-in price (incl. VAT). The spread and the market price include your margin. The row closest to B1 is marked.",
-      cols: ["Buy price charging (all-in)", "Market price charging (excl. VAT)", "Cost of 1 kWh from the battery", "Spread needed (use yourself)", "Min. market price later (export, excl. VAT)"],
+      table: "Per market price when charging",
+      tableInfo: "Charging from the grid at this market price (excl. VAT, like B1). The spread and the market price later include your margin. The row of your B1 is marked.",
+      cols: ["Market price charging (excl. VAT)", "Buy price charging (all-in)", "Cost of 1 kWh from the battery", "Spread needed (use yourself)", "Min. market price later (export, excl. VAT)"],
       formulas: "Formulas",
       formulaText: `Buy (all-in)      P_in  = B × (1 + VAT) + o_in + EB
 Export (2027)     P_uit = B − o_uit
@@ -85,9 +85,9 @@ Pays when profit > margin wanted`,
         "Verkoopprijs bij ontladen", "Verkoopprijs bij zonneoverschot", "Kosten 1 kWh uit accu (netstroom)",
         "Kosten 1 kWh uit accu (zonnestroom)",
       ],
-      table: "Per inkoopprijs bij laden",
-      tableInfo: "Laden uit het net bij deze all-in prijs (incl. btw). De spread en de beursprijs zijn inclusief je gewenste marge. De regel die het dichtst bij B1 ligt, is gemarkeerd.",
-      cols: ["Inkoopprijs laden (all-in)", "Beursprijs laden (excl. btw)", "Kosten 1 kWh uit accu", "Spread nodig (zelf gebruiken)", "Min. beursprijs later (terugleveren, excl. btw)"],
+      table: "Per beursprijs bij laden",
+      tableInfo: "Laden uit het net bij deze beursprijs (excl. btw, zoals B1). De spread en de beursprijs later zijn inclusief je gewenste marge. De regel van jouw B1 is gemarkeerd.",
+      cols: ["Beursprijs laden (excl. btw)", "Inkoopprijs laden (all-in)", "Kosten 1 kWh uit accu", "Spread nodig (zelf gebruiken)", "Min. beursprijs later (terugleveren, excl. btw)"],
       formulas: "Formules",
       formulaText: `Inkoop (all-in)     P_in  = B × (1 + btw) + o_in + EB
 Verkoop (2027)      P_uit = B − o_uit
@@ -160,12 +160,16 @@ Loont als winst > gewenste marge`,
       const mid = [S, in1, in2, out2, outz, kNet, kZon];
       document.getElementById("bc-rows").innerHTML = mid.map((v, i) =>
         `<div class="bc-row"><span>${t.rows[i]}</span><b>${euro(v)}</b></div>`).join("");
-      const near = Math.round(in1 / 0.05);
+      // Market prices 0.00 to 1.00 by 5 cents, plus B1 itself (marked).
+      const prices = Array.from({ length: 21 }, (_, i) => Math.round(i * 5) / 100);
+      if (!prices.some((b) => Math.abs(b - p.b1) < 1e-9)) prices.push(p.b1);
+      prices.sort((x, y) => x - y);
       let rows = "";
-      for (let i = 0; i <= 20; i++) {
-        const a = i * 0.05;
+      for (const b of prices) {
+        const a = pin(b);
         const k = a / eta + 2 * S;
-        rows += `<tr class="${i === near ? "bc-hl" : ""}"><td>${euro2(a)}</td><td>${euro((a - p.oin - p.eb) / (1 + vat))}</td>
+        const mine = Math.abs(b - p.b1) < 1e-9;
+        rows += `<tr class="${mine ? "bc-hl" : ""}"><td>${mine ? "B1 " : ""}${euro2(b)}</td><td>${euro(a)}</td>
           <td>${euro(k)}</td><td>${euro(k - a + p.marge)}</td><td>${euro(k + p.ouit + p.marge)}</td></tr>`;
       }
       document.getElementById("bc-table").innerHTML =
