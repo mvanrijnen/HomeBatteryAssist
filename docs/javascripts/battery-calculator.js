@@ -5,7 +5,7 @@
   const TEXT = {
     en: {
       params: "Parameters",
-      market: "Market prices (EPEX, excl. VAT)",
+      market: "Bare EPEX prices (no VAT, fee or tax)",
       b1: ["When charging from the grid", "B1"],
       b2: ["When discharging", "B2: using or exporting"],
       bz: ["At a solar surplus", "Bz: when you would export your solar"],
@@ -55,7 +55,7 @@ Pays when profit > margin wanted`,
     },
     nl: {
       params: "Parameters",
-      market: "Beursprijzen (EPEX, excl. btw)",
+      market: "Kale EPEX-prijzen (zonder btw, opslag of belasting)",
       b1: ["Bij laden uit het net", "B1"],
       b2: ["Bij ontladen", "B2: gebruiken of terugleveren"],
       bz: ["Bij zonneoverschot", "Bz: als je zon zou terugleveren"],

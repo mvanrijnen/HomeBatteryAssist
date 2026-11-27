@@ -7,6 +7,8 @@ description: "Does a home battery pay on a dynamic energy contract without net m
 !!! warning "From 1 January 2027"
     For a **dynamic contract** (a price per hour or quarter) in the Netherlands, **without net metering** (*salderen*), which ends on 1 January 2027. With net metering (2026) the outcomes are not right.
 
+B1, B2 and Bz are **bare EPEX prices**: no VAT, supplier fee or energy tax. If your app or integration shows the market price including VAT, divide it by 1.21 first.
+
 Fill in your own prices, supplier fees and battery; the outcomes follow at once. All amounts are per kWh. Nothing is sent anywhere: the calculation runs in your browser.
 
 Three cases:

@@ -7,6 +7,8 @@ description: "Loont een thuisaccu bij een dynamisch energiecontract zonder salde
 !!! warning "Vanaf 1 januari 2027"
     Voor een **dynamisch contract** (prijs per uur of kwartier), **zonder salderen**, dat op 1 januari 2027 stopt. Met salderen (2026) kloppen de uitkomsten niet.
 
+B1, B2 en Bz zijn **kale EPEX-prijzen**: zonder btw, opslag of energiebelasting. Toont je app of integratie de beursprijs inclusief btw, deel die dan eerst door 1,21.
+
 Vul je eigen prijzen, vergoedingen van je leverancier en accu in; de uitkomsten rekenen meteen mee. Alle bedragen zijn per kWh. Er wordt niets verstuurd: de berekening draait in je browser.
 
 Drie scenario's:
