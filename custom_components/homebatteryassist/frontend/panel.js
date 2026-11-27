@@ -937,6 +937,8 @@ const STYLE = `
   .chart.wide { grid-column: 1 / -1; }
   .chart { position: relative; }
   .chart .xscroll { position: relative; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
+  .chart .xwrap { position: relative; }
+  .chart .yaxis { position: absolute; top: 0; pointer-events: none; background: var(--card-background-color, var(--ha-card-background, #1c1c1c)); }
   .chart svg { touch-action: pan-y; cursor: crosshair; }
   .chart .cursor { stroke: var(--secondary-text-color); stroke-width: 1; }
   .tip { position: absolute; top: 28px; pointer-events: none; z-index: 2; min-width: 120px;
@@ -1940,15 +1942,19 @@ class HomeBatteryAssistPanel extends HTMLElement {
     const leftColor = series.find((s) => s.axis !== "right" && s.axisColor)?.axisColor;
     const rightColor = series.find((s) => s.axis === "right" && s.axisColor)?.axisColor;
     const steps = 4;
+    // A scrolling chart keeps its value axes in view: drawn apart, fixed at
+    // the edges of the card, over the scrolling canvas.
+    let leftAxis = "", rightAxis = "";
     for (let i = 0; i <= steps; i++) {
       const v = yMin + ((yMax - yMin) / steps) * i;
       svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>`;
-      if (hasLeft) svg += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end"${leftColor ? ` style="fill:${leftColor}"` : ""}>${esc(yFmt ? yFmt(v) : this._axisPower(v))}</text>`;
+      if (hasLeft) leftAxis += `<text class="axis" x="${L - 6}" y="${y(v) + 4}" text-anchor="end"${leftColor ? ` style="fill:${leftColor}"` : ""}>${esc(yFmt ? yFmt(v) : this._axisPower(v))}</text>`;
       if (right) {
         const rv = right.min + ((right.max - right.min) / steps) * i;
-        svg += `<text class="axis" x="${W - R + 6}" y="${y(v) + 4}" text-anchor="start"${rightColor ? ` style="fill:${rightColor}"` : ""}>${esc(right.fmt ? right.fmt(rv) : rv.toFixed(2))}</text>`;
+        rightAxis += `<text class="axis" x="6" y="${y(v) + 4}" text-anchor="start"${rightColor ? ` style="fill:${rightColor}"` : ""}>${esc(right.fmt ? right.fmt(rv) : rv.toFixed(2))}</text>`;
       }
     }
+    if (!scroll) svg += leftAxis + (rightAxis ? `<g transform="translate(${W - R},0)">${rightAxis}</g>` : "");
     if (yMin < 0) svg += `<line class="zero" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>`;
     // On a phone at most 5 time labels (they would overlap at the larger text).
     const shown = phone && ticks.length > 5 ? ticks.filter((_, i) => i % Math.ceil(ticks.length / 5) === 0) : ticks;
@@ -2008,7 +2014,12 @@ class HomeBatteryAssistPanel extends HTMLElement {
       scroll ? ` style="width:${W}px;max-width:none"` : ""
     }>${svg}</svg>`;
     // The tooltip stays outside the scrolling box (never clipped or squeezed).
-    return `${scroll ? `<div class="xscroll" data-scroll="${id}">${chart}</div>` : chart}
+    const axes = scroll
+      ? `${leftAxis ? `<svg class="yaxis" style="left:0;width:${L}px;height:${H}px" viewBox="0 0 ${L} ${H}">${leftAxis}</svg>` : ""}${
+          rightAxis ? `<svg class="yaxis" style="right:0;width:${R}px;height:${H}px" viewBox="0 0 ${R} ${H}">${rightAxis}</svg>` : ""
+        }`
+      : "";
+    return `${scroll ? `<div class="xwrap"><div class="xscroll" data-scroll="${id}">${chart}</div>${axes}</div>` : chart}
       <div class="tip" data-tip="${id}" hidden></div>`;
   }
 
@@ -2537,7 +2548,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
       let fMax = this._flowEnd ?? now - FLOW_LEAD + span;
       fMax = Math.min(Math.max(fMax, dataMin + span), Math.max(dataMax, dataMin + span));
       const fMin = fMax - span;
-      const step = this._flowSpan <= 24 ? 3 : this._flowSpan <= 72 ? 12 : 24;
+      // Hours per card width: a scrolling chart (past FLOW_SCROLL_HOURS) shows
+      // that many per width, so it gets time labels as fine as a short span.
+      const perWidth = Math.min(this._flowSpan, FLOW_SCROLL_HOURS);
+      const step = perWidth <= 24 ? 3 : perWidth <= 36 ? 6 : perWidth <= 72 ? 12 : 24;
       const fTicks = this._hourTicks(fMin, fMax, step, lang);
       const margin = 2 * 3600e3;
       const inView = (points) => points.filter(([ts]) => ts >= fMin - margin && ts <= fMax + margin);
