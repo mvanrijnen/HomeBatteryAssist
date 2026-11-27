@@ -72,6 +72,7 @@ plugins:
             Screenshots: Screenshots
             Settings reference: Instellingen
             FAQ: Veelgestelde vragen
+            Battery calculator: Accu-rekenhulp
             Advanced: Gevorderd
             Modules: Modules
             Working with other integrations: Werken met andere integraties
@@ -91,6 +92,7 @@ nav:
       - Screenshots: screenshots.md
       - Settings reference: reference.md
       - FAQ: faq.md
+      - Battery calculator: battery-calculator.md
   - Advanced:
       - Modules: modules.md
       - Working with other integrations: integration.md
@@ -129,6 +131,7 @@ extra_css:
 
 extra_javascript:
   - javascripts/language.js
+  - javascripts/battery-calculator.js
 
 extra:
   social:
