@@ -201,6 +201,12 @@ const TEXT = {
     priceImportFc: "Price (forecast)",
     priceExport: "Export earns (published)",
     priceExportFc: "Export earns (forecast)",
+    spreadTitle: "Spread",
+    spreadHint: "Fill in two moments (per quarter of an hour), or click them in the chart (alternately A and B; click a line again to remove it).",
+    spreadImport: "Price B − A",
+    spreadExport: "Export B − price A",
+    spreadForecast: "(partly forecast)",
+    spreadNone: "no price known at A and B",
     priceInfo: "Solid: published prices; dashed: forecast (estimated). The price is what one kWh from the grid costs (all-in); export is what one kWh to the grid earns.",
     socTotal: "Total",
     bandFill: "Battery fill (background)",
@@ -567,6 +573,12 @@ const TEXT = {
     priceImportFc: "Prijs (voorspeld)",
     priceExport: "Teruglevering (gepubliceerd)",
     priceExportFc: "Teruglevering (voorspeld)",
+    spreadTitle: "Spread",
+    spreadHint: "Vul twee tijdstippen in (per kwartier), of klik ze aan in de grafiek (om en om A en B; klik nogmaals op een lijn om hem weg te halen).",
+    spreadImport: "Prijs B − A",
+    spreadExport: "Teruglevering B − prijs A",
+    spreadForecast: "(deels voorspeld)",
+    spreadNone: "geen prijs bekend op A en B",
     priceInfo: "Doorgetrokken: gepubliceerde prijzen; gestippeld: voorspelling (geschat). De prijs is wat een kWh van het net kost (all-in); teruglevering is wat een kWh naar het net oplevert.",
     socTotal: "Totaal",
     bandFill: "Batterijvulling (achtergrond)",
@@ -934,6 +946,13 @@ const STYLE = `
   .nav button.active { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: var(--primary-color); }
   .chart .zero { stroke: var(--secondary-text-color); stroke-width: 1; opacity: .6; }
   .chart .now { stroke: var(--secondary-text-color); stroke-width: 1; stroke-dasharray: 2 3; }
+  .chart .pin { stroke: var(--primary-color); stroke-width: 1.5; }
+  .chart .pin-label { fill: var(--primary-color); font-weight: 600; }
+  .spread-form { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 8px 0 4px; font-size: 13px; }
+  .spread-form label { display: flex; gap: 6px; align-items: center; }
+  .spread-form input { font: inherit; color: var(--primary-text-color); background: var(--secondary-background-color);
+    border: 1px solid var(--divider-color); border-radius: 6px; padding: 2px 6px; color-scheme: light dark; }
+  .spread-form .result b { font-variant-numeric: tabular-nums; }
   .chart.wide { grid-column: 1 / -1; }
   .chart { position: relative; }
   .chart .xscroll { position: relative; overflow-x: auto; overflow-y: hidden; padding-bottom: 4px; }
@@ -2007,9 +2026,19 @@ class HomeBatteryAssistPanel extends HTMLElement {
       svg += `<line class="now" x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H - B}"/>`;
       svg += `<text class="axis" x="${x(v) + 4}" y="${T + 10}">${esc(label)}</text>`;
     }
+    // Moments A and B of the spread (flow chart): solid lines.
+    const canPin = id === "forecast" && series.some((s) => s.group);
+    if (canPin) {
+      for (const key of ["a", "b"]) {
+        const at = this._spreadAB?.[key];
+        if (at == null || at < xMin || at > xMax) continue;
+        svg += `<line class="pin" x1="${x(at)}" x2="${x(at)}" y1="${T}" y2="${H - B}"/>`;
+        svg += `<text class="axis pin-label" x="${x(at) + 4}" y="${H - B - 4}">${key.toUpperCase()}</text>`;
+      }
+    }
     svg += `<g class="hover" style="display:none"><line class="cursor" y1="${T}" y2="${H - B}"/>
       ${series.map((s, i) => `<circle r="${phone ? 6 : 3.5}" data-i="${i}" style="fill:${s.color}"/>`).join("")}</g>`;
-    this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt, yFmt, right, fill: !!(fill && fill.points.length > 1) };
+    this._charts[id] = { series, xMin, xMax, yMin, yMax, W, H, L, R, T, B, gapLimit, xFmt, yFmt, right, canPin, fill: !!(fill && fill.points.length > 1) };
     const chart = `<svg data-chart="${id}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"${
       scroll ? ` style="width:${W}px;max-width:none"` : ""
     }>${svg}</svg>`;
@@ -2164,8 +2193,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
         : []),
       ...(d.prices?.length
         ? [
-            { points: steps(d.prices, (row) => row[2], 15), color: priceColor, label: t.priceImport, axis: "right", fmt: priceFmt, axisFmt },
-            { points: steps(d.prices, (row) => row[1], 15), color: priceColor, dashed: true, label: t.reviewPriceEst, axis: "right", fmt: priceFmt, axisFmt },
+            { points: steps(d.prices, (row) => row[2], 15), color: priceColor, label: t.priceImport, axis: "right", fmt: priceFmt, axisFmt, group: "import" },
+            { points: steps(d.prices, (row) => row[1], 15), color: priceColor, dashed: true, label: t.reviewPriceEst, axis: "right", fmt: priceFmt, axisFmt, group: "estimate" },
           ]
         : []),
     ];
@@ -2304,6 +2333,19 @@ class HomeBatteryAssistPanel extends HTMLElement {
         this._scrolls[id] = box.scrollLeft;
       });
     }
+    for (const input of this.shadowRoot.querySelectorAll("input[data-spread]")) {
+      const key = input.dataset.spread;
+      const take = () => {
+        const ab = (this._spreadAB = this._spreadAB || { a: null, b: null, next: "a" });
+        ab[key] = this._fromLocalValue(input.value);
+        ab.next = ab.a == null ? "a" : ab.b == null ? "b" : ab.next;
+      };
+      input.addEventListener("change", take);
+      input.addEventListener("blur", () => {
+        take();
+        setTimeout(() => this._scheduleRender());
+      });
+    }
     for (const svg of this.shadowRoot.querySelectorAll("svg[data-chart]")) {
       const id = svg.dataset.chart;
       const move = (event) => {
@@ -2313,6 +2355,26 @@ class HomeBatteryAssistPanel extends HTMLElement {
         this._showHover();
       };
       svg.addEventListener("mousemove", move);
+      // Click: moment A, then B, of the spread (on a line again: removed).
+      svg.addEventListener("click", (event) => {
+        const c = this._charts[id];
+        if (!c?.canPin) return;
+        const rect = svg.getBoundingClientRect();
+        const vx = ((event.clientX - rect.left) / rect.width) * c.W;
+        if (vx < c.L || vx > c.W - c.R) return;
+        const xv = c.xMin + ((vx - c.L) / (c.W - c.L - c.R)) * (c.xMax - c.xMin);
+        const ab = (this._spreadAB = this._spreadAB || { a: null, b: null, next: "a" });
+        const px = (v) => (Math.abs(v - xv) / (c.xMax - c.xMin)) * (c.W - c.L - c.R);
+        const hit = ["a", "b"].find((key) => ab[key] != null && px(ab[key]) < 6);
+        if (hit) {
+          ab[hit] = null;
+          ab.next = hit;
+        } else {
+          ab[ab.next] = this._priceStart(c, xv) ?? xv;
+          ab.next = ab.next === "a" ? "b" : "a";
+        }
+        this._scheduleRender();
+      });
       svg.addEventListener("touchstart", move, { passive: true });
       svg.addEventListener("touchmove", move, { passive: true });
       const leave = () => {
@@ -2334,6 +2396,60 @@ class HomeBatteryAssistPanel extends HTMLElement {
       if (best === null || Math.abs(p[0] - xv) < Math.abs(best[0] - xv)) best = p;
     }
     return best && (limit == null || Math.abs(best[0] - xv) <= limit) ? best : null;
+  }
+
+  // The start of the price step at a moment (a pin lands on a whole slot).
+  _priceStart(c, xv) {
+    for (const s of c.series.filter((s) => s.group)) {
+      // Steps are pairs [start, value], [end - 1, value].
+      for (let i = 0; i + 1 < s.points.length; i += 2) {
+        if (s.points[i][0] <= xv && xv <= s.points[i + 1][0]) return s.points[i][0];
+      }
+    }
+    return null;
+  }
+
+  // A moment as a datetime-local value in Home Assistant's zone, and back.
+  _localValue(ts) {
+    const z = this._zone(ts);
+    const two = (n) => String(n).padStart(2, "0");
+    return `${z.y}-${two(z.mo)}-${two(z.d)}T${two(z.h)}:${two(z.mi)}`;
+  }
+
+  _fromLocalValue(value) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value || "");
+    if (!m) return null;
+    const want = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    let guess = want;
+    for (let i = 0; i < 2; i++) {
+      const g = this._zone(guess);
+      guess -= Date.UTC(g.y, g.mo - 1, g.d, g.h, g.mi) - want;
+    }
+    return guess;
+  }
+
+  // Under the flow chart: moments A and B and the price spread between them
+  // (price rows [start, end, import, export, forecast]).
+  _spreadForm(t, rows, money) {
+    if (!rows.length) return "";
+    const ab = this._spreadAB || {};
+    const at = (ts) => (ts == null ? null : rows.find((r) => r[0] <= ts && ts < r[1]) || null);
+    const a = at(ab.a);
+    const b = at(ab.b);
+    let result = "";
+    if (ab.a != null && ab.b != null) {
+      const line = (label, from, to) => {
+        if (from == null || to == null) return "";
+        const diff = to - from;
+        return `<span class="result">${esc(label)}: <b>${esc((diff > 0 ? "+" : diff < 0 ? "−" : "") + money(Math.abs(diff)))}</b></span>`;
+      };
+      result = a && b ? line(t.spreadImport, a[2], b[2]) + line(t.spreadExport, a[2], b[3]) : `<span class="muted">${esc(t.spreadNone)}</span>`;
+      if (a && b && (a[4] || b[4])) result += `<span class="muted">${esc(t.spreadForecast)}</span>`;
+    }
+    // Per quarter of an hour (prices per 15 or 60 minutes).
+    const field = (key) =>
+      `<label>${key.toUpperCase()}<input type="datetime-local" step="900" data-spread="${key}" value="${ab[key] == null ? "" : esc(this._localValue(ab[key]))}"></label>`;
+    return `<div class="spread-form" title="${esc(t.spreadHint)}"><b>${esc(t.spreadTitle)}</b>${field("a")}${field("b")}${result}</div>`;
   }
 
   _showHover(hideId = null) {
@@ -2522,10 +2638,10 @@ class HomeBatteryAssistPanel extends HTMLElement {
     if (knownPrices.length && guessedPrices.length) guessedPrices.unshift(knownPrices.at(-1));
     const priceSeries = priceRows.length
       ? [
-          { points: priceSteps(knownPrices, (r) => r[2]), color: priceColor, label: t.priceImport, axis: "right", fmt: priceFmt },
-          { points: priceSteps(guessedPrices, (r) => r[2]), color: priceColor, dashed: true, label: t.priceImportFc, axis: "right", fmt: priceFmt },
-          { points: priceSteps(knownPrices, (r) => r[3]), color: exportColor, label: t.priceExport, axis: "right", fmt: priceFmt },
-          { points: priceSteps(guessedPrices, (r) => r[3]), color: exportColor, dashed: true, label: t.priceExportFc, axis: "right", fmt: priceFmt },
+          { points: priceSteps(knownPrices, (r) => r[2]), color: priceColor, label: t.priceImport, axis: "right", fmt: priceFmt, group: "import" },
+          { points: priceSteps(guessedPrices, (r) => r[2]), color: priceColor, dashed: true, label: t.priceImportFc, axis: "right", fmt: priceFmt, group: "import" },
+          { points: priceSteps(knownPrices, (r) => r[3]), color: exportColor, label: t.priceExport, axis: "right", fmt: priceFmt, group: "export" },
+          { points: priceSteps(guessedPrices, (r) => r[3]), color: exportColor, dashed: true, label: t.priceExportFc, axis: "right", fmt: priceFmt, group: "export" },
         ].map((series) => ({ ...series, axisFmt }))
       : [];
     if (!fc.length && !verified.length && !past.length) {
@@ -2811,7 +2927,7 @@ class HomeBatteryAssistPanel extends HTMLElement {
       <div class="chart wide"><div class="head"><h3>${esc(t.flowTitle)}</h3>${this._flowNav(t)}</div>${
         this._review
           ? this._reviewBlock(t, lang)
-          : `${forecastChart}${forecastLegend}
+          : `${forecastChart}${this._spreadForm(t, priceRows, (v) => `${axisFmt(v)}/kWh`)}${forecastLegend}
         <div class="muted">${esc(accText)}</div>
         ${h.battery_forecast?.length ? `<div class="muted">${esc(this._planText(h, t))} · ${esc(t.batteryNote)}</div>` : ""}`
       }</div>
@@ -3387,6 +3503,8 @@ class HomeBatteryAssistPanel extends HTMLElement {
     if (!this._hass) return;
     // A dialog is open: keep its fields (render again when it closes).
     if (this._dialogOpen) return;
+    // Typing a spread moment: render again when the field is left.
+    if (this.shadowRoot.activeElement?.dataset?.spread) return;
     const t = this._t;
     let body;
     if (this._error === "not_loaded") body = `<div class="card">${esc(t.notLoaded)}</div>`;
