@@ -17,6 +17,6 @@ Three cases:
 - **Grid charge → export:** charge from the grid and export later. Without net metering you pay VAT and energy tax on the purchase but only get the bare market price back, so it hardly ever pays.
 - **Store solar → use yourself:** your solar surplus costs you only the export price you miss; it nearly always pays.
 
-The wear is the purchase price ÷ cycles ÷ usable kWh ÷ 2 (every kWh goes in once and out once). Use a realistic number of cycles (about 3000), not the specification: at about 300 cycles a year a battery ages out before it cycles out.
+The wear per kWh is the purchase price ÷ (cycles × usable kWh). One cycle is one full charge plus discharge, so this is the wear of one kWh that goes in and comes out again; it is counted once. Use a realistic number of cycles (about 3000), not the specification: at about 300 cycles a year a battery ages out before it cycles out.
 
 <div id="battery-calculator"></div>

@@ -17,6 +17,6 @@ Drie scenario's:
 - **Net laden → terugleveren:** uit het net laden en later terugleveren. Zonder salderen betaal je btw en energiebelasting over de inkoop, maar krijg je alleen de kale beursprijs terug: dat loont bijna nooit.
 - **Zon opslaan → zelf gebruiken:** je zonne-overschot kost je alleen de gemiste terugleverprijs; dat loont bijna altijd.
 
-De slijtage is aanschafprijs ÷ cycli ÷ bruikbare kWh ÷ 2 (elke kWh gaat er één keer in en één keer uit). Reken met een realistisch aantal cycli (± 3000), niet de specificatie: bij ± 300 cycli per jaar is een accu eerder op door zijn leeftijd dan door het aantal cycli.
+De slijtage per kWh is aanschafprijs ÷ (cycli × bruikbare kWh). Eén cyclus is één keer volledig laden plus ontladen, dus dit is de slijtage van één kWh die erin gaat en er weer uit komt; die tel je één keer. Reken met een realistisch aantal cycli (± 3000), niet de specificatie: bij ± 300 cycli per jaar is een accu eerder op door zijn leeftijd dan door het aantal cycli.
 
 <div id="battery-calculator"></div>

@@ -31,7 +31,7 @@
       found: "Pays from B2 = {need} (excl. VAT). B2 is now {b2}: buy price all-in {allIn}, market spread with {from} {spread} (excl. VAT).",
       mid: "Intermediate results",
       rows: [
-        "Wear per kWh in or out (S)", "Buy price all-in when charging", "Buy price all-in when discharging",
+        "Wear per kWh through the battery (C)", "Buy price all-in when charging", "Buy price all-in when discharging",
         "Export price when discharging", "Export price at a solar surplus", "Cost of 1 kWh from the battery (grid)",
         "Cost of 1 kWh from the battery (solar)",
       ],
@@ -41,10 +41,11 @@
       formulas: "Formulas",
       formulaText: `Buy (all-in)      P_in  = B × (1 + VAT) + o_in + EB
 Export (2027)     P_uit = B − o_uit
-Wear              S     = purchase ÷ cycles ÷ kWh ÷ 2
+Wear              C     = purchase ÷ (cycles × kWh)
+                  (one cycle = one full charge + discharge)
 
-Cost of a kWh from the battery, grid   K_net = P_in(B1) ÷ η + 2·S
-Cost of a kWh from the battery, solar  K_zon = P_uit(Bz) ÷ η + 2·S
+Cost of a kWh from the battery, grid   K_net = P_in(B1) ÷ η + C
+Cost of a kWh from the battery, solar  K_zon = P_uit(Bz) ÷ η + C
 
 Grid charge → use yourself    profit = P_in(B2)  − K_net
 Grid charge → export          profit = P_uit(B2) − K_net
@@ -81,7 +82,7 @@ Pays when profit > margin wanted`,
       found: "Loont vanaf B2 = {need} (excl. btw). B2 staat nu op {b2}: inkoop all-in {allIn}, beursspread met {from} {spread} (excl. btw).",
       mid: "Tussenresultaten",
       rows: [
-        "Slijtage per kWh erin of eruit (S)", "Inkoopprijs all-in bij laden", "Inkoopprijs all-in bij ontladen",
+        "Slijtage per kWh door de accu (C)", "Inkoopprijs all-in bij laden", "Inkoopprijs all-in bij ontladen",
         "Verkoopprijs bij ontladen", "Verkoopprijs bij zonneoverschot", "Kosten 1 kWh uit accu (netstroom)",
         "Kosten 1 kWh uit accu (zonnestroom)",
       ],
@@ -91,10 +92,11 @@ Pays when profit > margin wanted`,
       formulas: "Formules",
       formulaText: `Inkoop (all-in)     P_in  = B × (1 + btw) + o_in + EB
 Verkoop (2027)      P_uit = B − o_uit
-Slijtage            S     = aanschaf ÷ cycli ÷ kWh ÷ 2
+Slijtage            C     = aanschaf ÷ (cycli × kWh)
+                    (één cyclus = één keer volledig laden + ontladen)
 
-Kosten kWh uit accu, netstroom    K_net = P_in(B1) ÷ η + 2·S
-Kosten kWh uit accu, zonnestroom  K_zon = P_uit(Bz) ÷ η + 2·S
+Kosten kWh uit accu, netstroom    K_net = P_in(B1) ÷ η + C
+Kosten kWh uit accu, zonnestroom  K_zon = P_uit(Bz) ÷ η + C
 
 Net laden → zelf gebruiken    winst = P_in(B2)  − K_net
 Net laden → terugleveren      winst = P_uit(B2) − K_net
@@ -142,13 +144,13 @@ Loont als winst > gewenste marge`,
     function calc() {
       const p = Object.fromEntries(IDS.map((id) => [id, num(id)]));
       const vat = p.btw / 100, eta = p.eta / 100 || 1;
-      const S = p.cycles && p.kwh ? p.cost / p.cycles / p.kwh / 2 : 0;
+      const C = p.cycles && p.kwh ? p.cost / (p.cycles * p.kwh) : 0;
       const pin = (b) => b * (1 + vat) + p.oin + p.eb;
       const puit = (b) => b - p.ouit;
       const in1 = pin(p.b1), in2 = pin(p.b2), out2 = puit(p.b2), outz = puit(p.bz);
-      const kNet = in1 / eta + 2 * S, kZon = outz / eta + 2 * S;
+      const kNet = in1 / eta + C, kZon = outz / eta + C;
       const profits = [in2 - kNet, out2 - kNet, in2 - kZon];
-      const needs = [in1 * (1 / eta - 1) + 2 * S + p.marge, kNet + p.ouit + p.marge, kZon + p.marge];
+      const needs = [in1 * (1 / eta - 1) + C + p.marge, kNet + p.ouit + p.marge, kZon + p.marge];
       document.getElementById("bc-cards").innerHTML = profits.map((v, i) =>
         `<div class="bc-card"><strong>${t.scen[i]}</strong><span class="bc-value">${euro(v)}</span>
           <span class="bc-pill ${v > p.marge ? "bc-yes" : "bc-no"}">${v > p.marge ? t.pays : t.paysNot}</span>
@@ -157,7 +159,7 @@ Loont als winst > gewenste marge`,
           ${told && told.i === i ? `<span class="bc-told">${told.text}</span>` : ""}</div>`).join("");
       const toB = (allIn) => (allIn - p.oin - p.eb) / (1 + vat);
       breakEven = [toB(kNet + p.marge), kNet + p.ouit + p.marge, toB(kZon + p.marge)];
-      const mid = [S, in1, in2, out2, outz, kNet, kZon];
+      const mid = [C, in1, in2, out2, outz, kNet, kZon];
       document.getElementById("bc-rows").innerHTML = mid.map((v, i) =>
         `<div class="bc-row"><span>${t.rows[i]}</span><b>${euro(v)}</b></div>`).join("");
       // Market prices 0.00 to 1.00 by 5 cents, plus B1 itself (marked).
@@ -167,7 +169,7 @@ Loont als winst > gewenste marge`,
       let rows = "";
       for (const b of prices) {
         const a = pin(b);
-        const k = a / eta + 2 * S;
+        const k = a / eta + C;
         const mine = Math.abs(b - p.b1) < 1e-9;
         rows += `<tr class="${mine ? "bc-hl" : ""}"><td>${mine ? "B1 " : ""}${euro2(b)}</td><td>${euro(a)}</td>
           <td>${euro(k)}</td><td>${euro(k - a + p.marge)}</td><td>${euro(k + p.ouit + p.marge)}</td></tr>`;
