@@ -193,7 +193,9 @@ class ControlLoop(VirtualBatterySimulator):
         if self.holding or fixed_charge:
             self._plan_pd.reset()
             self._plan_command = None
-            return super()._plan_live(planned_w, flow, slot, hours, expected_w)
+            return self._unlimited(
+                super()._plan_live(planned_w, flow, slot, hours, expected_w)
+            )
         if planned_w < 0:
             ideal = min(nom_balance(flow, min(slot.grid_w, 0.0)), 0.0)
             low, high = (-math.inf if covers(slot) else planned_w), 0.0
@@ -207,7 +209,7 @@ class ControlLoop(VirtualBatterySimulator):
             if ideal <= grid_part:
                 self._plan_pd.reset()
                 self._plan_command = grid_part
-                return grid_part
+                return self._unlimited(grid_part)
             stores_all = planned_w >= max(expected_w or 0.0, 0.0) - STORES_ALL_W
             low, high = grid_part, (math.inf if stores_all else planned_w)
         states = self._batteries.states
@@ -218,6 +220,28 @@ class ControlLoop(VirtualBatterySimulator):
         new = min(max(new, low), high)
         self._plan_command = new
         return new
+
+    def _unlimited(self, charge_w: float) -> float:
+        """A planned grid charge as asked of the batteries: a battery that
+        limits its charge power itself (``power_limits`` reason ``limited``,
+        e.g. cold) was planned at that limit, but is asked in proportion up
+        to its full power. The limit is for the plans (how long, how much);
+        the battery takes what it can, so it shows when the limit is over
+        (asked only the limit, it followed it and the limit stayed)."""
+        if charge_w <= 0:
+            return charge_w
+        limits = getattr(self._forecast, "power_limits", None) or {}
+        planned = full = 0.0
+        for config in self.virtual:
+            full += config.max_charge_w
+            info = limits.get(config.id)
+            if info and info.get("reason") == "limited":
+                planned += min(float(info["charge_w"]), config.max_charge_w)
+            else:
+                planned += config.max_charge_w
+        if planned <= 0 or planned >= full:
+            return charge_w
+        return min(charge_w * full / planned, full)
 
     @property
     def mode(self) -> str:

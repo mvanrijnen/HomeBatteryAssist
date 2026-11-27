@@ -17,12 +17,17 @@ the command check (``CommandMonitor``, every 15 s):
   temperature follows the outdoor temperature (at rest) and how much it warms
   up while in use.
 
-- **The charge limit now**: the lowest power a battery charged at while it
-  was limited (as above), over the last ``LIMIT_KEEP``; forgotten once it
-  charges clearly above it at full command again. The plans charge it at no
-  more than that (``ForecastCoordinator._derated``): on a cold night a Venus
-  E v3 charged at about 800 W instead of 2500 W, and a plan counting on
-  2500 W filled it too late. The battery's own temperature reading does not
+- **The charge limit now**: what a battery charged at while it was limited
+  (as above): the median of the limited looks of the last ``LIMIT_WINDOW``,
+  once there are ``LIMIT_LOOKS`` of them (a single dip of the battery's power
+  is no limit: one look of 168 W set it for a night before), kept
+  ``LIMIT_KEEP``; forgotten once it charges at a command above it. The plans
+  count on no more than that (``ForecastCoordinator._derated``): on a cold
+  night a Venus E v3 charged at about 800 W instead of 2500 W, and a plan
+  counting on 2500 W filled it too late. The control loop still asks it the
+  full power for a planned grid charge (``ControlLoop._unlimited``): the
+  limit is for the plans, the battery takes what it can, and so it shows
+  when the limit is over. The battery's own temperature reading does not
   tell it well (it charged at 1600 W and at 800 W at the same reading), so
   the plans use what it did, not the bands.
 
@@ -58,6 +63,8 @@ MAX_GAP = timedelta(seconds=60)  # a longer gap between looks counts as this
 KEEP = timedelta(days=60)  # hours kept
 SAVE_DELAY = 600  # seconds
 LIMIT_KEEP = timedelta(hours=24)  # a charge limit seen is used this long
+LIMIT_WINDOW = timedelta(minutes=5)  # the limited looks a limit is the median of
+LIMIT_LOOKS = 8  # at least this many (2 minutes of looks): no single dip
 
 
 def band_of(celsius: float) -> int:
@@ -86,9 +93,10 @@ class BatteryTemperature:
     )
     # {"start", "temp_c", "outdoor_c", "kwh"} per finished hour
     hours: list[dict[str, Any]] = field(default_factory=list)
-    # The lowest charge power while limited (W) and when last seen limited.
+    # The charge power while limited (W) and when last seen limited.
     limit_w: float | None = None
     limit_at: datetime | None = None
+    _limited: list[tuple[datetime, float]] = field(default_factory=list)
     _hour: _Hour | None = None
     _last: datetime | None = None
     _last_command: float | None = None
@@ -156,15 +164,28 @@ class BatteryTemperature:
     def _charge_limit(
         self, when: datetime, given: float, asked: float, limited: bool
     ) -> None:
-        """Remember the lowest charge power while limited (``LIMIT_KEEP``);
-        forget it once the battery charges at the full command above it."""
+        """Remember the charge power while limited: the median of the
+        limited looks of the last ``LIMIT_WINDOW`` (at least ``LIMIT_LOOKS``),
+        for ``LIMIT_KEEP``; forget it once it charges at a command above it."""
         if limited and given >= MIN_ASK_W:
-            old = self.limit_at is None or when - self.limit_at > LIMIT_KEEP
-            if old or self.limit_w is None or given < self.limit_w:
-                self.limit_w = round(given, 1)
-            self.limit_at = when
-        elif not limited and self.limit_w is not None and asked > self.limit_w:
-            self.limit_w = self.limit_at = None
+            self._limited = [
+                (at, w) for at, w in self._limited if when - at <= LIMIT_WINDOW
+            ]
+            self._limited.append((when, given))
+            if len(self._limited) >= LIMIT_LOOKS:
+                powers = sorted(w for _, w in self._limited)
+                middle = len(powers) // 2
+                median = (
+                    powers[middle]
+                    if len(powers) % 2
+                    else (powers[middle - 1] + powers[middle]) / 2
+                )
+                self.limit_w = round(median, 1)
+                self.limit_at = when
+        elif not limited:
+            self._limited = []
+            if self.limit_w is not None and asked > self.limit_w:
+                self.limit_w = self.limit_at = None
 
     def charge_limit_w(self, now: datetime) -> float | None:
         """The charge power it was limited to lately (None: not limited)."""
